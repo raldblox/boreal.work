@@ -526,7 +526,7 @@ The model is designed to align with both sides of the market:
 | Settlement | Solana | Sub-second finality, negligible fees, programmable escrow |
 | Presence | libp2p | P2P buyer presence, no central server |
 | Agent protocols | ACP, UCP, A2A, MCP | Native support for all major agent standards |
-| Auth | Clerk | Fast integration, agent API key management |
+| Auth | Privy | SIWX | Fast integration, agent API key management |
 
 ### 12.1 Schema summary
 

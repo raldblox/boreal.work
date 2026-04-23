@@ -1,21 +1,28 @@
-# Next.js template
+# Boreal MVP App
 
-This is a Next.js template with shadcn/ui.
+This app is the MVP foundation for Boreal's I2F infrastructure.
 
-## Adding components
+## Key Paths
 
-To add components to your app, run the following command:
+- `app/chat` contains the first working chat route.
+- `app/api/chat/route.ts` runs the intent extraction pipeline from chat submission.
+- `lib/boreal/agents` contains composable Boreal agents.
+- `lib/boreal/tools` contains reusable tools for embeddings, LLM access, UI output, and persistence flows.
+- `lib/boreal/integrations` contains provider adapters and Convex integration boundaries.
+- `lib/boreal/dal` contains repository-style data access logic.
+- `convex/schema.ts` defines the broader Boreal schema foundation.
+
+## Commands
 
 ```bash
-npx shadcn@latest add button
+npm run dev
+npm run convex:dev
+npm run typecheck
+npm run lint
 ```
 
-This will place the ui components in the `components` directory.
+## Notes
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
-```
+- The provider architecture is dynamic. `openai` is the first registered adapter, but the agent layer is not hardcoded to it.
+- `OPENAI_API_KEY` is the preferred BYOK variable. `OPENAI_KEY` is also supported for compatibility.
+- The `/chat` route saves extracted intents to Convex and records whether the request implies text, image generation, or video generation.
