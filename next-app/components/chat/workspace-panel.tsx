@@ -99,7 +99,7 @@ export function WorkspacePanel({
   }
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden border border-border">
+    <aside className="flex h-full flex-col overflow-hidden border border-border">
       <Tabs
         className="min-h-0 flex-1 gap-0"
         onValueChange={(value) => onTabChange(value as WorkspaceTab)}
@@ -381,7 +381,7 @@ function VideoWorkspace({
               variant="outline"
             >
               <RefreshCwIcon className={isRefreshingVideo ? "animate-spin" : ""} />
-              Refresh
+
             </Button>
             <Button
               disabled={!isCompleted}
@@ -391,7 +391,7 @@ function VideoWorkspace({
               variant="outline"
             >
               <DownloadIcon />
-              Download
+
             </Button>
           </div>
         </div>
@@ -404,8 +404,8 @@ function VideoWorkspace({
           <Progress className="h-2" value={artifact.progress} />
         </div>
 
-        <div className="mt-4 grid gap-3 text-xs text-muted-foreground">
-          <p>Job: {artifact.jobId}</p>
+        <div className="mt-4 grid gap-3 text-xs text-muted-foreground overflow-x-scroll">
+          <p className="">Job: {artifact.jobId.slice(0, 20)}...{artifact.jobId.slice(-10)}</p>
           <p>Model: {artifact.model}</p>
           <p>Size: {artifact.size}</p>
           <p>Duration: {artifact.seconds}s</p>
@@ -511,18 +511,18 @@ function RequestDetailPanel({
   const videoArtifact =
     detail.artifact?.artifactKind === "video" && artifactMetadata
       ? {
-          kind: "video" as const,
-          errorMessage: readString(artifactMetadata.errorMessage),
-          expiresAt: readNumber(artifactMetadata.expiresAt),
-          jobId: readString(artifactMetadata.jobId) ?? detail.artifact.remoteId ?? "",
-          model: readString(artifactMetadata.model) ?? "sora-2",
-          progress: readNumber(artifactMetadata.progress) ?? 0,
-          prompt: readString(artifactMetadata.prompt) ?? detail.intent.summary,
-          seconds: readString(artifactMetadata.seconds) ?? "8",
-          size: readString(artifactMetadata.size) ?? "1280x720",
-          status: normalizeVideoStatus(detail.artifact.status, artifactMetadata.status),
-          title: detail.artifact.title,
-        }
+        kind: "video" as const,
+        errorMessage: readString(artifactMetadata.errorMessage),
+        expiresAt: readNumber(artifactMetadata.expiresAt),
+        jobId: readString(artifactMetadata.jobId) ?? detail.artifact.remoteId ?? "",
+        model: readString(artifactMetadata.model) ?? "sora-2",
+        progress: readNumber(artifactMetadata.progress) ?? 0,
+        prompt: readString(artifactMetadata.prompt) ?? detail.intent.summary,
+        seconds: readString(artifactMetadata.seconds) ?? "8",
+        size: readString(artifactMetadata.size) ?? "1280x720",
+        status: normalizeVideoStatus(detail.artifact.status, artifactMetadata.status),
+        title: detail.artifact.title,
+      }
       : null;
 
   return (

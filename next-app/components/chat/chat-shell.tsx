@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { makeFunctionReference } from "convex/server";
 import { useMutation, useQuery } from "convex/react";
+import { usePrivy } from "@privy-io/react-auth";
 import {
   BotIcon,
   LoaderIcon,
@@ -10,6 +11,7 @@ import {
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   SparklesIcon,
+  WalletIcon,
 } from "lucide-react";
 
 import {
@@ -162,6 +164,8 @@ export function ChatShell() {
   const [sessionIntentIds, setSessionIntentIds] = useState<string[]>([]);
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false);
 
+  const { ready: privyReady, authenticated: privyAuthenticated, login } = usePrivy();
+
   const sidebarIntents =
     (useQuery(sidebarIntentQuery, {
       limit: 24,
@@ -209,41 +213,11 @@ export function ChatShell() {
 
   const effectiveSelectedCatalogItem =
     selectedCatalogItem ??
-    (effectiveWorkspace.kind === "catalog" ? effectiveWorkspace.items[0] ?? null : null) ??
+    (isCatalogWorkspace(effectiveWorkspace) ? effectiveWorkspace.items[0] ?? null : null) ??
     catalogItems[0] ??
     null;
 
-  useEffect(() => {
-    const artifact = requestDetail?.artifact;
-    const metadata = artifact?.metadata;
-
-    if (!artifact || artifact.artifactKind !== "video") {
-      return;
-    }
-
-    const currentStatus =
-      typeof metadata?.status === "string" ? metadata.status : artifact.status;
-
-    if (currentStatus !== "queued" && currentStatus !== "in_progress") {
-      return;
-    }
-
-    const jobId =
-      (typeof metadata?.jobId === "string" ? metadata.jobId : null) ??
-      artifact.remoteId;
-
-    if (!jobId) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      void refreshVideoJob(jobId, artifact._id);
-    }, 12000);
-
-    return () => window.clearInterval(timer);
-  }, [requestDetail?.artifact?._id, requestDetail?.artifact?.metadata, requestDetail?.artifact?.remoteId, requestDetail?.artifact?.status]);
-
-  const refreshVideoJob = useCallback(async (jobId?: string | null, artifactId?: string | null) => {
+  async function refreshVideoJob(jobId?: string | null, artifactId?: string | null) {
     if (!jobId || !artifactId) {
       return;
     }
@@ -298,7 +272,92 @@ export function ChatShell() {
     } finally {
       setIsRefreshingVideo(false);
     }
-  }, [updateArtifact]);
+  }
+
+  useEffect(() => {
+    const artifact = requestDetail?.artifact;
+    const metadata = artifact?.metadata;
+
+    if (!artifact || artifact.artifactKind !== "video") {
+      return;
+    }
+
+    const currentStatus =
+      typeof metadata?.status === "string" ? metadata.status : artifact.status;
+
+    if (currentStatus !== "queued" && currentStatus !== "in_progress") {
+      return;
+    }
+
+    const jobId =
+      (typeof metadata?.jobId === "string" ? metadata.jobId : null) ??
+      artifact.remoteId;
+
+    if (!jobId) {
+      return;
+    }
+
+    const refreshCurrentVideo = async () => {
+      setIsRefreshingVideo(true);
+      setErrorMessage(null);
+
+      try {
+        const response = await fetch(`/api/video-jobs/${jobId}`, {
+          method: "GET",
+        });
+        const payload = (await response.json()) as
+          | {
+              completedAt?: number;
+              createdAt?: number;
+              errorMessage?: string;
+              expiresAt?: number;
+              jobId: string;
+              mediaType?: string;
+              model: string;
+              progress: number;
+              prompt?: string;
+              seconds: string;
+              size: string;
+              status: "queued" | "in_progress" | "completed" | "failed";
+            }
+          | { error?: string };
+
+        if (!response.ok || !("jobId" in payload)) {
+          throw new Error(
+            "error" in payload && payload.error
+              ? payload.error
+              : "Failed to refresh video job.",
+          );
+        }
+
+        await updateArtifact({
+          artifactId: artifact._id,
+          mediaType: payload.mediaType ?? "video/mp4",
+          metadataJson: JSON.stringify({
+            ...payload,
+            downloadUrl:
+              payload.status === "completed"
+                ? `/api/video-jobs/${payload.jobId}/content`
+                : undefined,
+          }),
+          remoteId: payload.jobId,
+          status: payload.status === "completed" ? "ready" : payload.status,
+        });
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to refresh video job.",
+        );
+      } finally {
+        setIsRefreshingVideo(false);
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void refreshCurrentVideo();
+    }, 12000);
+
+    return () => window.clearInterval(timer);
+  }, [requestDetail?.artifact, updateArtifact]);
 
   async function submitMessage(message: string) {
     const trimmed = message.trim();
@@ -497,7 +556,7 @@ export function ChatShell() {
                 </div>
               </div>
             ) : (
-              <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+              <div className="mx-auto flex w-full flex-col gap-6 px-4 py-6">
                 {displayedMessages.map((message) => (
                   <Message from={message.role} key={message.id}>
                     <MessageContent>
@@ -537,7 +596,7 @@ export function ChatShell() {
               <PromptInputFooter>
                 <PromptInputTools>
                   <Select onValueChange={setSelectedProvider} value={selectedProvider}>
-                    <SelectTrigger className="min-w-44" size="sm">
+                    <SelectTrigger className="min-w-24" size="sm">
                       <SelectValue placeholder="Provider" />
                     </SelectTrigger>
                     <SelectContent>
@@ -575,6 +634,19 @@ export function ChatShell() {
                   >
                     <SparklesIcon />
                     Workspace
+                  </Button>
+                  <Button
+                    onClick={login}
+                    size="sm"
+                    type="button"
+                    variant={privyAuthenticated ? "secondary" : "ghost"}
+                  >
+                    <WalletIcon />
+                    {privyReady
+                      ? privyAuthenticated
+                        ? "Connected"
+                        : "Connect Wallet"
+                      : "Wallet"}
                   </Button>
                 </PromptInputTools>
                 <PromptInputSubmit

@@ -3,6 +3,8 @@ import { Geist_Mono, Inter } from "next/font/google"
 import "./globals.css"
 import { ConvexClientProvider } from "@/app/convex-client-provider"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AuthProvider } from "@/components/auth-provider"
+import { PrivyProvider } from "@/components/privy-provider"
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -24,13 +26,17 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
     >
-      <body>
+<body>
         <ThemeProvider>
-          <ConvexClientProvider>
-            <TooltipProvider>
-              {children}
-            </TooltipProvider>
-          </ConvexClientProvider>
+          <PrivyProvider>
+            <AuthProvider>
+              <ConvexClientProvider>
+                <TooltipProvider>
+                  {children}
+                </TooltipProvider>
+              </ConvexClientProvider>
+            </AuthProvider>
+          </PrivyProvider>
         </ThemeProvider>
       </body>
     </html>

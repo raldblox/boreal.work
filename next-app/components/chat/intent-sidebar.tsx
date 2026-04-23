@@ -1,9 +1,17 @@
 "use client";
 
-import { LoaderIcon, XIcon } from "lucide-react";
+import { useState } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
+import { LoaderIcon, LogInIcon, LogOutIcon, UserIcon, XIcon } from "lucide-react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs";
 
 type IntentSidebarProps = {
@@ -21,6 +29,30 @@ export function IntentSidebar({
   onSelect,
   selectedIntentId,
 }: IntentSidebarProps) {
+  const { data: session, status } = useSession();
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleSignIn() {
+    setIsLoading(true);
+    try {
+      await signIn("twitter", { callbackUrl: "/chat" });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setIsLoading(true);
+    try {
+      await signOut({ callbackUrl: "/" });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const user = session?.user;
+  const isAuthenticated = status === "authenticated";
+
   return (
     <aside className="flex min-h-0 flex-col overflow-hidden border border-border">
       <div className="border-b border-border px-4 py-4">
@@ -88,6 +120,56 @@ export function IntentSidebar({
           )}
         </div>
       </ScrollArea>
+
+      <Separator />
+
+      <div className="p-4">
+        {isAuthenticated && user ? (
+          <div className="flex items-center gap-3">
+            <Avatar size="sm">
+              {user.image ? (
+                <AvatarImage alt={user.name ?? "User"} src={user.image} />
+              ) : null}
+              <AvatarFallback>
+                <UserIcon />
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{user.name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {user.email ?? "𝕏/Twitter"}
+              </p>
+            </div>
+            <Button
+              disabled={isLoading}
+              onClick={handleSignOut}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              {isLoading ? (
+                <LoaderIcon className="animate-spin" />
+              ) : (
+                <LogOutIcon />
+              )}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            className="w-full"
+            disabled={isLoading}
+            onClick={handleSignIn}
+            type="button"
+          >
+            {isLoading ? (
+              <LoaderIcon className="mr-2 animate-spin" />
+            ) : (
+              <LogInIcon className="mr-2" />
+            )}
+            Sign in with 𝕏
+          </Button>
+        )}
+      </div>
     </aside>
   );
 }

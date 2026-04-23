@@ -6,9 +6,9 @@ const DEFAULT_PROVIDER = "openai" satisfies SupportedProviderKey;
 const DEFAULT_INTENT_MODEL = "gpt-4.1-mini";
 const DEFAULT_ASSISTANT_MODEL = "gpt-4.1-mini";
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_IMAGE_MODEL = "gpt-image-2";
+const DEFAULT_IMAGE_MODEL = "dall-e-3";
 const DEFAULT_SPEECH_MODEL = "gpt-4o-mini-tts";
-const DEFAULT_VIDEO_MODEL = "sora-2";
+const DEFAULT_VIDEO_MODEL = "sora-2-pro";
 
 export type BorealRuntimeConfig = {
   provider: SupportedProviderKey;
