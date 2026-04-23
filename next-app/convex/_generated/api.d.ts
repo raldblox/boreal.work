@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as artifacts from "../artifacts.js";
 import type * as chats from "../chats.js";
 import type * as intents from "../intents.js";
+import type * as supplies from "../supplies.js";
 import type * as validators from "../validators.js";
 
 import type {
@@ -19,8 +21,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  artifacts: typeof artifacts;
   chats: typeof chats;
   intents: typeof intents;
+  supplies: typeof supplies;
   validators: typeof validators;
 }>;
 

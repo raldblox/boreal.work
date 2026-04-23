@@ -3,6 +3,8 @@ import { v } from "convex/values";
 
 import {
   actorKindValidator,
+  artifactKindValidator,
+  artifactStatusValidator,
   deliveryTypeValidator,
   fulfillmentStatusValidator,
   generationSignalsValidator,
@@ -13,6 +15,7 @@ import {
   resolutionTierValidator,
   routingValidator,
   supplyStatusValidator,
+  toolRouteValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -55,12 +58,14 @@ export default defineSchema({
   intents: defineTable({
     acceptsProposals: v.boolean(),
     actorKind: actorKindValidator,
+    assetPrompt: v.optional(v.string()),
     body: v.string(),
     budgetFixed: v.optional(v.number()),
     budgetMax: v.optional(v.number()),
     budgetMin: v.optional(v.number()),
     budgetType: v.optional(v.union(v.literal("fixed"), v.literal("range"), v.literal("open"))),
     capabilityTags: v.array(v.string()),
+    catalogQuery: v.optional(v.string()),
     category: v.string(),
     confidence: v.number(),
     conversationId: v.optional(v.string()),
@@ -76,17 +81,30 @@ export default defineSchema({
     intentType: intentTypeValidator,
     keywords: v.array(v.string()),
     matchAttempts: v.number(),
+    missingDetails: v.optional(v.array(v.string())),
+    needsClarification: v.optional(v.boolean()),
     ownerUserId: v.optional(v.string()),
+    persistence: v.optional(v.object({
+      isUnresolved: v.boolean(),
+      reason: v.string(),
+      shouldPersist: v.boolean(),
+    })),
     provider: v.string(),
+    responseInstructions: v.optional(v.string()),
     requestedOutputTypes: v.array(requestedOutputTypeValidator),
     resolutionTier: resolutionTierValidator,
+    routeTarget: v.optional(toolRouteValidator),
     routing: routingValidator,
+    shouldSearchCatalog: v.optional(v.boolean()),
+    speechText: v.optional(v.string()),
     status: intentStatusValidator,
+    suggestedReplies: v.optional(v.array(v.string())),
     summary: v.string(),
     title: v.string(),
     updatedAt: v.number(),
     urgencyScore: v.number(),
     visibility: v.union(v.literal("private"), v.literal("public")),
+    voice: v.optional(v.string()),
   })
     .index("by_intentKey", ["intentKey"])
     .index("by_conversationId", ["conversationId"])
@@ -141,12 +159,30 @@ export default defineSchema({
     title: v.string(),
     trustScore: v.number(),
   })
+    .index("by_title", ["title"])
     .index("by_category", ["category"])
     .index("by_status_and_trustScore", ["status", "trustScore"])
     .searchIndex("search_description", {
       searchField: "description",
       filterFields: ["category", "status"],
     }),
+
+  artifacts: defineTable({
+    artifactKind: artifactKindValidator,
+    conversationId: v.string(),
+    createdAt: v.number(),
+    intentKey: v.optional(v.string()),
+    mediaType: v.optional(v.string()),
+    metadataJson: v.optional(v.string()),
+    provider: v.string(),
+    remoteId: v.optional(v.string()),
+    status: artifactStatusValidator,
+    subtitle: v.string(),
+    title: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_conversationId_and_createdAt", ["conversationId", "createdAt"])
+    .index("by_intentKey_and_createdAt", ["intentKey", "createdAt"]),
 
   proposals: defineTable({
     collectiveMembers: v.optional(v.array(v.string())),
@@ -211,4 +247,3 @@ export default defineSchema({
     .index("by_intentKey_and_scoreTotal", ["intentKey", "scoreTotal"])
     .index("by_supplyId_and_scoreTotal", ["supplyId", "scoreTotal"]),
 });
-

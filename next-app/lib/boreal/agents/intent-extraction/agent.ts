@@ -1,49 +1,49 @@
-import "server-only";
+import "server-only"
 
-import { getBorealRuntimeConfig } from "@/lib/boreal/config";
-import { saveIntentPipelineRecord } from "@/lib/boreal/dal/intent-repository";
-import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
-import type { ComposableAgent } from "@/lib/boreal/agents/base";
+import { getBorealRuntimeConfig } from "@/lib/boreal/config"
+import { saveIntentPipelineRecord } from "@/lib/boreal/dal/intent-repository"
+import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry"
+import type { ComposableAgent } from "@/lib/boreal/agents/base"
 import type {
   IntentExtraction,
   PersistedIntent,
-} from "@/lib/boreal/schemas/intent";
-import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent";
-import { extractStructuredIntent } from "@/lib/boreal/tools/llm/extract-structured-intent";
+} from "@/lib/boreal/schemas/intent"
+import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent"
+import { extractStructuredIntent } from "@/lib/boreal/tools/llm/extract-structured-intent"
 import {
   buildIntentPersistencePayload,
   buildIntentResponseMessage,
-} from "@/lib/boreal/tools/ui/build-intent-response";
+} from "@/lib/boreal/tools/ui/build-intent-response"
 
 type IntentExtractionAgentInput = {
-  message: string;
-  conversationId?: string;
-};
+  message: string
+  conversationId?: string
+}
 
 type IntentExtractionAgentOutput = {
-  assistantMessage: string;
-  conversationId: string;
-  intentId: string;
-  intent: PersistedIntent;
-};
+  assistantMessage: string
+  conversationId: string
+  intentId: string
+  intent: PersistedIntent
+}
 
 export const intentExtractionAgent: ComposableAgent<
   "intent-extraction",
   readonly [
     {
-      name: "classify-generation-intent";
-      description: string;
-      execute: typeof classifyGenerationIntent;
+      name: "classify-generation-intent"
+      description: string
+      execute: typeof classifyGenerationIntent
     },
     {
-      name: "extract-structured-intent";
-      description: string;
-      execute: typeof extractStructuredIntent;
+      name: "extract-structured-intent"
+      description: string
+      execute: typeof extractStructuredIntent
     },
     {
-      name: "save-intent-pipeline-record";
-      description: string;
-      execute: typeof saveIntentPipelineRecord;
+      name: "save-intent-pipeline-record"
+      description: string
+      execute: typeof saveIntentPipelineRecord
     },
   ],
   IntentExtractionAgentInput,
@@ -73,26 +73,26 @@ export const intentExtractionAgent: ComposableAgent<
     },
   ] as const,
   async run(input) {
-    const runtimeConfig = getBorealRuntimeConfig();
-    const provider = resolveProviderAdapter();
+    const runtimeConfig = getBorealRuntimeConfig()
+    const provider = resolveProviderAdapter()
 
     const modality = await classifyGenerationIntent({
       embeddingModelId: runtimeConfig.embeddingModel,
       message: input.message,
       provider,
-    });
+    })
 
     const extractedIntent: IntentExtraction = await extractStructuredIntent({
       intentModelId: runtimeConfig.intentModel,
       message: input.message,
       modalityScores: modality.modalityScores,
       provider,
-    });
+    })
 
-    const conversationId = input.conversationId ?? crypto.randomUUID();
-    const userMessageId = crypto.randomUUID();
-    const assistantMessageId = crypto.randomUUID();
-    const assistantMessage = buildIntentResponseMessage(extractedIntent);
+    const conversationId = input.conversationId ?? crypto.randomUUID()
+    const userMessageId = crypto.randomUUID()
+    const assistantMessageId = crypto.randomUUID()
+    const assistantMessage = buildIntentResponseMessage(extractedIntent)
 
     const persistedIntent = buildIntentPersistencePayload({
       assistantMessageId,
@@ -104,20 +104,20 @@ export const intentExtractionAgent: ComposableAgent<
       modalityScores: modality.modalityScores,
       provider: provider.key,
       userMessageId,
-    });
+    })
 
     const result = await saveIntentPipelineRecord({
       assistantMessage,
       conversationId,
       intent: persistedIntent,
       userMessage: input.message,
-    });
+    })
 
     return {
       assistantMessage,
       conversationId: result.conversationId,
       intent: persistedIntent,
       intentId: result.intentId,
-    };
+    }
   },
-};
+}

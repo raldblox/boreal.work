@@ -1,10 +1,9 @@
 import "server-only";
 
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 
 import type { BorealProviderAdapter } from "@/lib/boreal/integrations/providers/types";
 import {
-  intentExtractionSchema,
   normalizeIntentExtraction,
   type IntentExtraction,
   type ModalityProfileScore,
@@ -16,15 +15,14 @@ export async function extractStructuredIntent(input: {
   provider: BorealProviderAdapter;
   modalityScores: ModalityProfileScore[];
 }): Promise<IntentExtraction> {
-  const { output } = await generateText({
+  const { text } = await generateText({
     model: input.provider.getIntentModel(input.intentModelId),
-    output: Output.object({
-      schema: intentExtractionSchema,
-    }),
     prompt: buildPrompt(input.message, input.modalityScores),
   });
 
-  return normalizeIntentExtraction(output as IntentExtraction);
+  const parsed = extractJsonObject(text);
+
+  return normalizeIntentExtraction(parsed, input.message, input.modalityScores);
 }
 
 function buildPrompt(message: string, modalityScores: ModalityProfileScore[]) {
@@ -33,14 +31,70 @@ function buildPrompt(message: string, modalityScores: ModalityProfileScore[]) {
     .join(", ");
 
   return [
-    "You are Boreal's intent extraction agent.",
-    "Return a structured object that captures the user's fulfillment intent.",
-    "Boreal routes intent to tools, listings, agents, and human operators.",
-    "Use the embedding-based modality hints, but correct them if the message clearly indicates something else.",
-    "Requested output types must always include at least one of: text, image_generation, video_generation.",
-    "Use 'auto' resolution tier when the request is for instantly deliverable generation work such as image or video generation.",
-    "Use 'open' when the request likely requires human or multi-step fulfillment.",
+    "You are Boreal's intent-routing extractor.",
+    "Analyze the user message and output a single JSON object only.",
+    "Do not wrap the JSON in markdown fences.",
+    "The object must include these fields:",
+    "{",
+    '  "intentType": "demand" | "supply" | "informational",',
+    '  "routeTarget": "general_assistance" | "catalog_lookup" | "image_generation" | "speech_generation" | "video_generation" | "clarification",',
+    '  "title": string,',
+    '  "summary": string,',
+    '  "body": string,',
+    '  "category": string,',
+    '  "requestedOutputTypes": string[],',
+    '  "capabilityTags": string[],',
+    '  "keywords": string[],',
+    '  "confidence": number,',
+    '  "generationSignals": { "requestsText": boolean, "requestsImageGeneration": boolean, "requestsSpeechGeneration": boolean, "requestsVideoGeneration": boolean, "primaryMode": string },',
+    '  "routing": { "resolutionTier": "auto" | "fast" | "open" | "pending", "shouldPersistToBoard": boolean, "shouldCreateFulfillmentRequest": boolean },',
+    '  "persistence": { "shouldPersist": boolean, "isUnresolved": boolean, "reason": string },',
+    '  "needsClarification": boolean,',
+    '  "missingDetails": string[],',
+    '  "suggestedReplies": string[],',
+    '  "shouldSearchCatalog": boolean,',
+    '  "catalogQuery": string,',
+    '  "assetPrompt": string,',
+    '  "speechText": string,',
+    '  "voice": string,',
+    '  "responseInstructions": string,',
+    '  "extractionNotes": string[]',
+    "}",
+    "Rules:",
+    "- general questions should use routeTarget=general_assistance.",
+    "- use catalog_lookup when the user is asking about available products, tools, services, pricing, or capability matching.",
+    "- use image_generation, speech_generation, or video_generation when the user clearly wants an asset generated now.",
+    "- use clarification when immediate generation is requested but important details are missing.",
+    "- requestedOutputTypes may include text, image_generation, speech_generation, video_generation.",
+    "- assetPrompt should be a clean generation prompt if media generation is likely.",
+    "- speechText should contain the exact script when the user provided one, otherwise a concise generated script direction.",
+    "- voice should be a short OpenAI-compatible voice suggestion like alloy, verse, aria, sage, or cove.",
+    "- shouldPersist should be true for unresolved requests, asset generation requests, catalog requests, and valid Boreal intents.",
     `Embedding modality hints: ${modalityHint}`,
     `User message: """${message}"""`,
   ].join("\n");
 }
+
+function extractJsonObject(text: string): Record<string, unknown> {
+  const trimmed = text.trim();
+
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown>;
+  } catch {
+    const firstBrace = trimmed.indexOf("{");
+    const lastBrace = trimmed.lastIndexOf("}");
+
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+      return {};
+    }
+
+    const candidate = trimmed.slice(firstBrace, lastBrace + 1);
+
+    try {
+      return JSON.parse(candidate) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+}
+

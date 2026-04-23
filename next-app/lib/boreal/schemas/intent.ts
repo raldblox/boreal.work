@@ -1,9 +1,16 @@
-import { jsonSchema } from "ai";
-
 export type RequestedOutputType =
   | "text"
   | "image_generation"
+  | "speech_generation"
   | "video_generation";
+
+export type ToolRoute =
+  | "general_assistance"
+  | "catalog_lookup"
+  | "image_generation"
+  | "speech_generation"
+  | "video_generation"
+  | "clarification";
 
 export type ModalityProfileScore = {
   kind: RequestedOutputType;
@@ -12,6 +19,7 @@ export type ModalityProfileScore = {
 
 export type IntentExtraction = {
   intentType: "demand" | "supply" | "informational";
+  routeTarget: ToolRoute;
   title: string;
   summary: string;
   body: string;
@@ -23,6 +31,7 @@ export type IntentExtraction = {
   generationSignals: {
     requestsText: boolean;
     requestsImageGeneration: boolean;
+    requestsSpeechGeneration: boolean;
     requestsVideoGeneration: boolean;
     primaryMode: RequestedOutputType;
   };
@@ -31,6 +40,20 @@ export type IntentExtraction = {
     shouldPersistToBoard: boolean;
     shouldCreateFulfillmentRequest: boolean;
   };
+  persistence: {
+    shouldPersist: boolean;
+    isUnresolved: boolean;
+    reason: string;
+  };
+  needsClarification: boolean;
+  missingDetails: string[];
+  suggestedReplies: string[];
+  shouldSearchCatalog: boolean;
+  catalogQuery: string;
+  assetPrompt: string;
+  speechText: string;
+  voice: string;
+  responseInstructions: string;
   extractionNotes: string[];
 };
 
@@ -48,149 +71,200 @@ export type PersistedIntent = IntentExtraction & {
 const requestedOutputTypeValues = [
   "text",
   "image_generation",
+  "speech_generation",
   "video_generation",
 ] as const;
 
-export const intentExtractionSchema = jsonSchema({
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "intentType",
-    "title",
-    "summary",
-    "body",
-    "category",
-    "requestedOutputTypes",
-    "capabilityTags",
-    "keywords",
-    "confidence",
-    "generationSignals",
-    "routing",
-    "extractionNotes",
-  ],
-  properties: {
-    intentType: {
-      type: "string",
-      enum: ["demand", "supply", "informational"],
-    },
-    title: {
-      type: "string",
-      minLength: 3,
-      maxLength: 140,
-    },
-    summary: {
-      type: "string",
-      minLength: 12,
-      maxLength: 320,
-    },
-    body: {
-      type: "string",
-      minLength: 1,
-    },
-    category: {
-      type: "string",
-      minLength: 2,
-      maxLength: 64,
-    },
-    requestedOutputTypes: {
-      type: "array",
-      minItems: 1,
-      maxItems: 3,
-      items: {
-        type: "string",
-        enum: [...requestedOutputTypeValues],
-      },
-    },
-    capabilityTags: {
-      type: "array",
-      minItems: 2,
-      maxItems: 8,
-      items: {
-        type: "string",
-        minLength: 2,
-        maxLength: 48,
-      },
-    },
-    keywords: {
-      type: "array",
-      minItems: 5,
-      maxItems: 15,
-      items: {
-        type: "string",
-        minLength: 2,
-        maxLength: 48,
-      },
-    },
-    confidence: {
-      type: "number",
-      minimum: 0,
-      maximum: 1,
-    },
-    generationSignals: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "requestsText",
-        "requestsImageGeneration",
-        "requestsVideoGeneration",
-        "primaryMode",
-      ],
-      properties: {
-        requestsText: { type: "boolean" },
-        requestsImageGeneration: { type: "boolean" },
-        requestsVideoGeneration: { type: "boolean" },
-        primaryMode: {
-          type: "string",
-          enum: ["text", "image_generation", "video_generation"],
-        },
-      },
-    },
-    routing: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "resolutionTier",
-        "shouldPersistToBoard",
-        "shouldCreateFulfillmentRequest",
-      ],
-      properties: {
-        resolutionTier: {
-          type: "string",
-          enum: ["auto", "fast", "open", "pending"],
-        },
-        shouldPersistToBoard: { type: "boolean" },
-        shouldCreateFulfillmentRequest: { type: "boolean" },
-      },
-    },
-    extractionNotes: {
-      type: "array",
-      minItems: 1,
-      maxItems: 4,
-      items: {
-        type: "string",
-        minLength: 3,
-        maxLength: 180,
-      },
-    },
-  },
-});
+const routeValues = [
+  "general_assistance",
+  "catalog_lookup",
+  "image_generation",
+  "speech_generation",
+  "video_generation",
+  "clarification",
+] as const;
 
 export function normalizeIntentExtraction(
-  intent: IntentExtraction,
+  rawIntent: Partial<IntentExtraction>,
+  fallbackMessage: string,
+  modalityScores: ModalityProfileScore[],
 ): IntentExtraction {
-  const requestedOutputTypes = Array.from(
-    new Set(intent.requestedOutputTypes),
-  ).filter((value): value is RequestedOutputType =>
-    requestedOutputTypeValues.includes(value as RequestedOutputType),
+  const bestModality = modalityScores[0]?.kind ?? "text";
+  const requestedOutputTypes = dedupeStrings(
+    rawIntent.requestedOutputTypes,
+    requestedOutputTypeValues,
+  );
+  const primaryMode = requestedOutputTypes[0] ?? bestModality;
+
+  const routeTarget = routeValues.includes(
+    rawIntent.routeTarget as ToolRoute,
+  )
+    ? (rawIntent.routeTarget as ToolRoute)
+    : inferRouteTarget(primaryMode, rawIntent.shouldSearchCatalog);
+
+  const confidence =
+    typeof rawIntent.confidence === "number" &&
+    Number.isFinite(rawIntent.confidence)
+      ? clamp(rawIntent.confidence, 0, 1)
+      : 0.62;
+
+  const summary = normalizeString(rawIntent.summary, fallbackMessage, 320);
+  const body = normalizeString(rawIntent.body, fallbackMessage, 1200);
+  const title = normalizeString(
+    rawIntent.title,
+    summary.slice(0, 96) || "Boreal request",
+    140,
+  );
+
+  const missingDetails = dedupePlainStrings(rawIntent.missingDetails).slice(
+    0,
+    4,
   );
 
   return {
-    ...intent,
-    capabilityTags: Array.from(new Set(intent.capabilityTags)),
-    keywords: Array.from(new Set(intent.keywords)),
+    assetPrompt: normalizeString(rawIntent.assetPrompt, body, 1200),
+    body,
+    capabilityTags: dedupePlainStrings(rawIntent.capabilityTags).slice(0, 8),
+    catalogQuery: normalizeString(rawIntent.catalogQuery, summary, 220),
+    category: normalizeString(rawIntent.category, "general", 64),
+    confidence,
+    extractionNotes: dedupePlainStrings(rawIntent.extractionNotes).slice(0, 4),
+    generationSignals: {
+      primaryMode,
+      requestsImageGeneration: requestedOutputTypes.includes(
+        "image_generation",
+      ),
+      requestsSpeechGeneration: requestedOutputTypes.includes(
+        "speech_generation",
+      ),
+      requestsText: requestedOutputTypes.includes("text"),
+      requestsVideoGeneration: requestedOutputTypes.includes(
+        "video_generation",
+      ),
+    },
+    intentType: oneOf(rawIntent.intentType, [
+      "demand",
+      "supply",
+      "informational",
+    ], "demand"),
+    keywords: dedupePlainStrings(rawIntent.keywords).slice(0, 15),
+    missingDetails,
+    needsClarification:
+      Boolean(rawIntent.needsClarification) || missingDetails.length > 0,
+    persistence: {
+      isUnresolved:
+        rawIntent.persistence?.isUnresolved ??
+        (Boolean(rawIntent.needsClarification) || missingDetails.length > 0),
+      reason: normalizeString(
+        rawIntent.persistence?.reason,
+        "Persisted as a routed Boreal intent.",
+        180,
+      ),
+      shouldPersist:
+        rawIntent.persistence?.shouldPersist ??
+        (routeTarget !== "general_assistance" || confidence >= 0.58),
+    },
     requestedOutputTypes:
-      requestedOutputTypes.length > 0
-        ? requestedOutputTypes
-        : [intent.generationSignals.primaryMode],
+      requestedOutputTypes.length > 0 ? requestedOutputTypes : [bestModality],
+    responseInstructions: normalizeString(
+      rawIntent.responseInstructions,
+      "Answer directly and keep rich artifacts out of inline chat when possible.",
+      280,
+    ),
+    routeTarget,
+    routing: {
+      resolutionTier: oneOf(
+        rawIntent.routing?.resolutionTier,
+        ["auto", "fast", "open", "pending"],
+        routeTarget === "general_assistance" ? "fast" : "auto",
+      ),
+      shouldCreateFulfillmentRequest:
+        rawIntent.routing?.shouldCreateFulfillmentRequest ??
+        routeTarget !== "general_assistance",
+      shouldPersistToBoard:
+        rawIntent.routing?.shouldPersistToBoard ??
+        Boolean(rawIntent.persistence?.isUnresolved),
+    },
+    shouldSearchCatalog:
+      rawIntent.shouldSearchCatalog ??
+      (routeTarget === "catalog_lookup" ||
+        routeTarget === "image_generation" ||
+        routeTarget === "speech_generation" ||
+        routeTarget === "video_generation"),
+    speechText: normalizeString(rawIntent.speechText, summary, 1200),
+    suggestedReplies: dedupePlainStrings(rawIntent.suggestedReplies).slice(0, 4),
+    summary,
+    title,
+    voice: normalizeString(rawIntent.voice, "alloy", 48),
   };
+}
+
+function inferRouteTarget(
+  primaryMode: RequestedOutputType,
+  shouldSearchCatalog?: boolean,
+): ToolRoute {
+  if (primaryMode === "image_generation") {
+    return "image_generation";
+  }
+
+  if (primaryMode === "speech_generation") {
+    return "speech_generation";
+  }
+
+  if (primaryMode === "video_generation") {
+    return "video_generation";
+  }
+
+  if (shouldSearchCatalog) {
+    return "catalog_lookup";
+  }
+
+  return "general_assistance";
+}
+
+function dedupeStrings<T extends string>(
+  values: unknown,
+  allowed: readonly T[],
+): T[] {
+  const deduped = dedupePlainStrings(values);
+  return deduped.filter((value): value is T =>
+    allowed.includes(value as T),
+  );
+}
+
+function dedupePlainStrings(values: unknown) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      values
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function normalizeString(value: unknown, fallback: string, maxLength: number) {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim().slice(0, maxLength);
+  }
+
+  return fallback.trim().slice(0, maxLength);
+}
+
+function oneOf<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  return typeof value === "string" && allowed.includes(value as T)
+    ? (value as T)
+    : fallback;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }

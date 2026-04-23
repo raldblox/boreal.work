@@ -15,7 +15,17 @@ export const intentTypeValidator = v.union(
 export const requestedOutputTypeValidator = v.union(
   v.literal("text"),
   v.literal("image_generation"),
+  v.literal("speech_generation"),
   v.literal("video_generation"),
+);
+
+export const toolRouteValidator = v.union(
+  v.literal("general_assistance"),
+  v.literal("catalog_lookup"),
+  v.literal("image_generation"),
+  v.literal("speech_generation"),
+  v.literal("video_generation"),
+  v.literal("clarification"),
 );
 
 export const resolutionTierValidator = v.union(
@@ -73,6 +83,7 @@ export const messageRoleValidator = v.union(
 export const generationSignalsValidator = v.object({
   primaryMode: requestedOutputTypeValidator,
   requestsImageGeneration: v.boolean(),
+  requestsSpeechGeneration: v.optional(v.boolean()),
   requestsText: v.boolean(),
   requestsVideoGeneration: v.boolean(),
 });
@@ -90,8 +101,10 @@ export const modalityScoreValidator = v.object({
 
 export const persistedIntentValidator = v.object({
   assistantMessageId: v.string(),
+  assetPrompt: v.string(),
   body: v.string(),
   capabilityTags: v.array(v.string()),
+  catalogQuery: v.string(),
   category: v.string(),
   confidence: v.number(),
   conversationId: v.string(),
@@ -102,12 +115,37 @@ export const persistedIntentValidator = v.object({
   intentModel: v.string(),
   intentType: intentTypeValidator,
   keywords: v.array(v.string()),
+  missingDetails: v.array(v.string()),
   modalityScores: v.array(modalityScoreValidator),
+  needsClarification: v.boolean(),
+  persistence: v.object({
+    isUnresolved: v.boolean(),
+    reason: v.string(),
+    shouldPersist: v.boolean(),
+  }),
   provider: v.string(),
+  responseInstructions: v.string(),
+  routeTarget: toolRouteValidator,
+  shouldSearchCatalog: v.boolean(),
+  speechText: v.string(),
+  suggestedReplies: v.array(v.string()),
   requestedOutputTypes: v.array(requestedOutputTypeValidator),
   routing: routingValidator,
   summary: v.string(),
   title: v.string(),
   userMessageId: v.string(),
+  voice: v.string(),
 });
 
+export const artifactKindValidator = v.union(
+  v.literal("image"),
+  v.literal("audio"),
+  v.literal("video"),
+);
+
+export const artifactStatusValidator = v.union(
+  v.literal("ready"),
+  v.literal("queued"),
+  v.literal("in_progress"),
+  v.literal("failed"),
+);

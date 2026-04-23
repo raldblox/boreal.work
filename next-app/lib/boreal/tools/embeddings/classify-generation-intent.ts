@@ -36,6 +36,14 @@ const modalityProfiles: ModalityProfile[] = [
     ],
   },
   {
+    kind: "speech_generation",
+    examples: [
+      "Turn this script into a natural voiceover in mp3 format.",
+      "Read this answer out loud with a warm narration voice.",
+      "Generate TTS audio for this product announcement.",
+    ],
+  },
+  {
     kind: "video_generation",
     examples: [
       "Generate a product teaser video for social media.",
@@ -146,4 +154,3 @@ function cosineSimilarity(left: number[], right: number[]) {
 
   return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
 }
-

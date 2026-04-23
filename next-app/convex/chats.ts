@@ -24,6 +24,7 @@ export const recordIntentPipeline = mutation({
       await ctx.db.patch(existingConversation._id, {
         intentCount: existingConversation.intentCount + 1,
         latestMessageAt: now,
+        title: args.intent.title,
         updatedAt: now,
       });
     } else {
@@ -65,9 +66,11 @@ export const recordIntentPipeline = mutation({
     const intentId = await ctx.db.insert("intents", {
       acceptsProposals: true,
       actorKind: "human",
+      assetPrompt: args.intent.assetPrompt,
       body: args.intent.body,
       budgetType: "open",
       capabilityTags: args.intent.capabilityTags,
+      catalogQuery: args.intent.catalogQuery,
       category: args.intent.category,
       confidence: args.intent.confidence,
       conversationId,
@@ -81,16 +84,25 @@ export const recordIntentPipeline = mutation({
       intentType: args.intent.intentType,
       keywords: args.intent.keywords,
       matchAttempts: 0,
+      missingDetails: args.intent.missingDetails,
+      needsClarification: args.intent.needsClarification,
+      persistence: args.intent.persistence,
       provider: args.intent.provider,
       requestedOutputTypes: args.intent.requestedOutputTypes,
       resolutionTier: args.intent.routing.resolutionTier,
+      responseInstructions: args.intent.responseInstructions,
+      routeTarget: args.intent.routeTarget,
       routing: args.intent.routing,
-      status: "open",
+      shouldSearchCatalog: args.intent.shouldSearchCatalog,
+      speechText: args.intent.speechText,
+      status: args.intent.persistence.isUnresolved ? "open" : "fulfilled",
+      suggestedReplies: args.intent.suggestedReplies,
       summary: args.intent.summary,
       title: args.intent.title,
       updatedAt: now,
-      urgencyScore: 0.15,
+      urgencyScore: args.intent.persistence.isUnresolved ? 0.72 : 0.15,
       visibility: "private",
+      voice: args.intent.voice,
     });
 
     await ctx.db.insert("intentRuns", {
@@ -111,6 +123,7 @@ export const recordIntentPipeline = mutation({
       payload: JSON.stringify({
         category: args.intent.category,
         requestedOutputTypes: args.intent.requestedOutputTypes,
+        routeTarget: args.intent.routeTarget,
       }),
       type: "intent.created",
     });
@@ -119,6 +132,7 @@ export const recordIntentPipeline = mutation({
       assistantMessageId: args.intent.assistantMessageId,
       conversationId,
       intentId: intentId as string,
+      intentKey,
       userMessageId: args.intent.userMessageId,
     };
   },
@@ -139,3 +153,4 @@ export const listConversationMessages = query({
       .take(args.limit);
   },
 });
+

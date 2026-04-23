@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { intentExtractionAgent } from "@/lib/boreal/agents/intent-extraction/agent";
+import { chatAssistantAgent } from "@/lib/boreal/agents/chat-assistant/agent";
 
 export async function POST(request: Request) {
   try {
     const body = parseChatRequest(await request.json());
-    const result = await intentExtractionAgent.run(body);
+    const result = await chatAssistantAgent.run(body);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     const message =
-      error instanceof Error ? error.message : "Intent extraction failed.";
+      error instanceof Error ? error.message : "Chat request failed.";
 
     return NextResponse.json(
       {
