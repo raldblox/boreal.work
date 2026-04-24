@@ -78,12 +78,12 @@ export function WorkspacePanel({
         onValueChange={(value) => onTabChange(value as WorkspaceTab)}
         value={activeTab}
       >
-        <div className="border-b border-border px-4 py-4">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="border-b border-border p-3">
+          <p className="font-mono p-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             Browse
           </p>
-          <h2 className="mt-2 text-sm font-medium">{requestTitle}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h2 className="mt-2 px-1 text-sm font-medium">{requestTitle}</h2>
+          <p className="mt-1 px-1 text-xs text-muted-foreground">
             Workers, catalog inventory, and future account capabilities live here.
           </p>
           <TabsList className="mt-4 w-full" variant="line">
@@ -95,7 +95,7 @@ export function WorkspacePanel({
 
         <TabsContent className="min-h-0" value="workers">
           <ScrollArea className="h-full">
-            <div className="space-y-3 p-4">
+            <div className="space-y-3">
               <WorkersPanel requestDetail={requestDetail} selectedIntent={selectedIntent} />
             </div>
           </ScrollArea>
@@ -103,7 +103,7 @@ export function WorkspacePanel({
 
         <TabsContent className="min-h-0" value="catalog">
           <ScrollArea className="h-full">
-            <div className="space-y-3 p-4">
+            <div className="space-y-3">
               {catalogItems.length === 0 ? (
                 <EmptyBlock
                   subtitle="The catalog is empty. Seeded supplies will show up here."
@@ -130,7 +130,7 @@ export function WorkspacePanel({
 
         <TabsContent className="min-h-0" value="capabilities">
           <ScrollArea className="h-full">
-            <div className="space-y-3 p-4">
+            <div className="space-y-0.5 p-1">
               <CapabilityCard
                 icon={Layers3Icon}
                 subtitle="Your capability profile will eventually advertise what work you can receive, automate, or fulfill."
@@ -174,7 +174,7 @@ function WorkersPanel({
 
   return (
     <>
-      <div className="space-y-3 border border-border p-4">
+      <div className="space-y-3 p-4">
         <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
           Assigned worker
         </p>
@@ -190,7 +190,7 @@ function WorkersPanel({
         />
       </div>
 
-      <div className="space-y-3 border border-border p-4">
+      <div className="space-y-3 p-4">
         <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
           Suggested workers
         </p>
@@ -253,7 +253,7 @@ function CapabilityCard({
   wip?: boolean;
 }) {
   return (
-    <div className="border border-border p-4">
+    <div className="hover:bg-foreground/5 p-3">
       <div className="flex items-start gap-3">
         <div className="flex size-9 items-center justify-center border border-border">
           <Icon className="size-4 text-muted-foreground" />
@@ -284,7 +284,7 @@ function CatalogCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="border border-border p-4">
+    <div className="p-3">
       <div className="flex items-start gap-3">
         <PackageIcon className="mt-0.5 size-4 text-muted-foreground" />
         <div className="min-w-0 flex-1">
@@ -317,8 +317,8 @@ function CatalogDetail({
   onAsk: () => void;
 }) {
   return (
-    <div className="space-y-4">
-      <header className="space-y-1">
+    <div className="space-y-1">
+      <header className="space-y-1 p-4">
         <div className="flex items-center gap-2">
           <PackageIcon className="size-4 text-muted-foreground" />
           <p className="text-sm font-medium">{item.title}</p>
@@ -327,15 +327,16 @@ function CatalogDetail({
           {item.category} | {item.deliveryType} | {item.priceLabel}
         </p>
       </header>
-      <div className="border border-border p-4">
+      <div className="p-4">
         <p className="text-sm">{item.description}</p>
-        <p className="mt-4 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="my-4 text-xs uppercase tracking-[0.16em] text-muted-foreground">
           {item.capabilityTags.join(" / ")}
         </p>
+        <Button onClick={onAsk} type="button" variant="outline">
+          Ask for more info
+        </Button>
       </div>
-      <Button onClick={onAsk} type="button" variant="outline">
-        Ask for more info
-      </Button>
+
     </div>
   );
 }
@@ -348,7 +349,7 @@ function EmptyBlock({
   title: string;
 }) {
   return (
-    <div className="border border-dashed border-border p-6 text-center">
+    <div className="border border-dashed border-border p-3 text-center">
       <div className="mx-auto flex size-9 items-center justify-center border border-border">
         <SearchIcon className="size-4 text-muted-foreground" />
       </div>

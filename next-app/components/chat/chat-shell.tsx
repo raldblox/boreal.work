@@ -253,15 +253,15 @@ export function ChatShell() {
     requestDetail?.review ??
     (optimisticReviewRating !== null
       ? {
-          comment: "",
-          rating: optimisticReviewRating,
-          reviewedAt: Date.now(),
-        }
+        comment: "",
+        rating: optimisticReviewRating,
+        reviewedAt: Date.now(),
+      }
       : null);
   const shouldPromptReview = Boolean(
     requestDetail?.intent?.reviewPending &&
-      !effectiveReview &&
-      !isSubmittingReview,
+    !effectiveReview &&
+    !isSubmittingReview,
   );
 
   useEffect(() => {
@@ -605,7 +605,7 @@ export function ChatShell() {
   const isHomeView = !activeIntentId && displayedMessages.length === 0;
 
   return (
-    <div className="mx-auto flex h-[100svh] w-full max-w-[1600px] flex-col overflow-hidden px-4 py-4 sm:px-6">
+    <div className="mx-auto flex h-svh w-full max-w-450 flex-col overflow-hidden px-4 py-4 sm:px-4">
       <div
         className={
           showWorkspace
@@ -642,7 +642,7 @@ export function ChatShell() {
                   {activeIntentId ? "Request thread" : "Boreal chat"}
                 </p> */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-base font-medium">
+                  <h1 className="text-lg font-medium">
                     {activeIntentId
                       ? requestDetail?.intent?.title ?? selectedIntent?.title ?? "Request"
                       : "Helpful chat first. Tracked execution when work is approved."}
@@ -654,13 +654,7 @@ export function ChatShell() {
                     <InlineTierPill tier={requestDetail.intent.resolutionTier} />
                   ) : null}
                 </div>
-                {activeIntentId && requestDetail?.intent && (
-                  <RequestHeaderMeta
-                    assignment={requestDetail.assignment}
-                    intent={requestDetail.intent}
-                    providerLabel={providerLabel}
-                  />
-                )}
+
               </div>
               <div className="flex items-center gap-2">
                 {isSubmitting ? (
@@ -682,41 +676,13 @@ export function ChatShell() {
           </div>
 
           {activeIntentId ? (
-            <div className="border-b border-border px-4">
-              <div className="flex flex-col gap-3 py-3">
-                {requestDetail?.intent ? (
-                  <div className="space-y-3">
-                    <RequestStageRail status={requestDetail.intent.status} />
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                        <span>{formatOutputTypes(requestDetail.intent.requestedOutputTypes)}</span>
-                        <span>{requestDetail.intent.routeTarget.replaceAll("_", " ")}</span>
-                        {requestDetail.intent.startedAt ? (
-                          <span>Started {formatRequestDate(requestDetail.intent.startedAt)}</span>
-                        ) : null}
-                        {requestDetail.intent.completedAt ? (
-                          <span>Done {formatRequestDate(requestDetail.intent.completedAt)}</span>
-                        ) : null}
-                      </div>
-                      <RequestHeaderActions
-                        intent={requestDetail.intent}
-                        isApprovingRequest={isApprovingRequest}
-                        isCancellingRequest={isCancellingRequest}
-                        isRetryingRequest={isRetryingRequest}
-                        isSubmittingReview={isSubmittingReview}
-                        onApproveRequest={handleApproveRequest}
-                        onCancelRequest={handleCancelRequest}
-                        onRetryRequest={handleRetryRequest}
-                        onSubmitReview={handleSubmitReview}
-                        shouldPromptReview={shouldPromptReview}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-                <div className="flex items-center gap-1 overflow-x-auto">
+            <div className="">
+              <div className="flex flex-col gap-0">
+
+                <div className="flex border-b border-border items-center overflow-x-auto">
                   <button
                     className={cn(
-                      "px-3 py-2 text-sm text-muted-foreground transition-colors",
+                      "px-4 py-2 text-sm text-muted-foreground transition-colors",
                       selectedCenterTab === "chat" && "text-foreground",
                     )}
                     onClick={() => setSelectedCenterTab("chat")}
@@ -735,6 +701,46 @@ export function ChatShell() {
                     Activity
                   </button>
                 </div>
+
+                {requestDetail?.intent ? (
+                  <div className="p-1 ">
+                    <div className="flex items-center justify-between px-3 py-3 border rounded-md border-border">
+                      {activeIntentId && requestDetail?.intent && (
+                        <RequestHeaderMeta
+                          assignment={requestDetail.assignment}
+                          intent={requestDetail.intent}
+                          providerLabel={providerLabel}
+                        />
+                      )}
+                      <RequestStageRail status={requestDetail.intent.status} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      {/* <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                        <span>{formatOutputTypes(requestDetail.intent.requestedOutputTypes)}</span>
+                        <span>{requestDetail.intent.routeTarget.replaceAll("_", " ")}</span>
+                        {requestDetail.intent.startedAt ? (
+                          <span>Started {formatRequestDate(requestDetail.intent.startedAt)}</span>
+                        ) : null}
+                        {requestDetail.intent.completedAt ? (
+                          <span>Done {formatRequestDate(requestDetail.intent.completedAt)}</span>
+                        ) : null}
+                      </div> */}
+                      <RequestHeaderActions
+                        intent={requestDetail.intent}
+                        isApprovingRequest={isApprovingRequest}
+                        isCancellingRequest={isCancellingRequest}
+                        isRetryingRequest={isRetryingRequest}
+                        isSubmittingReview={isSubmittingReview}
+                        onApproveRequest={handleApproveRequest}
+                        onCancelRequest={handleCancelRequest}
+                        onRetryRequest={handleRetryRequest}
+                        onSubmitReview={handleSubmitReview}
+                        shouldPromptReview={shouldPromptReview}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -869,6 +875,19 @@ export function ChatShell() {
                     </SelectContent>
                   </Select>
                   <Button
+                    onClick={login}
+                    size="sm"
+                    type="button"
+                    variant={privyAuthenticated ? "secondary" : "ghost"}
+                  >
+                    <WalletIcon />
+                    {privyReady
+                      ? privyAuthenticated
+                        ? "Connected"
+                        : "Connect Wallet"
+                      : "Wallet"}
+                  </Button>
+                  <Button
                     onClick={() => {
                       setWorkspaceTab("catalog");
                       setShowWorkspace(true);
@@ -892,19 +911,7 @@ export function ChatShell() {
                     <BotIcon />
                     Workers
                   </Button>
-                  <Button
-                    onClick={login}
-                    size="sm"
-                    type="button"
-                    variant={privyAuthenticated ? "secondary" : "ghost"}
-                  >
-                    <WalletIcon />
-                    {privyReady
-                      ? privyAuthenticated
-                        ? "Connected"
-                        : "Connect Wallet"
-                      : "Wallet"}
-                  </Button>
+
                 </PromptInputTools>
                 <PromptInputSubmit
                   disabled={isSubmitting}
@@ -957,8 +964,8 @@ function RequestHeaderMeta({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      <span>Active provider: {providerLabel}</span>
-      <span className="text-border">/</span>
+      {/* <span>Active provider: {providerLabel}</span>
+      <span className="text-border">/</span> */}
       <span>Assigned to</span>
       <AssignedWorkerPills assignment={assignment} intent={intent} />
     </div>
@@ -995,7 +1002,7 @@ function RequestHeaderActions({
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2 p-3">
       {actionState.kind === "approval" ? (
         <>
           <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
@@ -1359,7 +1366,7 @@ function WorkerPill({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex size-7 items-center justify-center border border-border text-muted-foreground">
+          <span className="inline-flex size-4 items-center justify-center border border-border text-muted-foreground">
             <Icon className="size-3.5" />
           </span>
         </TooltipTrigger>

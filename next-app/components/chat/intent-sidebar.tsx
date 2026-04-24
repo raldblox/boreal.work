@@ -8,6 +8,8 @@ import {
   LogInIcon,
   LogOutIcon,
   MessageSquarePlusIcon,
+  Star,
+  StarIcon,
   UserIcon,
   XIcon,
 } from "lucide-react";
@@ -78,9 +80,6 @@ export function IntentSidebar({
             Requests
           </p>
           <h2 className="text-sm font-medium">Tracked asks and active deliveries</h2>
-          <p className="text-xs text-muted-foreground">
-            X identity anchors request ownership. Wallet stays separate for payment later.
-          </p>
         </div>
         <Button className="w-full justify-start" onClick={onDeselect} type="button" variant="outline">
           <MessageSquarePlusIcon />
@@ -101,15 +100,15 @@ export function IntentSidebar({
 
               return (
                 <div
-                  className="border-b border-border px-4 py-4"
+                  className="border-b border-border p-1"
                   key={intent._id}
                 >
                   <div className="flex items-start gap-3">
                     <button
                       className={
                         isActive
-                          ? "min-w-0 flex-1 border border-border bg-foreground/5 p-3 text-left"
-                          : "min-w-0 flex-1 border border-transparent p-3 text-left"
+                          ? "min-w-0 flex-1 bg-foreground/5 p-3 text-left"
+                          : "min-w-0 flex-1 p-3 text-left"
                       }
                       onClick={() => onSelect(intent)}
                       type="button"
@@ -125,12 +124,12 @@ export function IntentSidebar({
                         </div>
                       </div>
 
-                      <RequestStageRail status={intent.status} />
+                      {/* <RequestStageRail status={intent.status} /> */}
 
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                         <span>{formatOutputTypes(intent.requestedOutputTypes)}</span>
                         <span>{intent.assignedAgent ?? intent.routeTarget.replaceAll("_", " ")}</span>
-                        {intent.reviewRating ? <span>{intent.reviewRating}/5</span> : null}
+                        {intent.reviewRating ? <span className="inline-flex items-center">{intent.reviewRating}<StarIcon size={9} className="fill-current" /></span> : null}
                       </div>
                     </button>
 

@@ -99,8 +99,8 @@ export function RequestStageRail({
 
   return (
     <TooltipProvider>
-      <div className="mt-3 w-full">
-        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-x-2">
+      <div className="w-full max-w-xs">
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-x-0.5">
           {stages.map((stageItem, index) => {
             const isComplete = index <= stage;
             const isCurrent = index === stage;
@@ -114,25 +114,25 @@ export function RequestStageRail({
                     <div
                       aria-label={stageItem.label}
                       className={cn(
-                        "flex size-6 items-center justify-center rounded-full border",
+                        "flex size-4 items-center justify-center rounded-full",
                         isComplete
-                          ? "border-primary bg-foreground/80 text-background"
-                          : "border-border bg-foreground/20 text-muted-foreground",
+                          ? "border-foreground bg-teal-700 text-foreground"
+                          : "border-foreground/50 bg-foreground/10 text-muted-foreground",
                         shouldPulse && "animate-pulse",
                       )}
                     >
-                      <Icon className="size-3.5" />
+                      <Icon className="size-2" />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={8}>
+                  <TooltipContent side="top" sideOffset={1}>
                     {stageItem.label}
                   </TooltipContent>
                 </Tooltip>
                 {index < stages.length - 1 ? (
                   <div
                     className={cn(
-                      "h-0.5 w-full bg-border",
-                      index < stage && "bg-foreground/80",
+                      "h-px w-full bg-border",
+                      index < stage && "bg-teal-700",
                     )}
                   />
                 ) : null}
