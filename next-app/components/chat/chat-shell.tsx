@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { makeFunctionReference } from "convex/server";
 import { useMutation, useQuery } from "convex/react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -13,7 +14,9 @@ import {
   CheckIcon,
   CopyIcon,
   ClapperboardIcon,
+  DownloadIcon,
   ExternalLinkIcon,
+  FileIcon,
   LoaderIcon,
   MicIcon,
   PackageIcon,
@@ -22,6 +25,7 @@ import {
   RefreshCwIcon,
   SparklesIcon,
   StarIcon,
+  Trash2Icon,
   UserIcon,
   WalletIcon,
   XCircleIcon,
@@ -60,15 +64,16 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
   RequestDetail,
@@ -80,6 +85,10 @@ import type {
   ChatUiContext,
   WorkspaceState,
 } from "@/lib/boreal/schemas/chat";
+import {
+  normalizeProposalDraft,
+  type ProposalDraft,
+} from "@/lib/boreal/schemas/proposal";
 import { cn } from "@/lib/utils";
 
 import { IntentSidebar } from "./intent-sidebar";
@@ -93,18 +102,12 @@ import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel";
 
 type ChatMessage = {
   content: string;
+  createdAt: number;
   id: string;
   role: "assistant" | "user";
 };
 
-type CenterViewTab = "activity" | "chat" | "proposals" | "workers";
-
-type ProviderOption = {
-  description: string;
-  disabled?: boolean;
-  label: string;
-  value: string;
-};
+type CenterViewTab = "activity" | "chat" | "participants" | "workspace";
 
 const sidebarIntentQuery = makeFunctionReference<
   "query",
@@ -125,42 +128,10 @@ const deleteIntentMutation = makeFunctionReference<
 >("intents:deleteIntent");
 
 const starterPrompts = [
-  "What can Boreal do for chat, catalog routing, and media generation?",
-  "Create a cinematic product hero image for Boreal's launch page.",
+  "Help me package my capabilities into a strong public worker profile with skills, offers, and products.",
+  "Turn this into a public request for a problem nobody has solved for me yet, and prepare it for proposals first.",
   "Generate a short voiceover for a product announcement in a warm tone.",
   "Show me the supply catalog and explain which Boreal tool fits each use case.",
-];
-
-const providerOptions: ProviderOption[] = [
-  {
-    description: "Default routed assistant with OpenAI-backed generation.",
-    label: "Boreal Agent",
-    value: "boreal-agent",
-  },
-  {
-    description: "Coming later",
-    disabled: true,
-    label: "agentcash",
-    value: "agentcash",
-  },
-  {
-    description: "Coming later",
-    disabled: true,
-    label: "frames.gg",
-    value: "frames-gg",
-  },
-  {
-    description: "Coming later",
-    disabled: true,
-    label: "agentic.market",
-    value: "agentic-market",
-  },
-  {
-    description: "Coming later",
-    disabled: true,
-    label: "venice",
-    value: "venice",
-  },
 ];
 
 const emptyWorkspace: WorkspaceState = {
@@ -177,12 +148,46 @@ type ApprovalQueueItem = {
   title: string;
 };
 
+type DeliveryAttachmentDraft = {
+  fileName: string;
+  fileSize: number;
+  id: string;
+  mediaType: string;
+  progress: number;
+  status: "error" | "uploaded" | "uploading";
+  storageId: string | null;
+};
+
+type DeliveryDraft = {
+  attachments: DeliveryAttachmentDraft[];
+  deliverablesBody: string;
+};
+
+const emptyProposalDraft = (): ProposalDraft => ({
+  currency: "USD",
+  deliverablesBody: "",
+  deliverablesType: "markdown",
+  etaDays: 7,
+  price: 100,
+  summary: "",
+});
+
+const emptyDeliveryDraft = (): DeliveryDraft => ({
+  attachments: [],
+  deliverablesBody: "",
+});
+
+const generateUploadUrlMutation = makeFunctionReference<
+  "mutation",
+  Record<string, never>,
+  string
+>("fulfillments:generateUploadUrl");
+
 export function ChatShell() {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [isApprovingRequest, setIsApprovingRequest] = useState(false);
   const [isCancellingRequest, setIsCancellingRequest] = useState(false);
   const [isRetryingRequest, setIsRetryingRequest] = useState(false);
@@ -190,8 +195,17 @@ export function ChatShell() {
   const [optimisticReviewRating, setOptimisticReviewRating] = useState<number | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceState>(emptyWorkspace);
   const [showWorkspace, setShowWorkspace] = useState(true);
-  const [selectedProvider, setSelectedProvider] = useState("boreal-agent");
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false);
+  const [composerText, setComposerText] = useState("");
+  const [borealEnabled, setBorealEnabled] = useState(true);
+  const [proposalMessage, setProposalMessage] = useState("");
+  const [proposalDraft, setProposalDraft] = useState<ProposalDraft>(emptyProposalDraft);
+  const [isDraftingProposal, setIsDraftingProposal] = useState(false);
+  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
+  const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
+  const [deliveryDraft, setDeliveryDraft] = useState<DeliveryDraft>(emptyDeliveryDraft);
+  const [isSubmittingDelivery, setIsSubmittingDelivery] = useState(false);
+  const [isArchivingRequest, setIsArchivingRequest] = useState(false);
 
   const { data: session } = useSession();
   const ownerExternalId = session?.user?.id;
@@ -218,8 +232,17 @@ export function ChatShell() {
   );
   const isRequestLoading = Boolean(activeIntentId) && requestDetailResult === undefined;
   const requestDetail = (requestDetailResult ?? null) as RequestDetail | null;
+  const isArchivedTranscript = Boolean(
+    requestDetail?.intent?.status === "closed" &&
+      requestDetail.intent.closedReason === "archived_by_user",
+  );
+  const myProposal = requestDetail?.proposals.find((proposal) => proposal.isMine) ?? null;
+  const hasSubmittedProposal = Boolean(myProposal);
+  const canSubmitDelivery = requestDetail?.access?.canSubmitWork ?? false;
+  const canViewRequestChat = requestDetail?.access?.canViewChat ?? false;
 
   const deleteIntent = useMutation(deleteIntentMutation);
+  const generateUploadUrl = useMutation(generateUploadUrlMutation);
 
   const requestWorkspace = requestDetail?.intent
     ? buildWorkspaceFromRequestDetail(requestDetail)
@@ -228,6 +251,7 @@ export function ChatShell() {
   const requestMessages: ChatMessage[] =
     requestDetail?.messages.map((message) => ({
       content: message.body,
+      createdAt: message.createdAt,
       id: message._id,
       role:
         message.role === "user" ? ("user" as const) : ("assistant" as const),
@@ -271,7 +295,7 @@ export function ChatShell() {
 
     const params = new URLSearchParams(searchParams.toString());
     params.set("request", activeIntentId);
-    params.set("view", "workers");
+    params.set("view", "participants");
 
     return `${window.location.origin}${pathname}?${params.toString()}`;
   }, [activeIntentId, pathname, searchParams]);
@@ -373,16 +397,98 @@ export function ChatShell() {
 
     setErrorMessage(null);
     setIsSubmitting(true);
+    const now = Date.now();
+
+    if (activeIntentId) {
+      try {
+        const threadResponse = await fetch(`/api/requests/${activeIntentId}/messages`, {
+          body: JSON.stringify({ body: trimmed }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        const threadPayload = (await threadResponse.json()) as { error?: string; sent?: boolean };
+
+        if (!threadResponse.ok || !threadPayload.sent) {
+          throw new Error(threadPayload.error ?? "Failed to send request message.");
+        }
+
+        setComposerText("");
+
+        if (!borealEnabled) {
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to send request message.",
+        );
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    if (!activeIntentId && !borealEnabled) {
+      try {
+        const response = await fetch("/api/conversations/messages", {
+          body: JSON.stringify({
+            body: trimmed,
+            conversationId: activeConversationId,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        const payload = (await response.json()) as {
+          conversationId?: string;
+          error?: string;
+          posted?: boolean;
+        };
+
+        if (!response.ok || !payload.posted || !payload.conversationId) {
+          throw new Error(payload.error ?? "Failed to save conversation message.");
+        }
+
+        setConversationId(payload.conversationId);
+        setMessages((current) => [
+          ...current,
+          {
+            content: trimmed,
+            createdAt: now,
+            id: crypto.randomUUID(),
+            role: "user",
+          },
+        ]);
+        setComposerText("");
+        return;
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to save conversation message.",
+        );
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
     const assistantMessageId = crypto.randomUUID();
     setMessages((current) => [
       ...current,
-      {
-        content: trimmed,
-        id: crypto.randomUUID(),
-        role: "user",
-      },
+      ...(!activeIntentId
+        ? [
+            {
+              content: trimmed,
+              createdAt: now,
+              id: crypto.randomUUID(),
+              role: "user" as const,
+            },
+          ]
+        : []),
       {
         content: "",
+        createdAt: now,
         id: assistantMessageId,
         role: "assistant",
       },
@@ -399,7 +505,7 @@ export function ChatShell() {
             workspaceTab,
           }),
           message: trimmed,
-          provider: selectedProvider,
+          provider: "boreal-agent",
         }),
         headers: {
           "Content-Type": "application/json",
@@ -424,6 +530,7 @@ export function ChatShell() {
 
       setConversationId(finalPayload.conversationId);
       setWorkspace(finalPayload.workspace);
+      setComposerText("");
       updateWorkspaceUrl({ browse: "workers" });
       setShowWorkspace(true);
 
@@ -440,8 +547,7 @@ export function ChatShell() {
     } catch (error) {
       setMessages((current) =>
         current.filter(
-          (currentMessage) =>
-            !(currentMessage.id === assistantMessageId && currentMessage.content.length === 0),
+          (currentMessage) => currentMessage.id !== assistantMessageId,
         ),
       );
       setErrorMessage(
@@ -562,7 +668,6 @@ export function ChatShell() {
 
   async function handleDeleteIntent(intentId: string) {
     setErrorMessage(null);
-    setIsDeletingId(intentId);
 
     try {
       await deleteIntent({ intentId, ownerExternalId });
@@ -574,8 +679,6 @@ export function ChatShell() {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to delete request.",
       );
-    } finally {
-      setIsDeletingId(null);
     }
   }
 
@@ -621,12 +724,255 @@ export function ChatShell() {
     }
   }
 
+  async function handleArchiveRequest() {
+    if (!activeIntentId || isArchivingRequest) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsArchivingRequest(true);
+
+    try {
+      const response = await fetch(`/api/requests/${activeIntentId}/archive`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as { archived?: boolean; error?: string };
+
+      if (!response.ok || !payload.archived) {
+        throw new Error(payload.error ?? "Failed to archive request.");
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to archive request.",
+      );
+    } finally {
+      setIsArchivingRequest(false);
+    }
+  }
+
+  async function handleDraftProposal() {
+    if (!activeIntentId || !proposalMessage.trim() || isDraftingProposal) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsDraftingProposal(true);
+
+    try {
+      const response = await fetch(`/api/requests/${activeIntentId}/proposals`, {
+        body: JSON.stringify({
+          action: "draft",
+          message: proposalMessage,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        draft?: Record<string, unknown>;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.draft) {
+        throw new Error(payload.error ?? "Failed to draft proposal.");
+      }
+
+      setProposalDraft(normalizeProposalDraft(payload.draft, proposalMessage));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to draft proposal.",
+      );
+    } finally {
+      setIsDraftingProposal(false);
+    }
+  }
+
+  async function handleSubmitProposal() {
+    if (!activeIntentId || isSubmittingProposal) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSubmittingProposal(true);
+
+    try {
+      const draft = normalizeProposalDraft(proposalDraft, proposalMessage);
+      const response = await fetch(`/api/requests/${activeIntentId}/proposals`, {
+        body: JSON.stringify({
+          action: "submit",
+          draft,
+          message: proposalMessage,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const payload = (await response.json()) as { error?: string; submitted?: boolean };
+
+      if (!response.ok || !payload.submitted) {
+        throw new Error(payload.error ?? "Failed to submit proposal.");
+      }
+
+      setProposalDraft(emptyProposalDraft());
+      setProposalMessage("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to submit proposal.",
+      );
+    } finally {
+      setIsSubmittingProposal(false);
+    }
+  }
+
+  async function handleApproveProposal(proposalId: string) {
+    if (!activeIntentId || approvingProposalId) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setApprovingProposalId(proposalId);
+
+    try {
+      const response = await fetch(
+        `/api/requests/${activeIntentId}/proposals/${proposalId}/approve`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as { approved?: boolean; error?: string };
+
+      if (!response.ok || !payload.approved) {
+        throw new Error(payload.error ?? "Failed to approve proposal.");
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to approve proposal.",
+      );
+    } finally {
+      setApprovingProposalId(null);
+    }
+  }
+
+  async function handleDeliveryFilesSelected(files: File[]) {
+    if (files.length === 0) {
+      return;
+    }
+
+    const drafts = files.map((file) => ({
+      fileName: file.name,
+      fileSize: file.size,
+      id: crypto.randomUUID(),
+      mediaType: file.type || "application/octet-stream",
+      progress: 0,
+      status: "uploading" as const,
+      storageId: null,
+    }));
+
+    setDeliveryDraft((current) => ({
+      ...current,
+      attachments: [...current.attachments, ...drafts],
+    }));
+
+    await Promise.all(
+      files.map(async (file, index) => {
+        const draft = drafts[index];
+
+        try {
+          const uploadUrl = await generateUploadUrl({});
+          const storageId = await uploadFileToConvex(uploadUrl, file, (progress) => {
+            setDeliveryDraft((current) => ({
+              ...current,
+              attachments: current.attachments.map((attachment) =>
+                attachment.id === draft.id ? { ...attachment, progress } : attachment,
+              ),
+            }));
+          });
+
+          setDeliveryDraft((current) => ({
+            ...current,
+            attachments: current.attachments.map((attachment) =>
+              attachment.id === draft.id
+                ? { ...attachment, progress: 100, status: "uploaded", storageId }
+                : attachment,
+            ),
+          }));
+        } catch {
+          setDeliveryDraft((current) => ({
+            ...current,
+            attachments: current.attachments.map((attachment) =>
+              attachment.id === draft.id
+                ? { ...attachment, progress: 0, status: "error", storageId: null }
+                : attachment,
+            ),
+          }));
+        }
+      }),
+    );
+  }
+
+  function handleRemoveDeliveryAttachment(attachmentId: string) {
+    setDeliveryDraft((current) => ({
+      ...current,
+      attachments: current.attachments.filter((attachment) => attachment.id !== attachmentId),
+    }));
+  }
+
+  async function handleSubmitDelivery() {
+    if (
+      !activeIntentId ||
+      !deliveryDraft.deliverablesBody.trim() ||
+      isSubmittingDelivery ||
+      deliveryDraft.attachments.some((attachment) => attachment.status !== "uploaded")
+    ) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSubmittingDelivery(true);
+
+    try {
+      const response = await fetch(`/api/requests/${activeIntentId}/deliver`, {
+        body: JSON.stringify({
+          attachments: deliveryDraft.attachments
+            .filter((attachment) => attachment.storageId)
+            .map((attachment) => ({
+              fileName: attachment.fileName,
+              mediaType: attachment.mediaType,
+              sizeBytes: attachment.fileSize,
+              storageId: attachment.storageId,
+            })),
+          deliverablesBody: deliveryDraft.deliverablesBody,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const payload = (await response.json()) as { error?: string; submitted?: boolean };
+
+      if (!response.ok || !payload.submitted) {
+        throw new Error(payload.error ?? "Failed to submit work.");
+      }
+
+      setDeliveryDraft(emptyDeliveryDraft());
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to submit work.",
+      );
+    } finally {
+      setIsSubmittingDelivery(false);
+    }
+  }
+
   function handleSidebarSelect(intent: SidebarIntentPreview) {
     updateWorkspaceUrl({
       browse: "workers",
       request: intent._id,
       view: "chat",
     });
+    setProposalDraft(emptyProposalDraft());
+    setProposalMessage("");
+    setDeliveryDraft(emptyDeliveryDraft());
     setOptimisticReviewRating(null);
     setShowWorkspace(true);
     setMessages([]);
@@ -636,8 +982,11 @@ export function ChatShell() {
     updateWorkspaceUrl({
       browse: "requests",
       request: intent._id,
-      view: intent.isOwner ? "chat" : "proposals",
+      view: intent.isOwner ? "chat" : "workspace",
     });
+    setProposalDraft(emptyProposalDraft());
+    setProposalMessage("");
+    setDeliveryDraft(emptyDeliveryDraft());
     setOptimisticReviewRating(null);
     setShowWorkspace(true);
     setMessages([]);
@@ -648,6 +997,9 @@ export function ChatShell() {
       request: null,
       view: null,
     });
+    setProposalDraft(emptyProposalDraft());
+    setProposalMessage("");
+    setDeliveryDraft(emptyDeliveryDraft());
     setOptimisticReviewRating(null);
     setMessages([]);
     setConversationId(undefined);
@@ -675,8 +1027,6 @@ export function ChatShell() {
       >
         <IntentSidebar
           intents={sidebarIntents}
-          isDeletingId={isDeletingId}
-          onDelete={handleDeleteIntent}
           onDeselect={handleClearSelection}
           onSelect={handleSidebarSelect}
           selectedIntentId={activeIntentId}
@@ -763,22 +1113,22 @@ export function ChatShell() {
                   <button
                     className={cn(
                       "px-3 py-2 text-sm text-muted-foreground transition-colors",
-                      selectedCenterTab === "workers" && "text-foreground",
+                      selectedCenterTab === "participants" && "text-foreground",
                     )}
-                    onClick={() => updateWorkspaceUrl({ view: "workers" })}
+                    onClick={() => updateWorkspaceUrl({ view: "participants" })}
                     type="button"
                   >
-                    Workers
+                    Participants
                   </button>
                   <button
                     className={cn(
                       "px-3 py-2 text-sm text-muted-foreground transition-colors",
-                      selectedCenterTab === "proposals" && "text-foreground",
+                      selectedCenterTab === "workspace" && "text-foreground",
                     )}
-                    onClick={() => updateWorkspaceUrl({ view: "proposals" })}
+                    onClick={() => updateWorkspaceUrl({ view: "workspace" })}
                     type="button"
                   >
-                    Proposals
+                    Workspace
                   </button>
                 </div>
 
@@ -787,21 +1137,10 @@ export function ChatShell() {
                     <div className="flex items-center justify-between px-3 py-3 border rounded-md border-border">
                       {activeIntentId && requestDetail?.intent && (
                         <RequestHeaderMeta
-                          assignment={requestDetail.assignment}
+                          participants={requestDetail.participants}
                         />
                       )}
                       <RequestStageRail status={requestDetail.intent.status} />
-                    </div>
-
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 px-3 pb-2 pt-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                        <span>{formatOutputTypes(requestDetail.intent.requestedOutputTypes)}</span>
-                        <span>{requestDetail.intent.routeTarget.replaceAll("_", " ")}</span>
-                        {requestDetail.intent.startedAt ? (
-                          <span>Started {formatRequestDate(requestDetail.intent.startedAt)}</span>
-                        ) : null}
-                        {requestDetail.intent.completedAt ? (
-                          <span>Done {formatRequestDate(requestDetail.intent.completedAt)}</span>
-                        ) : null}
                     </div>
                   </div>
                 ) : null}
@@ -831,7 +1170,7 @@ export function ChatShell() {
                           className="border border-border p-4 text-left text-sm"
                           key={prompt}
                           onClick={() => {
-                            void submitMessage(prompt);
+                            setComposerText(prompt);
                           }}
                           type="button"
                         >
@@ -886,7 +1225,7 @@ export function ChatShell() {
                       />
                     </div>
                   </ScrollArea>
-                ) : activeIntentId && selectedCenterTab === "workers" ? (
+                ) : activeIntentId && selectedCenterTab === "participants" ? (
                   <ScrollArea className="h-full">
                     <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
                       <RequestWorkersPanel
@@ -895,21 +1234,48 @@ export function ChatShell() {
                           setShowWorkspace(true);
                         }}
                         requestDetail={requestDetail}
-                        selectedIntent={selectedIntent}
                         shareUrl={selectedRequestShareUrl}
                       />
                     </div>
                   </ScrollArea>
-                ) : activeIntentId && selectedCenterTab === "proposals" ? (
+                ) : activeIntentId && selectedCenterTab === "workspace" ? (
                   <ScrollArea className="h-full">
                     <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
                       <ProposalViewerPanel
+                        approvingProposalId={approvingProposalId}
+                        canSubmitDelivery={canSubmitDelivery}
+                        deliveryDraft={deliveryDraft}
+                        deliverySubmitted={requestDetail?.fulfillment?.status === "fulfilled"}
+                        hasSubmittedProposal={hasSubmittedProposal}
+                        isDraftingProposal={isDraftingProposal}
+                        isSubmittingDelivery={isSubmittingDelivery}
+                        isSubmittingProposal={isSubmittingProposal}
+                        proposalDraft={proposalDraft}
+                        proposalMessage={proposalMessage}
+                        onApproveProposal={handleApproveProposal}
+                        onDeliveryFilesSelected={handleDeliveryFilesSelected}
+                        onDraftProposal={handleDraftProposal}
+                        onRemoveDeliveryAttachment={handleRemoveDeliveryAttachment}
+                        onSubmitDelivery={handleSubmitDelivery}
+                        onSubmitProposal={handleSubmitProposal}
+                        setDeliveryDraft={setDeliveryDraft}
+                        setProposalDraft={setProposalDraft}
+                        setProposalMessage={setProposalMessage}
                         key={activeIntentId}
-                        intentId={activeIntentId}
                         requestDetail={requestDetail}
                       />
                     </div>
                   </ScrollArea>
+                ) : activeIntentId && !canViewRequestChat ? (
+                  <div className="mx-auto flex h-full w-full max-w-3xl items-center px-4 py-8">
+                    <div className="w-full border border-border p-6">
+                      <p className="text-sm font-medium">Chat opens after acceptance</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Only the owner and accepted participants can use the request chat thread.
+                        Use the workspace tab to submit or review proposals first.
+                      </p>
+                    </div>
+                  </div>
                 ) : (
                   <Conversation className="h-full min-h-0">
                     <ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
@@ -933,13 +1299,19 @@ export function ChatShell() {
                               artifact?.remoteId;
                             void refreshVideoJob(jobId);
                           }}
+                          isArchivingRequest={isArchivingRequest}
                           isApprovingRequest={isApprovingRequest}
                           isCancellingRequest={isCancellingRequest}
                           isSubmittingReview={isSubmittingReview}
+                          approvingProposalId={approvingProposalId}
+                          onApproveProposal={handleApproveProposal}
                           onApproveRequest={handleApproveRequest}
                           onCancelRequest={handleCancelRequest}
                           onRetryRequest={handleRetryRequest}
+                          liveMessages={messages}
                           onSubmitReview={handleSubmitReview}
+                          onArchiveRequest={handleArchiveRequest}
+                          onDeleteIntent={() => handleDeleteIntent(activeIntentId)}
                           requestDetail={requestDetail}
                           review={effectiveReview}
                           shouldPromptReview={shouldPromptReview}
@@ -949,7 +1321,9 @@ export function ChatShell() {
                         displayedMessages.map((message) => (
                           <Message from={message.role} key={message.id}>
                             <MessageContent>
-                              <MessageResponse>{message.content}</MessageResponse>
+                              <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:border [&_a]:border-border [&_a]:px-2 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
+                                {message.content}
+                              </MessageResponse>
                             </MessageContent>
                           </Message>
                         ))
@@ -974,91 +1348,64 @@ export function ChatShell() {
           </div>
 
           <div className="border-t border-border p-4">
-            <PromptInput
-              onSubmit={async (input) => {
-                await submitMessage(input.text);
-              }}
-            >
-              <PromptInputBody>
-                <PromptInputTextarea placeholder="Ask a question, draft a request, or ask Boreal to find the right product or capability." />
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools>
-                  <Select onValueChange={setSelectedProvider} value={selectedProvider}>
-                    <SelectTrigger className="min-w-24" size="sm">
-                      <SelectValue placeholder="Provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providerOptions.map((provider) => (
-                        <SelectItem
-                          disabled={provider.disabled}
-                          key={provider.value}
-                          value={provider.value}
-                        >
-                          {provider.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    onClick={login}
-                    size="sm"
-                    type="button"
-                    variant={privyAuthenticated ? "secondary" : "ghost"}
-                  >
-                    <WalletIcon />
-                    {privyReady
-                      ? privyAuthenticated
-                        ? "Connected"
-                        : "Connect Wallet"
-                      : "Wallet"}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      updateWorkspaceUrl({ browse: "requests" });
-                      setShowWorkspace(true);
-                    }}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <PackageIcon />
-                    Requests
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      updateWorkspaceUrl({ browse: "workers" });
-                      setShowWorkspace(true);
-                    }}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <BotIcon />
-                    Workers
-                  </Button>
-                  <Button
-                    disabled={isSubmitting}
-                    onClick={() => {
-                      void submitMessage(
-                        "What can Boreal Agent do right now? Summarize your capabilities, the kinds of requests you can fulfill, and when approval or worker proposals are needed.",
-                      );
-                    }}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <SparklesIcon />
-                    Capabilities
-                  </Button>
+            {isArchivedTranscript ? (
+              <div className="border border-border px-4 py-3 text-xs text-muted-foreground">
+                This request has been archived. The chat is now read-only.
+              </div>
+            ) : (
+              <PromptInput
+                onSubmit={async (input) => {
+                  if (!input.text.trim()) {
+                    return;
+                  }
 
-                </PromptInputTools>
-                <PromptInputSubmit
-                  disabled={isSubmitting}
-                  status={isSubmitting ? "submitted" : undefined}
-                />
-              </PromptInputFooter>
-            </PromptInput>
+                  await submitMessage(input.text);
+                }}
+              >
+                <PromptInputBody>
+                  <PromptInputTextarea
+                    onChange={(event) => setComposerText(event.currentTarget.value)}
+                    placeholder="Ask a question, coordinate on a request, or ask Boreal for help."
+                    value={composerText}
+                  />
+                </PromptInputBody>
+                <PromptInputFooter>
+                  <PromptInputTools>
+                    <Button
+                      className={cn(
+                        "transition-shadow",
+                        borealEnabled &&
+                          "shadow-[0_0_0_1px_hsl(var(--foreground)/0.25),0_0_18px_hsl(var(--foreground)/0.12)]",
+                      )}
+                      onClick={() => setBorealEnabled((current) => !current)}
+                      size="sm"
+                      type="button"
+                      variant={borealEnabled ? "secondary" : "outline"}
+                    >
+                      <BotIcon />
+                      {borealEnabled ? "Boreal on" : "Boreal off"}
+                    </Button>
+                    <Button
+                      onClick={login}
+                      size="sm"
+                      type="button"
+                      variant={privyAuthenticated ? "secondary" : "ghost"}
+                    >
+                      <WalletIcon />
+                      {privyReady
+                        ? privyAuthenticated
+                          ? "Connected"
+                          : "Connect Wallet"
+                        : "Wallet"}
+                    </Button>
+                  </PromptInputTools>
+                  <PromptInputSubmit
+                    disabled={isSubmitting || composerText.trim().length === 0}
+                    status={isSubmitting ? "submitted" : undefined}
+                  />
+                </PromptInputFooter>
+              </PromptInput>
+            )}
 
             {errorMessage ? (
               <p className="mt-3 text-xs text-destructive">{errorMessage}</p>
@@ -1084,14 +1431,14 @@ export function ChatShell() {
 }
 
 function RequestHeaderMeta({
-  assignment,
+  participants,
 }: {
-  assignment: RequestDetail["assignment"];
+  participants?: RequestDetail["participants"];
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
       <span>Assigned to</span>
-      <AssignedWorkerPills assignment={assignment} />
+      <AssignedWorkerPills participants={participants} />
     </div>
   );
 }
@@ -1174,30 +1521,117 @@ function InlineApprovalQueue({
 }
 
 function InlineRequestActionEvent({
+  access,
+  approvingProposalId,
   intent,
+  isArchivingRequest,
   isApprovingRequest,
   isCancellingRequest,
   isSubmittingReview,
+  onArchiveRequest,
+  onApproveProposal,
   onApproveRequest,
   onCancelRequest,
+  onDeleteIntent,
   onRetryRequest,
   onSubmitReview,
+  proposals,
   shouldPromptReview,
 }: {
+  access: RequestDetail["access"];
+  approvingProposalId: string | null;
   intent: NonNullable<RequestDetail["intent"]>;
+  isArchivingRequest: boolean;
   isApprovingRequest: boolean;
   isCancellingRequest: boolean;
   isSubmittingReview: boolean;
+  onArchiveRequest: () => Promise<void>;
+  onApproveProposal: (proposalId: string) => Promise<void>;
   onApproveRequest: () => void;
   onCancelRequest: () => void;
+  onDeleteIntent: () => void;
   onRetryRequest: () => Promise<void>;
   onSubmitReview: (rating: number) => void;
+  proposals: RequestDetail["proposals"];
   shouldPromptReview: boolean;
 }) {
-  const actionState = getRequestActionState(intent.status, shouldPromptReview);
+  const actionState = getRequestActionState(intent, access, shouldPromptReview);
+  const submittedProposals = (proposals ?? []).filter((proposal) => proposal.status === "submitted");
 
   if (actionState.kind === "none" || actionState.kind === "review") {
     return null;
+  }
+
+  if (actionState.kind === "approval" && access?.canApproveProposals && submittedProposals.length > 0) {
+    return (
+      <div className="space-y-4 border border-border p-4">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Waiting for approval</p>
+          <p className="text-xs text-muted-foreground">
+            Review who is asking to take this request before work starts.
+          </p>
+        </div>
+        <div className="space-y-3">
+          {submittedProposals.map((proposal) => (
+            <div className="space-y-4 border border-border p-4" key={proposal._id}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-9 items-center justify-center border border-border">
+                    {proposal.proposer.kind === "agent" ? (
+                      <BotIcon className="size-4 text-muted-foreground" />
+                    ) : (
+                      <UserIcon className="size-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{proposal.proposer.displayName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {proposal.proposer.handle
+                        ? `@${proposal.proposer.handle}`
+                        : proposal.proposer.kind}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatRequestDate(proposal.createdAt)}
+                </p>
+              </div>
+              <ProposalCardBody proposal={proposal} />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={approvingProposalId === proposal._id}
+                  onClick={() => void onApproveProposal(proposal._id)}
+                  size="sm"
+                  type="button"
+                >
+                  {approvingProposalId === proposal._id ? (
+                    <LoaderIcon className="animate-spin" />
+                  ) : (
+                    <CheckIcon />
+                  )}
+                  Approve proposal
+                </Button>
+                {proposal.proposer.profileId ? (
+                  <Button asChild size="sm" type="button" variant="outline">
+                    <Link href={`/p/${proposal.proposer.profileId}`}>View profile</Link>
+                  </Button>
+                ) : null}
+                <Button
+                  disabled={isCancellingRequest}
+                  onClick={onCancelRequest}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  {isCancellingRequest ? <LoaderIcon className="animate-spin" /> : <XCircleIcon />}
+                  Cancel request
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1228,17 +1662,39 @@ function InlineRequestActionEvent({
             </Button>
           </>
         ) : null}
-        {actionState.kind === "continue" ? (
-          <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
-            {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
-            Continue
-          </Button>
-        ) : null}
         {actionState.kind === "retry" ? (
-          <Button disabled={isApprovingRequest} onClick={() => void onRetryRequest()} size="sm" type="button">
+          <Button disabled={isApprovingRequest || isCancellingRequest} onClick={() => void onRetryRequest()} size="sm" type="button">
             {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
             Retry
           </Button>
+        ) : null}
+        {actionState.kind === "archive" ? (
+          <>
+            <Button
+              disabled={isArchivingRequest}
+              onClick={() => void onArchiveRequest()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isArchivingRequest ? <LoaderIcon className="animate-spin" /> : <PackageIcon />}
+              Archive
+            </Button>
+            <Button onClick={onDeleteIntent} size="sm" type="button" variant="ghost">
+              Delete
+            </Button>
+          </>
+        ) : null}
+        {actionState.kind === "closed" ? (
+          <>
+            <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
+              {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+              Continue
+            </Button>
+            <Button onClick={onDeleteIntent} size="sm" type="button" variant="outline">
+              Delete
+            </Button>
+          </>
         ) : null}
       </div>
       {shouldPromptReview ? (
@@ -1250,17 +1706,25 @@ function InlineRequestActionEvent({
 
 type RequestTimelineItem =
   | { item: RequestDetail["messages"][number]; key: string; kind: "message"; timestamp: number }
+  | { item: ChatMessage; key: string; kind: "live"; timestamp: number }
   | { item: NonNullable<RequestDetail["artifact"]>; key: string; kind: "artifact"; timestamp: number }
+  | { item: NonNullable<RequestDetail["fulfillment"]>; key: string; kind: "fulfillment"; timestamp: number }
   | { item: NonNullable<RequestDetail["review"]>; key: string; kind: "review"; timestamp: number };
 
 function RequestChatTimeline({
+  approvingProposalId,
+  liveMessages,
+  isArchivingRequest,
   isApprovingRequest,
   isCancellingRequest,
   isRefreshingVideo,
   isSubmittingReview,
+  onArchiveRequest,
+  onApproveProposal,
   onApproveRequest,
   onAskCatalogItem,
   onCancelRequest,
+  onDeleteIntent,
   onDownloadVideo,
   onQuickReply,
   onRefreshVideo,
@@ -1271,13 +1735,19 @@ function RequestChatTimeline({
   shouldPromptReview,
   workspace,
 }: {
+  approvingProposalId: string | null;
+  liveMessages: ChatMessage[];
+  isArchivingRequest: boolean;
   isApprovingRequest: boolean;
   isCancellingRequest: boolean;
   isRefreshingVideo: boolean;
   isSubmittingReview: boolean;
+  onArchiveRequest: () => Promise<void>;
+  onApproveProposal: (proposalId: string) => Promise<void>;
   onApproveRequest: (intentId?: string | null) => Promise<void>;
   onAskCatalogItem: (item: CatalogItem) => void;
   onCancelRequest: (intentId?: string | null) => Promise<void>;
+  onDeleteIntent: () => void;
   onDownloadVideo: (videoId: string) => void;
   onQuickReply: (value: string) => void;
   onRefreshVideo: () => void;
@@ -1288,18 +1758,46 @@ function RequestChatTimeline({
   shouldPromptReview: boolean;
   workspace: WorkspaceState;
 }) {
-  const timeline = buildRequestTimeline(requestDetail, review);
+  const timeline = buildRequestTimeline(requestDetail, review, liveMessages);
 
   return (
     <>
       {timeline.map((entry) => {
         if (entry.kind === "message") {
-          const role = entry.item.role === "user" ? "user" : "assistant";
+          const role = entry.item.sender.isCurrentUser
+            ? "user"
+            : entry.item.sender.actorKind === "agent"
+              ? "assistant"
+              : "assistant";
 
           return (
             <Message from={role} key={entry.key}>
+              {!entry.item.sender.isCurrentUser ? (
+                <p className="mb-1 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  <SenderIcon actorKind={entry.item.sender.actorKind} />
+                  <span>{entry.item.sender.displayName}</span>
+                </p>
+              ) : null}
               <MessageContent>
-                <MessageResponse>{entry.item.body}</MessageResponse>
+                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:border [&_a]:border-border [&_a]:px-2 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
+                  {entry.item.body}
+                </MessageResponse>
+              </MessageContent>
+            </Message>
+          );
+        }
+
+        if (entry.kind === "live") {
+          return (
+            <Message from={entry.item.role} key={entry.key}>
+              <p className="mb-1 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                <BotIcon className="size-3" />
+                <span>Boreal Agent</span>
+              </p>
+              <MessageContent>
+                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:border [&_a]:border-border [&_a]:px-2 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
+                  {entry.item.content}
+                </MessageResponse>
               </MessageContent>
             </Message>
           );
@@ -1316,6 +1814,10 @@ function RequestChatTimeline({
               key={entry.key}
             />
           );
+        }
+
+        if (entry.kind === "fulfillment") {
+          return <InlineFulfillmentEvent fulfillment={entry.item} key={entry.key} />;
         }
 
         return (
@@ -1335,14 +1837,21 @@ function RequestChatTimeline({
 
       {requestDetail.intent ? (
         <InlineRequestActionEvent
+          access={requestDetail.access}
+          approvingProposalId={approvingProposalId}
           intent={requestDetail.intent}
+          isArchivingRequest={isArchivingRequest}
           isApprovingRequest={isApprovingRequest}
           isCancellingRequest={isCancellingRequest}
           isSubmittingReview={isSubmittingReview}
+          onArchiveRequest={onArchiveRequest}
+          onApproveProposal={onApproveProposal}
           onApproveRequest={() => onApproveRequest(requestDetail.intent?._id)}
           onCancelRequest={() => onCancelRequest(requestDetail.intent?._id)}
+          onDeleteIntent={onDeleteIntent}
           onRetryRequest={onRetryRequest}
           onSubmitReview={onSubmitReview}
+          proposals={requestDetail.proposals}
           shouldPromptReview={shouldPromptReview}
         />
       ) : null}
@@ -1364,6 +1873,7 @@ function RequestChatTimeline({
 function buildRequestTimeline(
   requestDetail: RequestDetail,
   review: RequestDetail["review"],
+  liveMessages: ChatMessage[],
 ): RequestTimelineItem[] {
   const items: RequestTimelineItem[] = [];
 
@@ -1385,6 +1895,15 @@ function buildRequestTimeline(
     });
   }
 
+  if (requestDetail.fulfillment?.evidence) {
+    items.push({
+      item: requestDetail.fulfillment,
+      key: `fulfillment-${requestDetail.fulfillment.evidence.createdAt}`,
+      kind: "fulfillment",
+      timestamp: requestDetail.fulfillment.evidence.createdAt,
+    });
+  }
+
   if (review?.reviewedAt) {
     items.push({
       item: review,
@@ -1394,12 +1913,21 @@ function buildRequestTimeline(
     });
   }
 
+  for (const liveMessage of liveMessages) {
+    items.push({
+      item: liveMessage,
+      key: `live-${liveMessage.id}`,
+      kind: "live",
+      timestamp: liveMessage.createdAt,
+    });
+  }
+
   return items.sort((left, right) => {
     if (left.timestamp !== right.timestamp) {
       return left.timestamp - right.timestamp;
     }
 
-    const order = { message: 0, artifact: 1, review: 2 };
+    const order = { message: 0, live: 1, fulfillment: 2, artifact: 3, review: 4 };
 
     return order[left.kind] - order[right.kind];
   });
@@ -1439,6 +1967,25 @@ function InlineArtifactEvent({
   );
 }
 
+function InlineFulfillmentEvent({
+  fulfillment,
+}: {
+  fulfillment: NonNullable<RequestDetail["fulfillment"]>;
+}) {
+  if (!fulfillment.evidence) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+        {formatRequestDate(fulfillment.evidence.createdAt)}
+      </p>
+      <WorkSubmissionCard fulfillment={fulfillment} />
+    </div>
+  );
+}
+
 function InlineReviewEvent({
   review,
 }: {
@@ -1462,6 +2009,62 @@ function InlineReviewEvent({
       </div>
       {review.comment ? <p className="text-sm">{review.comment}</p> : null}
       <p className="text-xs text-muted-foreground">Review submitted.</p>
+    </div>
+  );
+}
+
+function WorkSubmissionCard({
+  fulfillment,
+}: {
+  fulfillment: NonNullable<RequestDetail["fulfillment"]>;
+}) {
+  if (!fulfillment.evidence) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4 border border-border p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Work submission</p>
+          <p className="text-xs text-muted-foreground">
+            Final delivery submitted for review and download.
+          </p>
+        </div>
+        <span className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          {fulfillment.status.replaceAll("_", " ")}
+        </span>
+      </div>
+      <div className="border border-border p-4">
+        <MessageResponse className="text-sm">{fulfillment.evidence.body}</MessageResponse>
+      </div>
+      {fulfillment.evidence.attachments.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {fulfillment.evidence.attachments.map((attachment) => (
+            <div className="flex items-center justify-between gap-3 border border-border p-3" key={`${attachment.fileName}-${attachment.url ?? attachment.sizeBytes}`}>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-9 items-center justify-center border border-border text-muted-foreground">
+                  <FileIcon className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{attachment.fileName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(attachment.sizeBytes)}
+                  </p>
+                </div>
+              </div>
+              {attachment.url ? (
+                <Button asChild size="sm" type="button" variant="outline">
+                  <a download={attachment.fileName} href={attachment.url} rel="noreferrer" target="_blank">
+                    <DownloadIcon />
+                    Download
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1525,6 +2128,18 @@ function InlineReviewActions({
   );
 }
 
+function SenderIcon({
+  actorKind,
+}: {
+  actorKind: "agent" | "human" | "tool";
+}) {
+  if (actorKind === "agent") {
+    return <BotIcon className="size-3" />;
+  }
+
+  return <UserIcon className="size-3" />;
+}
+
 function InlineTierPill({ tier }: { tier: string }) {
   return (
     <span className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -1534,15 +2149,58 @@ function InlineTierPill({ tier }: { tier: string }) {
 }
 
 function AssignedWorkerPills({
-  assignment,
+  participants,
 }: {
-  assignment: RequestDetail["assignment"];
+  participants?: RequestDetail["participants"];
 }) {
-  const primaryWorker = getPrimaryWorker(assignment);
+  const workers = dedupeParticipantList(
+    (participants ?? []).filter((participant) => participant.status !== "owner"),
+  );
 
   return (
-    <WorkerPill icon={primaryWorker.icon} label={primaryWorker.label} />
+    <div className="flex items-center gap-1">
+      {workers.length === 0 ? (
+        <WorkerPill icon={BotIcon} label="Boreal Agent" />
+      ) : (
+        workers.slice(0, 4).map((worker) => (
+          <WorkerPill
+            icon={worker.kind === "agent" ? BotIcon : UserIcon}
+            key={`${worker.displayName}-${worker.status}`}
+            label={worker.displayName}
+          />
+        ))
+      )}
+    </div>
   );
+}
+
+function dedupeParticipantList<
+  T extends { displayName: string; externalId?: string | null; handle?: string | null },
+>(participants: T[]) {
+  const deduped = new Map<string, T>();
+
+  for (const participant of participants) {
+    const externalId = participant.externalId?.trim().toLowerCase();
+    const handle = participant.handle?.trim().toLowerCase();
+    const name = participant.displayName.trim().toLowerCase();
+    const key = externalId
+      ? externalId.includes("boreal")
+        ? "agent:boreal"
+        : `external:${externalId}`
+      : handle
+        ? handle === "boreal"
+          ? "agent:boreal"
+          : `handle:${handle}`
+        : name.includes("boreal")
+          ? "agent:boreal"
+          : `name:${name}`;
+
+    if (!deduped.has(key)) {
+      deduped.set(key, participant);
+    }
+  }
+
+  return Array.from(deduped.values());
 }
 
 function WorkerPill({
@@ -1586,24 +2244,18 @@ function LoadingRequestPanel() {
 function RequestWorkersPanel({
   onBrowseWorkers,
   requestDetail,
-  selectedIntent,
   shareUrl,
 }: {
   onBrowseWorkers: () => void;
   requestDetail: RequestDetail | null;
-  selectedIntent: SidebarIntentPreview | null;
   shareUrl: string | null;
 }) {
   const [copied, setCopied] = useState(false);
   const intent = requestDetail?.intent;
-  const assignedAgent = requestDetail?.assignment?.agent;
-  const assignedTools = requestDetail?.assignment?.tools ?? [];
-  const requestedOutputTypes =
-    intent?.requestedOutputTypes ?? selectedIntent?.requestedOutputTypes ?? ["text"];
-  const routeTarget = intent?.routeTarget ?? selectedIntent?.routeTarget ?? "general_assistance";
-  const workers = buildRequestWorkerCards(requestedOutputTypes, routeTarget, assignedAgent);
+  const participants = requestDetail?.participants ?? [];
   const isWaitingForWorkers =
-    !assignedAgent && (intent?.status === "open" || intent?.status === "proposed");
+    participants.filter((participant) => participant.status !== "owner").length === 0 &&
+    (intent?.status === "open" || intent?.status === "proposed");
 
   async function handleCopyShare() {
     if (!shareUrl) {
@@ -1655,141 +2307,95 @@ function RequestWorkersPanel({
       ) : null}
 
       <div className="space-y-3 border border-border p-4">
-        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-          Participants
-        </p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Participants</p>
         <div className="space-y-3">
-          {workers.map((worker) => (
-            <div className="border border-border p-3" key={worker.title}>
+          {participants.map((participant) => (
+            <div className="border border-border p-3" key={`${participant.displayName}-${participant.status}`}>
               <div className="flex items-start gap-3">
                 <div className="flex size-9 items-center justify-center border border-border">
-                  <worker.icon className="size-4 text-muted-foreground" />
+                  {participant.kind === "agent" ? (
+                    <BotIcon className="size-4 text-muted-foreground" />
+                  ) : (
+                    <UserIcon className="size-4 text-muted-foreground" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">{worker.title}</p>
+                    <p className="text-sm font-medium">{participant.displayName}</p>
                     <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {worker.meta}
+                      {participant.status}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{worker.description}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {participant.handle ? `@${participant.handle}` : participant.kind}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {participant.profileId ? (
+                      <Button asChild size="sm" type="button" variant="outline">
+                        <Link href={`/p/${participant.profileId}`}>View profile</Link>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
-        {assignedTools.length > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Current tools: {assignedTools.join(" / ")}
-          </p>
-        ) : null}
       </div>
     </div>
   );
 }
 
 function ProposalViewerPanel({
-  intentId,
+  approvingProposalId,
+  canSubmitDelivery,
+  deliveryDraft,
+  deliverySubmitted,
+  hasSubmittedProposal,
+  isDraftingProposal,
+  isSubmittingDelivery,
+  isSubmittingProposal,
+  onApproveProposal,
+  onDeliveryFilesSelected,
+  onDraftProposal,
+  onRemoveDeliveryAttachment,
+  onSubmitDelivery,
+  onSubmitProposal,
+  proposalDraft,
+  proposalMessage,
   requestDetail,
+  setDeliveryDraft,
+  setProposalDraft,
+  setProposalMessage,
 }: {
-  intentId: string;
+  approvingProposalId: string | null;
+  canSubmitDelivery: boolean;
+  deliveryDraft: DeliveryDraft;
+  deliverySubmitted: boolean;
+  hasSubmittedProposal: boolean;
+  isDraftingProposal: boolean;
+  isSubmittingDelivery: boolean;
+  isSubmittingProposal: boolean;
+  onApproveProposal: (proposalId: string) => Promise<void>;
+  onDeliveryFilesSelected: (files: File[]) => Promise<void>;
+  onDraftProposal: () => Promise<void>;
+  onRemoveDeliveryAttachment: (attachmentId: string) => void;
+  onSubmitDelivery: () => Promise<void>;
+  onSubmitProposal: () => Promise<void>;
+  proposalDraft: ProposalDraft;
+  proposalMessage: string;
   requestDetail: RequestDetail | null;
+  setDeliveryDraft: Dispatch<SetStateAction<DeliveryDraft>>;
+  setProposalDraft: Dispatch<SetStateAction<ProposalDraft>>;
+  setProposalMessage: Dispatch<SetStateAction<string>>;
 }) {
-  const [proposalMessage, setProposalMessage] = useState("");
-  const [proposalDraft, setProposalDraft] = useState<Record<string, unknown> | null>(null);
-  const [isDraftingProposal, setIsDraftingProposal] = useState(false);
-  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
-  const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
   const isOwner = requestDetail?.access?.isOwner ?? false;
   const proposals = requestDetail?.proposals ?? [];
   const visibleProposals = isOwner ? proposals : proposals.filter((proposal) => proposal.isMine);
-
-  async function handleDraftProposal() {
-    if (!proposalMessage.trim() || isDraftingProposal) {
-      return;
-    }
-
-    setIsDraftingProposal(true);
-
-    try {
-      const response = await fetch(`/api/requests/${intentId}/proposals`, {
-        body: JSON.stringify({
-          action: "draft",
-          message: proposalMessage,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      });
-      const payload = (await response.json()) as {
-        draft?: Record<string, unknown>;
-        error?: string;
-      };
-
-      if (!response.ok || !payload.draft) {
-        throw new Error(payload.error ?? "Failed to draft proposal.");
-      }
-
-      setProposalDraft(payload.draft);
-    } finally {
-      setIsDraftingProposal(false);
-    }
-  }
-
-  async function handleSubmitProposal() {
-    if (!proposalDraft || isSubmittingProposal) {
-      return;
-    }
-
-    setIsSubmittingProposal(true);
-
-    try {
-      const response = await fetch(`/api/requests/${intentId}/proposals`, {
-        body: JSON.stringify({
-          action: "submit",
-          draft: proposalDraft,
-          message: proposalMessage,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      });
-      const payload = (await response.json()) as { error?: string; submitted?: boolean };
-
-      if (!response.ok || !payload.submitted) {
-        throw new Error(payload.error ?? "Failed to submit proposal.");
-      }
-
-      setProposalDraft(null);
-      setProposalMessage("");
-    } finally {
-      setIsSubmittingProposal(false);
-    }
-  }
-
-  async function handleApproveProposal(proposalId: string) {
-    if (approvingProposalId) {
-      return;
-    }
-
-    setApprovingProposalId(proposalId);
-
-    try {
-      const response = await fetch(
-        `/api/requests/${intentId}/proposals/${proposalId}/approve`,
-        { method: "POST" },
-      );
-      const payload = (await response.json()) as { approved?: boolean; error?: string };
-
-      if (!response.ok || !payload.approved) {
-        throw new Error(payload.error ?? "Failed to approve proposal.");
-      }
-    } finally {
-      setApprovingProposalId(null);
-    }
-  }
+  const [isProposalDialogOpen, setIsProposalDialogOpen] = useState(false);
+  const [isDeliveryDialogOpen, setIsDeliveryDialogOpen] = useState(false);
+  const proposalDialogOpen = isProposalDialogOpen && !hasSubmittedProposal;
+  const deliveryDialogOpen = isDeliveryDialogOpen && !deliverySubmitted;
 
   return (
     <div className="space-y-4">
@@ -1801,51 +2407,82 @@ function ProposalViewerPanel({
             price before approving.
           </p>
         </div>
-      ) : requestDetail?.access?.canSubmitProposal ? (
+      ) : canSubmitDelivery ? (
         <div className="space-y-4 border border-border p-4">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Submit a proposal</p>
+            <p className="text-sm font-medium">Delivery workspace</p>
             <p className="text-xs text-muted-foreground">
-              Describe how you would handle the request, include your quote and ETA, then confirm
-              before sending it to the owner.
+              Your proposal was accepted. Submit the finished work here so the owner can review it.
             </p>
           </div>
-          <textarea
-            className="min-h-32 w-full border border-border bg-transparent p-3 text-sm outline-none"
-            onChange={(event) => setProposalMessage(event.target.value)}
-            placeholder="I can deliver a polished motion piece in 3 days for $450. Deliverables include..."
-            value={proposalMessage}
-          />
-          {proposalDraft ? (
-            <div className="space-y-3 border border-border p-4">
-              <p className="text-sm font-medium">Confirm proposal</p>
-              <ProposalCardBody proposal={mapDraftProposal(proposalDraft)} />
-              <div className="flex flex-wrap gap-2">
-                <Button disabled={isSubmittingProposal} onClick={() => void handleSubmitProposal()} size="sm" type="button">
-                  {isSubmittingProposal ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
-                  Send proposal
-                </Button>
-                <Button
-                  onClick={() => setProposalDraft(null)}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
+          {requestDetail?.fulfillment?.completedSummary ? (
+            <WorkSubmissionCard fulfillment={requestDetail.fulfillment} />
+          ) : null}
+          <div className="flex flex-wrap gap-2">
             <Button
-              disabled={isDraftingProposal || proposalMessage.trim().length === 0}
-              onClick={() => void handleDraftProposal()}
+              disabled={deliverySubmitted}
+              onClick={() => setIsDeliveryDialogOpen(true)}
               size="sm"
               type="button"
             >
-              {isDraftingProposal ? <LoaderIcon className="animate-spin" /> : <SparklesIcon />}
-              Draft proposal
+              <PackageIcon />
+              {deliverySubmitted ? "Work submitted" : "Open submission form"}
             </Button>
-          )}
+          </div>
+          <DeliverySubmissionDialog
+            deliveryDraft={deliveryDraft}
+            isOpen={deliveryDialogOpen}
+            isSubmittingDelivery={isSubmittingDelivery}
+            isUploadingDeliveryFiles={deliveryDraft.attachments.some(
+              (attachment) => attachment.status === "uploading",
+            )}
+            onOpenChange={setIsDeliveryDialogOpen}
+            onRemoveAttachment={onRemoveDeliveryAttachment}
+            onSelectFiles={onDeliveryFilesSelected}
+            onSubmitDelivery={onSubmitDelivery}
+            setDeliveryDraft={setDeliveryDraft}
+          />
+        </div>
+      ) : requestDetail?.access?.canSubmitProposal && !hasSubmittedProposal ? (
+        <div className="space-y-4 border border-border p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Proposal workspace</p>
+            <p className="text-xs text-muted-foreground">
+              Build your proposal in a form, refine it if useful, then send only when you are ready.
+            </p>
+          </div>
+          <div className="space-y-4 border border-border p-4">
+            <p className="text-sm font-medium">Current proposal draft</p>
+            <ProposalCardBody proposal={mapDraftProposal(proposalDraft)} />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setIsProposalDialogOpen(true)} size="sm" type="button">
+                <SparklesIcon />
+                Open proposal form
+              </Button>
+            </div>
+          </div>
+          <ProposalSubmissionDialog
+            isDraftingProposal={isDraftingProposal}
+            isOpen={proposalDialogOpen}
+            isSubmittingProposal={isSubmittingProposal}
+            onDraftProposal={onDraftProposal}
+            onOpenChange={setIsProposalDialogOpen}
+            onSubmitProposal={onSubmitProposal}
+            proposalDraft={proposalDraft}
+            proposalMessage={proposalMessage}
+            setProposalDraft={setProposalDraft}
+            setProposalMessage={setProposalMessage}
+          />
+        </div>
+      ) : requestDetail?.access?.canSubmitProposal && hasSubmittedProposal ? (
+        <div className="space-y-4 border border-border p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Proposal submitted</p>
+            <p className="text-xs text-muted-foreground">
+              Your proposal is now in review. This workspace will update when the owner accepts or
+              declines it.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="space-y-3 border border-border p-4">
@@ -1891,14 +2528,21 @@ function ProposalViewerPanel({
                     <p className="mt-1">{formatRequestDate(proposal.createdAt)}</p>
                   </div>
                 </div>
+              <div className="mt-4">
+                <ProposalCardBody proposal={proposal} />
+              </div>
+              {proposal.proposer.profileId ? (
                 <div className="mt-4">
-                  <ProposalCardBody proposal={proposal} />
+                  <Button asChild size="sm" type="button" variant="outline">
+                    <Link href={`/p/${proposal.proposer.profileId}`}>View profile</Link>
+                  </Button>
                 </div>
-                {isOwner && proposal.status === "submitted" ? (
+              ) : null}
+              {isOwner && proposal.status === "submitted" ? (
                   <div className="mt-4 flex gap-2">
                     <Button
                       disabled={approvingProposalId === proposal._id}
-                      onClick={() => void handleApproveProposal(proposal._id)}
+                      onClick={() => void onApproveProposal(proposal._id)}
                       size="sm"
                       type="button"
                     >
@@ -1916,6 +2560,370 @@ function ProposalViewerPanel({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ProposalSubmissionDialog({
+  isDraftingProposal,
+  isOpen,
+  isSubmittingProposal,
+  onDraftProposal,
+  onOpenChange,
+  onSubmitProposal,
+  proposalDraft,
+  proposalMessage,
+  setProposalDraft,
+  setProposalMessage,
+}: {
+  isDraftingProposal: boolean;
+  isOpen: boolean;
+  isSubmittingProposal: boolean;
+  onDraftProposal: () => Promise<void>;
+  onOpenChange: (open: boolean) => void;
+  onSubmitProposal: () => Promise<void>;
+  proposalDraft: ProposalDraft;
+  proposalMessage: string;
+  setProposalDraft: Dispatch<SetStateAction<ProposalDraft>>;
+  setProposalMessage: Dispatch<SetStateAction<string>>;
+}) {
+  return (
+    <Dialog onOpenChange={onOpenChange} open={isOpen}>
+      <DialogContent className="max-w-4xl p-0 sm:max-w-4xl">
+        <div className="flex max-h-[85vh] min-h-[70vh] flex-col overflow-hidden">
+          <DialogHeader className="border-b border-border px-6 py-4">
+            <DialogTitle>Proposal submission</DialogTitle>
+            <DialogDescription>
+              Shape the proposal here. Improve uses Boreal to refine the draft. Send now submits
+              exactly what is in the form.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="space-y-5">
+              <label className="space-y-2">
+                <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  Source description
+                </span>
+                <textarea
+                  className="min-h-32 w-full border border-border bg-transparent p-3 text-sm outline-none"
+                  onChange={(event) => setProposalMessage(event.target.value)}
+                  placeholder="Describe how you would handle this request. Boreal will only use this when you choose Improve proposal."
+                  value={proposalMessage}
+                />
+              </label>
+              <ProposalDraftFields proposalDraft={proposalDraft} setProposalDraft={setProposalDraft} />
+              <div className="space-y-2 border border-border p-4">
+                <p className="text-sm font-medium">Preview</p>
+                <ProposalCardBody proposal={mapDraftProposal(proposalDraft)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="border-t border-border px-6 py-4 sm:justify-between">
+            <Button
+              onClick={() => {
+                setProposalDraft(emptyProposalDraft());
+                setProposalMessage("");
+              }}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Reset
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={isDraftingProposal || proposalMessage.trim().length === 0}
+                onClick={() => void onDraftProposal()}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {isDraftingProposal ? <LoaderIcon className="animate-spin" /> : <SparklesIcon />}
+                Improve proposal
+              </Button>
+              <Button
+                disabled={
+                  isSubmittingProposal ||
+                  !canSubmitProposalForm({ proposalDraft, proposalMessage })
+                }
+                onClick={() => void onSubmitProposal()}
+                size="sm"
+                type="button"
+              >
+                {isSubmittingProposal ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
+                Send now
+              </Button>
+            </div>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProposalDraftFields({
+  proposalDraft,
+  setProposalDraft,
+}: {
+  proposalDraft: ProposalDraft;
+  setProposalDraft: Dispatch<SetStateAction<ProposalDraft>>;
+}) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <label className="space-y-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Summary</span>
+        <input
+          className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none"
+          onChange={(event) =>
+            setProposalDraft((current) => ({ ...current, summary: event.target.value }))
+          }
+          placeholder="Short summary of your offer"
+          value={proposalDraft.summary ?? ""}
+        />
+      </label>
+      <label className="space-y-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Deliverable type
+        </span>
+        <select
+          className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none"
+          onChange={(event) =>
+            setProposalDraft((current) => ({
+              ...current,
+              deliverablesType:
+                event.target.value === "file" || event.target.value === "link"
+                  ? event.target.value
+                  : "markdown",
+            }))
+          }
+          value={proposalDraft.deliverablesType ?? "markdown"}
+        >
+          <option value="markdown">Markdown</option>
+          <option value="file">File</option>
+          <option value="link">Link</option>
+        </select>
+      </label>
+      <label className="space-y-2 md:col-span-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Deliverables
+        </span>
+        <textarea
+          className="min-h-32 w-full border border-border bg-transparent p-3 text-sm outline-none"
+          onChange={(event) =>
+            setProposalDraft((current) => ({
+              ...current,
+              deliverablesBody: event.target.value,
+            }))
+          }
+          placeholder="What exactly will you deliver?"
+          value={proposalDraft.deliverablesBody ?? ""}
+        />
+      </label>
+      <label className="space-y-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Quote</span>
+        <input
+          className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none"
+          inputMode="decimal"
+          onChange={(event) =>
+            setProposalDraft((current) => ({
+              ...current,
+              price: Number.parseFloat(event.target.value) || 0,
+            }))
+          }
+          placeholder="100"
+          type="number"
+          value={proposalDraft.price > 0 ? proposalDraft.price : ""}
+        />
+      </label>
+      <label className="space-y-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Currency</span>
+        <input
+          className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none"
+          maxLength={6}
+          onChange={(event) =>
+            setProposalDraft((current) => ({
+              ...current,
+              currency: event.target.value.toUpperCase(),
+            }))
+          }
+          placeholder="USD"
+          value={proposalDraft.currency ?? "USD"}
+        />
+      </label>
+      <label className="space-y-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">ETA days</span>
+        <input
+          className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none"
+          inputMode="numeric"
+          min={1}
+          onChange={(event) =>
+            setProposalDraft((current) => ({
+              ...current,
+              etaDays: Number.parseInt(event.target.value, 10) || 0,
+            }))
+          }
+          placeholder="7"
+          type="number"
+          value={proposalDraft.etaDays > 0 ? proposalDraft.etaDays : ""}
+        />
+      </label>
+    </div>
+  );
+}
+
+function DeliverySubmissionDialog({
+  deliveryDraft,
+  isOpen,
+  isSubmittingDelivery,
+  isUploadingDeliveryFiles,
+  onOpenChange,
+  onRemoveAttachment,
+  onSelectFiles,
+  onSubmitDelivery,
+  setDeliveryDraft,
+}: {
+  deliveryDraft: DeliveryDraft;
+  isOpen: boolean;
+  isSubmittingDelivery: boolean;
+  isUploadingDeliveryFiles: boolean;
+  onOpenChange: (open: boolean) => void;
+  onRemoveAttachment: (attachmentId: string) => void;
+  onSelectFiles: (files: File[]) => Promise<void>;
+  onSubmitDelivery: () => Promise<void>;
+  setDeliveryDraft: Dispatch<SetStateAction<DeliveryDraft>>;
+}) {
+  return (
+    <Dialog onOpenChange={onOpenChange} open={isOpen}>
+      <DialogContent className="max-w-4xl p-0 sm:max-w-4xl">
+        <div className="flex max-h-[85vh] min-h-[68vh] flex-col overflow-hidden">
+          <DialogHeader className="border-b border-border px-6 py-4">
+            <DialogTitle>Work submission</DialogTitle>
+            <DialogDescription>
+              Prepare the final delivery here. Files upload immediately, and send stays locked until every attachment is uploaded.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="space-y-5">
+              <DeliveryDraftFields
+                deliveryDraft={deliveryDraft}
+                onRemoveAttachment={onRemoveAttachment}
+                onSelectFiles={onSelectFiles}
+                setDeliveryDraft={setDeliveryDraft}
+              />
+            </div>
+          </div>
+          <DialogFooter className="border-t border-border px-6 py-4 sm:justify-between">
+            <Button
+              onClick={() => setDeliveryDraft(emptyDeliveryDraft())}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Reset
+            </Button>
+            <Button
+              disabled={
+                isSubmittingDelivery ||
+                isUploadingDeliveryFiles ||
+                !canSubmitDeliveryForm(deliveryDraft)
+              }
+              onClick={() => void onSubmitDelivery()}
+              size="sm"
+              type="button"
+            >
+              {isSubmittingDelivery ? <LoaderIcon className="animate-spin" /> : <PackageIcon />}
+              {isUploadingDeliveryFiles ? "Uploading files..." : "Send work"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeliveryDraftFields({
+  deliveryDraft,
+  onRemoveAttachment,
+  onSelectFiles,
+  setDeliveryDraft,
+}: {
+  deliveryDraft: DeliveryDraft;
+  onRemoveAttachment: (attachmentId: string) => void;
+  onSelectFiles: (files: File[]) => Promise<void>;
+  setDeliveryDraft: Dispatch<SetStateAction<DeliveryDraft>>;
+}) {
+  return (
+    <div className="space-y-4">
+      <label className="space-y-2 md:col-span-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Body message
+        </span>
+        <textarea
+          className="min-h-48 w-full border border-border bg-transparent p-3 text-sm outline-none"
+          onChange={(event) =>
+            setDeliveryDraft((current) => ({
+              ...current,
+              deliverablesBody: event.target.value,
+            }))
+          }
+          placeholder="Submit the completed work, result link, or markdown deliverable."
+          value={deliveryDraft.deliverablesBody}
+        />
+      </label>
+      <label className="space-y-2">
+        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Attach files
+        </span>
+        <input
+          className="block w-full border border-border bg-transparent px-3 py-2 text-sm outline-none file:mr-3 file:border-0 file:bg-transparent file:text-sm"
+          multiple
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? []);
+            event.currentTarget.value = "";
+            void onSelectFiles(files);
+          }}
+          type="file"
+        />
+      </label>
+      {deliveryDraft.attachments.length > 0 ? (
+        <div className="space-y-3">
+          {deliveryDraft.attachments.map((attachment) => (
+            <div className="space-y-2 border border-border p-3" key={attachment.id}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex size-9 items-center justify-center border border-border text-muted-foreground">
+                    <FileIcon className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{attachment.fileName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(attachment.fileSize)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {attachment.status === "uploaded"
+                      ? "Uploaded"
+                      : attachment.status === "error"
+                        ? "Failed"
+                        : `${attachment.progress}%`}
+                  </span>
+                  <Button
+                    onClick={() => onRemoveAttachment(attachment.id)}
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Trash2Icon />
+                  </Button>
+                </div>
+              </div>
+              <Progress value={attachment.progress} />
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1955,7 +2963,89 @@ function mapDraftProposal(draft: Record<string, unknown>) {
   };
 }
 
-function getRequestActionState(status: string, reviewPending: boolean) {
+function canSubmitProposalForm({
+  proposalDraft,
+  proposalMessage,
+}: {
+  proposalDraft: ProposalDraft;
+  proposalMessage: string;
+}) {
+  return Boolean(
+    proposalMessage.trim().length > 0 ||
+      proposalDraft.summary.trim().length > 0 ||
+      proposalDraft.deliverablesBody.trim().length > 0,
+  );
+}
+
+function canSubmitDeliveryForm(deliveryDraft: DeliveryDraft) {
+  return (
+    deliveryDraft.deliverablesBody.trim().length > 0 &&
+    deliveryDraft.attachments.every((attachment) => attachment.status === "uploaded")
+  );
+}
+
+function uploadFileToConvex(
+  uploadUrl: string,
+  file: File,
+  onProgress: (progress: number) => void,
+) {
+  return new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("POST", uploadUrl);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) {
+        return;
+      }
+
+      onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error("File upload failed."));
+        return;
+      }
+
+      try {
+        const payload = JSON.parse(xhr.responseText) as { storageId?: string };
+
+        if (!payload.storageId) {
+          reject(new Error("Convex upload did not return a storage id."));
+          return;
+        }
+
+        resolve(payload.storageId);
+      } catch {
+        reject(new Error("Failed to parse Convex upload response."));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("File upload failed."));
+    xhr.send(file);
+  });
+}
+
+function formatFileSize(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getRequestActionState(
+  intent: NonNullable<RequestDetail["intent"]>,
+  access: RequestDetail["access"],
+  reviewPending: boolean,
+) {
+  const status = intent.status;
+
   if (reviewPending) {
     return {
       description: "The work is delivered. Capture a quick rating inline before moving on.",
@@ -1964,16 +3054,16 @@ function getRequestActionState(status: string, reviewPending: boolean) {
     };
   }
 
-  if (status === "proposed" || status === "open") {
+  if ((status === "proposed" || status === "open") && access?.canApproveProposals) {
     return {
       description:
         "Boreal has identified the request but has not started any worker or generator yet.",
       kind: "approval" as const,
-      title: status === "open" ? "Waiting room" : "Approve to start",
+      title: status === "open" ? "Waiting for approval" : "Approve to start",
     };
   }
 
-  if (status === "claimed" || status === "in_progress") {
+  if ((status === "claimed" || status === "in_progress") && access?.isOwner) {
     return {
       description:
         "Work is assigned. Retry if execution stalled, failed to start, or needs to be rerun.",
@@ -1982,7 +3072,7 @@ function getRequestActionState(status: string, reviewPending: boolean) {
     };
   }
 
-  if (status === "blocked") {
+  if (status === "blocked" && access?.isOwner) {
     return {
       description:
         "Automatic execution hit an error. Retry to continue this request without starting over.",
@@ -1991,11 +3081,22 @@ function getRequestActionState(status: string, reviewPending: boolean) {
     };
   }
 
-  if (status === "closed") {
+  if (status === "fulfilled" && access?.isOwner) {
     return {
       description:
-        "This request was stopped before delivery. Continue if you want Boreal to pick it back up.",
-      kind: "continue" as const,
+        "Delivery is complete. Archive finished work or keep it active for more follow-up.",
+      kind: "archive" as const,
+      title: "Completed request",
+    };
+  }
+
+  if (status === "closed" && access?.isOwner) {
+    return {
+      description:
+        intent.closedReason === "cancelled_by_user"
+          ? "This request was cancelled. Continue it or delete it if you no longer need the record."
+          : "This request was archived or paused. Continue it or remove it from your list.",
+      kind: "closed" as const,
       title: "Request paused",
     };
   }
@@ -2007,77 +3108,12 @@ function getRequestActionState(status: string, reviewPending: boolean) {
   };
 }
 
-function getPrimaryWorker(
-  assignment: RequestDetail["assignment"],
-) {
-  const label = assignment?.agent ?? "Boreal Agent";
-  const icon = label.toLowerCase().includes("boreal") ? BotIcon : UserIcon;
-
-  return {
-    icon,
-    label,
-  };
-}
-
 function humanizeToolLabel(value: string) {
   return value.replaceAll("-", " ").replaceAll("_", " ");
 }
 
-function buildRequestWorkerCards(
-  requestedOutputTypes: string[],
-  routeTarget: string,
-  assignedAgent?: string | null,
-) {
-  const cards = [
-    {
-      description: "General routed assistant for text answers, orchestration, and fallback handling.",
-      icon: BotIcon,
-      meta: assignedAgent ? "assigned" : "available",
-      title: assignedAgent ?? "Boreal Agent",
-    },
-  ];
-
-  if (requestedOutputTypes.includes("image_generation") || routeTarget === "image_generation") {
-    cards.unshift({
-      description: "Handles image prompts, revisions, and visual asset generation.",
-      icon: SparklesIcon,
-      meta: "image",
-      title: "Image Worker",
-    });
-  }
-
-  if (requestedOutputTypes.includes("speech_generation") || routeTarget === "speech_generation") {
-    cards.unshift({
-      description: "Handles speech rendering, voice selection, and audio delivery.",
-      icon: MicIcon,
-      meta: "speech",
-      title: "Speech Worker",
-    });
-  }
-
-  if (requestedOutputTypes.includes("video_generation") || routeTarget === "video_generation") {
-    cards.unshift({
-      description: "Tracks queued renders, refreshes progress, and delivers final video files.",
-      icon: ClapperboardIcon,
-      meta: "video",
-      title: "Video Worker",
-    });
-  }
-
-  if (routeTarget === "catalog_lookup") {
-    cards.unshift({
-      description: "Searches supply inventory, compares offers, and surfaces matched products.",
-      icon: PackageIcon,
-      meta: "catalog",
-      title: "Catalog Worker",
-    });
-  }
-
-  return cards.slice(0, 4);
-}
-
 function normalizeCenterViewTab(value: string | null): CenterViewTab {
-  if (value === "activity" || value === "workers" || value === "proposals") {
+  if (value === "activity" || value === "participants" || value === "workspace") {
     return value;
   }
 

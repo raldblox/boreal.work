@@ -4,7 +4,7 @@ export type ChatUiContext = {
   browseTab?: "profile" | "requests" | "workers" | null;
   canApproveProposals?: boolean;
   canSubmitProposal?: boolean;
-  centerTab?: "activity" | "chat" | "proposals" | "workers" | null;
+  centerTab?: "activity" | "chat" | "participants" | "proposals" | "workspace" | "workers" | null;
   requestId?: string | null;
   requestRole?: "none" | "owner" | "supplier" | "viewer";
   requestStatus?: string | null;

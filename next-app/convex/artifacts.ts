@@ -164,6 +164,10 @@ export const syncVideoArtifactByRemoteId = mutation({
         messageId: crypto.randomUUID(),
         provider: artifact.provider,
         role: "assistant",
+        senderActorKind: "agent",
+        senderDisplayName: "Boreal Agent",
+        senderExternalId: "agent:boreal",
+        senderHandle: "boreal",
       });
     }
 

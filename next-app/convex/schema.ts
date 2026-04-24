@@ -76,6 +76,10 @@ export default defineSchema({
     messageId: v.string(),
     provider: v.optional(v.string()),
     role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
+    senderActorKind: v.optional(actorKindValidator),
+    senderDisplayName: v.optional(v.string()),
+    senderExternalId: v.optional(v.string()),
+    senderHandle: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_conversationId_and_createdAt", ["conversationId", "createdAt"])
@@ -254,6 +258,24 @@ export default defineSchema({
   }).index("by_intentKey_and_status", ["intentKey", "status"]),
 
   evidences: defineTable({
+    attachments: v.optional(
+      v.array(
+        v.union(
+          v.object({
+            fileName: v.string(),
+            mediaType: v.string(),
+            sizeBytes: v.number(),
+            storageId: v.id("_storage"),
+          }),
+          v.object({
+            base64: v.string(),
+            fileName: v.string(),
+            mediaType: v.string(),
+            sizeBytes: v.number(),
+          }),
+        ),
+      ),
+    ),
     body: v.string(),
     fulfillmentId: v.string(),
     mediaType: v.string(),

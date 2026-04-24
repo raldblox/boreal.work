@@ -1,6 +1,7 @@
 # boreal.work
 
 `WHITEPAPER.md` is the product and architecture source of truth.
+`ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
 
 ## Workspace
 
@@ -9,6 +10,7 @@
 - `next-app/lib/boreal` holds the scalable Boreal foundation: agents, tools, integrations, DAL, and shared schemas.
 - `next-app/convex` defines the broader Convex schema and the MVP chat/intent functions.
 - `next-app/agents` contains autonomous worker profiles and polling scripts for end-to-end request/proposal/fulfillment roleplay.
+- `ROADMAP.md` tracks which whitepaper phases are complete, in progress, or still blocked for public release.
 
 ## Commands
 

@@ -42,6 +42,37 @@ export const submitProposal = mutation({
       status: "submitted",
     });
 
+    const proposer = proposerUserId
+      ? ((await ctx.db.get(proposerUserId as never)) as
+          | { displayName?: string; handle?: string }
+          | null)
+      : null;
+
+    await ctx.db.insert("chatMessages", {
+      body: [
+        `${proposer?.displayName ?? args.ownerDisplayName ?? "Worker"} submitted a proposal.`,
+        "",
+        `Quote: ${args.price} ${args.currency}`,
+        `ETA: ${new Date(args.etaAt).toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}`,
+        "",
+        args.deliverablesBody,
+      ].join("\n"),
+      conversationId: intent.conversationId ?? crypto.randomUUID(),
+      createdAt: now,
+      intentKey: intent.intentKey,
+      messageId: crypto.randomUUID(),
+      provider: intent.provider,
+      role: "system",
+      senderActorKind: args.proposerKind ?? "human",
+      senderDisplayName:
+        proposer?.displayName ?? args.ownerDisplayName ?? args.ownerHandle ?? "Worker",
+      senderExternalId: args.ownerExternalId,
+      senderHandle: proposer?.handle ?? args.ownerHandle,
+    });
+
     await ctx.db.insert("activityEvents", {
       createdAt: now,
       entityId: intent.intentKey,
@@ -119,6 +150,9 @@ export const approveProposal = mutation({
       messageId: crypto.randomUUID(),
       provider: intent.provider,
       role: "system",
+      senderActorKind: "human",
+      senderDisplayName: "Owner",
+      senderExternalId: args.ownerExternalId,
     });
 
     await ctx.db.insert("activityEvents", {

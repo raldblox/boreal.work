@@ -63,6 +63,10 @@ export const recordIntentPipeline = mutation({
       messageId: args.intent.userMessageId,
       provider: args.intent.provider,
       role: "user",
+      senderActorKind: "human",
+      senderDisplayName: args.ownerDisplayName ?? "X user",
+      senderExternalId: args.ownerExternalId,
+      senderHandle: args.ownerHandle,
     });
 
     await ctx.db.insert("chatMessages", {
@@ -73,6 +77,10 @@ export const recordIntentPipeline = mutation({
       messageId: args.intent.assistantMessageId,
       provider: args.intent.provider,
       role: "assistant",
+      senderActorKind: "agent",
+      senderDisplayName: "Boreal Agent",
+      senderExternalId: "agent:boreal",
+      senderHandle: "boreal",
     });
 
     const intentId: string = await ctx.db.insert("intents", {
@@ -198,6 +206,10 @@ export const approveRequest = mutation({
       messageId: crypto.randomUUID(),
       provider: intent.provider,
       role: "system",
+      senderActorKind: "agent",
+      senderDisplayName: "Boreal Agent",
+      senderExternalId: "agent:boreal",
+      senderHandle: "boreal",
     });
 
     await ctx.db.insert("activityEvents", {
@@ -212,6 +224,66 @@ export const approveRequest = mutation({
     });
 
     return { approved: true };
+  },
+});
+
+export const postConversationMessage = mutation({
+  args: {
+    body: v.string(),
+    conversationId: v.optional(v.string()),
+    ownerDisplayName: v.optional(v.string()),
+    ownerExternalId: v.optional(v.string()),
+    ownerHandle: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const conversationId = args.conversationId ?? crypto.randomUUID();
+    const existingConversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_conversationId", (queryBuilder) =>
+        queryBuilder.eq("conversationId", conversationId),
+      )
+      .unique();
+
+    if (existingConversation) {
+      await ctx.db.patch(existingConversation._id, {
+        latestMessageAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("conversations", {
+        conversationId,
+        createdAt: now,
+        intentCount: 0,
+        latestMessageAt: now,
+        provider: "boreal-agent",
+        source: "chat",
+        status: "active",
+        title: "Chat thread",
+        updatedAt: now,
+      });
+    }
+
+    const messageId = crypto.randomUUID();
+    await ctx.db.insert("chatMessages", {
+      body: args.body.trim(),
+      conversationId,
+      createdAt: now,
+      intentKey: undefined,
+      messageId,
+      provider: "boreal-agent",
+      role: "user",
+      senderActorKind: "human",
+      senderDisplayName: args.ownerDisplayName ?? "X user",
+      senderExternalId: args.ownerExternalId,
+      senderHandle: args.ownerHandle,
+    });
+
+    return {
+      conversationId,
+      messageId,
+      posted: true,
+    };
   },
 });
 
@@ -250,6 +322,53 @@ export const cancelRequest = mutation({
   },
 });
 
+export const archiveRequest = mutation({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (!intent || !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))) {
+      return { archived: false };
+    }
+
+    const now = Date.now();
+
+    await ctx.db.patch(args.intentId, {
+      closedReason: "archived_by_user",
+      status: "closed",
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        reason: "archived_by_user",
+      }),
+      type: "request.archived",
+    });
+
+    await ctx.db.insert("chatMessages", {
+      body: "The owner archived this request.",
+      conversationId: intent.conversationId ?? crypto.randomUUID(),
+      createdAt: now,
+      intentKey: intent.intentKey,
+      messageId: crypto.randomUUID(),
+      provider: intent.provider,
+      role: "system",
+      senderActorKind: "human",
+      senderDisplayName: "Owner",
+      senderExternalId: args.ownerExternalId,
+    });
+
+    return { archived: true };
+  },
+});
+
 export const appendRequestExecution = mutation({
   args: {
     activityPayload: v.optional(v.string()),
@@ -278,6 +397,16 @@ export const appendRequestExecution = mutation({
       messageId: crypto.randomUUID(),
       provider: intent.provider,
       role: "assistant",
+      senderActorKind: "agent",
+      senderDisplayName: args.assignedAgent ?? intent.assignedAgent ?? "Boreal Agent",
+      senderExternalId:
+        (args.assignedAgent ?? intent.assignedAgent)?.toLowerCase().includes("boreal")
+          ? "agent:boreal"
+          : undefined,
+      senderHandle:
+        (args.assignedAgent ?? intent.assignedAgent)?.toLowerCase().includes("boreal")
+          ? "boreal"
+          : undefined,
     });
 
     await ctx.db.patch(args.intentId, {
@@ -339,6 +468,78 @@ export const rateRequest = mutation({
     });
 
     return { rated: true };
+  },
+});
+
+export const postThreadMessage = mutation({
+  args: {
+    body: v.string(),
+    intentId: v.id("intents"),
+    ownerDisplayName: v.optional(v.string()),
+    ownerExternalId: v.optional(v.string()),
+    ownerHandle: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (!intent || !args.ownerExternalId) {
+      return { sent: false };
+    }
+
+    const sender = await upsertOwnerUser(ctx, {
+      displayName: args.ownerDisplayName,
+      externalId: args.ownerExternalId,
+      handle: args.ownerHandle,
+    });
+
+    if (!sender) {
+      return { sent: false };
+    }
+
+    const acceptedProposal = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey).eq("status", "accepted"),
+      )
+      .unique();
+
+    const canPost =
+      sender === intent.ownerUserId || acceptedProposal?.proposerUserId === sender;
+
+    if (!canPost) {
+      return { sent: false };
+    }
+
+    const now = Date.now();
+    const senderUser = (await ctx.db.get(sender as never)) as
+      | { actorKind?: "agent" | "human" | "tool"; displayName?: string; handle?: string }
+      | null;
+
+    await ctx.db.insert("chatMessages", {
+      body: args.body.trim(),
+      conversationId: intent.conversationId ?? crypto.randomUUID(),
+      createdAt: now,
+      intentKey: intent.intentKey,
+      messageId: crypto.randomUUID(),
+      provider: intent.provider,
+      role: "user",
+      senderActorKind: senderUser?.actorKind ?? "human",
+      senderDisplayName: senderUser?.displayName ?? args.ownerDisplayName ?? "Participant",
+      senderExternalId: args.ownerExternalId,
+      senderHandle: senderUser?.handle ?? args.ownerHandle,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        senderExternalId: args.ownerExternalId,
+      }),
+      type: "thread.message_posted",
+    });
+
+    return { sent: true };
   },
 });
 

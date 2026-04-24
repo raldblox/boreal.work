@@ -33,6 +33,14 @@ export async function cancelRequestDraft(args: {
   return client.mutation(convexFunctionRefs.cancelRequest, args);
 }
 
+export async function archiveRequest(args: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.archiveRequest, args);
+}
+
 export async function appendRequestExecution(args: {
   activityPayload?: string;
   activityType: string;
@@ -55,6 +63,17 @@ export async function rateRequest(args: {
 }) {
   const client = createConvexServerClient();
   return client.mutation(convexFunctionRefs.rateRequest, args);
+}
+
+export async function postThreadMessage(args: {
+  body: string;
+  intentId: string;
+  ownerDisplayName?: string;
+  ownerExternalId?: string;
+  ownerHandle?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.postThreadMessage, args);
 }
 
 export async function submitProposal(args: {
@@ -80,6 +99,22 @@ export async function approveProposal(args: {
 }) {
   const client = createConvexServerClient();
   return client.mutation(convexFunctionRefs.approveProposal, args);
+}
+
+export async function submitWork(args: {
+  attachments?: Array<{
+    fileName: string;
+    mediaType: string;
+    sizeBytes: number;
+    storageId: string;
+  }>;
+  deliverablesBody: string;
+  intentId: string;
+  workerDisplayName?: string;
+  workerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.submitWork, args);
 }
 
 export async function getRequestExecutionContext(args: {

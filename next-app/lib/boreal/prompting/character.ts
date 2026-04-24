@@ -43,13 +43,19 @@ export function buildIntentRoutingHint(uiContext?: ChatUiContext) {
     `Request status: ${uiContext.requestStatus ?? "none"}`,
   ];
 
-  if (uiContext.centerTab === "proposals" && uiContext.canSubmitProposal) {
+  if (
+    (uiContext.centerTab === "proposals" || uiContext.centerTab === "workspace") &&
+    uiContext.canSubmitProposal
+  ) {
     lines.push(
       "In proposal mode for a supplier. Prefer helping draft or refine a proposal instead of creating a new request.",
     );
   }
 
-  if (uiContext.centerTab === "proposals" && uiContext.canApproveProposals) {
+  if (
+    (uiContext.centerTab === "proposals" || uiContext.centerTab === "workspace") &&
+    uiContext.canApproveProposals
+  ) {
     lines.push(
       "In proposal review mode for an owner. Prefer comparison, approval reasoning, or revision guidance instead of intake.",
     );
@@ -61,7 +67,10 @@ export function buildIntentRoutingHint(uiContext?: ChatUiContext) {
     );
   }
 
-  if (uiContext.surface === "request" && uiContext.centerTab === "workers") {
+  if (
+    uiContext.surface === "request" &&
+    (uiContext.centerTab === "workers" || uiContext.centerTab === "participants")
+  ) {
     lines.push(
       "The user is reviewing worker participation for an existing request. Prefer matching, proposal, or assignment guidance.",
     );
@@ -92,11 +101,17 @@ function pickCharacterContextKey(uiContext?: ChatUiContext) {
     return "CTX-01";
   }
 
-  if (uiContext.centerTab === "proposals" && uiContext.canSubmitProposal) {
+  if (
+    (uiContext.centerTab === "proposals" || uiContext.centerTab === "workspace") &&
+    uiContext.canSubmitProposal
+  ) {
     return "CTX-05";
   }
 
-  if (uiContext.centerTab === "proposals" && uiContext.canApproveProposals) {
+  if (
+    (uiContext.centerTab === "proposals" || uiContext.centerTab === "workspace") &&
+    uiContext.canApproveProposals
+  ) {
     return "CTX-04";
   }
 

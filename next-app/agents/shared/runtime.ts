@@ -110,9 +110,7 @@ export async function runAgentTick(
 
       const result = await client.mutation(api.fulfillments.submitWork, {
         deliverablesBody: delivery.deliverablesBody,
-        deliverablesType: delivery.deliverablesType,
         intentId: detail.intent._id as Id<"intents">,
-        mediaType: "text/markdown",
         workerDisplayName: agent.identity.displayName,
         workerExternalId: agent.identity.externalId,
       });

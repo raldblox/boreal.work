@@ -3,10 +3,18 @@ import { v } from "convex/values";
 
 export const submitWork = mutation({
   args: {
+    attachments: v.optional(
+      v.array(
+        v.object({
+          fileName: v.string(),
+          mediaType: v.string(),
+          sizeBytes: v.number(),
+          storageId: v.id("_storage"),
+        }),
+      ),
+    ),
     deliverablesBody: v.string(),
-    deliverablesType: v.union(v.literal("file"), v.literal("link"), v.literal("markdown")),
     intentId: v.id("intents"),
-    mediaType: v.optional(v.string()),
     workerDisplayName: v.optional(v.string()),
     workerExternalId: v.optional(v.string()),
   },
@@ -65,10 +73,11 @@ export const submitWork = mutation({
     });
 
     await ctx.db.insert("evidences", {
+      attachments: args.attachments && args.attachments.length > 0 ? args.attachments : undefined,
       body: args.deliverablesBody,
       createdAt: now,
       fulfillmentId: activeFulfillment._id,
-      mediaType: args.mediaType ?? `text/${args.deliverablesType}`,
+      mediaType: "text/markdown",
       url: undefined,
     });
 
@@ -80,16 +89,16 @@ export const submitWork = mutation({
     });
 
     await ctx.db.insert("chatMessages", {
-      body: [
-        `${args.workerDisplayName ?? worker.displayName ?? "Worker"} submitted the work.`,
-        "",
-        args.deliverablesBody,
-      ].join("\n"),
+      body: `${args.workerDisplayName ?? worker.displayName ?? "Worker"} submitted the work.`,
       conversationId: intent.conversationId ?? crypto.randomUUID(),
       intentKey: intent.intentKey,
       messageId: crypto.randomUUID(),
       provider: "boreal-agent",
-      role: "assistant",
+      role: "user",
+      senderActorKind: worker.actorKind,
+      senderDisplayName: args.workerDisplayName ?? worker.displayName ?? "Worker",
+      senderExternalId: args.workerExternalId,
+      senderHandle: worker.handle,
       createdAt: now,
     });
 
@@ -98,12 +107,20 @@ export const submitWork = mutation({
       entityId: intent.intentKey,
       entityType: "intent",
       payload: JSON.stringify({
-        deliverablesType: args.deliverablesType,
+        attachmentCount: args.attachments?.length ?? 0,
         proposerUserId: worker._id,
       }),
       type: "fulfillment.submitted",
     });
 
     return { submitted: true };
+  },
+});
+
+export const generateUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
   },
 });

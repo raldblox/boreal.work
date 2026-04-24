@@ -40,6 +40,12 @@ export type SidebarIntentPreview = {
   conversationId: string | null;
   isOwner?: boolean;
   needsClarification: boolean;
+  participants: Array<{
+    displayName: string;
+    externalId: string | null;
+    handle: string | null;
+    kind: string;
+  }>;
   provider: string;
   requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
   reviewRating: number | null;
@@ -165,6 +171,14 @@ export type RequestMessage = {
   body: string;
   createdAt: number;
   role: "assistant" | "system" | "user";
+  sender: {
+    actorKind: "agent" | "human" | "tool";
+    displayName: string;
+    externalId: string | null;
+    handle: string | null;
+    isCurrentUser: boolean;
+    profileId: string | null;
+  };
 };
 
 export type RequestArtifact = {
@@ -192,6 +206,8 @@ export type RequestDetail = {
   access: {
     canApproveProposals: boolean;
     canSubmitProposal: boolean;
+    canSubmitWork: boolean;
+    canViewChat: boolean;
     isOwner: boolean;
     visibility: "private" | "public";
   } | null;
@@ -203,12 +219,32 @@ export type RequestDetail = {
     tools: string[];
   } | null;
   conversationId: string | null;
+  fulfillment: {
+    acceptedProposalId: string | null;
+    completedSummary: string;
+    evidence: {
+      attachments: Array<{
+        fileName: string;
+        mediaType: string;
+        sizeBytes: number;
+        url: string | null;
+      }>;
+      body: string;
+      createdAt: number;
+      mediaType: string;
+      url: string | null;
+    } | null;
+    fulfillerUserId: string | null;
+    status: string;
+  } | null;
   intent: {
     _creationTime: number;
     _id: string;
     approvedAt: number | null;
     body: string;
+    cancelledAt: number | null;
     category: string;
+    closedReason: string | null;
     completedAt: number | null;
     confidence: number;
     missingDetails: string[];
@@ -226,6 +262,14 @@ export type RequestDetail = {
     title: string;
   } | null;
   messages: RequestMessage[];
+  participants: Array<{
+    displayName: string;
+    externalId: string | null;
+    handle: string | null;
+    kind: string;
+    profileId: string | null;
+    status: string;
+  }>;
   proposals: Array<{
     _id: string;
     createdAt: number;
@@ -238,6 +282,7 @@ export type RequestDetail = {
       displayName: string;
       handle: string | null;
       kind: string;
+      profileId: string | null;
     };
     status: string;
   }>;
@@ -271,6 +316,14 @@ export type RequestExecutionContext = {
 } | null;
 
 export const convexFunctionRefs = {
+  archiveRequest: makeFunctionReference<
+    "mutation",
+    {
+      intentId: string;
+      ownerExternalId?: string;
+    },
+    { archived: boolean }
+  >("chats:archiveRequest"),
   appendRequestExecution: makeFunctionReference<
     "mutation",
     {
@@ -285,6 +338,17 @@ export const convexFunctionRefs = {
     },
     { appended: boolean }
   >("chats:appendRequestExecution"),
+  postConversationMessage: makeFunctionReference<
+    "mutation",
+    {
+      body: string;
+      conversationId?: string;
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      ownerHandle?: string;
+    },
+    { conversationId: string; messageId: string; posted: boolean }
+  >("chats:postConversationMessage"),
   approveRequest: makeFunctionReference<
     "mutation",
     {
@@ -399,6 +463,27 @@ export const convexFunctionRefs = {
     { limit: number; query: string },
     CatalogEntry[]
   >("supplies:searchCatalog"),
+  submitWork: makeFunctionReference<
+    "mutation",
+    {
+      attachments?: Array<{
+        fileName: string;
+        mediaType: string;
+        sizeBytes: number;
+        storageId: string;
+      }>;
+      deliverablesBody: string;
+      intentId: string;
+      workerDisplayName?: string;
+      workerExternalId?: string;
+    },
+    { submitted: boolean }
+  >("fulfillments:submitWork"),
+  generateUploadUrl: makeFunctionReference<
+    "mutation",
+    Record<string, never>,
+    string
+  >("fulfillments:generateUploadUrl"),
   upsertMyProfile: makeFunctionReference<
     "mutation",
     {
@@ -432,6 +517,17 @@ export const convexFunctionRefs = {
     },
     { created: boolean; supplyId: string | null }
   >("supplies:createSupplyEntry"),
+  postThreadMessage: makeFunctionReference<
+    "mutation",
+    {
+      body: string;
+      intentId: string;
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      ownerHandle?: string;
+    },
+    { sent: boolean }
+  >("chats:postThreadMessage"),
   syncVideoArtifactByRemoteId: makeFunctionReference<
     "mutation",
     SyncVideoArtifactArgs,

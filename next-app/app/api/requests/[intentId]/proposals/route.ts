@@ -44,7 +44,7 @@ export async function POST(
       return NextResponse.json({ draft });
     }
 
-    const draft = normalizeProposalDraft(body.draft, body.message);
+    const draft = normalizeProposalDraft(body.draft, body.message ?? "");
     const result = await submitProposal({
       currency: draft.currency,
       deliverablesBody: draft.deliverablesBody,
@@ -75,7 +75,7 @@ type ParsedProposalRequest =
   | {
       action: "submit";
       draft: Record<string, unknown>;
-      message: string;
+      message?: string;
     };
 
 function parseProposalRequest(value: unknown): ParsedProposalRequest {
@@ -91,11 +91,11 @@ function parseProposalRequest(value: unknown): ParsedProposalRequest {
     throw new Error("Proposal action must be draft or submit.");
   }
 
-  if (typeof message !== "string" || message.trim().length === 0) {
-    throw new Error("Proposal message is required.");
-  }
-
   if (action === "draft") {
+    if (typeof message !== "string" || message.trim().length === 0) {
+      throw new Error("Proposal message is required.");
+    }
+
     return { action, message };
   }
 
@@ -106,6 +106,6 @@ function parseProposalRequest(value: unknown): ParsedProposalRequest {
   return {
     action,
     draft: payload.draft as Record<string, unknown>,
-    message,
+    message: typeof message === "string" ? message : undefined,
   };
 }

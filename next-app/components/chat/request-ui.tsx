@@ -30,7 +30,7 @@ export function getRequestStage(status: string) {
 
 export function getRequestStatusLabel(status: string) {
   if (status === "open") {
-    return "Waiting room";
+    return "Waiting for approval";
   }
 
   if (status === "proposed") {
