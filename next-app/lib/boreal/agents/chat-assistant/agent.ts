@@ -2,12 +2,15 @@ import "server-only";
 
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
 import {
+  appendRequestExecution,
+  approveRequestDraft,
   ensureCatalogSeeded,
+  getRequestExecutionContext,
   saveArtifactMetadata,
   saveIntentPipelineRecord,
 } from "@/lib/boreal/dal/intent-repository";
-import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
 import type { ComposableAgent } from "@/lib/boreal/agents/base";
+import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
 import type {
   ChatAssistantResponse,
   CatalogItem,
@@ -17,6 +20,7 @@ import type {
 import type {
   IntentExtraction,
   PersistedIntent,
+  ToolRoute,
 } from "@/lib/boreal/schemas/intent";
 import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent";
 import { searchCatalog } from "@/lib/boreal/tools/catalog/search-catalog";
@@ -26,10 +30,26 @@ import { generateImageAsset } from "@/lib/boreal/tools/media/generate-image-asse
 import { generateSpeechAsset } from "@/lib/boreal/tools/media/generate-speech-asset";
 import { startVideoGeneration } from "@/lib/boreal/tools/media/start-video-generation";
 import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-intent-response";
+import { withRetry } from "@/lib/boreal/utils/retry";
+
+type RequesterIdentity = {
+  displayName?: string;
+  externalId?: string;
+  handle?: string;
+};
 
 type ChatAssistantAgentInput = {
-  message: string;
   conversationId?: string;
+  message: string;
+  requester?: RequesterIdentity;
+};
+
+type ApprovedExecutionResult = {
+  assistantMessage: string;
+  relatedCatalogItems: CatalogItem[];
+  requestStatus: "blocked" | "fulfilled" | "in_progress";
+  workspace: WorkspaceState;
+  artifact?: MediaArtifact;
 };
 
 export const chatAssistantAgent: ComposableAgent<
@@ -39,7 +59,7 @@ export const chatAssistantAgent: ComposableAgent<
   ChatAssistantResponse
 > = {
   description:
-    "Routes Boreal chat requests into general help, catalog lookup, or media generation, then persists useful intents and output metadata.",
+    "Detects Boreal requests from chat, drafts approval-first requests, and executes approved work through routed tools.",
   name: "chat-assistant",
   tools: [
     {
@@ -70,22 +90,22 @@ export const chatAssistantAgent: ComposableAgent<
       name: "generate-helpful-answer",
     },
     {
-      description: "Generates image assets for image intents.",
+      description: "Generates image assets for approved image requests.",
       execute: generateImageAsset,
       name: "generate-image-asset",
     },
     {
-      description: "Generates speech assets for TTS intents.",
+      description: "Generates speech assets for approved TTS requests.",
       execute: generateSpeechAsset,
       name: "generate-speech-asset",
     },
     {
-      description: "Starts async video generation jobs for video intents.",
+      description: "Starts async video generation jobs for approved video requests.",
       execute: startVideoGeneration,
       name: "start-video-generation",
     },
     {
-      description: "Persists routed chat intent state into Convex.",
+      description: "Persists routed request state into Convex.",
       execute: saveIntentPipelineRecord,
       name: "save-intent-pipeline-record",
     },
@@ -96,41 +116,41 @@ export const chatAssistantAgent: ComposableAgent<
 
     await ensureCatalogSeeded();
 
-    const modality = await classifyGenerationIntent({
-      embeddingModelId: runtimeConfig.embeddingModel,
-      message: input.message,
-      provider,
-    });
+    const modality = await withRetry(
+      () =>
+        classifyGenerationIntent({
+          embeddingModelId: runtimeConfig.embeddingModel,
+          message: input.message,
+          provider,
+        }),
+      { attempts: 3 },
+    );
 
-    const intent = await extractStructuredIntent({
-      intentModelId: runtimeConfig.intentModel,
-      message: input.message,
-      modalityScores: modality.modalityScores,
-      provider,
-    });
+    const intent = await withRetry(
+      () =>
+        extractStructuredIntent({
+          intentModelId: runtimeConfig.intentModel,
+          message: input.message,
+          modalityScores: modality.modalityScores,
+          provider,
+        }),
+      { attempts: 3 },
+    );
 
     const relatedCatalogItems = intent.shouldSearchCatalog
-      ? await searchCatalog({
-          limit: 6,
-          query: intent.catalogQuery || input.message,
-        })
+      ? await withRetry(
+          () =>
+            searchCatalog({
+              limit: 6,
+              query: intent.catalogQuery || input.message,
+            }),
+          { attempts: 2 },
+        )
       : [];
 
     const conversationId = input.conversationId ?? crypto.randomUUID();
     const userMessageId = crypto.randomUUID();
     const assistantMessageId = crypto.randomUUID();
-
-    const resolved = await resolveOutcome({
-      assistantModelId: runtimeConfig.assistantModel,
-      catalogItems: relatedCatalogItems,
-      imageModelId: runtimeConfig.imageModel,
-      inputMessage: input.message,
-      intent,
-      provider,
-      speechModelId: runtimeConfig.speechModel,
-      videoModelId: runtimeConfig.videoModel,
-    });
-
     const persistedIntent = buildIntentPersistencePayload({
       assistantMessageId,
       conversationId,
@@ -143,8 +163,43 @@ export const chatAssistantAgent: ComposableAgent<
       userMessageId,
     });
 
+    if (requestNeedsApproval(persistedIntent)) {
+      const assistantMessage = buildApprovalMessage(intent, relatedCatalogItems);
+      const persistedResult = await saveIntentPipelineRecord({
+        assistantMessage,
+        conversationId,
+        initialStatus: "proposed",
+        intent: persistedIntent,
+        ownerDisplayName: input.requester?.displayName,
+        ownerExternalId: input.requester?.externalId,
+        ownerHandle: input.requester?.handle,
+        userMessage: input.message,
+      });
+
+      return {
+        assistantMessage,
+        conversationId,
+        intent: persistedIntent,
+        intentId: persistedResult.intentId,
+        persisted: true,
+        relatedCatalogItems,
+        requiresApproval: true,
+        workspace: buildDraftWorkspace(intent, relatedCatalogItems),
+      };
+    }
+
+    const resolved = await runExecutionWithRetry({
+      assistantModelId: runtimeConfig.assistantModel,
+      catalogItems: relatedCatalogItems,
+      imageModelId: runtimeConfig.imageModel,
+      inputMessage: input.message,
+      intent,
+      provider,
+      speechModelId: runtimeConfig.speechModel,
+      videoModelId: runtimeConfig.videoModel,
+    });
+
     let intentId: string | undefined;
-    let intentKey: string | undefined;
     let persisted = false;
 
     if (shouldPersistIntent(persistedIntent, resolved.artifact)) {
@@ -152,18 +207,20 @@ export const chatAssistantAgent: ComposableAgent<
         assistantMessage: resolved.assistantMessage,
         conversationId,
         intent: persistedIntent,
+        ownerDisplayName: input.requester?.displayName,
+        ownerExternalId: input.requester?.externalId,
+        ownerHandle: input.requester?.handle,
         userMessage: input.message,
       });
 
       intentId = persistedResult.intentId;
-      intentKey = persistedResult.intentKey;
       persisted = true;
 
       if (resolved.artifact) {
         await saveArtifactMetadata({
           artifactKind: toArtifactKind(resolved.artifact),
           conversationId,
-          intentKey,
+          intentKey: persistedResult.intentKey,
           mediaType:
             resolved.artifact.kind === "video"
               ? "video/mp4"
@@ -188,12 +245,92 @@ export const chatAssistantAgent: ComposableAgent<
       intentId,
       persisted,
       relatedCatalogItems,
+      requiresApproval: false,
       workspace: resolved.workspace,
     };
   },
 };
 
-async function resolveOutcome(input: {
+export async function approvePersistedRequest(input: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const runtimeConfig = getBorealRuntimeConfig();
+  const provider = resolveProviderAdapter();
+
+  await ensureCatalogSeeded();
+
+  const request = await getRequestExecutionContext({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+
+  if (!request) {
+    throw new Error("Request not found.");
+  }
+
+  const assignedToolNames = buildAssignedTools(request.routeTarget);
+  await approveRequestDraft({
+    assignedAgent: "boreal-agent",
+    assignedToolNames,
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+
+  return runApprovedExecutionForRequest({
+    assignedToolNames,
+    input,
+    provider,
+    request,
+    runtimeConfig,
+  });
+}
+
+export async function retryPersistedRequest(input: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const runtimeConfig = getBorealRuntimeConfig();
+  const provider = resolveProviderAdapter();
+
+  await ensureCatalogSeeded();
+
+  const request = await getRequestExecutionContext({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+
+  if (!request) {
+    throw new Error("Request not found.");
+  }
+
+  const assignedToolNames = buildAssignedTools(request.routeTarget);
+
+  await appendRequestExecution({
+    activityPayload: JSON.stringify({
+      assignedAgent: "boreal-agent",
+      retrying: true,
+      routeTarget: request.routeTarget,
+    }),
+    activityType: "request.retrying",
+    assignedAgent: "boreal-agent",
+    assignedToolNames,
+    assistantMessage: "Retrying this request with the current Boreal agent stack.",
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+    status: "in_progress",
+  });
+
+  return runApprovedExecutionForRequest({
+    assignedToolNames,
+    input,
+    provider,
+    request,
+    runtimeConfig,
+  });
+}
+
+async function executeIntent(input: {
   assistantModelId: string;
   catalogItems: CatalogItem[];
   imageModelId: string;
@@ -202,18 +339,16 @@ async function resolveOutcome(input: {
   provider: ReturnType<typeof resolveProviderAdapter>;
   speechModelId: string;
   videoModelId: string;
-}): Promise<{
-  artifact?: MediaArtifact;
-  assistantMessage: string;
-  workspace: WorkspaceState;
-}> {
+}): Promise<ApprovedExecutionResult> {
   if (input.intent.needsClarification || input.intent.routeTarget === "clarification") {
     return {
       assistantMessage: buildClarificationMessage(input.intent),
+      relatedCatalogItems: input.catalogItems,
+      requestStatus: "blocked",
       workspace: {
         kind: "clarification",
         questions: input.intent.missingDetails,
-        subtitle: "Fill the gaps here or reply in chat to continue.",
+        subtitle: "Reply in chat or use the workspace prompts to unblock the request.",
         suggestions: input.intent.suggestedReplies,
         title: "Missing details",
       },
@@ -231,7 +366,9 @@ async function resolveOutcome(input: {
     return {
       artifact,
       assistantMessage:
-        "I generated an image for this request. The result is in the workspace panel so the chat stays clean.",
+        "Image request approved and completed. The generated output is attached to this request.",
+      relatedCatalogItems: input.catalogItems,
+      requestStatus: "fulfilled",
       workspace: {
         artifact,
         kind: "artifact",
@@ -254,7 +391,9 @@ async function resolveOutcome(input: {
     return {
       artifact,
       assistantMessage:
-        "I generated the speech asset and placed it in the workspace panel.",
+        "Voice request approved and completed. The audio deliverable is attached to this request.",
+      relatedCatalogItems: input.catalogItems,
+      requestStatus: "fulfilled",
       workspace: {
         artifact,
         kind: "artifact",
@@ -275,7 +414,9 @@ async function resolveOutcome(input: {
     return {
       artifact,
       assistantMessage:
-        "I queued the video generation job. It runs asynchronously, and the job details are in the workspace panel.",
+        "Video request approved. Boreal queued the render and will keep this request updated until delivery.",
+      relatedCatalogItems: input.catalogItems,
+      requestStatus: "in_progress",
       workspace: {
         artifact,
         kind: "artifact",
@@ -296,6 +437,8 @@ async function resolveOutcome(input: {
   if (input.catalogItems.length > 0) {
     return {
       assistantMessage,
+      relatedCatalogItems: input.catalogItems,
+      requestStatus: "fulfilled",
       workspace: {
         highlightedId: input.catalogItems[0]?.id,
         items: input.catalogItems,
@@ -308,25 +451,241 @@ async function resolveOutcome(input: {
 
   return {
     assistantMessage,
+    relatedCatalogItems: input.catalogItems,
+    requestStatus: "fulfilled",
     workspace: {
       kind: "empty",
-      subtitle: "Workspace content will appear here for assets, forms, and catalog results.",
-      title: "Workspace",
+      subtitle: "The work is complete. Request details and history remain available on the side panels.",
+      title: "Work complete",
     },
   };
 }
 
-function buildClarificationMessage(intent: IntentExtraction) {
-  const details = intent.missingDetails
-    .map((detail) => `- ${detail}`)
-    .join("\n");
+async function runApprovedExecutionForRequest(input: {
+  assignedToolNames: string[];
+  input: {
+    intentId: string;
+    ownerExternalId?: string;
+  };
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const relatedCatalogItems =
+    input.request.catalogQuery.trim().length > 0
+      ? await withRetry(
+          () =>
+            searchCatalog({
+              limit: 6,
+              query: input.request.catalogQuery,
+            }),
+          { attempts: 2 },
+        )
+      : [];
+
+  try {
+    const resolved = await runExecutionWithRetry({
+      assistantModelId: input.runtimeConfig.assistantModel,
+      catalogItems: relatedCatalogItems,
+      imageModelId: input.runtimeConfig.imageModel,
+      inputMessage: input.request.body,
+      intent: toExecutionIntent(input.request),
+      provider: input.provider,
+      speechModelId: input.runtimeConfig.speechModel,
+      videoModelId: input.runtimeConfig.videoModel,
+    });
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent: "boreal-agent",
+        routeTarget: input.request.routeTarget,
+      }),
+      activityType:
+        resolved.requestStatus === "fulfilled"
+          ? "request.delivered"
+          : resolved.requestStatus === "blocked"
+            ? "request.blocked"
+            : "request.started",
+      assignedAgent: "boreal-agent",
+      assignedToolNames: input.assignedToolNames,
+      assistantMessage: resolved.assistantMessage,
+      intentId: input.input.intentId,
+      ownerExternalId: input.input.ownerExternalId,
+      status: resolved.requestStatus,
+    });
+
+    if (resolved.artifact) {
+      await saveArtifactMetadata({
+        artifactKind: toArtifactKind(resolved.artifact),
+        conversationId: input.request.conversationId ?? crypto.randomUUID(),
+        intentKey: input.request.intentKey,
+        mediaType:
+          resolved.artifact.kind === "video"
+            ? "video/mp4"
+            : resolved.artifact.mediaType,
+        metadataJson: JSON.stringify(resolved.artifact),
+        provider: input.provider.key,
+        remoteId:
+          resolved.artifact.kind === "video"
+            ? resolved.artifact.jobId
+            : undefined,
+        status: toArtifactStatus(resolved.artifact),
+        subtitle: resolved.workspace.subtitle,
+        title: resolved.artifact.title,
+      });
+    }
+
+    return {
+      assistantMessage: resolved.assistantMessage,
+      intentId: input.input.intentId,
+      relatedCatalogItems,
+      workspace: resolved.workspace,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Boreal failed after retrying this request.";
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent: "boreal-agent",
+        error: message,
+        routeTarget: input.request.routeTarget,
+      }),
+      activityType: "request.blocked",
+      assignedAgent: "boreal-agent",
+      assignedToolNames: input.assignedToolNames,
+      assistantMessage:
+        "Boreal could not complete this request automatically. You can retry it from the workboard.",
+      intentId: input.input.intentId,
+      ownerExternalId: input.input.ownerExternalId,
+      status: "blocked",
+    });
+
+    return {
+      assistantMessage:
+        "Boreal could not complete this request automatically. The request is blocked and can be retried from the workboard.",
+      intentId: input.input.intentId,
+      relatedCatalogItems,
+      workspace: {
+        kind: "empty",
+        subtitle: "Execution failed after automatic retries. Use retry to run the request again.",
+        title: "Retry needed",
+      } satisfies WorkspaceState,
+    };
+  }
+}
+
+async function runExecutionWithRetry(input: {
+  assistantModelId: string;
+  catalogItems: CatalogItem[];
+  imageModelId: string;
+  inputMessage: string;
+  intent: IntentExtraction;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  speechModelId: string;
+  videoModelId: string;
+}) {
+  return withRetry(() => executeIntent(input), { attempts: 3, baseDelayMs: 600 });
+}
+
+function toExecutionIntent(
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>,
+): IntentExtraction {
+  return {
+    assetPrompt: request.assetPrompt,
+    body: request.body,
+    capabilityTags: [],
+    catalogQuery: request.catalogQuery,
+    category: "request",
+    confidence: 0.8,
+    extractionNotes: [],
+    generationSignals: request.generationSignals,
+    intentType: "demand",
+    keywords: [],
+    missingDetails: request.missingDetails,
+    needsClarification: request.needsClarification,
+    persistence: {
+      isUnresolved: request.needsClarification,
+      reason: "Approved Boreal request.",
+      shouldPersist: true,
+    },
+    requestedOutputTypes: request.requestedOutputTypes,
+    responseInstructions: request.responseInstructions,
+    routeTarget: request.routeTarget,
+    routing: {
+      resolutionTier: "auto",
+      shouldCreateFulfillmentRequest: true,
+      shouldPersistToBoard: true,
+    },
+    shouldSearchCatalog: request.catalogQuery.trim().length > 0,
+    speechText: request.speechText,
+    suggestedReplies: request.suggestedReplies,
+    summary: request.summary,
+    title: request.title,
+    voice: request.voice,
+  };
+}
+
+function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem[]): WorkspaceState {
+  if (intent.needsClarification || intent.routeTarget === "clarification") {
+    return {
+      kind: "clarification",
+      questions: intent.missingDetails,
+      subtitle: "Approve the request when the scope looks right, or keep refining it in chat.",
+      suggestions: intent.suggestedReplies,
+      title: "Draft request",
+    };
+  }
+
+  if (catalogItems.length > 0) {
+    return {
+      highlightedId: catalogItems[0]?.id,
+      items: catalogItems,
+      kind: "catalog",
+      subtitle: "Relevant catalog items are ready if you approve the request.",
+      title: "Preflight matches",
+    };
+  }
+
+  return {
+    kind: "empty",
+    subtitle: "Approve to start work, or cancel to discard this draft request.",
+    title: "Awaiting approval",
+  };
+}
+
+function buildApprovalMessage(intent: IntentExtraction, catalogItems: CatalogItem[]) {
+  const modeLabel = intent.requestedOutputTypes
+    .map((value) => value.replaceAll("_", " "))
+    .join(", ");
 
   return [
-    "I can continue, but I need a few missing details first:",
+    `I drafted a request for ${modeLabel}.`,
+    intent.summary,
+    catalogItems.length > 0
+      ? `I also found ${catalogItems.length} related catalog match${catalogItems.length === 1 ? "" : "es"}.`
+      : "No extra artifacts were started yet.",
+    "Approve to start work, or cancel if you want to revise the ask first.",
+  ].join("\n\n");
+}
+
+function buildClarificationMessage(intent: IntentExtraction) {
+  const details = intent.missingDetails.map((detail) => `- ${detail}`).join("\n");
+
+  return [
+    "This request is active, but it still needs a few details:",
     details || "- Add the missing constraints or desired output details.",
     "",
-    "You can answer here in chat or use the workspace prompts on the right.",
+    "Reply here or use the workspace prompts to unblock it.",
   ].join("\n");
+}
+
+function requestNeedsApproval(intent: PersistedIntent) {
+  return (
+    intent.routeTarget !== "general_assistance" ||
+    intent.needsClarification ||
+    intent.requestedOutputTypes.some((type) => type !== "text")
+  );
 }
 
 function shouldPersistIntent(intent: PersistedIntent, artifact?: MediaArtifact) {
@@ -336,6 +695,32 @@ function shouldPersistIntent(intent: PersistedIntent, artifact?: MediaArtifact) 
     intent.routeTarget !== "general_assistance" ||
     Boolean(artifact)
   );
+}
+
+function buildAssignedTools(routeTarget: ToolRoute) {
+  const baseTools = ["classify-generation-intent", "extract-structured-intent"];
+
+  if (routeTarget === "catalog_lookup") {
+    return [...baseTools, "search-catalog", "generate-helpful-answer"];
+  }
+
+  if (routeTarget === "image_generation") {
+    return [...baseTools, "generate-image-asset"];
+  }
+
+  if (routeTarget === "speech_generation") {
+    return [...baseTools, "generate-speech-asset"];
+  }
+
+  if (routeTarget === "video_generation") {
+    return [...baseTools, "start-video-generation"];
+  }
+
+  if (routeTarget === "clarification") {
+    return baseTools;
+  }
+
+  return [...baseTools, "generate-helpful-answer"];
 }
 
 function toArtifactKind(artifact: MediaArtifact) {

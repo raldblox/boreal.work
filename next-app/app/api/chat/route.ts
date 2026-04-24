@@ -12,7 +12,13 @@ export async function POST(request: Request) {
 
   try {
     const body = parseChatRequest(await request.json());
-    const result = await chatAssistantAgent.run(body);
+    const result = await chatAssistantAgent.run({
+      ...body,
+      requester: {
+        displayName: session.user.name ?? undefined,
+        externalId: session.user.id ?? undefined,
+      },
+    });
 
     return NextResponse.json(result);
   } catch (error) {
@@ -35,6 +41,7 @@ export async function POST(request: Request) {
 type ParsedChatRequest = {
   conversationId?: string;
   message: string;
+  provider?: string;
 };
 
 class InvalidChatPayloadError extends Error {}
@@ -47,6 +54,7 @@ function parseChatRequest(value: unknown): ParsedChatRequest {
   const payload = value as Record<string, unknown>;
   const message = payload.message;
   const conversationId = payload.conversationId;
+  const provider = payload.provider;
 
   if (typeof message !== "string" || message.trim().length === 0) {
     throw new InvalidChatPayloadError("Chat payload requires a message.");
@@ -64,5 +72,6 @@ function parseChatRequest(value: unknown): ParsedChatRequest {
   return {
     conversationId,
     message,
+    provider: typeof provider === "string" ? provider : undefined,
   };
 }

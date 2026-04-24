@@ -6,12 +6,63 @@ import {
   type ArtifactMetadataArgs,
   type CatalogEntry,
   type RecordIntentPipelineArgs,
+  type SyncVideoArtifactArgs,
   type UpdateArtifactMetadataArgs,
 } from "@/lib/boreal/integrations/convex/function-refs";
 
 export async function saveIntentPipelineRecord(args: RecordIntentPipelineArgs) {
   const client = createConvexServerClient();
   return client.mutation(convexFunctionRefs.recordIntentPipeline, args);
+}
+
+export async function approveRequestDraft(args: {
+  assignedAgent: string;
+  assignedToolNames: string[];
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.approveRequest, args);
+}
+
+export async function cancelRequestDraft(args: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.cancelRequest, args);
+}
+
+export async function appendRequestExecution(args: {
+  activityPayload?: string;
+  activityType: string;
+  assignedAgent?: string;
+  assignedToolNames?: string[];
+  assistantMessage: string;
+  intentId: string;
+  ownerExternalId?: string;
+  status: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.appendRequestExecution, args);
+}
+
+export async function rateRequest(args: {
+  comment?: string;
+  intentId: string;
+  ownerExternalId?: string;
+  rating: number;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.rateRequest, args);
+}
+
+export async function getRequestExecutionContext(args: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.query(convexFunctionRefs.getExecutionContext, args);
 }
 
 export async function ensureCatalogSeeded() {
@@ -40,4 +91,9 @@ export async function saveArtifactMetadata(args: ArtifactMetadataArgs) {
 export async function updateArtifactMetadata(args: UpdateArtifactMetadataArgs) {
   const client = createConvexServerClient();
   return client.mutation(convexFunctionRefs.updateArtifactMetadata, args);
+}
+
+export async function syncVideoArtifact(args: SyncVideoArtifactArgs) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.syncVideoArtifactByRemoteId, args);
 }

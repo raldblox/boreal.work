@@ -6,9 +6,11 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(_: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { videoId } = await context.params;
   const provider = resolveProviderAdapter();
+  const url = new URL(request.url);
+  const shouldDownload = url.searchParams.get("download") === "1";
 
   if (!provider.downloadVideoContent) {
     return new Response(
@@ -29,7 +31,9 @@ export async function GET(_: Request, context: RouteContext) {
 
     return new Response(content.data, {
       headers: {
-        "Content-Disposition": `attachment; filename="${content.fileName}"`,
+        "Content-Disposition": shouldDownload
+          ? `attachment; filename="${content.fileName}"`
+          : `inline; filename="${content.fileName}"`,
         "Content-Type": content.contentType,
       },
       status: 200,

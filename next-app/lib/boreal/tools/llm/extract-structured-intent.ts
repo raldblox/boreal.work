@@ -68,7 +68,7 @@ function buildPrompt(message: string, modalityScores: ModalityProfileScore[]) {
     "- requestedOutputTypes may include text, image_generation, speech_generation, video_generation.",
     "- assetPrompt should be a clean generation prompt if media generation is likely.",
     "- speechText should contain the exact script when the user provided one, otherwise a concise generated script direction.",
-    "- voice should be a short OpenAI-compatible voice suggestion like alloy, verse, aria, sage, or cove.",
+    "- voice should be one supported OpenAI-compatible voice: alloy, echo, fable, onyx, nova, shimmer, coral, verse, ballad, ash, sage, marin, or cedar.",
     "- shouldPersist should be true for unresolved requests, asset generation requests, catalog requests, and valid Boreal intents.",
     `Embedding modality hints: ${modalityHint}`,
     `User message: """${message}"""`,
@@ -97,4 +97,3 @@ function extractJsonObject(text: string): Record<string, unknown> {
     }
   }
 }
-

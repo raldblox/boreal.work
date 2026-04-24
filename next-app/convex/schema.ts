@@ -58,6 +58,10 @@ export default defineSchema({
   intents: defineTable({
     acceptsProposals: v.boolean(),
     actorKind: actorKindValidator,
+    approvalRequestedAt: v.optional(v.number()),
+    approvedAt: v.optional(v.number()),
+    assignedAgent: v.optional(v.string()),
+    assignedToolNames: v.optional(v.array(v.string())),
     assetPrompt: v.optional(v.string()),
     body: v.string(),
     budgetFixed: v.optional(v.number()),
@@ -67,6 +71,9 @@ export default defineSchema({
     capabilityTags: v.array(v.string()),
     catalogQuery: v.optional(v.string()),
     category: v.string(),
+    cancelledAt: v.optional(v.number()),
+    closedReason: v.optional(v.string()),
+    completedAt: v.optional(v.number()),
     confidence: v.number(),
     conversationId: v.optional(v.string()),
     createdAt: v.number(),
@@ -93,10 +100,14 @@ export default defineSchema({
     responseInstructions: v.optional(v.string()),
     requestedOutputTypes: v.array(requestedOutputTypeValidator),
     resolutionTier: resolutionTierValidator,
+    reviewComment: v.optional(v.string()),
+    reviewRating: v.optional(v.number()),
+    reviewedAt: v.optional(v.number()),
     routeTarget: v.optional(toolRouteValidator),
     routing: routingValidator,
     shouldSearchCatalog: v.optional(v.boolean()),
     speechText: v.optional(v.string()),
+    startedAt: v.optional(v.number()),
     status: intentStatusValidator,
     suggestedReplies: v.optional(v.array(v.string())),
     summary: v.string(),
@@ -182,7 +193,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_conversationId_and_createdAt", ["conversationId", "createdAt"])
-    .index("by_intentKey_and_createdAt", ["intentKey", "createdAt"]),
+    .index("by_intentKey_and_createdAt", ["intentKey", "createdAt"])
+    .index("by_remoteId", ["remoteId"]),
 
   proposals: defineTable({
     collectiveMembers: v.optional(v.array(v.string())),

@@ -1,55 +1,31 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import Image from "next/image";
 import {
-  AlertTriangleIcon,
+  BotIcon,
   ClapperboardIcon,
-  DownloadIcon,
-  ImageIcon,
+  Layers3Icon,
   MicIcon,
   PackageIcon,
-  RefreshCwIcon,
+  SearchIcon,
+  SparklesIcon,
 } from "lucide-react";
 
-import {
-  AudioPlayer,
-  AudioPlayerControlBar,
-  AudioPlayerDurationDisplay,
-  AudioPlayerElement,
-  AudioPlayerMuteButton,
-  AudioPlayerPlayButton,
-  AudioPlayerSeekBackwardButton,
-  AudioPlayerSeekForwardButton,
-  AudioPlayerTimeDisplay,
-  AudioPlayerTimeRange,
-  AudioPlayerVolumeRange,
-} from "@/components/ai-elements/audio-player";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   RequestDetail,
-  RequestArtifact,
   SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs";
-import type {
-  CatalogItem,
-  MediaArtifact,
-  WorkspaceState,
-} from "@/lib/boreal/schemas/chat";
+import type { CatalogItem, WorkspaceState } from "@/lib/boreal/schemas/chat";
 
-export type WorkspaceTab = "workspace" | "catalog" | "details";
+export type WorkspaceTab = "capabilities" | "catalog" | "workers";
 
 type WorkspacePanelProps = {
   activeTab: WorkspaceTab;
   catalogItems: CatalogItem[];
-  isRefreshingVideo: boolean;
   onAskCatalogItem: (item: CatalogItem) => void;
-  onDownloadVideo: (videoId: string) => void;
-  onQuickReply: (value: string) => void;
-  onRefreshVideo: () => void;
   onSelectCatalogItem: (item: CatalogItem) => void;
   onTabChange: (value: WorkspaceTab) => void;
   requestDetail: RequestDetail | null;
@@ -61,17 +37,12 @@ type WorkspacePanelProps = {
 export function WorkspacePanel({
   activeTab,
   catalogItems,
-  isRefreshingVideo,
   onAskCatalogItem,
-  onDownloadVideo,
-  onQuickReply,
-  onRefreshVideo,
   onSelectCatalogItem,
   onTabChange,
   requestDetail,
   selectedCatalogItem,
   selectedIntent,
-  workspace,
 }: WorkspacePanelProps) {
   const isMounted = useSyncExternalStore(
     () => () => undefined,
@@ -84,19 +55,21 @@ export function WorkspacePanel({
       <aside className="flex min-h-0 flex-col overflow-hidden border border-border">
         <div className="border-b border-border px-4 py-4">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            Workspace
+            Browse
           </p>
-          <h2 className="mt-2 text-sm font-medium">Canvas, forms, and catalog</h2>
+          <h2 className="mt-2 text-sm font-medium">Loading market surface</h2>
         </div>
         <div className="min-h-0 flex-1 p-4">
           <EmptyBlock
-            subtitle="Loading the workspace interface."
-            title="Preparing workspace"
+            subtitle="Preparing worker matches, catalog browsing, and capability discovery."
+            title="Loading"
           />
         </div>
       </aside>
     );
   }
+
+  const requestTitle = requestDetail?.intent?.title ?? selectedIntent?.title ?? "Boreal";
 
   return (
     <aside className="flex h-full flex-col overflow-hidden border border-border">
@@ -106,33 +79,24 @@ export function WorkspacePanel({
         value={activeTab}
       >
         <div className="border-b border-border px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Workspace
-              </p>
-              <h2 className="mt-2 text-sm font-medium">Requests, assets, and catalog</h2>
-            </div>
-          </div>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            Browse
+          </p>
+          <h2 className="mt-2 text-sm font-medium">{requestTitle}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Workers, catalog inventory, and future account capabilities live here.
+          </p>
           <TabsList className="mt-4 w-full" variant="line">
-            <TabsTrigger value="workspace">Workspace</TabsTrigger>
+            <TabsTrigger value="workers">Workers</TabsTrigger>
             <TabsTrigger value="catalog">Catalog</TabsTrigger>
-            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="capabilities">Capabilities</TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent className="min-h-0" value="workspace">
+        <TabsContent className="min-h-0" value="workers">
           <ScrollArea className="h-full">
-            <div className="space-y-4 p-4">
-              <WorkspaceView
-                isRefreshingVideo={isRefreshingVideo}
-                onAskCatalogItem={onAskCatalogItem}
-                onDownloadVideo={onDownloadVideo}
-                onQuickReply={onQuickReply}
-                onRefreshVideo={onRefreshVideo}
-                onSelectCatalogItem={onSelectCatalogItem}
-                workspace={workspace}
-              />
+            <div className="space-y-3 p-4">
+              <WorkersPanel requestDetail={requestDetail} selectedIntent={selectedIntent} />
             </div>
           </ScrollArea>
         </TabsContent>
@@ -145,16 +109,18 @@ export function WorkspacePanel({
                   subtitle="The catalog is empty. Seeded supplies will show up here."
                   title="No catalog entries"
                 />
+              ) : selectedCatalogItem ? (
+                <CatalogDetail
+                  item={selectedCatalogItem}
+                  onAsk={() => onAskCatalogItem(selectedCatalogItem)}
+                />
               ) : (
                 catalogItems.map((item) => (
                   <CatalogCard
                     item={item}
                     key={item.id}
                     onAsk={() => onAskCatalogItem(item)}
-                    onOpen={() => {
-                      onSelectCatalogItem(item);
-                      onTabChange("details");
-                    }}
+                    onOpen={() => onSelectCatalogItem(item)}
                   />
                 ))
               )}
@@ -162,29 +128,27 @@ export function WorkspacePanel({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent className="min-h-0" value="details">
+        <TabsContent className="min-h-0" value="capabilities">
           <ScrollArea className="h-full">
-            <div className="space-y-4 p-4">
-              {selectedCatalogItem ? (
-                <CatalogDetail
-                  item={selectedCatalogItem}
-                  onAsk={() => onAskCatalogItem(selectedCatalogItem)}
-                />
-              ) : requestDetail?.intent ? (
-                <RequestDetailPanel
-                  detail={requestDetail}
-                  isRefreshingVideo={isRefreshingVideo}
-                  onDownloadVideo={onDownloadVideo}
-                  onRefreshVideo={onRefreshVideo}
-                />
-              ) : selectedIntent ? (
-                <IntentDetail intent={selectedIntent} />
-              ) : (
-                <EmptyBlock
-                  subtitle="Select a request or a catalog item to inspect it here."
-                  title="Nothing selected"
-                />
-              )}
+            <div className="space-y-3 p-4">
+              <CapabilityCard
+                icon={Layers3Icon}
+                subtitle="Your capability profile will eventually advertise what work you can receive, automate, or fulfill."
+                title="Receive jobs and matches"
+                wip
+              />
+              <CapabilityCard
+                icon={SparklesIcon}
+                subtitle="Provider-level routing, budgets, and preferences will be configurable per account."
+                title="Personal routing controls"
+                wip
+              />
+              <CapabilityCard
+                icon={PackageIcon}
+                subtitle="Supply-side listings and fulfillment preferences will plug into the same request graph."
+                title="Supply-side catalog participation"
+                wip
+              />
             </div>
           </ScrollArea>
         </TabsContent>
@@ -193,234 +157,118 @@ export function WorkspacePanel({
   );
 }
 
-function WorkspaceView({
-  isRefreshingVideo,
-  onAskCatalogItem,
-  onDownloadVideo,
-  onQuickReply,
-  onRefreshVideo,
-  onSelectCatalogItem,
-  workspace,
+function WorkersPanel({
+  requestDetail,
+  selectedIntent,
 }: {
-  isRefreshingVideo: boolean;
-  onAskCatalogItem: (item: CatalogItem) => void;
-  onDownloadVideo: (videoId: string) => void;
-  onQuickReply: (value: string) => void;
-  onRefreshVideo: () => void;
-  onSelectCatalogItem: (item: CatalogItem) => void;
-  workspace: WorkspaceState;
+  requestDetail: RequestDetail | null;
+  selectedIntent: SidebarIntentPreview | null;
 }) {
-  if (workspace.kind === "artifact") {
-    if (workspace.artifact.kind === "image") {
-      return (
-        <div className="space-y-4">
-          <header className="space-y-1">
-            <p className="text-sm font-medium">{workspace.title}</p>
-            <p className="text-xs text-muted-foreground">{workspace.subtitle}</p>
-          </header>
-          <Image
-            alt={workspace.artifact.title}
-            className="h-auto w-full border border-border object-cover"
-            height={900}
-            src={`data:${workspace.artifact.mediaType};base64,${workspace.artifact.base64}`}
-            unoptimized
-            width={1600}
-          />
-          <p className="text-xs text-muted-foreground">{workspace.artifact.prompt}</p>
-        </div>
-      );
-    }
-
-    if (workspace.artifact.kind === "audio") {
-      return (
-        <div className="space-y-4">
-          <header className="space-y-1">
-            <div className="flex items-center gap-2">
-              <MicIcon className="size-4 text-muted-foreground" />
-              <p className="text-sm font-medium">{workspace.title}</p>
-            </div>
-            <p className="text-xs text-muted-foreground">{workspace.subtitle}</p>
-          </header>
-          <AudioPlayer className="w-full border border-border p-3">
-            <AudioPlayerElement
-              src={`data:${workspace.artifact.mediaType};base64,${workspace.artifact.base64}`}
-            />
-            <AudioPlayerControlBar>
-              <AudioPlayerPlayButton />
-              <AudioPlayerSeekBackwardButton />
-              <AudioPlayerSeekForwardButton />
-              <AudioPlayerTimeDisplay showDuration />
-              <AudioPlayerTimeRange className="mx-2 min-w-0 flex-1" />
-              <AudioPlayerDurationDisplay />
-              <AudioPlayerMuteButton />
-              <AudioPlayerVolumeRange className="w-16" />
-            </AudioPlayerControlBar>
-          </AudioPlayer>
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <p>Voice: {workspace.artifact.voice}</p>
-            <p>{workspace.artifact.transcript}</p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <VideoWorkspace
-        artifact={workspace.artifact}
-        isRefreshingVideo={isRefreshingVideo}
-        onDownloadVideo={onDownloadVideo}
-        onRefreshVideo={onRefreshVideo}
-        subtitle={workspace.subtitle}
-        title={workspace.title}
-      />
-    );
-  }
-
-  if (workspace.kind === "catalog") {
-    return (
-      <div className="space-y-3">
-        <header className="space-y-1">
-          <p className="text-sm font-medium">{workspace.title}</p>
-          <p className="text-xs text-muted-foreground">{workspace.subtitle}</p>
-        </header>
-        {workspace.items.map((item) => (
-          <CatalogCard
-            item={item}
-            key={item.id}
-            onAsk={() => onAskCatalogItem(item)}
-            onOpen={() => onSelectCatalogItem(item)}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (workspace.kind === "clarification") {
-    return (
-      <div className="space-y-4">
-        <header className="space-y-1">
-          <p className="text-sm font-medium">{workspace.title}</p>
-          <p className="text-xs text-muted-foreground">{workspace.subtitle}</p>
-        </header>
-        <div className="border border-border p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            Needed
-          </p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {workspace.questions.map((question) => (
-              <li key={question}>{question}</li>
-            ))}
-          </ul>
-        </div>
-        {workspace.suggestions.length > 0 ? (
-          <div className="space-y-2">
-            {workspace.suggestions.map((suggestion) => (
-              <Button
-                className="w-full justify-start"
-                key={suggestion}
-                onClick={() => onQuickReply(suggestion)}
-                type="button"
-                variant="outline"
-              >
-                {suggestion}
-              </Button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  return <EmptyBlock subtitle={workspace.subtitle} title={workspace.title} />;
-}
-
-function VideoWorkspace({
-  artifact,
-  isRefreshingVideo,
-  onDownloadVideo,
-  onRefreshVideo,
-  subtitle,
-  title,
-}: {
-  artifact: Extract<MediaArtifact, { kind: "video" }>;
-  isRefreshingVideo: boolean;
-  onDownloadVideo: (videoId: string) => void;
-  onRefreshVideo: () => void;
-  subtitle: string;
-  title: string;
-}) {
-  const isCompleted = artifact.status === "completed";
-  const isFailed = artifact.status === "failed";
+  const requestedOutputTypes =
+    requestDetail?.intent?.requestedOutputTypes ?? selectedIntent?.requestedOutputTypes ?? ["text"];
+  const routeTarget =
+    requestDetail?.intent?.routeTarget ?? selectedIntent?.routeTarget ?? "general_assistance";
+  const assignedAgent = requestDetail?.assignment?.agent ?? "Boreal Agent";
+  const assignedTools = requestDetail?.assignment?.tools ?? [];
+  const cards = buildWorkerCards(requestedOutputTypes, routeTarget);
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-1">
-        <div className="flex items-center gap-2">
-          <ClapperboardIcon className="size-4 text-muted-foreground" />
-          <p className="text-sm font-medium">{title}</p>
+    <>
+      <div className="space-y-3 border border-border p-4">
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Assigned worker
+        </p>
+        <WorkerCard
+          description={
+            assignedTools.length > 0
+              ? `Currently routed through ${assignedTools.join(" / ")}.`
+              : "Boreal handles this request directly until additional worker routing is available."
+          }
+          icon={cards[0]?.icon ?? BotIcon}
+          meta={requestDetail?.intent?.status ?? "available"}
+          title={assignedAgent}
+        />
+      </div>
+
+      <div className="space-y-3 border border-border p-4">
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Suggested workers
+        </p>
+        <div className="space-y-3">
+          {cards.map((card) => (
+            <WorkerCard
+              description={card.description}
+              icon={card.icon}
+              key={card.title}
+              meta={card.meta}
+              title={card.title}
+            />
+          ))}
         </div>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
-      </header>
+      </div>
+    </>
+  );
+}
 
-      <div className="border border-border p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              Status
-            </p>
-            <p className="mt-2 text-sm font-medium">
-              {artifact.status.replaceAll("_", " ")}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              disabled={isRefreshingVideo}
-              onClick={onRefreshVideo}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <RefreshCwIcon className={isRefreshingVideo ? "animate-spin" : ""} />
-
-            </Button>
-            <Button
-              disabled={!isCompleted}
-              onClick={() => onDownloadVideo(artifact.jobId)}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <DownloadIcon />
-
-            </Button>
-          </div>
+function WorkerCard({
+  description,
+  icon: Icon,
+  meta,
+  title,
+}: {
+  description: string;
+  icon: typeof BotIcon;
+  meta: string;
+  title: string;
+}) {
+  return (
+    <div className="border border-border p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex size-9 items-center justify-center border border-border">
+          <Icon className="size-4 text-muted-foreground" />
         </div>
-
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Progress</span>
-            <span>{artifact.progress}%</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{title}</p>
+            <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              {meta.replaceAll("_", " ")}
+            </span>
           </div>
-          <Progress className="h-2" value={artifact.progress} />
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        <div className="mt-4 grid gap-3 text-xs text-muted-foreground overflow-x-scroll">
-          <p className="">Job: {artifact.jobId.slice(0, 20)}...{artifact.jobId.slice(-10)}</p>
-          <p>Model: {artifact.model}</p>
-          <p>Size: {artifact.size}</p>
-          <p>Duration: {artifact.seconds}s</p>
-          {artifact.expiresAt ? (
-            <p>Expires: {formatUnixDate(artifact.expiresAt)}</p>
-          ) : null}
-          <p>{artifact.prompt}</p>
+function CapabilityCard({
+  icon: Icon,
+  subtitle,
+  title,
+  wip,
+}: {
+  icon: typeof BotIcon;
+  subtitle: string;
+  title: string;
+  wip?: boolean;
+}) {
+  return (
+    <div className="border border-border p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex size-9 items-center justify-center border border-border">
+          <Icon className="size-4 text-muted-foreground" />
         </div>
-
-        {isFailed && artifact.errorMessage ? (
-          <div className="mt-4 flex items-start gap-2 border border-border p-3 text-xs text-destructive">
-            <AlertTriangleIcon className="mt-0.5 size-4" />
-            <p>{artifact.errorMessage}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{title}</p>
+            {wip ? (
+              <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                WIP
+              </span>
+            ) : null}
           </div>
-        ) : null}
+          <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+        </div>
       </div>
     </div>
   );
@@ -492,120 +340,6 @@ function CatalogDetail({
   );
 }
 
-function RequestDetailPanel({
-  detail,
-  isRefreshingVideo,
-  onDownloadVideo,
-  onRefreshVideo,
-}: {
-  detail: RequestDetail;
-  isRefreshingVideo: boolean;
-  onDownloadVideo: (videoId: string) => void;
-  onRefreshVideo: () => void;
-}) {
-  if (!detail.intent) {
-    return null;
-  }
-
-  const artifactMetadata = detail.artifact?.metadata;
-  const videoArtifact =
-    detail.artifact?.artifactKind === "video" && artifactMetadata
-      ? {
-        kind: "video" as const,
-        errorMessage: readString(artifactMetadata.errorMessage),
-        expiresAt: readNumber(artifactMetadata.expiresAt),
-        jobId: readString(artifactMetadata.jobId) ?? detail.artifact.remoteId ?? "",
-        model: readString(artifactMetadata.model) ?? "sora-2",
-        progress: readNumber(artifactMetadata.progress) ?? 0,
-        prompt: readString(artifactMetadata.prompt) ?? detail.intent.summary,
-        seconds: readString(artifactMetadata.seconds) ?? "8",
-        size: readString(artifactMetadata.size) ?? "1280x720",
-        status: normalizeVideoStatus(detail.artifact.status, artifactMetadata.status),
-        title: detail.artifact.title,
-      }
-      : null;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-1">
-        <p className="text-sm font-medium">{detail.intent.title}</p>
-        <p className="text-xs text-muted-foreground">
-          {detail.intent.routeTarget.replaceAll("_", " ")} | {detail.intent.status} | {detail.intent.provider}
-        </p>
-      </header>
-
-      <div className="border border-border p-4">
-        <p className="text-sm">{detail.intent.summary}</p>
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-          {detail.intent.requestedOutputTypes.map((value) => (
-            <span key={value}>{value.replaceAll("_", " ")}</span>
-          ))}
-        </div>
-      </div>
-
-      {videoArtifact ? (
-        <VideoWorkspace
-          artifact={videoArtifact}
-          isRefreshingVideo={isRefreshingVideo}
-          onDownloadVideo={onDownloadVideo}
-          onRefreshVideo={onRefreshVideo}
-          subtitle={detail.artifact?.subtitle ?? "Tracked video request"}
-          title={detail.artifact?.title ?? detail.intent.title}
-        />
-      ) : null}
-
-      {detail.intent.needsClarification && detail.intent.missingDetails.length > 0 ? (
-        <div className="border border-border p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            Missing details
-          </p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {detail.intent.missingDetails.map((detailItem) => (
-              <li key={detailItem}>{detailItem}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {detail.intent.suggestedReplies.length > 0 ? (
-        <div className="border border-border p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            Suggested replies
-          </p>
-          <div className="mt-3 space-y-2">
-            {detail.intent.suggestedReplies.map((reply) => (
-              <p className="text-sm" key={reply}>
-                {reply}
-              </p>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function IntentDetail({ intent }: { intent: SidebarIntentPreview }) {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-1">
-        <p className="text-sm font-medium">{intent.title}</p>
-        <p className="text-xs text-muted-foreground">
-          {intent.routeTarget.replaceAll("_", " ")} | {intent.status} | {intent.provider}
-        </p>
-      </header>
-      <div className="border border-border p-4">
-        <p className="text-sm">{intent.summary}</p>
-        <p className="mt-4 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-          {intent.requestedOutputTypes
-            .map((value) => value.replaceAll("_", " "))
-            .join(" / ")}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function EmptyBlock({
   subtitle,
   title,
@@ -616,7 +350,7 @@ function EmptyBlock({
   return (
     <div className="border border-dashed border-border p-6 text-center">
       <div className="mx-auto flex size-9 items-center justify-center border border-border">
-        <ImageIcon className="size-4 text-muted-foreground" />
+        <SearchIcon className="size-4 text-muted-foreground" />
       </div>
       <p className="mt-4 text-sm font-medium">{title}</p>
       <p className="mt-2 text-xs text-muted-foreground">{subtitle}</p>
@@ -624,44 +358,51 @@ function EmptyBlock({
   );
 }
 
-function formatUnixDate(value: number) {
-  return new Date(value * 1000).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
+function buildWorkerCards(requestedOutputTypes: string[], routeTarget: string) {
+  const cards = [
+    {
+      description: "General routed assistant for text answers, orchestration, and fallback handling.",
+      icon: BotIcon,
+      meta: "default",
+      title: "Boreal Agent",
+    },
+  ];
 
-function readNumber(value: unknown) {
-  return typeof value === "number" ? value : undefined;
-}
-
-function readString(value: unknown) {
-  return typeof value === "string" ? value : undefined;
-}
-
-function normalizeVideoStatus(
-  artifactStatus: RequestArtifact["status"],
-  metadataStatus: unknown,
-): "queued" | "in_progress" | "completed" | "failed" {
-  if (typeof metadataStatus === "string") {
-    if (metadataStatus === "queued" || metadataStatus === "in_progress") {
-      return metadataStatus;
-    }
-    if (metadataStatus === "completed" || metadataStatus === "ready") {
-      return "completed";
-    }
-    if (metadataStatus === "failed") {
-      return "failed";
-    }
+  if (requestedOutputTypes.includes("image_generation") || routeTarget === "image_generation") {
+    cards.unshift({
+      description: "Handles image prompts, revisions, and visual asset generation.",
+      icon: SparklesIcon,
+      meta: "image",
+      title: "Image Worker",
+    });
   }
 
-  if (artifactStatus === "ready") {
-    return "completed";
+  if (requestedOutputTypes.includes("speech_generation") || routeTarget === "speech_generation") {
+    cards.unshift({
+      description: "Handles speech rendering, voice selection, and audio delivery.",
+      icon: MicIcon,
+      meta: "speech",
+      title: "Speech Worker",
+    });
   }
 
-  if (artifactStatus === "queued" || artifactStatus === "in_progress") {
-    return artifactStatus;
+  if (requestedOutputTypes.includes("video_generation") || routeTarget === "video_generation") {
+    cards.unshift({
+      description: "Tracks queued renders, refreshes progress, and delivers final video files.",
+      icon: ClapperboardIcon,
+      meta: "video",
+      title: "Video Worker",
+    });
   }
 
-  return "failed";
+  if (routeTarget === "catalog_lookup") {
+    cards.unshift({
+      description: "Searches the supply catalog, compares offers, and surfaces matched products.",
+      icon: PackageIcon,
+      meta: "catalog",
+      title: "Catalog Worker",
+    });
+  }
+
+  return cards.slice(0, 4);
 }

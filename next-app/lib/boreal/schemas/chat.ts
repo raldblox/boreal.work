@@ -75,6 +75,7 @@ export type ChatAssistantResponse = {
   assistantMessage: string;
   intent: PersistedIntent;
   intentId?: string;
+  requiresApproval: boolean;
   workspace: WorkspaceState;
   relatedCatalogItems: CatalogItem[];
   persisted: boolean;

@@ -84,6 +84,24 @@ const routeValues = [
   "clarification",
 ] as const;
 
+const supportedSpeechVoices = [
+  "alloy",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "shimmer",
+  "coral",
+  "verse",
+  "ballad",
+  "ash",
+  "sage",
+  "marin",
+  "cedar",
+] as const;
+
+export type SupportedSpeechVoice = (typeof supportedSpeechVoices)[number];
+
 export function normalizeIntentExtraction(
   rawIntent: Partial<IntentExtraction>,
   fallbackMessage: string,
@@ -195,7 +213,7 @@ export function normalizeIntentExtraction(
     suggestedReplies: dedupePlainStrings(rawIntent.suggestedReplies).slice(0, 4),
     summary,
     title,
-    voice: normalizeString(rawIntent.voice, "alloy", 48),
+    voice: normalizeSpeechVoice(rawIntent.voice),
   };
 }
 
@@ -267,4 +285,20 @@ function oneOf<T extends string>(
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+export function normalizeSpeechVoice(value: unknown): SupportedSpeechVoice {
+  if (typeof value !== "string") {
+    return "alloy";
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (
+    supportedSpeechVoices.includes(normalized as SupportedSpeechVoice)
+  ) {
+    return normalized as SupportedSpeechVoice;
+  }
+
+  return "alloy";
 }

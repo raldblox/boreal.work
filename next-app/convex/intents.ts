@@ -4,40 +4,53 @@ import { v } from "convex/values";
 export const listSidebar = query({
   args: {
     limit: v.number(),
+    ownerExternalId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const ownerUserId = await getOwnerUserId(ctx, args.ownerExternalId);
     const intents = await ctx.db.query("intents").order("desc").take(args.limit);
 
-    return intents.map((intent) => ({
-      _creationTime: intent._creationTime,
-      _id: intent._id,
-      category: intent.category,
-      conversationId: intent.conversationId ?? null,
-      confidence: intent.confidence,
-      needsClarification: intent.needsClarification ?? false,
-      provider: intent.provider,
-      requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
-      routeTarget: intent.routeTarget ?? "general_assistance",
-      status: intent.status,
-      summary: intent.summary,
-      title: intent.title,
-    }));
+    return intents
+      .filter((intent) => !ownerUserId || intent.ownerUserId === ownerUserId)
+      .map((intent) => ({
+        _creationTime: intent._creationTime,
+        _id: intent._id,
+        assignedAgent: intent.assignedAgent ?? null,
+        category: intent.category,
+        conversationId: intent.conversationId ?? null,
+        needsClarification: intent.needsClarification ?? false,
+        provider: intent.provider,
+        requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+        reviewRating: intent.reviewRating ?? null,
+        routeTarget: intent.routeTarget ?? "general_assistance",
+        status: intent.status,
+        summary: intent.summary,
+        title: intent.title,
+        updatedAt: intent.updatedAt,
+      }));
   },
 });
 
 export const getRequestDetail = query({
   args: {
     intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const intent = await ctx.db.get(args.intentId);
 
-    if (!intent) {
+    if (
+      !intent ||
+      !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
       return {
+        activity: [],
         artifact: null,
+        assignment: null,
         conversationId: null,
         intent: null,
         messages: [],
+        review: null,
       };
     }
 
@@ -47,7 +60,7 @@ export const getRequestDetail = query({
         queryBuilder.eq("conversationId", intent.conversationId ?? ""),
       )
       .order("asc")
-      .take(64);
+      .take(128);
 
     const requestMessages = messages
       .filter((message) => message.intentKey === intent.intentKey)
@@ -66,9 +79,25 @@ export const getRequestDetail = query({
       .order("desc")
       .take(4);
 
+    const activity = await ctx.db
+      .query("activityEvents")
+      .withIndex("by_entityType_and_entityId", (queryBuilder) =>
+        queryBuilder.eq("entityType", "intent").eq("entityId", intent.intentKey),
+      )
+      .order("desc")
+      .take(24);
+
     const artifact = artifacts[0];
 
     return {
+      activity: activity
+        .map((event) => ({
+          _id: event._id,
+          createdAt: event.createdAt,
+          payload: parseJson(event.payload),
+          type: event.type,
+        }))
+        .reverse(),
       artifact: artifact
         ? {
             _id: artifact._id,
@@ -84,24 +113,82 @@ export const getRequestDetail = query({
             updatedAt: artifact.updatedAt,
           }
         : null,
+      assignment: {
+        agent: intent.assignedAgent ?? null,
+        provider: intent.provider,
+        tools: intent.assignedToolNames ?? [],
+      },
       conversationId: intent.conversationId ?? null,
       intent: {
         _creationTime: intent._creationTime,
         _id: intent._id,
+        approvedAt: intent.approvedAt ?? null,
         category: intent.category,
+        completedAt: intent.completedAt ?? null,
         confidence: intent.confidence,
         missingDetails: intent.missingDetails ?? [],
         needsClarification: intent.needsClarification ?? false,
         provider: intent.provider,
         requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
         responseInstructions: intent.responseInstructions ?? "",
+        resolutionTier: intent.resolutionTier,
+        reviewPending:
+          intent.status === "fulfilled" && typeof intent.reviewRating !== "number",
         routeTarget: intent.routeTarget ?? "general_assistance",
+        startedAt: intent.startedAt ?? null,
         status: intent.status,
         suggestedReplies: intent.suggestedReplies ?? [],
         summary: intent.summary,
         title: intent.title,
       },
       messages: requestMessages,
+      review:
+        typeof intent.reviewRating === "number"
+          ? {
+              comment: intent.reviewComment ?? "",
+              rating: intent.reviewRating,
+              reviewedAt: intent.reviewedAt ?? null,
+            }
+          : null,
+    };
+  },
+});
+
+export const getExecutionContext = query({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (
+      !intent ||
+      !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
+      return null;
+    }
+
+    return {
+      _id: intent._id,
+      assetPrompt: intent.assetPrompt ?? intent.body,
+      body: intent.body,
+      catalogQuery: intent.catalogQuery ?? "",
+      conversationId: intent.conversationId ?? null,
+      generationSignals: intent.generationSignals,
+      intentKey: intent.intentKey,
+      missingDetails: intent.missingDetails ?? [],
+      needsClarification: intent.needsClarification ?? false,
+      provider: intent.provider,
+      requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+      responseInstructions: intent.responseInstructions ?? "",
+      routeTarget: intent.routeTarget ?? "general_assistance",
+      speechText: intent.speechText ?? intent.summary,
+      status: intent.status,
+      suggestedReplies: intent.suggestedReplies ?? [],
+      summary: intent.summary,
+      title: intent.title,
+      voice: intent.voice ?? "alloy",
     };
   },
 });
@@ -133,26 +220,18 @@ export const listRecent = query({
   },
 });
 
-function parseJson(value: string | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(value) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 export const deleteIntent = mutation({
   args: {
     intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const intent = await ctx.db.get(args.intentId);
 
-    if (!intent) {
+    if (
+      !intent ||
+      !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
       return { deleted: false };
     }
 
@@ -161,7 +240,7 @@ export const deleteIntent = mutation({
       .withIndex("by_conversationId_and_createdAt", (queryBuilder) =>
         queryBuilder.eq("conversationId", intent.conversationId ?? ""),
       )
-      .take(64);
+      .take(128);
 
     for (const message of relatedMessages) {
       if (message.intentKey === intent.intentKey) {
@@ -207,3 +286,56 @@ export const deleteIntent = mutation({
     return { deleted: true };
   },
 });
+
+function parseJson(value: string | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+async function getOwnerUserId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  ownerExternalId: string | undefined,
+) {
+  if (!ownerExternalId) {
+    return null;
+  }
+
+  const owner = await ctx.db
+    .query("users")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .withIndex("by_externalId", (queryBuilder: any) =>
+      queryBuilder.eq("externalId", ownerExternalId),
+    )
+    .unique();
+
+  return owner?._id ?? null;
+}
+
+async function hasRequestAccess(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  ownerUserId: string | undefined,
+  ownerExternalId: string | undefined,
+) {
+  if (!ownerUserId || !ownerExternalId) {
+    return true;
+  }
+
+  const owner = await ctx.db
+    .query("users")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .withIndex("by_externalId", (queryBuilder: any) =>
+      queryBuilder.eq("externalId", ownerExternalId),
+    )
+    .unique();
+
+  return owner?._id === ownerUserId;
+}
