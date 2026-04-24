@@ -14,6 +14,7 @@ import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/regi
 import type {
   ChatAssistantResponse,
   CatalogItem,
+  ChatUiContext,
   MediaArtifact,
   WorkspaceState,
 } from "@/lib/boreal/schemas/chat";
@@ -42,6 +43,7 @@ type ChatAssistantAgentInput = {
   conversationId?: string;
   message: string;
   requester?: RequesterIdentity;
+  uiContext?: ChatUiContext;
 };
 
 type ApprovedExecutionResult = {
@@ -133,6 +135,7 @@ export const chatAssistantAgent: ComposableAgent<
           message: input.message,
           modalityScores: modality.modalityScores,
           provider,
+          uiContext: input.uiContext,
         }),
       { attempts: 3 },
     );
@@ -196,6 +199,7 @@ export const chatAssistantAgent: ComposableAgent<
       intent,
       provider,
       speechModelId: runtimeConfig.speechModel,
+      uiContext: input.uiContext,
       videoModelId: runtimeConfig.videoModel,
     });
 
@@ -338,6 +342,7 @@ async function executeIntent(input: {
   intent: IntentExtraction;
   provider: ReturnType<typeof resolveProviderAdapter>;
   speechModelId: string;
+  uiContext?: ChatUiContext;
   videoModelId: string;
 }): Promise<ApprovedExecutionResult> {
   if (input.intent.needsClarification || input.intent.routeTarget === "clarification") {
@@ -432,6 +437,7 @@ async function executeIntent(input: {
     intent: input.intent,
     message: input.inputMessage,
     provider: input.provider,
+    uiContext: input.uiContext,
   });
 
   if (input.catalogItems.length > 0) {
@@ -492,6 +498,15 @@ async function runApprovedExecutionForRequest(input: {
       intent: toExecutionIntent(input.request),
       provider: input.provider,
       speechModelId: input.runtimeConfig.speechModel,
+      uiContext: {
+        canApproveProposals: false,
+        canSubmitProposal: false,
+        centerTab: "chat",
+        requestId: input.input.intentId,
+        requestRole: "owner",
+        requestStatus: input.request.status,
+        surface: "request",
+      },
       videoModelId: input.runtimeConfig.videoModel,
     });
 
@@ -583,6 +598,7 @@ async function runExecutionWithRetry(input: {
   intent: IntentExtraction;
   provider: ReturnType<typeof resolveProviderAdapter>;
   speechModelId: string;
+  uiContext?: ChatUiContext;
   videoModelId: string;
 }) {
   return withRetry(() => executeIntent(input), { attempts: 3, baseDelayMs: 600 });

@@ -1,5 +1,16 @@
 import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
 
+export type ChatUiContext = {
+  browseTab?: "profile" | "requests" | "workers" | null;
+  canApproveProposals?: boolean;
+  canSubmitProposal?: boolean;
+  centerTab?: "activity" | "chat" | "proposals" | "workers" | null;
+  requestId?: string | null;
+  requestRole?: "none" | "owner" | "supplier" | "viewer";
+  requestStatus?: string | null;
+  surface: "home" | "request";
+};
+
 export type CatalogItem = {
   id: string;
   title: string;

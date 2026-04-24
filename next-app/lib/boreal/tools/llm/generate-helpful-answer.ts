@@ -3,7 +3,9 @@ import "server-only";
 import { generateText } from "ai";
 
 import type { BorealProviderAdapter } from "@/lib/boreal/integrations/providers/types";
+import { buildBorealSystemPrompt } from "@/lib/boreal/prompting/character";
 import type { CatalogItem } from "@/lib/boreal/schemas/chat";
+import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
 import type { IntentExtraction } from "@/lib/boreal/schemas/intent";
 
 export async function generateHelpfulAnswer(input: {
@@ -12,12 +14,13 @@ export async function generateHelpfulAnswer(input: {
   intent: IntentExtraction;
   message: string;
   provider: BorealProviderAdapter;
+  uiContext?: ChatUiContext;
 }): Promise<string> {
+  const systemPrompt = await buildBorealSystemPrompt(input.uiContext);
   const { text } = await generateText({
     model: input.provider.getAssistantModel(input.assistantModelId),
     prompt: buildPrompt(input),
-    system:
-      "You are Boreal, a helpful orchestration chatbot. Answer directly, avoid internal routing jargon, and keep non-text artifacts out of the inline message because they will appear in a workspace panel.",
+    system: systemPrompt,
   });
 
   return text.trim() || fallbackAnswer(input.intent, input.catalogItems);
@@ -27,6 +30,7 @@ function buildPrompt(input: {
   catalogItems: CatalogItem[];
   intent: IntentExtraction;
   message: string;
+  uiContext?: ChatUiContext;
 }) {
   const catalogBlock =
     input.catalogItems.length === 0
@@ -40,6 +44,9 @@ function buildPrompt(input: {
 
   return [
     `User message: """${input.message}"""`,
+    input.uiContext
+      ? `UI context: surface=${input.uiContext.surface}, center=${input.uiContext.centerTab ?? "none"}, directory=${input.uiContext.browseTab ?? "none"}, role=${input.uiContext.requestRole ?? "none"}, status=${input.uiContext.requestStatus ?? "none"}`
+      : "UI context: none",
     `Intent route: ${input.intent.routeTarget}`,
     `Intent summary: ${input.intent.summary}`,
     `Intent instructions: ${input.intent.responseInstructions}`,

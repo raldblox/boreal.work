@@ -207,6 +207,7 @@ export type RequestDetail = {
     _creationTime: number;
     _id: string;
     approvedAt: number | null;
+    body: string;
     category: string;
     completedAt: number | null;
     confidence: number;

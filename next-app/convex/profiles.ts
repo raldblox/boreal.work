@@ -1,7 +1,7 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 
-import { profileAvailabilityValidator } from "./validators";
+import { actorKindValidator, profileAvailabilityValidator } from "./validators";
 
 export const getMyProfile = query({
   args: {
@@ -77,6 +77,7 @@ export const upsertMyProfile = mutation({
     capabilityTags: v.array(v.string()),
     headline: v.optional(v.string()),
     isPublic: v.boolean(),
+    ownerActorKind: v.optional(actorKindValidator),
     ownerDisplayName: v.optional(v.string()),
     ownerExternalId: v.optional(v.string()),
     ownerHandle: v.optional(v.string()),
@@ -89,6 +90,7 @@ export const upsertMyProfile = mutation({
       displayName: args.ownerDisplayName,
       externalId: args.ownerExternalId,
       handle: args.ownerHandle,
+      kind: args.ownerActorKind,
     });
 
     if (!user) {
@@ -306,6 +308,7 @@ async function upsertUser(
     displayName?: string;
     externalId?: string;
     handle?: string;
+    kind?: "agent" | "human" | "tool";
   },
 ) {
   if (!input.externalId) {
@@ -321,6 +324,7 @@ async function upsertUser(
 
   if (existing) {
     await ctx.db.patch(existing._id, {
+      actorKind: input.kind ?? existing.actorKind,
       displayName: input.displayName ?? existing.displayName,
       handle: input.handle ?? existing.handle,
       updatedAt: Date.now(),
@@ -328,13 +332,14 @@ async function upsertUser(
 
     return {
       ...existing,
+      actorKind: input.kind ?? existing.actorKind,
       displayName: input.displayName ?? existing.displayName,
       handle: input.handle ?? existing.handle,
     };
   }
 
   const userId = await ctx.db.insert("users", {
-    actorKind: "human",
+    actorKind: input.kind ?? "human",
     createdAt: Date.now(),
     displayName: input.displayName ?? input.handle ?? "X user",
     externalId: input.externalId,
@@ -345,7 +350,7 @@ async function upsertUser(
 
   return {
     _id: userId,
-    actorKind: "human" as const,
+    actorKind: (input.kind ?? "human") as "agent" | "human" | "tool",
     createdAt: Date.now(),
     displayName: input.displayName ?? input.handle ?? "X user",
     externalId: input.externalId,

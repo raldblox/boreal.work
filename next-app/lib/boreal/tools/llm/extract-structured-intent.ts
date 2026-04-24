@@ -3,6 +3,8 @@ import "server-only";
 import { generateText } from "ai";
 
 import type { BorealProviderAdapter } from "@/lib/boreal/integrations/providers/types";
+import { buildIntentRoutingHint } from "@/lib/boreal/prompting/character";
+import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
 import {
   normalizeIntentExtraction,
   type IntentExtraction,
@@ -14,10 +16,12 @@ export async function extractStructuredIntent(input: {
   intentModelId: string;
   provider: BorealProviderAdapter;
   modalityScores: ModalityProfileScore[];
+  uiContext?: ChatUiContext;
 }): Promise<IntentExtraction> {
+  const contextHint = buildIntentRoutingHint(input.uiContext);
   const { text } = await generateText({
     model: input.provider.getIntentModel(input.intentModelId),
-    prompt: buildPrompt(input.message, input.modalityScores),
+    prompt: buildPrompt(input.message, input.modalityScores, contextHint),
   });
 
   const parsed = extractJsonObject(text);
@@ -25,7 +29,11 @@ export async function extractStructuredIntent(input: {
   return normalizeIntentExtraction(parsed, input.message, input.modalityScores);
 }
 
-function buildPrompt(message: string, modalityScores: ModalityProfileScore[]) {
+function buildPrompt(
+  message: string,
+  modalityScores: ModalityProfileScore[],
+  contextHint: string,
+) {
   const modalityHint = modalityScores
     .map(({ kind, score }) => `${kind}: ${score.toFixed(4)}`)
     .join(", ");
@@ -70,6 +78,8 @@ function buildPrompt(message: string, modalityScores: ModalityProfileScore[]) {
     "- speechText should contain the exact script when the user provided one, otherwise a concise generated script direction.",
     "- voice should be one supported OpenAI-compatible voice: alloy, echo, fable, onyx, nova, shimmer, coral, verse, ballad, ash, sage, marin, or cedar.",
     "- shouldPersist should be true for unresolved requests, asset generation requests, catalog requests, and valid Boreal intents.",
+    "UI routing hints:",
+    contextHint,
     `Embedding modality hints: ${modalityHint}`,
     `User message: """${message}"""`,
   ].join("\n");

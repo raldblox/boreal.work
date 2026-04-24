@@ -1,7 +1,7 @@
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
-import { deliveryTypeValidator } from "./validators";
+import { actorKindValidator, deliveryTypeValidator } from "./validators";
 
 const defaultCatalog = [
   {
@@ -168,6 +168,7 @@ export const createSupplyEntry = mutation({
     category: v.string(),
     deliveryType: deliveryTypeValidator,
     description: v.string(),
+    ownerActorKind: v.optional(actorKindValidator),
     ownerDisplayName: v.optional(v.string()),
     ownerExternalId: v.optional(v.string()),
     ownerHandle: v.optional(v.string()),
@@ -186,6 +187,7 @@ export const createSupplyEntry = mutation({
       displayName: args.ownerDisplayName,
       externalId: args.ownerExternalId,
       handle: args.ownerHandle,
+      kind: args.ownerActorKind,
     });
 
     if (!user) {
@@ -201,9 +203,19 @@ export const createSupplyEntry = mutation({
       ),
     ).slice(0, 24);
 
-    const supplyId = await ctx.db.insert("supplies", {
+    const existing = await ctx.db
+      .query("supplies")
+      .withIndex("by_supplierUserId", (queryBuilder) =>
+        queryBuilder.eq("supplierUserId", user._id),
+      )
+      .collect();
+    const matchingEntry = existing.find(
+      (supply) => supply.title.toLowerCase() === args.title.trim().toLowerCase(),
+    );
+
+    const payload = {
       acceptanceRate: 0.8,
-      actorKind: "human",
+      actorKind: user.actorKind ?? "human",
       capabilityTags: args.capabilityTags,
       category: args.category.trim(),
       deliveryType: args.deliveryType,
@@ -215,12 +227,19 @@ export const createSupplyEntry = mutation({
       matchCount: 0,
       priceAmount: args.priceAmount,
       priceType: args.priceType,
-      status: "active",
+      status: "active" as const,
       supplierUserId: user._id,
       supplyType: args.supplyType,
       title: args.title.trim(),
       trustScore: user.trustScore,
-    });
+    };
+
+    if (matchingEntry) {
+      await ctx.db.patch(matchingEntry._id, payload);
+      return { created: true, supplyId: matchingEntry._id };
+    }
+
+    const supplyId = await ctx.db.insert("supplies", payload);
 
     return { created: true, supplyId };
   },
@@ -232,6 +251,7 @@ async function upsertSupplierUser(
     displayName?: string;
     externalId?: string;
     handle?: string;
+    kind?: "agent" | "human" | "tool";
   },
 ) {
   if (!input.externalId) {
@@ -247,6 +267,7 @@ async function upsertSupplierUser(
 
   if (existing) {
     await ctx.db.patch(existing._id, {
+      actorKind: input.kind ?? existing.actorKind,
       displayName: input.displayName ?? existing.displayName,
       handle: input.handle ?? existing.handle,
       updatedAt: Date.now(),
@@ -254,6 +275,7 @@ async function upsertSupplierUser(
 
     return {
       ...existing,
+      actorKind: input.kind ?? existing.actorKind,
       displayName: input.displayName ?? existing.displayName,
       handle: input.handle ?? existing.handle,
     };
@@ -261,7 +283,7 @@ async function upsertSupplierUser(
 
   const now = Date.now();
   const userId = await ctx.db.insert("users", {
-    actorKind: "human",
+    actorKind: input.kind ?? "human",
     createdAt: now,
     displayName: input.displayName ?? input.handle ?? "X user",
     externalId: input.externalId,
@@ -272,6 +294,7 @@ async function upsertSupplierUser(
 
   return {
     _id: userId,
+    actorKind: input.kind ?? "human",
     displayName: input.displayName ?? input.handle ?? "X user",
     externalId: input.externalId,
     handle: input.handle,

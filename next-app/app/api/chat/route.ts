@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { chatAssistantAgent } from "@/lib/boreal/agents/chat-assistant/agent";
+import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -20,11 +21,13 @@ export async function POST(request: Request) {
     void (async () => {
       try {
         const result = await chatAssistantAgent.run({
-          ...body,
+          conversationId: body.conversationId,
+          message: body.message,
           requester: {
             displayName: user.name ?? undefined,
             externalId: user.id ?? undefined,
           },
+          uiContext: body.context,
         });
 
         for (const delta of chunkAssistantMessage(result.assistantMessage)) {
@@ -80,6 +83,7 @@ export async function POST(request: Request) {
 
 type ParsedChatRequest = {
   conversationId?: string;
+  context?: ChatUiContext;
   message: string;
   provider?: string;
 };
@@ -94,6 +98,7 @@ function parseChatRequest(value: unknown): ParsedChatRequest {
   const payload = value as Record<string, unknown>;
   const message = payload.message;
   const conversationId = payload.conversationId;
+  const context = payload.context;
   const provider = payload.provider;
 
   if (typeof message !== "string" || message.trim().length === 0) {
@@ -111,9 +116,20 @@ function parseChatRequest(value: unknown): ParsedChatRequest {
 
   return {
     conversationId,
+    context: isValidChatContext(context) ? context : undefined,
     message,
     provider: typeof provider === "string" ? provider : undefined,
   };
+}
+
+function isValidChatContext(value: unknown): value is ChatUiContext {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const context = value as Record<string, unknown>;
+
+  return context.surface === "home" || context.surface === "request";
 }
 
 function chunkAssistantMessage(message: string) {

@@ -77,6 +77,7 @@ import type {
 import type {
   CatalogItem,
   ChatAssistantResponse,
+  ChatUiContext,
   WorkspaceState,
 } from "@/lib/boreal/schemas/chat";
 import { cn } from "@/lib/utils";
@@ -391,6 +392,12 @@ export function ChatShell() {
       const response = await fetch("/api/chat", {
         body: JSON.stringify({
           conversationId: activeConversationId,
+          context: buildChatUiContext({
+            activeIntentId,
+            requestDetail,
+            selectedCenterTab,
+            workspaceTab,
+          }),
           message: trimmed,
           provider: selectedProvider,
         }),
@@ -2150,6 +2157,33 @@ async function consumeChatStream(input: {
   );
 
   return finalPayload;
+}
+
+function buildChatUiContext(input: {
+  activeIntentId: string | null;
+  requestDetail: RequestDetail | null;
+  selectedCenterTab: CenterViewTab;
+  workspaceTab: WorkspaceTab;
+}): ChatUiContext {
+  const isOwner = input.requestDetail?.access?.canApproveProposals ?? false;
+  const canSubmitProposal = input.requestDetail?.access?.canSubmitProposal ?? false;
+
+  return {
+    browseTab: input.workspaceTab,
+    canApproveProposals: isOwner,
+    canSubmitProposal,
+    centerTab: input.activeIntentId ? input.selectedCenterTab : null,
+    requestId: input.activeIntentId,
+    requestRole: input.activeIntentId
+      ? isOwner
+        ? "owner"
+        : canSubmitProposal
+          ? "supplier"
+          : "viewer"
+      : "none",
+    requestStatus: input.requestDetail?.intent?.status ?? null,
+    surface: input.activeIntentId ? "request" : "home",
+  };
 }
 
 function normalizeWorkspaceTab(value: string | null): WorkspaceTab {

@@ -10,6 +10,7 @@
 
 import type * as artifacts from "../artifacts.js";
 import type * as chats from "../chats.js";
+import type * as fulfillments from "../fulfillments.js";
 import type * as intents from "../intents.js";
 import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
@@ -25,6 +26,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   artifacts: typeof artifacts;
   chats: typeof chats;
+  fulfillments: typeof fulfillments;
   intents: typeof intents;
   profiles: typeof profiles;
   proposals: typeof proposals;

@@ -184,6 +184,7 @@ export const getRequestDetail = query({
         _creationTime: intent._creationTime,
         _id: intent._id,
         approvedAt: intent.approvedAt ?? null,
+        body: intent.body,
         category: intent.category,
         completedAt: intent.completedAt ?? null,
         confidence: intent.confidence,

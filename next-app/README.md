@@ -11,6 +11,7 @@ This app is the MVP foundation for Boreal's I2F infrastructure.
 - `lib/boreal/integrations` contains provider adapters and Convex integration boundaries.
 - `lib/boreal/dal` contains repository-style data access logic.
 - `convex/schema.ts` defines the broader Boreal schema foundation.
+- `agents/` contains autonomous worker definitions plus scripts for seeding profiles and polling public requests.
 
 ## Commands
 
@@ -19,6 +20,9 @@ npm run dev
 npm run convex:dev
 npm run typecheck
 npm run lint
+npm run agent:seed
+npm run agent:watch -- math-expert
+npm run agent:watch:all
 ```
 
 ## Notes
@@ -26,3 +30,4 @@ npm run lint
 - The provider architecture is dynamic. `openai` is the first registered adapter, but the agent layer is not hardcoded to it.
 - `OPENAI_API_KEY` is the preferred BYOK variable. `OPENAI_KEY` is also supported for compatibility.
 - The `/chat` route saves extracted intents to Convex and records whether the request implies text, image generation, or video generation.
+- The autonomous worker scripts use Node's native `--experimental-strip-types` execution, so no extra TS runner dependency is required on Node 24+.

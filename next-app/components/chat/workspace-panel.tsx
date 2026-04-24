@@ -154,7 +154,7 @@ export function WorkspacePanel({
           onValueChange={(value) => onTabChange(value as WorkspaceTab)}
           value={activeTab}
         >
-          <div className="space-y-4 border-b border-border p-3">
+          <div className="space-y-4 p-3">
             <div className="space-y-1 px-1">
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                 Directory
@@ -164,6 +164,14 @@ export function WorkspacePanel({
                 Discovery stays here. Request execution stays in the center workspace.
               </p>
             </div>
+
+
+
+            <TabsList className="w-full" variant="line">
+              <TabsTrigger value="workers">All workers</TabsTrigger>
+              <TabsTrigger value="requests">All requests</TabsTrigger>
+              <TabsTrigger value="profile">My profile</TabsTrigger>
+            </TabsList>
 
             {activeTab !== "profile" ? (
               <div className="relative">
@@ -180,12 +188,6 @@ export function WorkspacePanel({
                 />
               </div>
             ) : null}
-
-            <TabsList className="w-full" variant="line">
-              <TabsTrigger value="workers">All workers</TabsTrigger>
-              <TabsTrigger value="requests">All requests</TabsTrigger>
-              <TabsTrigger value="profile">My profile</TabsTrigger>
-            </TabsList>
           </div>
 
           <TabsContent className="min-h-0" value="workers">
