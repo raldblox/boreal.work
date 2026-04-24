@@ -1,25 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import Image from "next/image";
 import { makeFunctionReference } from "convex/server";
 import { useMutation, useQuery } from "convex/react";
 import { usePrivy } from "@privy-io/react-auth";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ArrowLeftIcon,
   BotIcon,
   CheckIcon,
+  CopyIcon,
   ClapperboardIcon,
+  ExternalLinkIcon,
   LoaderIcon,
   MicIcon,
   PackageIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   RefreshCwIcon,
-  SearchIcon,
   SparklesIcon,
   StarIcon,
+  UserIcon,
   WalletIcon,
   XCircleIcon,
 } from "lucide-react";
@@ -68,7 +71,6 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
-  CatalogEntry,
   RequestDetail,
   SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs";
@@ -94,7 +96,7 @@ type ChatMessage = {
   role: "assistant" | "user";
 };
 
-type CenterViewTab = "activity" | "chat";
+type CenterViewTab = "activity" | "chat" | "proposals" | "workers";
 
 type ProviderOption = {
   description: string;
@@ -120,12 +122,6 @@ const deleteIntentMutation = makeFunctionReference<
   { intentId: string; ownerExternalId?: string },
   { deleted: boolean }
 >("intents:deleteIntent");
-
-const catalogQuery = makeFunctionReference<
-  "query",
-  { limit: number },
-  CatalogEntry[]
->("supplies:listCatalog");
 
 const starterPrompts = [
   "What can Boreal do for chat, catalog routing, and media generation?",
@@ -173,6 +169,13 @@ const emptyWorkspace: WorkspaceState = {
   title: "Workboard",
 };
 
+type ApprovalQueueItem = {
+  agentLabel: string;
+  intentId: string;
+  summary: string;
+  title: string;
+};
+
 export function ChatShell() {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -185,39 +188,36 @@ export function ChatShell() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [optimisticReviewRating, setOptimisticReviewRating] = useState<number | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceState>(emptyWorkspace);
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("workers");
-  const [selectedCenterTab, setSelectedCenterTab] = useState<CenterViewTab>("chat");
   const [showWorkspace, setShowWorkspace] = useState(true);
-  const [selectedIntentId, setSelectedIntentId] = useState<string | null>(null);
-  const [selectedCatalogItem, setSelectedCatalogItem] = useState<CatalogItem | null>(null);
   const [selectedProvider, setSelectedProvider] = useState("boreal-agent");
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false);
 
   const { data: session } = useSession();
   const ownerExternalId = session?.user?.id;
   const { ready: privyReady, authenticated: privyAuthenticated, login } = usePrivy();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const activeIntentId = searchParams.get("request");
+  const selectedCenterTab = normalizeCenterViewTab(searchParams.get("view"));
+  const workspaceTab = normalizeWorkspaceTab(searchParams.get("browse"));
 
   const sidebarIntents =
     (useQuery(sidebarIntentQuery, {
       limit: 24,
       ownerExternalId,
     }) ?? []) as SidebarIntentPreview[];
-
-  const activeIntentId = selectedIntentId;
   const selectedIntent =
     sidebarIntents.find((intent) => intent._id === activeIntentId) ?? null;
 
-  const requestDetail = (useQuery(
+  const requestDetailResult = useQuery(
     requestDetailQuery,
     activeIntentId ? { intentId: activeIntentId, ownerExternalId } : "skip",
-  ) ?? null) as RequestDetail | null;
+  );
+  const isRequestLoading = Boolean(activeIntentId) && requestDetailResult === undefined;
+  const requestDetail = (requestDetailResult ?? null) as RequestDetail | null;
 
-  const catalogEntries =
-    (useQuery(catalogQuery, {
-      limit: 16,
-    }) ?? []) as CatalogEntry[];
-
-  const catalogItems = catalogEntries.map(mapCatalogEntry);
   const deleteIntent = useMutation(deleteIntentMutation);
 
   const requestWorkspace = requestDetail?.intent
@@ -237,15 +237,6 @@ export function ChatShell() {
     : messages;
 
   const activeConversationId = conversationId ?? requestDetail?.conversationId ?? undefined;
-  const workspaceSource = requestWorkspace ?? workspace;
-
-  const effectiveSelectedCatalogItem =
-    selectedCatalogItem ??
-    (workspaceSource.kind === "catalog"
-      ? workspaceSource.items[0] ?? null
-      : null) ??
-    catalogItems[0] ??
-    null;
 
   const effectiveWorkspace =
     activeIntentId && requestWorkspace ? requestWorkspace : workspace;
@@ -260,9 +251,61 @@ export function ChatShell() {
       : null);
   const shouldPromptReview = Boolean(
     requestDetail?.intent?.reviewPending &&
-    !effectiveReview &&
-    !isSubmittingReview,
+      !effectiveReview &&
+      !isSubmittingReview,
   );
+  const pendingApprovals: ApprovalQueueItem[] = sidebarIntents
+    .filter((intent) => intent.status === "proposed" || intent.status === "open")
+    .slice(0, 3)
+    .map((intent) => ({
+      agentLabel: intent.assignedAgent ?? humanizeToolLabel(intent.routeTarget),
+      intentId: intent._id,
+      summary: intent.summary,
+      title: intent.title,
+    }));
+  const selectedRequestShareUrl = useMemo(() => {
+    if (!activeIntentId || typeof window === "undefined") {
+      return null;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("request", activeIntentId);
+    params.set("view", "workers");
+
+    return `${window.location.origin}${pathname}?${params.toString()}`;
+  }, [activeIntentId, pathname, searchParams]);
+
+  function updateWorkspaceUrl(next: {
+    browse?: WorkspaceTab | null;
+    request?: string | null;
+    view?: CenterViewTab | null;
+  }) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (next.request === null) {
+      params.delete("request");
+      params.delete("view");
+    } else if (next.request) {
+      params.set("request", next.request);
+    }
+
+    if (next.view === null) {
+      params.delete("view");
+    } else if (next.view) {
+      params.set("view", next.view);
+    }
+
+    if (next.browse === null) {
+      params.delete("browse");
+    } else if (next.browse) {
+      params.set("browse", next.browse);
+    }
+
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }
 
   useEffect(() => {
     const artifact = requestDetail?.artifact;
@@ -329,12 +372,18 @@ export function ChatShell() {
 
     setErrorMessage(null);
     setIsSubmitting(true);
+    const assistantMessageId = crypto.randomUUID();
     setMessages((current) => [
       ...current,
       {
         content: trimmed,
         id: crypto.randomUUID(),
         role: "user",
+      },
+      {
+        content: "",
+        id: assistantMessageId,
+        role: "assistant",
       },
     ]);
 
@@ -351,48 +400,43 @@ export function ChatShell() {
         method: "POST",
       });
 
-      const payload = (await response.json()) as
-        | ChatAssistantResponse
-        | { error?: string };
-
       if (!response.ok) {
-        throw new Error(
-          "error" in payload && payload.error ? payload.error : "Chat request failed.",
-        );
+        const payload = (await response.json()) as { error?: string };
+        throw new Error(payload.error ?? "Chat request failed.");
       }
 
-      if (!("assistantMessage" in payload)) {
-        throw new Error("Chat response was incomplete.");
+      if (!response.body) {
+        throw new Error("Chat stream was unavailable.");
       }
 
-      setConversationId(payload.conversationId);
-      setWorkspace(payload.workspace);
-      setWorkspaceTab("workers");
+      const finalPayload = await consumeChatStream({
+        assistantMessageId,
+        response,
+        setMessages,
+      });
+
+      setConversationId(finalPayload.conversationId);
+      setWorkspace(finalPayload.workspace);
+      updateWorkspaceUrl({ browse: "workers" });
       setShowWorkspace(true);
 
-      if (payload.workspace.kind === "catalog" && payload.workspace.items[0]) {
-        setSelectedCatalogItem(payload.workspace.items[0]);
-      } else if (payload.relatedCatalogItems[0]) {
-        setSelectedCatalogItem(payload.relatedCatalogItems[0]);
-      }
-
-      if (payload.requiresApproval && payload.intentId) {
-        setSelectedIntentId(payload.intentId);
-        setSelectedCenterTab("chat");
+      if (finalPayload.requiresApproval && finalPayload.intentId) {
+        updateWorkspaceUrl({
+          browse: "workers",
+          request: finalPayload.intentId,
+          view: "chat",
+        });
         setOptimisticReviewRating(null);
         setMessages([]);
         return;
       }
-
-      setMessages((current) => [
-        ...current,
-        {
-          content: payload.assistantMessage,
-          id: crypto.randomUUID(),
-          role: "assistant",
-        },
-      ]);
     } catch (error) {
+      setMessages((current) =>
+        current.filter(
+          (currentMessage) =>
+            !(currentMessage.id === assistantMessageId && currentMessage.content.length === 0),
+        ),
+      );
       setErrorMessage(
         error instanceof Error ? error.message : "Chat request failed.",
       );
@@ -401,8 +445,8 @@ export function ChatShell() {
     }
   }
 
-  async function handleApproveRequest() {
-    if (!activeIntentId || isApprovingRequest) {
+  async function handleApproveRequest(intentId = activeIntentId) {
+    if (!intentId || isApprovingRequest) {
       return;
     }
 
@@ -410,7 +454,7 @@ export function ChatShell() {
     setIsApprovingRequest(true);
 
     try {
-      const response = await fetch(`/api/requests/${activeIntentId}/approve`, {
+      const response = await fetch(`/api/requests/${intentId}/approve`, {
         method: "POST",
       });
       const payload = (await response.json()) as
@@ -429,14 +473,15 @@ export function ChatShell() {
         );
       }
 
+      updateWorkspaceUrl({
+        browse: "workers",
+        request: intentId,
+        view: "chat",
+      });
       setMessages([]);
       setWorkspace(payload.workspace);
-      setWorkspaceTab("workers");
       setShowWorkspace(true);
 
-      if (payload.relatedCatalogItems[0]) {
-        setSelectedCatalogItem(payload.relatedCatalogItems[0]);
-      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to approve request.",
@@ -446,8 +491,8 @@ export function ChatShell() {
     }
   }
 
-  async function handleCancelRequest() {
-    if (!activeIntentId || isCancellingRequest) {
+  async function handleCancelRequest(intentId = activeIntentId) {
+    if (!intentId || isCancellingRequest) {
       return;
     }
 
@@ -455,7 +500,7 @@ export function ChatShell() {
     setIsCancellingRequest(true);
 
     try {
-      const response = await fetch(`/api/requests/${activeIntentId}/cancel`, {
+      const response = await fetch(`/api/requests/${intentId}/cancel`, {
         method: "POST",
       });
       const payload = (await response.json()) as { cancelled?: boolean; error?: string };
@@ -464,7 +509,9 @@ export function ChatShell() {
         throw new Error(payload.error ?? "Failed to cancel request.");
       }
 
-      handleClearSelection();
+      if (activeIntentId === intentId) {
+        handleClearSelection();
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to cancel request.",
@@ -555,12 +602,9 @@ export function ChatShell() {
 
       setMessages([]);
       setWorkspace(payload.workspace);
-      setWorkspaceTab("workers");
+      updateWorkspaceUrl({ browse: "workers" });
       setShowWorkspace(true);
 
-      if (payload.relatedCatalogItems[0]) {
-        setSelectedCatalogItem(payload.relatedCatalogItems[0]);
-      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to retry request.",
@@ -571,23 +615,36 @@ export function ChatShell() {
   }
 
   function handleSidebarSelect(intent: SidebarIntentPreview) {
-    setSelectedIntentId(intent._id);
-    setSelectedCenterTab("chat");
+    updateWorkspaceUrl({
+      browse: "workers",
+      request: intent._id,
+      view: "chat",
+    });
     setOptimisticReviewRating(null);
-    setWorkspaceTab("workers");
+    setShowWorkspace(true);
+    setMessages([]);
+  }
+
+  function handleMarketplaceSelect(intent: SidebarIntentPreview) {
+    updateWorkspaceUrl({
+      browse: "requests",
+      request: intent._id,
+      view: intent.isOwner ? "chat" : "proposals",
+    });
+    setOptimisticReviewRating(null);
     setShowWorkspace(true);
     setMessages([]);
   }
 
   function handleClearSelection() {
-    setSelectedIntentId(null);
-    setSelectedCenterTab("chat");
+    updateWorkspaceUrl({
+      request: null,
+      view: null,
+    });
     setOptimisticReviewRating(null);
     setMessages([]);
     setConversationId(undefined);
     setWorkspace(emptyWorkspace);
-    setWorkspaceTab("workers");
-    setSelectedCatalogItem(null);
   }
 
   function handleDownloadVideo(videoId: string) {
@@ -597,10 +654,6 @@ export function ChatShell() {
       "noopener,noreferrer",
     );
   }
-
-  const providerLabel =
-    providerOptions.find((provider) => provider.value === selectedProvider)?.label ??
-    "Boreal Agent";
 
   const isHomeView = !activeIntentId && displayedMessages.length === 0;
 
@@ -685,7 +738,7 @@ export function ChatShell() {
                       "px-4 py-2 text-sm text-muted-foreground transition-colors",
                       selectedCenterTab === "chat" && "text-foreground",
                     )}
-                    onClick={() => setSelectedCenterTab("chat")}
+                    onClick={() => updateWorkspaceUrl({ view: "chat" })}
                     type="button"
                   >
                     Chat
@@ -695,10 +748,30 @@ export function ChatShell() {
                       "px-3 py-2 text-sm text-muted-foreground transition-colors",
                       selectedCenterTab === "activity" && "text-foreground",
                     )}
-                    onClick={() => setSelectedCenterTab("activity")}
+                    onClick={() => updateWorkspaceUrl({ view: "activity" })}
                     type="button"
                   >
                     Activity
+                  </button>
+                  <button
+                    className={cn(
+                      "px-3 py-2 text-sm text-muted-foreground transition-colors",
+                      selectedCenterTab === "workers" && "text-foreground",
+                    )}
+                    onClick={() => updateWorkspaceUrl({ view: "workers" })}
+                    type="button"
+                  >
+                    Workers
+                  </button>
+                  <button
+                    className={cn(
+                      "px-3 py-2 text-sm text-muted-foreground transition-colors",
+                      selectedCenterTab === "proposals" && "text-foreground",
+                    )}
+                    onClick={() => updateWorkspaceUrl({ view: "proposals" })}
+                    type="button"
+                  >
+                    Proposals
                   </button>
                 </div>
 
@@ -708,15 +781,12 @@ export function ChatShell() {
                       {activeIntentId && requestDetail?.intent && (
                         <RequestHeaderMeta
                           assignment={requestDetail.assignment}
-                          intent={requestDetail.intent}
-                          providerLabel={providerLabel}
                         />
                       )}
                       <RequestStageRail status={requestDetail.intent.status} />
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      {/* <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 px-3 pb-2 pt-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                         <span>{formatOutputTypes(requestDetail.intent.requestedOutputTypes)}</span>
                         <span>{requestDetail.intent.routeTarget.replaceAll("_", " ")}</span>
                         {requestDetail.intent.startedAt ? (
@@ -725,19 +795,6 @@ export function ChatShell() {
                         {requestDetail.intent.completedAt ? (
                           <span>Done {formatRequestDate(requestDetail.intent.completedAt)}</span>
                         ) : null}
-                      </div> */}
-                      <RequestHeaderActions
-                        intent={requestDetail.intent}
-                        isApprovingRequest={isApprovingRequest}
-                        isCancellingRequest={isCancellingRequest}
-                        isRetryingRequest={isRetryingRequest}
-                        isSubmittingReview={isSubmittingReview}
-                        onApproveRequest={handleApproveRequest}
-                        onCancelRequest={handleCancelRequest}
-                        onRetryRequest={handleRetryRequest}
-                        onSubmitReview={handleSubmitReview}
-                        shouldPromptReview={shouldPromptReview}
-                      />
                     </div>
                   </div>
                 ) : null}
@@ -775,17 +832,74 @@ export function ChatShell() {
                         </button>
                       ))}
                     </div>
+                    {pendingApprovals.length > 0 ? (
+                      <InlineApprovalQueue
+                        isApprovingRequest={isApprovingRequest}
+                        isCancellingRequest={isCancellingRequest}
+                        onApproveRequest={handleApproveRequest}
+                        onCancelRequest={handleCancelRequest}
+                        onOpenRequest={(intentId) => {
+                          const intent =
+                            sidebarIntents.find((entry) => entry._id === intentId) ?? null;
+
+                          if (intent) {
+                            handleSidebarSelect(intent);
+                          }
+                        }}
+                        requests={pendingApprovals}
+                      />
+                    ) : null}
                   </div>
                 </ConversationEmptyState>
               </div>
+            ) : activeIntentId && !isRequestLoading && !requestDetail ? (
+              <div className="mx-auto flex h-full w-full max-w-3xl items-center px-4 py-8">
+                <div className="w-full border border-border p-6">
+                  <p className="text-sm font-medium">Request workspace unavailable</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    This request is not available in the current session yet. Use a valid shared
+                    workspace link or browse from your request list.
+                  </p>
+                </div>
+              </div>
             ) : (
               <>
-                {activeIntentId && selectedCenterTab === "activity" ? (
+                {isRequestLoading ? (
+                  <ScrollArea className="h-full">
+                    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4 px-4 py-6">
+                      <LoadingRequestPanel />
+                    </div>
+                  </ScrollArea>
+                ) : activeIntentId && selectedCenterTab === "activity" ? (
                   <ScrollArea className="h-full">
                     <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
                       <ActivityThreadPanel
                         requestDetail={requestDetail}
                         selectedIntent={selectedIntent}
+                      />
+                    </div>
+                  </ScrollArea>
+                ) : activeIntentId && selectedCenterTab === "workers" ? (
+                  <ScrollArea className="h-full">
+                    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
+                      <RequestWorkersPanel
+                        onBrowseWorkers={() => {
+                          updateWorkspaceUrl({ browse: "workers" });
+                          setShowWorkspace(true);
+                        }}
+                        requestDetail={requestDetail}
+                        selectedIntent={selectedIntent}
+                        shareUrl={selectedRequestShareUrl}
+                      />
+                    </div>
+                  </ScrollArea>
+                ) : activeIntentId && selectedCenterTab === "proposals" ? (
+                  <ScrollArea className="h-full">
+                    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
+                      <ProposalViewerPanel
+                        key={activeIntentId}
+                        intentId={activeIntentId}
+                        requestDetail={requestDetail}
                       />
                     </div>
                   </ScrollArea>
@@ -812,7 +926,12 @@ export function ChatShell() {
                               artifact?.remoteId;
                             void refreshVideoJob(jobId);
                           }}
+                          isApprovingRequest={isApprovingRequest}
+                          isCancellingRequest={isCancellingRequest}
                           isSubmittingReview={isSubmittingReview}
+                          onApproveRequest={handleApproveRequest}
+                          onCancelRequest={handleCancelRequest}
+                          onRetryRequest={handleRetryRequest}
                           onSubmitReview={handleSubmitReview}
                           requestDetail={requestDetail}
                           review={effectiveReview}
@@ -889,7 +1008,7 @@ export function ChatShell() {
                   </Button>
                   <Button
                     onClick={() => {
-                      setWorkspaceTab("catalog");
+                      updateWorkspaceUrl({ browse: "requests" });
                       setShowWorkspace(true);
                     }}
                     size="sm"
@@ -897,11 +1016,11 @@ export function ChatShell() {
                     variant="ghost"
                   >
                     <PackageIcon />
-                    Catalog
+                    Requests
                   </Button>
                   <Button
                     onClick={() => {
-                      setWorkspaceTab("workers");
+                      updateWorkspaceUrl({ browse: "workers" });
                       setShowWorkspace(true);
                     }}
                     size="sm"
@@ -910,6 +1029,20 @@ export function ChatShell() {
                   >
                     <BotIcon />
                     Workers
+                  </Button>
+                  <Button
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      void submitMessage(
+                        "What can Boreal Agent do right now? Summarize your capabilities, the kinds of requests you can fulfill, and when approval or worker proposals are needed.",
+                      );
+                    }}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <SparklesIcon />
+                    Capabilities
                   </Button>
 
                 </PromptInputTools>
@@ -930,21 +1063,11 @@ export function ChatShell() {
           <div className="min-h-0 lg:col-span-2 xl:col-span-1">
             <WorkspacePanel
               activeTab={workspaceTab}
-              catalogItems={catalogItems}
-              onAskCatalogItem={(item) => {
-                void submitMessage(
-                  `Tell me more about ${item.title}. Include best use cases, what it delivers, and whether it fits my request.`,
-                );
-              }}
-              onSelectCatalogItem={(item) => {
-                setSelectedCatalogItem(item);
-                setWorkspaceTab("catalog");
-              }}
-              onTabChange={setWorkspaceTab}
-              requestDetail={requestDetail}
-              selectedCatalogItem={effectiveSelectedCatalogItem}
-              selectedIntent={selectedIntent}
-              workspace={effectiveWorkspace}
+              onSelectRequest={handleMarketplaceSelect}
+              onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
+              ownerDisplayName={session?.user?.name ?? undefined}
+              ownerExternalId={ownerExternalId}
+              ownerHandle={undefined}
             />
           </div>
         ) : null}
@@ -955,28 +1078,98 @@ export function ChatShell() {
 
 function RequestHeaderMeta({
   assignment,
-  intent,
-  providerLabel,
 }: {
   assignment: RequestDetail["assignment"];
-  intent: NonNullable<RequestDetail["intent"]>;
-  providerLabel: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      {/* <span>Active provider: {providerLabel}</span>
-      <span className="text-border">/</span> */}
       <span>Assigned to</span>
-      <AssignedWorkerPills assignment={assignment} intent={intent} />
+      <AssignedWorkerPills assignment={assignment} />
     </div>
   );
 }
 
-function RequestHeaderActions({
+function InlineApprovalQueue({
+  isApprovingRequest,
+  isCancellingRequest,
+  onApproveRequest,
+  onCancelRequest,
+  onOpenRequest,
+  requests,
+}: {
+  isApprovingRequest: boolean;
+  isCancellingRequest: boolean;
+  onApproveRequest: (intentId?: string | null) => Promise<void>;
+  onCancelRequest: (intentId?: string | null) => Promise<void>;
+  onOpenRequest: (intentId: string) => void;
+  requests: ApprovalQueueItem[];
+}) {
+  return (
+    <div className="space-y-3 border border-border p-4">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Approval queue</p>
+        <p className="text-xs text-muted-foreground">
+          Up to three pending worker requests are shown here for quick triage.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[36rem] space-y-2">
+          <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] gap-3 border-b border-border pb-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span>Request</span>
+            <span>Agent</span>
+            <span>Actions</span>
+          </div>
+          {requests.map((request) => (
+            <div
+              className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-3 border border-border px-3 py-3"
+              key={request.intentId}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{request.title}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">{request.summary}</p>
+              </div>
+              <p className="truncate text-sm text-muted-foreground">{request.agentLabel}</p>
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  onClick={() => onOpenRequest(request.intentId)}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  View workers
+                </Button>
+                <Button
+                  disabled={isApprovingRequest}
+                  onClick={() => void onApproveRequest(request.intentId)}
+                  size="sm"
+                  type="button"
+                >
+                  {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
+                  Approve
+                </Button>
+                <Button
+                  disabled={isCancellingRequest}
+                  onClick={() => void onCancelRequest(request.intentId)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {isCancellingRequest ? <LoaderIcon className="animate-spin" /> : <XCircleIcon />}
+                  Decline
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InlineRequestActionEvent({
   intent,
   isApprovingRequest,
   isCancellingRequest,
-  isRetryingRequest,
   isSubmittingReview,
   onApproveRequest,
   onCancelRequest,
@@ -987,54 +1180,62 @@ function RequestHeaderActions({
   intent: NonNullable<RequestDetail["intent"]>;
   isApprovingRequest: boolean;
   isCancellingRequest: boolean;
-  isRetryingRequest: boolean;
   isSubmittingReview: boolean;
   onApproveRequest: () => void;
   onCancelRequest: () => void;
-  onRetryRequest: () => void;
+  onRetryRequest: () => Promise<void>;
   onSubmitReview: (rating: number) => void;
   shouldPromptReview: boolean;
 }) {
   const actionState = getRequestActionState(intent.status, shouldPromptReview);
 
-  if (actionState.kind === "none") {
+  if (actionState.kind === "none" || actionState.kind === "review") {
     return null;
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2 p-3">
-      {actionState.kind === "approval" ? (
-        <>
+    <div className="space-y-3 border border-border p-4">
+      <p className="text-sm font-medium">{actionState.title}</p>
+      <p className="text-xs text-muted-foreground">{actionState.description}</p>
+      {intent.missingDetails.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Missing details: {intent.missingDetails.join(" / ")}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {actionState.kind === "approval" ? (
+          <>
+            <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
+              {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
+              Approve
+            </Button>
+            <Button
+              disabled={isCancellingRequest}
+              onClick={onCancelRequest}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isCancellingRequest ? <LoaderIcon className="animate-spin" /> : <XCircleIcon />}
+              Cancel
+            </Button>
+          </>
+        ) : null}
+        {actionState.kind === "continue" ? (
           <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
-            {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
-            Approve
+            {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+            Continue
           </Button>
-          <Button
-            disabled={isCancellingRequest}
-            onClick={onCancelRequest}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            {isCancellingRequest ? <LoaderIcon className="animate-spin" /> : <XCircleIcon />}
-            Cancel
+        ) : null}
+        {actionState.kind === "retry" ? (
+          <Button disabled={isApprovingRequest} onClick={() => void onRetryRequest()} size="sm" type="button">
+            {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+            Retry
           </Button>
-        </>
-      ) : null}
-
-      {actionState.kind === "retry" || actionState.kind === "continue" ? (
-        <Button disabled={isRetryingRequest} onClick={onRetryRequest} size="sm" type="button">
-          {isRetryingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
-          {actionState.kind === "continue" ? "Continue" : "Retry"}
-        </Button>
-      ) : null}
-
-      {actionState.kind === "review" ? (
-        <InlineReviewActions
-          compact
-          disabled={isSubmittingReview}
-          onSubmitReview={onSubmitReview}
-        />
+        ) : null}
+      </div>
+      {shouldPromptReview ? (
+        <InlineReviewActions disabled={isSubmittingReview} onSubmitReview={onSubmitReview} />
       ) : null}
     </div>
   );
@@ -1042,29 +1243,38 @@ function RequestHeaderActions({
 
 type RequestTimelineItem =
   | { item: RequestDetail["messages"][number]; key: string; kind: "message"; timestamp: number }
-  | { item: RequestDetail["activity"][number]; key: string; kind: "activity"; timestamp: number }
   | { item: NonNullable<RequestDetail["artifact"]>; key: string; kind: "artifact"; timestamp: number }
   | { item: NonNullable<RequestDetail["review"]>; key: string; kind: "review"; timestamp: number };
 
 function RequestChatTimeline({
+  isApprovingRequest,
+  isCancellingRequest,
   isRefreshingVideo,
   isSubmittingReview,
+  onApproveRequest,
   onAskCatalogItem,
+  onCancelRequest,
   onDownloadVideo,
   onQuickReply,
   onRefreshVideo,
+  onRetryRequest,
   onSubmitReview,
   requestDetail,
   review,
   shouldPromptReview,
   workspace,
 }: {
+  isApprovingRequest: boolean;
+  isCancellingRequest: boolean;
   isRefreshingVideo: boolean;
   isSubmittingReview: boolean;
+  onApproveRequest: (intentId?: string | null) => Promise<void>;
   onAskCatalogItem: (item: CatalogItem) => void;
+  onCancelRequest: (intentId?: string | null) => Promise<void>;
   onDownloadVideo: (videoId: string) => void;
   onQuickReply: (value: string) => void;
   onRefreshVideo: () => void;
+  onRetryRequest: () => Promise<void>;
   onSubmitReview: (rating: number) => void;
   requestDetail: RequestDetail;
   review: RequestDetail["review"];
@@ -1086,10 +1296,6 @@ function RequestChatTimeline({
               </MessageContent>
             </Message>
           );
-        }
-
-        if (entry.kind === "activity") {
-          return <InlineActivityEvent activity={entry.item} key={entry.key} />;
         }
 
         if (entry.kind === "artifact") {
@@ -1117,6 +1323,20 @@ function RequestChatTimeline({
         <InlinePendingReviewEvent
           disabled={isSubmittingReview}
           onSubmitReview={onSubmitReview}
+        />
+      ) : null}
+
+      {requestDetail.intent ? (
+        <InlineRequestActionEvent
+          intent={requestDetail.intent}
+          isApprovingRequest={isApprovingRequest}
+          isCancellingRequest={isCancellingRequest}
+          isSubmittingReview={isSubmittingReview}
+          onApproveRequest={() => onApproveRequest(requestDetail.intent?._id)}
+          onCancelRequest={() => onCancelRequest(requestDetail.intent?._id)}
+          onRetryRequest={onRetryRequest}
+          onSubmitReview={onSubmitReview}
+          shouldPromptReview={shouldPromptReview}
         />
       ) : null}
 
@@ -1149,15 +1369,6 @@ function buildRequestTimeline(
     });
   }
 
-  for (const activity of requestDetail.activity) {
-    items.push({
-      item: activity,
-      key: `activity-${activity._id}`,
-      kind: "activity",
-      timestamp: activity.createdAt,
-    });
-  }
-
   if (requestDetail.artifact) {
     items.push({
       item: requestDetail.artifact,
@@ -1181,30 +1392,10 @@ function buildRequestTimeline(
       return left.timestamp - right.timestamp;
     }
 
-    const order = { activity: 0, message: 1, artifact: 2, review: 3 };
+    const order = { message: 0, artifact: 1, review: 2 };
 
     return order[left.kind] - order[right.kind];
   });
-}
-
-function InlineActivityEvent({
-  activity,
-}: {
-  activity: RequestDetail["activity"][number];
-}) {
-  return (
-    <div className="border border-border p-4">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        {formatRequestDate(activity.createdAt)}
-      </p>
-      <p className="mt-2 text-sm font-medium">{labelActivity(activity.type)}</p>
-      {activity.payload ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {describeActivityPayload(activity.payload)}
-        </p>
-      ) : null}
-    </div>
-  );
 }
 
 function InlineArtifactEvent({
@@ -1337,21 +1528,13 @@ function InlineTierPill({ tier }: { tier: string }) {
 
 function AssignedWorkerPills({
   assignment,
-  intent,
 }: {
   assignment: RequestDetail["assignment"];
-  intent: NonNullable<RequestDetail["intent"]>;
 }) {
-  const primaryWorker = getPrimaryWorker(assignment, intent);
-  const toolLabels = (assignment?.tools ?? []).slice(0, 2);
+  const primaryWorker = getPrimaryWorker(assignment);
 
   return (
-    <>
-      <WorkerPill icon={primaryWorker.icon} label={primaryWorker.label} />
-      {toolLabels.map((tool) => (
-        <WorkerPill icon={getToolIcon(tool)} key={tool} label={humanizeToolLabel(tool)} />
-      ))}
-    </>
+    <WorkerPill icon={primaryWorker.icon} label={primaryWorker.label} />
   );
 }
 
@@ -1366,14 +1549,403 @@ function WorkerPill({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex size-4 items-center justify-center border border-border text-muted-foreground">
+          <span className="inline-flex items-center gap-2 border border-border px-2 py-1 text-muted-foreground">
             <Icon className="size-3.5" />
+            <span className="text-[11px] uppercase tracking-[0.16em]">{label}</span>
           </span>
         </TooltipTrigger>
         <TooltipContent side="bottom">{label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
+}
+
+function LoadingRequestPanel() {
+  return (
+    <div className="space-y-4 border border-border p-4">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <LoaderIcon className="size-4 animate-spin" />
+        <span>Loading request workspace</span>
+      </div>
+      <div className="space-y-2">
+        <div className="h-10 animate-pulse bg-foreground/5" />
+        <div className="h-24 animate-pulse bg-foreground/5" />
+        <div className="h-16 animate-pulse bg-foreground/5" />
+      </div>
+    </div>
+  );
+}
+
+function RequestWorkersPanel({
+  onBrowseWorkers,
+  requestDetail,
+  selectedIntent,
+  shareUrl,
+}: {
+  onBrowseWorkers: () => void;
+  requestDetail: RequestDetail | null;
+  selectedIntent: SidebarIntentPreview | null;
+  shareUrl: string | null;
+}) {
+  const [copied, setCopied] = useState(false);
+  const intent = requestDetail?.intent;
+  const assignedAgent = requestDetail?.assignment?.agent;
+  const assignedTools = requestDetail?.assignment?.tools ?? [];
+  const requestedOutputTypes =
+    intent?.requestedOutputTypes ?? selectedIntent?.requestedOutputTypes ?? ["text"];
+  const routeTarget = intent?.routeTarget ?? selectedIntent?.routeTarget ?? "general_assistance";
+  const workers = buildRequestWorkerCards(requestedOutputTypes, routeTarget, assignedAgent);
+  const isWaitingForWorkers =
+    !assignedAgent && (intent?.status === "open" || intent?.status === "proposed");
+
+  async function handleCopyShare() {
+    if (!shareUrl) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <div className="space-y-4">
+      {isWaitingForWorkers ? (
+        <div className="space-y-3 border border-border p-4">
+          <p className="text-sm font-medium">Waiting for workers</p>
+          <p className="text-xs text-muted-foreground">
+            No worker is assigned yet. Share this workspace so human or agent talent can review it
+            and start a proposal flow.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onBrowseWorkers} size="sm" type="button" variant="outline">
+              View workers
+            </Button>
+            <Button
+              disabled={!shareUrl}
+              onClick={() => void handleCopyShare()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <CopyIcon />
+              {copied ? "Copied" : "Copy share link"}
+            </Button>
+            {shareUrl ? (
+              <Button asChild size="sm" type="button" variant="ghost">
+                <a href={shareUrl} rel="noreferrer" target="_blank">
+                  <ExternalLinkIcon />
+                  Open share link
+                </a>
+              </Button>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Workers can review this request from the public directory and submit proposals into the
+            same workspace.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="space-y-3 border border-border p-4">
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Participants
+        </p>
+        <div className="space-y-3">
+          {workers.map((worker) => (
+            <div className="border border-border p-3" key={worker.title}>
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 items-center justify-center border border-border">
+                  <worker.icon className="size-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium">{worker.title}</p>
+                    <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      {worker.meta}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{worker.description}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {assignedTools.length > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Current tools: {assignedTools.join(" / ")}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ProposalViewerPanel({
+  intentId,
+  requestDetail,
+}: {
+  intentId: string;
+  requestDetail: RequestDetail | null;
+}) {
+  const [proposalMessage, setProposalMessage] = useState("");
+  const [proposalDraft, setProposalDraft] = useState<Record<string, unknown> | null>(null);
+  const [isDraftingProposal, setIsDraftingProposal] = useState(false);
+  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
+  const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
+  const isOwner = requestDetail?.access?.isOwner ?? false;
+  const proposals = requestDetail?.proposals ?? [];
+  const visibleProposals = isOwner ? proposals : proposals.filter((proposal) => proposal.isMine);
+
+  async function handleDraftProposal() {
+    if (!proposalMessage.trim() || isDraftingProposal) {
+      return;
+    }
+
+    setIsDraftingProposal(true);
+
+    try {
+      const response = await fetch(`/api/requests/${intentId}/proposals`, {
+        body: JSON.stringify({
+          action: "draft",
+          message: proposalMessage,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        draft?: Record<string, unknown>;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.draft) {
+        throw new Error(payload.error ?? "Failed to draft proposal.");
+      }
+
+      setProposalDraft(payload.draft);
+    } finally {
+      setIsDraftingProposal(false);
+    }
+  }
+
+  async function handleSubmitProposal() {
+    if (!proposalDraft || isSubmittingProposal) {
+      return;
+    }
+
+    setIsSubmittingProposal(true);
+
+    try {
+      const response = await fetch(`/api/requests/${intentId}/proposals`, {
+        body: JSON.stringify({
+          action: "submit",
+          draft: proposalDraft,
+          message: proposalMessage,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const payload = (await response.json()) as { error?: string; submitted?: boolean };
+
+      if (!response.ok || !payload.submitted) {
+        throw new Error(payload.error ?? "Failed to submit proposal.");
+      }
+
+      setProposalDraft(null);
+      setProposalMessage("");
+    } finally {
+      setIsSubmittingProposal(false);
+    }
+  }
+
+  async function handleApproveProposal(proposalId: string) {
+    if (approvingProposalId) {
+      return;
+    }
+
+    setApprovingProposalId(proposalId);
+
+    try {
+      const response = await fetch(
+        `/api/requests/${intentId}/proposals/${proposalId}/approve`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as { approved?: boolean; error?: string };
+
+      if (!response.ok || !payload.approved) {
+        throw new Error(payload.error ?? "Failed to approve proposal.");
+      }
+    } finally {
+      setApprovingProposalId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {isOwner ? (
+        <div className="space-y-3 border border-border p-4">
+          <p className="text-sm font-medium">Proposal approvals</p>
+          <p className="text-xs text-muted-foreground">
+            Review who is asking to take this request, what they will deliver, and the quoted
+            price before approving.
+          </p>
+        </div>
+      ) : requestDetail?.access?.canSubmitProposal ? (
+        <div className="space-y-4 border border-border p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Submit a proposal</p>
+            <p className="text-xs text-muted-foreground">
+              Describe how you would handle the request, include your quote and ETA, then confirm
+              before sending it to the owner.
+            </p>
+          </div>
+          <textarea
+            className="min-h-32 w-full border border-border bg-transparent p-3 text-sm outline-none"
+            onChange={(event) => setProposalMessage(event.target.value)}
+            placeholder="I can deliver a polished motion piece in 3 days for $450. Deliverables include..."
+            value={proposalMessage}
+          />
+          {proposalDraft ? (
+            <div className="space-y-3 border border-border p-4">
+              <p className="text-sm font-medium">Confirm proposal</p>
+              <ProposalCardBody proposal={mapDraftProposal(proposalDraft)} />
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={isSubmittingProposal} onClick={() => void handleSubmitProposal()} size="sm" type="button">
+                  {isSubmittingProposal ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
+                  Send proposal
+                </Button>
+                <Button
+                  onClick={() => setProposalDraft(null)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              disabled={isDraftingProposal || proposalMessage.trim().length === 0}
+              onClick={() => void handleDraftProposal()}
+              size="sm"
+              type="button"
+            >
+              {isDraftingProposal ? <LoaderIcon className="animate-spin" /> : <SparklesIcon />}
+              Draft proposal
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3 border border-border p-4">
+          <p className="text-sm font-medium">Proposal submission unavailable</p>
+          <p className="text-xs text-muted-foreground">
+            This workspace is not accepting proposals right now.
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-3 border border-border p-4">
+        <p className="text-sm font-medium">{isOwner ? "Received proposals" : "My proposals"}</p>
+        {visibleProposals.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {isOwner
+              ? "No proposals yet. Shared worker links and public visibility will drive incoming bids."
+              : "You have not submitted a proposal to this request yet."}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {visibleProposals.map((proposal) => (
+              <div className="border border-border p-4" key={proposal._id}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 items-center justify-center border border-border">
+                      {proposal.proposer.kind === "agent" ? (
+                        <BotIcon className="size-4 text-muted-foreground" />
+                      ) : (
+                        <UserIcon className="size-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{proposal.proposer.displayName}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {proposal.proposer.handle
+                          ? `@${proposal.proposer.handle}`
+                          : proposal.proposer.kind}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    <p>{proposal.status.replaceAll("_", " ")}</p>
+                    <p className="mt-1">{formatRequestDate(proposal.createdAt)}</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <ProposalCardBody proposal={proposal} />
+                </div>
+                {isOwner && proposal.status === "submitted" ? (
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      disabled={approvingProposalId === proposal._id}
+                      onClick={() => void handleApproveProposal(proposal._id)}
+                      size="sm"
+                      type="button"
+                    >
+                      {approvingProposalId === proposal._id ? (
+                        <LoaderIcon className="animate-spin" />
+                      ) : (
+                        <CheckIcon />
+                      )}
+                      Approve proposal
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProposalCardBody({
+  proposal,
+}: {
+  proposal: {
+    currency: string;
+    deliverablesBody: string;
+    etaAt: number;
+    price: number;
+  };
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span>
+          Quote {proposal.price} {proposal.currency}
+        </span>
+        <span>ETA {formatRequestDate(proposal.etaAt)}</span>
+      </div>
+      <p className="text-sm">{proposal.deliverablesBody}</p>
+    </div>
+  );
+}
+
+function mapDraftProposal(draft: Record<string, unknown>) {
+  return {
+    currency: typeof draft.currency === "string" ? draft.currency : "USD",
+    deliverablesBody:
+      typeof draft.deliverablesBody === "string" ? draft.deliverablesBody : "",
+    etaAt:
+      Date.now() +
+      (typeof draft.etaDays === "number" ? draft.etaDays : 7) * 24 * 60 * 60 * 1000,
+    price: typeof draft.price === "number" ? draft.price : 0,
+  };
 }
 
 function getRequestActionState(status: string, reviewPending: boolean) {
@@ -1430,42 +2002,166 @@ function getRequestActionState(status: string, reviewPending: boolean) {
 
 function getPrimaryWorker(
   assignment: RequestDetail["assignment"],
-  intent: NonNullable<RequestDetail["intent"]>,
 ) {
   const label = assignment?.agent ?? "Boreal Agent";
+  const icon = label.toLowerCase().includes("boreal") ? BotIcon : UserIcon;
 
   return {
-    icon: getToolIcon(assignment?.tools?.[0] ?? intent.routeTarget),
+    icon,
     label,
   };
 }
 
-function getToolIcon(tool: string) {
-  if (tool.includes("video")) {
-    return ClapperboardIcon;
-  }
-
-  if (tool.includes("speech") || tool.includes("audio")) {
-    return MicIcon;
-  }
-
-  if (tool.includes("catalog") || tool.includes("supply")) {
-    return PackageIcon;
-  }
-
-  if (tool.includes("clarification") || tool.includes("search")) {
-    return SearchIcon;
-  }
-
-  if (tool.includes("image")) {
-    return SparklesIcon;
-  }
-
-  return BotIcon;
-}
-
 function humanizeToolLabel(value: string) {
   return value.replaceAll("-", " ").replaceAll("_", " ");
+}
+
+function buildRequestWorkerCards(
+  requestedOutputTypes: string[],
+  routeTarget: string,
+  assignedAgent?: string | null,
+) {
+  const cards = [
+    {
+      description: "General routed assistant for text answers, orchestration, and fallback handling.",
+      icon: BotIcon,
+      meta: assignedAgent ? "assigned" : "available",
+      title: assignedAgent ?? "Boreal Agent",
+    },
+  ];
+
+  if (requestedOutputTypes.includes("image_generation") || routeTarget === "image_generation") {
+    cards.unshift({
+      description: "Handles image prompts, revisions, and visual asset generation.",
+      icon: SparklesIcon,
+      meta: "image",
+      title: "Image Worker",
+    });
+  }
+
+  if (requestedOutputTypes.includes("speech_generation") || routeTarget === "speech_generation") {
+    cards.unshift({
+      description: "Handles speech rendering, voice selection, and audio delivery.",
+      icon: MicIcon,
+      meta: "speech",
+      title: "Speech Worker",
+    });
+  }
+
+  if (requestedOutputTypes.includes("video_generation") || routeTarget === "video_generation") {
+    cards.unshift({
+      description: "Tracks queued renders, refreshes progress, and delivers final video files.",
+      icon: ClapperboardIcon,
+      meta: "video",
+      title: "Video Worker",
+    });
+  }
+
+  if (routeTarget === "catalog_lookup") {
+    cards.unshift({
+      description: "Searches supply inventory, compares offers, and surfaces matched products.",
+      icon: PackageIcon,
+      meta: "catalog",
+      title: "Catalog Worker",
+    });
+  }
+
+  return cards.slice(0, 4);
+}
+
+function normalizeCenterViewTab(value: string | null): CenterViewTab {
+  if (value === "activity" || value === "workers" || value === "proposals") {
+    return value;
+  }
+
+  return "chat";
+}
+
+async function consumeChatStream(input: {
+  assistantMessageId: string;
+  response: Response;
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+}) {
+  const reader = input.response.body?.getReader();
+
+  if (!reader) {
+    throw new Error("Chat stream reader was unavailable.");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalPayload: ChatAssistantResponse | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        continue;
+      }
+
+      const event = JSON.parse(trimmed) as
+        | { delta: string; type: "assistant-delta" }
+        | { message: string; type: "error" }
+        | { payload: ChatAssistantResponse; type: "final" };
+
+      if (event.type === "assistant-delta") {
+        input.setMessages((current) =>
+          current.map((message) =>
+            message.id === input.assistantMessageId
+              ? { ...message, content: `${message.content}${event.delta}` }
+              : message,
+          ),
+        );
+        continue;
+      }
+
+      if (event.type === "error") {
+        throw new Error(event.message);
+      }
+
+      finalPayload = event.payload;
+    }
+  }
+
+  if (!finalPayload) {
+    throw new Error("Chat response was incomplete.");
+  }
+
+  input.setMessages((current) =>
+    current.map((message) =>
+      message.id === input.assistantMessageId
+        ? {
+            ...message,
+            content: message.content || finalPayload.assistantMessage,
+          }
+        : message,
+    ),
+  );
+
+  return finalPayload;
+}
+
+function normalizeWorkspaceTab(value: string | null): WorkspaceTab {
+  if (value === "requests" || value === "workers" || value === "profile") {
+    return value;
+  }
+
+  if (value === "capabilities") {
+    return "profile";
+  }
+
+  return "workers";
 }
 
 function hasRenderableInlineWorkspace(workspaceState: WorkspaceState) {
@@ -1822,24 +2518,6 @@ function describeActivityPayload(payload: Record<string, unknown>) {
   }
 
   return parts.join(" | ");
-}
-
-function mapCatalogEntry(entry: CatalogEntry): CatalogItem {
-  return {
-    capabilityTags: entry.capabilityTags,
-    category: entry.category,
-    deliveryType: entry.deliveryType,
-    description: entry.description,
-    id: entry._id,
-    priceLabel:
-      entry.priceAmount === null
-        ? "Custom"
-        : entry.priceAmount === 0
-          ? "Included"
-          : `$${entry.priceAmount}/${entry.priceType}`,
-    supplyType: entry.supplyType,
-    title: entry.title,
-  };
 }
 
 function buildWorkspaceFromRequestDetail(detail: RequestDetail | null): WorkspaceState {

@@ -115,7 +115,7 @@ export const recordIntentPipeline = mutation({
       title: args.intent.title,
       updatedAt: now,
       urgencyScore: args.intent.persistence.isUnresolved ? 0.72 : 0.15,
-      visibility: "private",
+      visibility: status === "proposed" || status === "open" ? "public" : "private",
       voice: args.intent.voice,
     });
 

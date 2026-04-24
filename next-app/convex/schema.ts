@@ -11,6 +11,7 @@ import {
   intentStatusValidator,
   intentTypeValidator,
   proposalStatusValidator,
+  profileAvailabilityValidator,
   requestedOutputTypeValidator,
   resolutionTierValidator,
   routingValidator,
@@ -28,6 +29,31 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_externalId", ["externalId"]),
+
+  profiles: defineTable({
+    availabilityStatus: profileAvailabilityValidator,
+    avatarUrl: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    capabilityTags: v.array(v.string()),
+    createdAt: v.number(),
+    displayName: v.string(),
+    externalId: v.optional(v.string()),
+    handle: v.optional(v.string()),
+    headline: v.optional(v.string()),
+    isPublic: v.boolean(),
+    productLabels: v.array(v.string()),
+    searchText: v.string(),
+    skillTags: v.array(v.string()),
+    updatedAt: v.number(),
+    userId: v.optional(v.string()),
+  })
+    .index("by_externalId", ["externalId"])
+    .index("by_isPublic_and_updatedAt", ["isPublic", "updatedAt"])
+    .index("by_userId", ["userId"])
+    .searchIndex("search_public", {
+      searchField: "searchText",
+      filterFields: ["availabilityStatus", "isPublic"],
+    }),
 
   conversations: defineTable({
     conversationId: v.string(),
@@ -126,7 +152,7 @@ export default defineSchema({
     .index("by_deadlineAt", ["deadlineAt"])
     .searchIndex("search_body", {
       searchField: "body",
-      filterFields: ["status", "category", "resolutionTier"],
+      filterFields: ["status", "category", "resolutionTier", "visibility"],
     }),
 
   intentRuns: defineTable({
@@ -172,6 +198,8 @@ export default defineSchema({
   })
     .index("by_title", ["title"])
     .index("by_category", ["category"])
+    .index("by_supplierUserId", ["supplierUserId"])
+    .index("by_supplierUserId_and_status", ["supplierUserId", "status"])
     .index("by_status_and_trustScore", ["status", "trustScore"])
     .searchIndex("search_description", {
       searchField: "description",
@@ -198,6 +226,7 @@ export default defineSchema({
 
   proposals: defineTable({
     collectiveMembers: v.optional(v.array(v.string())),
+    createdAt: v.number(),
     currency: v.string(),
     deliverablesBody: v.string(),
     deliverablesType: v.union(v.literal("markdown"), v.literal("file"), v.literal("link")),
@@ -209,7 +238,9 @@ export default defineSchema({
     proposerUserId: v.optional(v.string()),
     splitPlan: v.optional(v.array(v.object({ memberId: v.string(), percent: v.number() }))),
     status: proposalStatusValidator,
-  }).index("by_intentKey_and_status", ["intentKey", "status"]),
+  })
+    .index("by_intentKey_and_status", ["intentKey", "status"])
+    .index("by_intentKey_and_createdAt", ["intentKey", "createdAt"]),
 
   fulfillments: defineTable({
     acceptedProposalId: v.optional(v.string()),

@@ -31,6 +31,49 @@ export const listSidebar = query({
   },
 });
 
+export const listMarketplace = query({
+  args: {
+    limit: v.number(),
+    ownerExternalId: v.optional(v.string()),
+    query: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const ownerUserId = await getOwnerUserId(ctx, args.ownerExternalId);
+    const trimmed = args.query?.trim() ?? "";
+    const intents =
+      trimmed.length > 0
+        ? await ctx.db
+            .query("intents")
+            .withSearchIndex("search_body", (queryBuilder) =>
+              queryBuilder.search("body", trimmed).eq("visibility", "public"),
+            )
+            .take(args.limit)
+        : await ctx.db.query("intents").order("desc").take(args.limit * 3);
+
+    return intents
+      .filter((intent) => intent.visibility === "public")
+      .slice(0, args.limit)
+      .map((intent) => ({
+        _creationTime: intent._creationTime,
+        _id: intent._id,
+        assignedAgent: intent.assignedAgent ?? null,
+        category: intent.category,
+        conversationId: intent.conversationId ?? null,
+        isOwner: !!(ownerUserId && intent.ownerUserId === ownerUserId),
+        needsClarification: intent.needsClarification ?? false,
+        provider: intent.provider,
+        requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+        reviewRating: intent.reviewRating ?? null,
+        routeTarget: intent.routeTarget ?? "general_assistance",
+        status: intent.status,
+        summary: intent.summary,
+        title: intent.title,
+        updatedAt: intent.updatedAt,
+        visibility: intent.visibility,
+      }));
+  },
+});
+
 export const getRequestDetail = query({
   args: {
     intentId: v.id("intents"),
@@ -38,18 +81,22 @@ export const getRequestDetail = query({
   },
   handler: async (ctx, args) => {
     const intent = await ctx.db.get(args.intentId);
+    const ownerUserId = await getOwnerUserId(ctx, args.ownerExternalId);
+    const isOwner = !!(intent && ownerUserId && intent.ownerUserId === ownerUserId);
 
     if (
       !intent ||
-      !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+      !(await hasRequestReadAccess(ctx, intent.ownerUserId, args.ownerExternalId, intent.visibility))
     ) {
       return {
+        access: null,
         activity: [],
         artifact: null,
         assignment: null,
         conversationId: null,
         intent: null,
         messages: [],
+        proposals: [],
         review: null,
       };
     }
@@ -87,9 +134,23 @@ export const getRequestDetail = query({
       .order("desc")
       .take(24);
 
+    const proposals = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_createdAt", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey),
+      )
+      .order("asc")
+      .take(24);
+
     const artifact = artifacts[0];
 
     return {
+      access: {
+        canApproveProposals: isOwner,
+        canSubmitProposal: !isOwner && intent.acceptsProposals,
+        isOwner,
+        visibility: intent.visibility,
+      },
       activity: activity
         .map((event) => ({
           _id: event._id,
@@ -142,6 +203,19 @@ export const getRequestDetail = query({
         title: intent.title,
       },
       messages: requestMessages,
+      proposals: await Promise.all(
+        proposals.map(async (proposal) => ({
+          _id: proposal._id,
+          createdAt: proposal.createdAt,
+          currency: proposal.currency,
+          deliverablesBody: proposal.deliverablesBody,
+          etaAt: proposal.etaAt,
+          isMine: !!(ownerUserId && proposal.proposerUserId === ownerUserId),
+          price: proposal.price,
+          proposer: await getProposalUser(ctx, proposal.proposerUserId, proposal.proposerKind),
+          status: proposal.status,
+        })),
+      ),
       review:
         typeof intent.reviewRating === "number"
           ? {
@@ -164,7 +238,7 @@ export const getExecutionContext = query({
 
     if (
       !intent ||
-      !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+      !(await hasRequestOwnerAccess(ctx, intent.ownerUserId, args.ownerExternalId))
     ) {
       return null;
     }
@@ -230,7 +304,7 @@ export const deleteIntent = mutation({
 
     if (
       !intent ||
-      !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+      !(await hasRequestOwnerAccess(ctx, intent.ownerUserId, args.ownerExternalId))
     ) {
       return { deleted: false };
     }
@@ -319,14 +393,19 @@ async function getOwnerUserId(
   return owner?._id ?? null;
 }
 
-async function hasRequestAccess(
+async function hasRequestReadAccess(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: any,
   ownerUserId: string | undefined,
   ownerExternalId: string | undefined,
+  visibility: "private" | "public",
 ) {
-  if (!ownerUserId || !ownerExternalId) {
+  if (visibility === "public") {
     return true;
+  }
+
+  if (!ownerUserId || !ownerExternalId) {
+    return false;
   }
 
   const owner = await ctx.db
@@ -338,4 +417,40 @@ async function hasRequestAccess(
     .unique();
 
   return owner?._id === ownerUserId;
+}
+
+async function hasRequestOwnerAccess(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  ownerUserId: string | undefined,
+  ownerExternalId: string | undefined,
+) {
+  if (!ownerUserId || !ownerExternalId) {
+    return false;
+  }
+
+  const owner = await ctx.db
+    .query("users")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .withIndex("by_externalId", (queryBuilder: any) =>
+      queryBuilder.eq("externalId", ownerExternalId),
+    )
+    .unique();
+
+  return owner?._id === ownerUserId;
+}
+
+async function getProposalUser(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  proposerUserId: string | undefined,
+  proposerKind: string,
+) {
+  const user = proposerUserId ? await ctx.db.get(proposerUserId) : null;
+
+  return {
+    displayName: user?.displayName ?? "Worker",
+    handle: user?.handle ?? null,
+    kind: proposerKind,
+  };
 }

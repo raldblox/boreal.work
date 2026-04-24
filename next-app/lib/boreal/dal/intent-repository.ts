@@ -57,12 +57,45 @@ export async function rateRequest(args: {
   return client.mutation(convexFunctionRefs.rateRequest, args);
 }
 
+export async function submitProposal(args: {
+  currency: string;
+  deliverablesBody: string;
+  deliverablesType: "file" | "link" | "markdown";
+  etaAt: number;
+  intentId: string;
+  ownerDisplayName?: string;
+  ownerExternalId?: string;
+  ownerHandle?: string;
+  price: number;
+  proposerKind?: "agent" | "human";
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.submitProposal, args);
+}
+
+export async function approveProposal(args: {
+  intentId: string;
+  ownerExternalId?: string;
+  proposalId: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.approveProposal, args);
+}
+
 export async function getRequestExecutionContext(args: {
   intentId: string;
   ownerExternalId?: string;
 }) {
   const client = createConvexServerClient();
   return client.query(convexFunctionRefs.getExecutionContext, args);
+}
+
+export async function getRequestDetailRecord(args: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.query(convexFunctionRefs.getRequestDetail, args);
 }
 
 export async function ensureCatalogSeeded() {

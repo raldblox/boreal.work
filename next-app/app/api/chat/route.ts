@@ -5,22 +5,62 @@ import { chatAssistantAgent } from "@/lib/boreal/agents/chat-assistant/agent";
 
 export async function POST(request: Request) {
   const session = await auth();
+  const user = session?.user;
 
-  if (!session?.user) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = parseChatRequest(await request.json());
-    const result = await chatAssistantAgent.run({
-      ...body,
-      requester: {
-        displayName: session.user.name ?? undefined,
-        externalId: session.user.id ?? undefined,
+    const stream = new TransformStream();
+    const writer = stream.writable.getWriter();
+    const encoder = new TextEncoder();
+
+    void (async () => {
+      try {
+        const result = await chatAssistantAgent.run({
+          ...body,
+          requester: {
+            displayName: user.name ?? undefined,
+            externalId: user.id ?? undefined,
+          },
+        });
+
+        for (const delta of chunkAssistantMessage(result.assistantMessage)) {
+          await writer.write(
+            encoder.encode(
+              `${JSON.stringify({ delta, type: "assistant-delta" })}\n`,
+            ),
+          );
+        }
+
+        await writer.write(
+          encoder.encode(
+            `${JSON.stringify({ payload: result, type: "final" })}\n`,
+          ),
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Chat request failed.";
+
+        await writer.write(
+          encoder.encode(
+            `${JSON.stringify({ message, type: "error" })}\n`,
+          ),
+        );
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return new Response(stream.readable, {
+      headers: {
+        "Cache-Control": "no-store",
+        Connection: "keep-alive",
+        "Content-Type": "application/x-ndjson; charset=utf-8",
       },
     });
-
-    return NextResponse.json(result);
   } catch (error) {
     if (error instanceof InvalidChatPayloadError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -74,4 +114,30 @@ function parseChatRequest(value: unknown): ParsedChatRequest {
     message,
     provider: typeof provider === "string" ? provider : undefined,
   };
+}
+
+function chunkAssistantMessage(message: string) {
+  if (!message.trim()) {
+    return [];
+  }
+
+  const chunks: string[] = [];
+  const words = message.split(/(\s+)/);
+  let current = "";
+
+  for (const part of words) {
+    if ((current + part).length > 48 && current) {
+      chunks.push(current);
+      current = part;
+      continue;
+    }
+
+    current += part;
+  }
+
+  if (current) {
+    chunks.push(current);
+  }
+
+  return chunks;
 }

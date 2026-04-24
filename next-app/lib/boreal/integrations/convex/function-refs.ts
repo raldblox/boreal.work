@@ -38,6 +38,7 @@ export type SidebarIntentPreview = {
   assignedAgent: string | null;
   category: string;
   conversationId: string | null;
+  isOwner?: boolean;
   needsClarification: boolean;
   provider: string;
   requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
@@ -47,6 +48,7 @@ export type SidebarIntentPreview = {
   summary: string;
   title: string;
   updatedAt: number;
+  visibility?: "private" | "public";
 };
 
 export type CatalogEntry = {
@@ -61,6 +63,72 @@ export type CatalogEntry = {
   title: string;
   trustScore: number;
 };
+
+export type PublicProfilePreview = {
+  _id: string;
+  availabilityStatus: "available" | "limited" | "unavailable";
+  bio: string;
+  capabilityTags: string[];
+  displayName: string;
+  handle: string | null;
+  headline: string;
+  isMine: boolean;
+  productLabels: string[];
+  skillTags: string[];
+  supplyCount: number;
+};
+
+export type ProfileSupplyEntry = {
+  _id: string;
+  category: string;
+  deliveryType?: string;
+  description: string;
+  priceAmount: number | null;
+  priceType: string;
+  status: string;
+  supplyType: string;
+  title: string;
+};
+
+export type MyProfileRecord = {
+  profile: {
+    _id: string | null;
+    availabilityStatus: "available" | "limited" | "unavailable";
+    avatarUrl: string | null;
+    bio: string;
+    capabilityTags: string[];
+    displayName: string;
+    handle: string | null;
+    headline: string;
+    isPublic: boolean;
+    productLabels: string[];
+    skillTags: string[];
+  };
+  supplies: ProfileSupplyEntry[];
+  user: {
+    _id: string;
+    displayName: string;
+    handle: string | null;
+  };
+} | null;
+
+export type WorkerProfileDetail = {
+  profile: {
+    _id: string;
+    availabilityStatus: "available" | "limited" | "unavailable";
+    avatarUrl: string | null;
+    bio: string;
+    capabilityTags: string[];
+    displayName: string;
+    handle: string | null;
+    headline: string;
+    isMine: boolean;
+    isPublic: boolean;
+    productLabels: string[];
+    skillTags: string[];
+  };
+  supplies: ProfileSupplyEntry[];
+} | null;
 
 export type ArtifactMetadataArgs = {
   artifactKind: "image" | "audio" | "video";
@@ -121,6 +189,12 @@ export type RequestActivity = {
 };
 
 export type RequestDetail = {
+  access: {
+    canApproveProposals: boolean;
+    canSubmitProposal: boolean;
+    isOwner: boolean;
+    visibility: "private" | "public";
+  } | null;
   activity: RequestActivity[];
   artifact: RequestArtifact | null;
   assignment: {
@@ -151,6 +225,21 @@ export type RequestDetail = {
     title: string;
   } | null;
   messages: RequestMessage[];
+  proposals: Array<{
+    _id: string;
+    createdAt: number;
+    currency: string;
+    deliverablesBody: string;
+    etaAt: number;
+    isMine: boolean;
+    price: number;
+    proposer: {
+      displayName: string;
+      handle: string | null;
+      kind: string;
+    };
+    status: string;
+  }>;
   review: {
     comment: string;
     rating: number;
@@ -243,11 +332,52 @@ export const convexFunctionRefs = {
     { limit: number },
     RecentIntentPreview[]
   >("intents:listRecent"),
+  listMarketplaceIntents: makeFunctionReference<
+    "query",
+    { limit: number; ownerExternalId?: string; query?: string },
+    SidebarIntentPreview[]
+  >("intents:listMarketplace"),
+  listPublicProfiles: makeFunctionReference<
+    "query",
+    { limit: number; ownerExternalId?: string; query?: string },
+    PublicProfilePreview[]
+  >("profiles:listPublicProfiles"),
   listSidebarIntents: makeFunctionReference<
     "query",
     { limit: number; ownerExternalId?: string },
     SidebarIntentPreview[]
   >("intents:listSidebar"),
+  getMyProfile: makeFunctionReference<
+    "query",
+    { ownerExternalId?: string },
+    MyProfileRecord
+  >("profiles:getMyProfile"),
+  getPublicProfile: makeFunctionReference<
+    "query",
+    { ownerExternalId?: string; profileId: string },
+    WorkerProfileDetail
+  >("profiles:getPublicProfile"),
+  submitProposal: makeFunctionReference<
+    "mutation",
+    {
+      currency: string;
+      deliverablesBody: string;
+      deliverablesType: "file" | "link" | "markdown";
+      etaAt: number;
+      intentId: string;
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      ownerHandle?: string;
+      price: number;
+      proposerKind?: "agent" | "human";
+    },
+    { proposalId: string | null; submitted: boolean }
+  >("proposals:submitProposal"),
+  approveProposal: makeFunctionReference<
+    "mutation",
+    { intentId: string; ownerExternalId?: string; proposalId: string },
+    { approved: boolean }
+  >("proposals:approveProposal"),
   rateRequest: makeFunctionReference<
     "mutation",
     { comment?: string; intentId: string; ownerExternalId?: string; rating: number },
@@ -268,6 +398,39 @@ export const convexFunctionRefs = {
     { limit: number; query: string },
     CatalogEntry[]
   >("supplies:searchCatalog"),
+  upsertMyProfile: makeFunctionReference<
+    "mutation",
+    {
+      availabilityStatus: "available" | "limited" | "unavailable";
+      bio?: string;
+      capabilityTags: string[];
+      headline?: string;
+      isPublic: boolean;
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      ownerHandle?: string;
+      productLabels: string[];
+      skillTags: string[];
+    },
+    { profileId: string | null; saved: boolean }
+  >("profiles:upsertMyProfile"),
+  createSupplyEntry: makeFunctionReference<
+    "mutation",
+    {
+      capabilityTags: string[];
+      category: string;
+      deliveryType: "async" | "instant" | "scheduled";
+      description: string;
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      ownerHandle?: string;
+      priceAmount?: number;
+      priceType: "fixed" | "hourly" | "scoped";
+      supplyType: "agent_tool" | "capability" | "collective" | "product";
+      title: string;
+    },
+    { created: boolean; supplyId: string | null }
+  >("supplies:createSupplyEntry"),
   syncVideoArtifactByRemoteId: makeFunctionReference<
     "mutation",
     SyncVideoArtifactArgs,

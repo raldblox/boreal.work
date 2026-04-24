@@ -1,5 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+
+import { deliveryTypeValidator } from "./validators";
 
 const defaultCatalog = [
   {
@@ -160,3 +162,119 @@ export const searchCatalog = query({
   },
 });
 
+export const createSupplyEntry = mutation({
+  args: {
+    capabilityTags: v.array(v.string()),
+    category: v.string(),
+    deliveryType: deliveryTypeValidator,
+    description: v.string(),
+    ownerDisplayName: v.optional(v.string()),
+    ownerExternalId: v.optional(v.string()),
+    ownerHandle: v.optional(v.string()),
+    priceAmount: v.optional(v.number()),
+    priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    supplyType: v.union(
+      v.literal("product"),
+      v.literal("capability"),
+      v.literal("agent_tool"),
+      v.literal("collective"),
+    ),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await upsertSupplierUser(ctx, {
+      displayName: args.ownerDisplayName,
+      externalId: args.ownerExternalId,
+      handle: args.ownerHandle,
+    });
+
+    if (!user) {
+      return { created: false, supplyId: null };
+    }
+
+    const keywords = Array.from(
+      new Set(
+        `${args.title} ${args.description} ${args.capabilityTags.join(" ")}`
+          .toLowerCase()
+          .split(/[^a-z0-9-]+/i)
+          .filter((token) => token.length > 2),
+      ),
+    ).slice(0, 24);
+
+    const supplyId = await ctx.db.insert("supplies", {
+      acceptanceRate: 0.8,
+      actorKind: "human",
+      capabilityTags: args.capabilityTags,
+      category: args.category.trim(),
+      deliveryType: args.deliveryType,
+      description: args.description.trim(),
+      embedding: [],
+      executorUrl: undefined,
+      fulfillmentRate: 0.8,
+      keywords,
+      matchCount: 0,
+      priceAmount: args.priceAmount,
+      priceType: args.priceType,
+      status: "active",
+      supplierUserId: user._id,
+      supplyType: args.supplyType,
+      title: args.title.trim(),
+      trustScore: user.trustScore,
+    });
+
+    return { created: true, supplyId };
+  },
+});
+
+async function upsertSupplierUser(
+  ctx: MutationCtx,
+  input: {
+    displayName?: string;
+    externalId?: string;
+    handle?: string;
+  },
+) {
+  if (!input.externalId) {
+    return null;
+  }
+
+  const existing = await ctx.db
+    .query("users")
+    .withIndex("by_externalId", (queryBuilder) =>
+      queryBuilder.eq("externalId", input.externalId),
+    )
+    .unique();
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      displayName: input.displayName ?? existing.displayName,
+      handle: input.handle ?? existing.handle,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      ...existing,
+      displayName: input.displayName ?? existing.displayName,
+      handle: input.handle ?? existing.handle,
+    };
+  }
+
+  const now = Date.now();
+  const userId = await ctx.db.insert("users", {
+    actorKind: "human",
+    createdAt: now,
+    displayName: input.displayName ?? input.handle ?? "X user",
+    externalId: input.externalId,
+    handle: input.handle,
+    trustScore: 50,
+    updatedAt: now,
+  });
+
+  return {
+    _id: userId,
+    displayName: input.displayName ?? input.handle ?? "X user",
+    externalId: input.externalId,
+    handle: input.handle,
+    trustScore: 50,
+  };
+}

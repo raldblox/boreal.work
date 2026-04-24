@@ -68,6 +68,12 @@ export const supplyStatusValidator = v.union(
   v.literal("suspended"),
 );
 
+export const profileAvailabilityValidator = v.union(
+  v.literal("available"),
+  v.literal("limited"),
+  v.literal("unavailable"),
+);
+
 export const deliveryTypeValidator = v.union(
   v.literal("instant"),
   v.literal("async"),
