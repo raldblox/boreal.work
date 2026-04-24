@@ -243,6 +243,8 @@ export default defineSchema({
     splitPlan: v.optional(v.array(v.object({ memberId: v.string(), percent: v.number() }))),
     status: proposalStatusValidator,
   })
+    .index("by_proposerUserId_and_createdAt", ["proposerUserId", "createdAt"])
+    .index("by_proposerUserId_and_status", ["proposerUserId", "status"])
     .index("by_intentKey_and_status", ["intentKey", "status"])
     .index("by_intentKey_and_createdAt", ["intentKey", "createdAt"]),
 
@@ -255,7 +257,10 @@ export default defineSchema({
     intentKey: v.string(),
     ownerUserId: v.optional(v.string()),
     status: fulfillmentStatusValidator,
-  }).index("by_intentKey_and_status", ["intentKey", "status"]),
+  })
+    .index("by_intentKey_and_status", ["intentKey", "status"])
+    .index("by_fulfillerUserId", ["fulfillerUserId"])
+    .index("by_fulfillerUserId_and_status", ["fulfillerUserId", "status"]),
 
   evidences: defineTable({
     attachments: v.optional(

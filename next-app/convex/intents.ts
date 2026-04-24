@@ -602,22 +602,6 @@ async function getRequestParticipants(
   }
 
   if (
-    !participants.some(
-      (participant) =>
-        participant.externalId === "agent:boreal" || participant.displayName === "Boreal Agent",
-    )
-  ) {
-    participants.push({
-      displayName: "Boreal Agent",
-      externalId: "agent:boreal",
-      handle: "boreal",
-      kind: "agent",
-      profileId: null,
-      status: intent.status === "open" || intent.status === "proposed" ? "present" : intent.status,
-    });
-  }
-
-  if (
     assignedAgent &&
     !participants.some(
       (participant) =>

@@ -72,6 +72,7 @@ export type CatalogEntry = {
 
 export type PublicProfilePreview = {
   _id: string;
+  actorKind: "agent" | "human" | "tool";
   availabilityStatus: "available" | "limited" | "unavailable";
   bio: string;
   capabilityTags: string[];
@@ -99,6 +100,7 @@ export type ProfileSupplyEntry = {
 export type MyProfileRecord = {
   profile: {
     _id: string | null;
+    actorKind: "agent" | "human" | "tool";
     availabilityStatus: "available" | "limited" | "unavailable";
     avatarUrl: string | null;
     bio: string;
@@ -119,8 +121,31 @@ export type MyProfileRecord = {
 } | null;
 
 export type WorkerProfileDetail = {
+  analytics: {
+    activeCount: number;
+    activityBuckets: Array<{
+      count: number;
+      label: string;
+    }>;
+    averageCompletionHours: number | null;
+    averageRating: number | null;
+    blockedCount: number;
+    fulfilledCount: number;
+    openCount: number;
+    recentRequests: Array<{
+      _id: string;
+      requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
+      status: string;
+      summary: string;
+      title: string;
+      updatedAt: number;
+    }>;
+    reviewCount: number;
+    totalHandledCount: number;
+  };
   profile: {
     _id: string;
+    actorKind: "agent" | "human" | "tool";
     availabilityStatus: "available" | "limited" | "unavailable";
     avatarUrl: string | null;
     bio: string;
@@ -135,6 +160,29 @@ export type WorkerProfileDetail = {
   };
   supplies: ProfileSupplyEntry[];
 } | null;
+
+export type BorealAgentStats = {
+  activeCount: number;
+  activityBuckets: Array<{
+    count: number;
+    label: string;
+  }>;
+  averageCompletionHours: number | null;
+  averageRating: number | null;
+  blockedCount: number;
+  fulfilledCount: number;
+  openCount: number;
+  recentRequests: Array<{
+    _id: string;
+    requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
+    status: string;
+    summary: string;
+    title: string;
+    updatedAt: number;
+  }>;
+  reviewCount: number;
+  totalHandledCount: number;
+};
 
 export type ArtifactMetadataArgs = {
   artifactKind: "image" | "audio" | "video";
@@ -422,6 +470,11 @@ export const convexFunctionRefs = {
     { ownerExternalId?: string; profileId: string },
     WorkerProfileDetail
   >("profiles:getPublicProfile"),
+  getBorealAgentStats: makeFunctionReference<
+    "query",
+    Record<string, never>,
+    BorealAgentStats
+  >("profiles:getBorealAgentStats"),
   submitProposal: makeFunctionReference<
     "mutation",
     {
@@ -484,6 +537,11 @@ export const convexFunctionRefs = {
     Record<string, never>,
     string
   >("fulfillments:generateUploadUrl"),
+  markRequestFulfilled: makeFunctionReference<
+    "mutation",
+    { intentId: string; ownerExternalId?: string },
+    { fulfilled: boolean }
+  >("fulfillments:markRequestFulfilled"),
   upsertMyProfile: makeFunctionReference<
     "mutation",
     {

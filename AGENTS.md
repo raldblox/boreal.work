@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- The repo is currently document-first: root holds `README.md`, `WHITEPAPER.md`, and `ROADMAP.md`, so keep additions near those files unless a new workspace (e.g., `src/`, `tests/`, `assets/`) appears later.
+- The repo is currently document-first: root holds `README.md`, `WHITEPAPER.md`, `ROADMAP.md`, and `COMMERCE_STANDARDS.md`, so keep additions near those files unless a new workspace (e.g., `src/`, `tests/`, `assets/`) appears later.
 - The active application workspace is `next-app/`, with feature code split across `next-app/app/`, `next-app/components/`, `next-app/lib/boreal/`, and `next-app/convex/`.
 - Autonomous worker definitions and their runtime scripts live under `next-app/agents/`.
 - Boreal domain code should live under `next-app/lib/boreal/` with clear subfolders such as `agents/`, `tools/`, `integrations/`, `dal/`, and `schemas/`.
@@ -34,6 +34,7 @@
 - Keep this guide and `README.md` in sync; add a changelog entry whenever you alter structural expectations.
 - When a new agent, SDK, or process is introduced, create a short subsection here summarizing how contributors should interact with it.
 - `ROADMAP.md` is the execution tracker derived from `WHITEPAPER.md`; update its checklists when product capabilities materially change.
+- `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's future product, cart, and checkout schema direction.
 
 ### Boreal Agent Surface
 

@@ -117,6 +117,14 @@ export async function submitWork(args: {
   return client.mutation(convexFunctionRefs.submitWork, args);
 }
 
+export async function markRequestFulfilled(args: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.markRequestFulfilled, args);
+}
+
 export async function getRequestExecutionContext(args: {
   intentId: string;
   ownerExternalId?: string;

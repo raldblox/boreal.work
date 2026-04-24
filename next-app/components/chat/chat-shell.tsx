@@ -45,6 +45,9 @@ import {
   AudioPlayerVolumeRange,
 } from "@/components/ai-elements/audio-player";
 import {
+  BorealProfileView,
+} from "@/components/profiles/boreal-profile-view";
+import {
   Conversation,
   ConversationContent,
   ConversationEmptyState,
@@ -79,6 +82,7 @@ import type {
   RequestDetail,
   SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs";
+import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs";
 import type {
   CatalogItem,
   ChatAssistantResponse,
@@ -191,13 +195,15 @@ export function ChatShell() {
   const [isApprovingRequest, setIsApprovingRequest] = useState(false);
   const [isCancellingRequest, setIsCancellingRequest] = useState(false);
   const [isRetryingRequest, setIsRetryingRequest] = useState(false);
+  const [isRefreshingRequest, setIsRefreshingRequest] = useState(false);
+  const [isMarkingRequestFulfilled, setIsMarkingRequestFulfilled] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [optimisticReviewRating, setOptimisticReviewRating] = useState<number | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceState>(emptyWorkspace);
   const [showWorkspace, setShowWorkspace] = useState(true);
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false);
   const [composerText, setComposerText] = useState("");
-  const [borealEnabled, setBorealEnabled] = useState(true);
+  const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false);
   const [proposalMessage, setProposalMessage] = useState("");
   const [proposalDraft, setProposalDraft] = useState<ProposalDraft>(emptyProposalDraft);
   const [isDraftingProposal, setIsDraftingProposal] = useState(false);
@@ -240,9 +246,20 @@ export function ChatShell() {
   const hasSubmittedProposal = Boolean(myProposal);
   const canSubmitDelivery = requestDetail?.access?.canSubmitWork ?? false;
   const canViewRequestChat = requestDetail?.access?.canViewChat ?? false;
+  const isBorealAssignedToActiveRequest = Boolean(
+    activeIntentId &&
+      isBorealAssigned({
+        assignedAgent: requestDetail?.assignment?.agent ?? selectedIntent?.assignedAgent ?? null,
+        participants: requestDetail?.participants,
+      }),
+  );
+  const shouldShowHomeBorealButton = !activeIntentId;
+  const shouldShowAssignedBorealButton = Boolean(activeIntentId && isBorealAssignedToActiveRequest);
+  const effectiveBorealEnabled = !activeIntentId || isBorealAssignedToActiveRequest;
 
   const deleteIntent = useMutation(deleteIntentMutation);
   const generateUploadUrl = useMutation(generateUploadUrlMutation);
+  const borealAgentStats = useQuery(convexFunctionRefs.getBorealAgentStats, {});
 
   const requestWorkspace = requestDetail?.intent
     ? buildWorkspaceFromRequestDetail(requestDetail)
@@ -416,7 +433,7 @@ export function ChatShell() {
 
         setComposerText("");
 
-        if (!borealEnabled) {
+        if (!effectiveBorealEnabled) {
           setIsSubmitting(false);
           return;
         }
@@ -429,7 +446,7 @@ export function ChatShell() {
       }
     }
 
-    if (!activeIntentId && !borealEnabled) {
+    if (!activeIntentId && !effectiveBorealEnabled) {
       try {
         const response = await fetch("/api/conversations/messages", {
           body: JSON.stringify({
@@ -721,6 +738,62 @@ export function ChatShell() {
       );
     } finally {
       setIsRetryingRequest(false);
+    }
+  }
+
+  async function handleRefreshRequest() {
+    if (isRefreshingRequest) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsRefreshingRequest(true);
+
+    try {
+      const artifact = requestDetail?.artifact;
+      const metadata = artifact?.metadata;
+      const jobId =
+        artifact?.artifactKind === "video"
+          ? ((typeof metadata?.jobId === "string" ? metadata.jobId : null) ?? artifact.remoteId)
+          : null;
+
+      if (jobId) {
+        await refreshVideoJob(jobId);
+      }
+
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to refresh request.",
+      );
+    } finally {
+      setIsRefreshingRequest(false);
+    }
+  }
+
+  async function handleMarkRequestFulfilled() {
+    if (!activeIntentId || isMarkingRequestFulfilled) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsMarkingRequestFulfilled(true);
+
+    try {
+      const response = await fetch(`/api/requests/${activeIntentId}/fulfill`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as { error?: string; fulfilled?: boolean };
+
+      if (!response.ok || !payload.fulfilled) {
+        throw new Error(payload.error ?? "Failed to mark request as fulfilled.");
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to mark request as fulfilled.",
+      );
+    } finally {
+      setIsMarkingRequestFulfilled(false);
     }
   }
 
@@ -1017,14 +1090,15 @@ export function ChatShell() {
   const isHomeView = !activeIntentId && displayedMessages.length === 0;
 
   return (
-    <div className="mx-auto flex h-svh w-full max-w-450 flex-col overflow-hidden px-4 py-4 sm:px-4">
-      <div
-        className={
-          showWorkspace
-            ? "grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_25rem]"
-            : "grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]"
-        }
-      >
+    <>
+      <div className="mx-auto flex h-svh w-full max-w-450 flex-col overflow-hidden px-4 py-4 sm:px-4">
+        <div
+          className={
+            showWorkspace
+              ? "grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_25rem]"
+              : "grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]"
+          }
+        >
         <IntentSidebar
           intents={sidebarIntents}
           onDeselect={handleClearSelection}
@@ -1137,6 +1211,7 @@ export function ChatShell() {
                     <div className="flex items-center justify-between px-3 py-3 border rounded-md border-border">
                       {activeIntentId && requestDetail?.intent && (
                         <RequestHeaderMeta
+                          status={requestDetail.intent.status}
                           participants={requestDetail.participants}
                         />
                       )}
@@ -1291,6 +1366,7 @@ export function ChatShell() {
                           onQuickReply={(value) => {
                             void submitMessage(value);
                           }}
+                          onRefreshRequest={handleRefreshRequest}
                           onRefreshVideo={() => {
                             const artifact = requestDetail?.artifact;
                             const metadata = artifact?.metadata;
@@ -1302,11 +1378,14 @@ export function ChatShell() {
                           isArchivingRequest={isArchivingRequest}
                           isApprovingRequest={isApprovingRequest}
                           isCancellingRequest={isCancellingRequest}
+                          isMarkingRequestFulfilled={isMarkingRequestFulfilled}
+                          isRefreshingRequest={isRefreshingRequest}
                           isSubmittingReview={isSubmittingReview}
                           approvingProposalId={approvingProposalId}
                           onApproveProposal={handleApproveProposal}
                           onApproveRequest={handleApproveRequest}
                           onCancelRequest={handleCancelRequest}
+                          onMarkRequestFulfilled={handleMarkRequestFulfilled}
                           onRetryRequest={handleRetryRequest}
                           liveMessages={messages}
                           onSubmitReview={handleSubmitReview}
@@ -1371,20 +1450,30 @@ export function ChatShell() {
                 </PromptInputBody>
                 <PromptInputFooter>
                   <PromptInputTools>
-                    <Button
-                      className={cn(
-                        "transition-shadow",
-                        borealEnabled &&
-                          "shadow-[0_0_0_1px_hsl(var(--foreground)/0.25),0_0_18px_hsl(var(--foreground)/0.12)]",
-                      )}
-                      onClick={() => setBorealEnabled((current) => !current)}
-                      size="sm"
-                      type="button"
-                      variant={borealEnabled ? "secondary" : "outline"}
-                    >
-                      <BotIcon />
-                      {borealEnabled ? "Boreal on" : "Boreal off"}
-                    </Button>
+                    {shouldShowHomeBorealButton ? (
+                      <Button
+                        className="border-teal-500/40 text-teal-700 shadow-[0_0_0_1px_rgba(13,148,136,0.18),0_0_18px_rgba(13,148,136,0.12)] transition-shadow dark:text-teal-300"
+                        onClick={() => setIsBorealProfileOpen(true)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <BotIcon />
+                        Boreal Agent
+                      </Button>
+                    ) : null}
+                    {shouldShowAssignedBorealButton ? (
+                      <Button
+                        className="border-teal-500/40 text-teal-700 shadow-[0_0_0_1px_rgba(13,148,136,0.18),0_0_18px_rgba(13,148,136,0.12)] transition-shadow dark:text-teal-300"
+                        onClick={() => setIsBorealProfileOpen(true)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <BotIcon className="size-4" />
+                        Boreal Agent
+                      </Button>
+                    ) : null}
                     <Button
                       onClick={login}
                       size="sm"
@@ -1419,26 +1508,43 @@ export function ChatShell() {
               activeTab={workspaceTab}
               onSelectRequest={handleMarketplaceSelect}
               onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
-              ownerDisplayName={session?.user?.name ?? undefined}
               ownerExternalId={ownerExternalId}
-              ownerHandle={undefined}
             />
           </div>
         ) : null}
+        </div>
       </div>
-    </div>
+      <Dialog onOpenChange={setIsBorealProfileOpen} open={isBorealProfileOpen}>
+        <DialogContent className="h-[min(88svh,54rem)] max-w-[min(72rem,calc(100vw-2rem))] gap-0 overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(72rem,calc(100vw-2rem))]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Boreal Agent</DialogTitle>
+          </DialogHeader>
+          <div className="h-full overflow-auto bg-background">
+            <BorealProfileView stats={borealAgentStats} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 function RequestHeaderMeta({
+  status,
   participants,
 }: {
+  status: NonNullable<RequestDetail["intent"]>["status"];
   participants?: RequestDetail["participants"];
 }) {
+  const assignedWorkers = dedupeParticipantList(
+    (participants ?? []).filter((participant) => participant.status !== "owner"),
+  );
+
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      <span>Assigned to</span>
-      <AssignedWorkerPills participants={participants} />
+      <div className="flex flex-wrap items-center gap-2">
+        <span>Assigned to</span>
+        <AssignedWorkerPills participants={assignedWorkers} status={status} />
+      </div>
     </div>
   );
 }
@@ -1527,14 +1633,19 @@ function InlineRequestActionEvent({
   isArchivingRequest,
   isApprovingRequest,
   isCancellingRequest,
+  isMarkingRequestFulfilled,
+  isRefreshingRequest,
   isSubmittingReview,
   onArchiveRequest,
   onApproveProposal,
   onApproveRequest,
   onCancelRequest,
   onDeleteIntent,
+  onMarkRequestFulfilled,
+  onRefreshRequest,
   onRetryRequest,
   onSubmitReview,
+  participants,
   proposals,
   shouldPromptReview,
 }: {
@@ -1544,19 +1655,26 @@ function InlineRequestActionEvent({
   isArchivingRequest: boolean;
   isApprovingRequest: boolean;
   isCancellingRequest: boolean;
+  isMarkingRequestFulfilled: boolean;
+  isRefreshingRequest: boolean;
   isSubmittingReview: boolean;
   onArchiveRequest: () => Promise<void>;
   onApproveProposal: (proposalId: string) => Promise<void>;
   onApproveRequest: () => void;
   onCancelRequest: () => void;
   onDeleteIntent: () => void;
+  onMarkRequestFulfilled: () => Promise<void>;
+  onRefreshRequest: () => Promise<void>;
   onRetryRequest: () => Promise<void>;
   onSubmitReview: (rating: number) => void;
+  participants: RequestDetail["participants"];
   proposals: RequestDetail["proposals"];
   shouldPromptReview: boolean;
 }) {
   const actionState = getRequestActionState(intent, access, shouldPromptReview);
   const submittedProposals = (proposals ?? []).filter((proposal) => proposal.status === "submitted");
+  const acceptedProposal = (proposals ?? []).find((proposal) => proposal.status === "accepted") ?? null;
+  const workingParticipants = (participants ?? []).filter((participant) => participant.status !== "owner");
 
   if (actionState.kind === "none" || actionState.kind === "review") {
     return null;
@@ -1638,6 +1756,20 @@ function InlineRequestActionEvent({
     <div className="space-y-3 border border-border p-4">
       <p className="text-sm font-medium">{actionState.title}</p>
       <p className="text-xs text-muted-foreground">{actionState.description}</p>
+      {actionState.kind === "in_flight" ? (
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {acceptedProposal?.etaAt ? (
+            <span className="border border-border px-2 py-1">
+              Est. delivery {formatRequestDate(acceptedProposal.etaAt)}
+            </span>
+          ) : null}
+          {workingParticipants.length > 0 ? (
+            <span className="border border-border px-2 py-1">
+              Working now {workingParticipants.map((participant) => participant.displayName).join(", ")}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {intent.missingDetails.length > 0 ? (
         <p className="text-xs text-muted-foreground">
           Missing details: {intent.missingDetails.join(" / ")}
@@ -1662,11 +1794,54 @@ function InlineRequestActionEvent({
             </Button>
           </>
         ) : null}
-        {actionState.kind === "retry" ? (
-          <Button disabled={isApprovingRequest || isCancellingRequest} onClick={() => void onRetryRequest()} size="sm" type="button">
-            {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
-            Retry
-          </Button>
+        {actionState.kind === "in_flight" ? (
+          <>
+            <Button
+              disabled={isRefreshingRequest}
+              onClick={() => void onRefreshRequest()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isRefreshingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+              Refresh
+            </Button>
+            <Button
+              disabled={isMarkingRequestFulfilled}
+              onClick={() => void onMarkRequestFulfilled()}
+              size="sm"
+              type="button"
+            >
+              {isMarkingRequestFulfilled ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
+              Mark as fulfilled
+            </Button>
+          </>
+        ) : null}
+        {actionState.kind === "blocked" ? (
+          <>
+            <Button
+              disabled={isApprovingRequest || isCancellingRequest}
+              onClick={() => void onRetryRequest()}
+              size="sm"
+              type="button"
+            >
+              {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+              Retry
+            </Button>
+            <Button
+              disabled={isArchivingRequest}
+              onClick={() => void onArchiveRequest()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isArchivingRequest ? <LoaderIcon className="animate-spin" /> : <PackageIcon />}
+              Archive
+            </Button>
+            <Button onClick={onDeleteIntent} size="sm" type="button" variant="ghost">
+              Delete
+            </Button>
+          </>
         ) : null}
         {actionState.kind === "archive" ? (
           <>
@@ -1717,6 +1892,8 @@ function RequestChatTimeline({
   isArchivingRequest,
   isApprovingRequest,
   isCancellingRequest,
+  isMarkingRequestFulfilled,
+  isRefreshingRequest,
   isRefreshingVideo,
   isSubmittingReview,
   onArchiveRequest,
@@ -1726,7 +1903,9 @@ function RequestChatTimeline({
   onCancelRequest,
   onDeleteIntent,
   onDownloadVideo,
+  onMarkRequestFulfilled,
   onQuickReply,
+  onRefreshRequest,
   onRefreshVideo,
   onRetryRequest,
   onSubmitReview,
@@ -1740,6 +1919,8 @@ function RequestChatTimeline({
   isArchivingRequest: boolean;
   isApprovingRequest: boolean;
   isCancellingRequest: boolean;
+  isMarkingRequestFulfilled: boolean;
+  isRefreshingRequest: boolean;
   isRefreshingVideo: boolean;
   isSubmittingReview: boolean;
   onArchiveRequest: () => Promise<void>;
@@ -1749,7 +1930,9 @@ function RequestChatTimeline({
   onCancelRequest: (intentId?: string | null) => Promise<void>;
   onDeleteIntent: () => void;
   onDownloadVideo: (videoId: string) => void;
+  onMarkRequestFulfilled: () => Promise<void>;
   onQuickReply: (value: string) => void;
+  onRefreshRequest: () => Promise<void>;
   onRefreshVideo: () => void;
   onRetryRequest: () => Promise<void>;
   onSubmitReview: (rating: number) => void;
@@ -1843,13 +2026,18 @@ function RequestChatTimeline({
           isArchivingRequest={isArchivingRequest}
           isApprovingRequest={isApprovingRequest}
           isCancellingRequest={isCancellingRequest}
+          isMarkingRequestFulfilled={isMarkingRequestFulfilled}
+          isRefreshingRequest={isRefreshingRequest}
           isSubmittingReview={isSubmittingReview}
           onArchiveRequest={onArchiveRequest}
           onApproveProposal={onApproveProposal}
           onApproveRequest={() => onApproveRequest(requestDetail.intent?._id)}
           onCancelRequest={() => onCancelRequest(requestDetail.intent?._id)}
           onDeleteIntent={onDeleteIntent}
+          onMarkRequestFulfilled={onMarkRequestFulfilled}
+          onRefreshRequest={onRefreshRequest}
           onRetryRequest={onRetryRequest}
+          participants={requestDetail.participants}
           onSubmitReview={onSubmitReview}
           proposals={requestDetail.proposals}
           shouldPromptReview={shouldPromptReview}
@@ -2150,17 +2338,28 @@ function InlineTierPill({ tier }: { tier: string }) {
 
 function AssignedWorkerPills({
   participants,
+  status,
 }: {
-  participants?: RequestDetail["participants"];
+  participants?: Array<{
+    displayName: string;
+    externalId: string | null;
+    handle: string | null;
+    kind: string;
+    profileId: string | null;
+    status: string;
+  }>;
+  status: NonNullable<RequestDetail["intent"]>["status"];
 }) {
-  const workers = dedupeParticipantList(
-    (participants ?? []).filter((participant) => participant.status !== "owner"),
-  );
+  const workers = participants ?? [];
 
   return (
     <div className="flex items-center gap-1">
       {workers.length === 0 ? (
-        <WorkerPill icon={BotIcon} label="Boreal Agent" />
+        <span className="border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          {status === "open" || status === "proposed" || status === "blocked"
+            ? "Waiting for workers"
+            : "Not assigned yet"}
+        </span>
       ) : (
         workers.slice(0, 4).map((worker) => (
           <WorkerPill
@@ -3066,8 +3265,8 @@ function getRequestActionState(
   if ((status === "claimed" || status === "in_progress") && access?.isOwner) {
     return {
       description:
-        "Work is assigned. Retry if execution stalled, failed to start, or needs to be rerun.",
-      kind: "retry" as const,
+        "Work is active. Refresh the workspace when you need the latest state, or mark it fulfilled when the final delivery happened in chat.",
+      kind: "in_flight" as const,
       title: "Work in flight",
     };
   }
@@ -3075,8 +3274,8 @@ function getRequestActionState(
   if (status === "blocked" && access?.isOwner) {
     return {
       description:
-        "Automatic execution hit an error. Retry to continue this request without starting over.",
-      kind: "retry" as const,
+        "Automatic execution hit an error. Retry if you want another pass, or archive/delete it if this request should stop here.",
+      kind: "blocked" as const,
       title: "Needs intervention",
     };
   }
@@ -3118,6 +3317,27 @@ function normalizeCenterViewTab(value: string | null): CenterViewTab {
   }
 
   return "chat";
+}
+
+function isBorealAssigned(input: {
+  assignedAgent: string | null;
+  participants?: RequestDetail["participants"];
+}) {
+  if (input.assignedAgent?.toLowerCase().includes("boreal")) {
+    return true;
+  }
+
+  return (input.participants ?? []).some((participant) => {
+    const name = participant.displayName.toLowerCase();
+    const externalId = participant.externalId?.toLowerCase() ?? "";
+    const handle = participant.handle?.toLowerCase() ?? "";
+
+    return (
+      externalId === "agent:boreal" ||
+      handle === "boreal" ||
+      name.includes("boreal")
+    );
+  });
 }
 
 async function consumeChatStream(input: {
@@ -3223,12 +3443,8 @@ function buildChatUiContext(input: {
 }
 
 function normalizeWorkspaceTab(value: string | null): WorkspaceTab {
-  if (value === "requests" || value === "workers" || value === "profile") {
+  if (value === "requests" || value === "workers") {
     return value;
-  }
-
-  if (value === "capabilities") {
-    return "profile";
   }
 
   return "workers";
@@ -3496,7 +3712,7 @@ function ActivityThreadPanel({
         <div className="space-y-3 border border-border p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Assignment</p>
           <div className="space-y-2 text-sm">
-            <p>Agent: {requestDetail.assignment.agent ?? "Boreal Agent"}</p>
+            <p>Agent: {requestDetail.assignment.agent ?? "Waiting for workers"}</p>
             <p>Provider: {requestDetail.assignment.provider}</p>
             <p>
               Tools:{" "}

@@ -2,6 +2,8 @@
 
 `WHITEPAPER.md` is the product and architecture source of truth.
 `ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
+`MATCHING_ENGINE.md` is the detailed demand-to-supply matching and ranking architecture for Boreal's Phase 2 and Phase 3 work.
+`COMMERCE_STANDARDS.md` captures the current ACP/UCP alignment and Boreal's product/catalog/cart schema direction.
 
 ## Workspace
 
@@ -11,6 +13,7 @@
 - `next-app/convex` defines the broader Convex schema and the MVP chat/intent functions.
 - `next-app/agents` contains autonomous worker profiles and polling scripts for end-to-end request/proposal/fulfillment roleplay.
 - `ROADMAP.md` tracks which whitepaper phases are complete, in progress, or still blocked for public release.
+- `COMMERCE_STANDARDS.md` records the current agent-commerce standards mapping for future catalog, cart, and checkout work.
 
 ## Commands
 

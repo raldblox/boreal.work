@@ -124,3 +124,132 @@ export const generateUploadUrl = mutation({
     return await ctx.storage.generateUploadUrl();
   },
 });
+
+export const markRequestFulfilled = mutation({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (!intent) {
+      return { fulfilled: false };
+    }
+
+    const owner = args.ownerExternalId
+      ? await ctx.db
+          .query("users")
+          .withIndex("by_externalId", (queryBuilder) =>
+            queryBuilder.eq("externalId", args.ownerExternalId),
+          )
+          .unique()
+      : null;
+
+    if (!intent.ownerUserId || owner?._id !== intent.ownerUserId) {
+      return { fulfilled: false };
+    }
+
+    const now = Date.now();
+    const acceptedProposals = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey).eq("status", "accepted"),
+      )
+      .collect();
+    const acceptedProposal = acceptedProposals[0] ?? null;
+
+    const candidateFulfillments = [
+      ...(await ctx.db
+        .query("fulfillments")
+        .withIndex("by_intentKey_and_status", (queryBuilder) =>
+          queryBuilder.eq("intentKey", intent.intentKey).eq("status", "approved"),
+        )
+        .collect()),
+      ...(await ctx.db
+        .query("fulfillments")
+        .withIndex("by_intentKey_and_status", (queryBuilder) =>
+          queryBuilder.eq("intentKey", intent.intentKey).eq("status", "active"),
+        )
+        .collect()),
+      ...(await ctx.db
+        .query("fulfillments")
+        .withIndex("by_intentKey_and_status", (queryBuilder) =>
+          queryBuilder.eq("intentKey", intent.intentKey).eq("status", "blocked"),
+        )
+        .collect()),
+      ...(await ctx.db
+        .query("fulfillments")
+        .withIndex("by_intentKey_and_status", (queryBuilder) =>
+          queryBuilder.eq("intentKey", intent.intentKey).eq("status", "fulfilled"),
+        )
+        .collect()),
+    ];
+
+    const activeFulfillment =
+      candidateFulfillments.find((fulfillment) =>
+        acceptedProposal ? fulfillment.acceptedProposalId === acceptedProposal._id : true,
+      ) ?? null;
+
+    if (intent.status === "fulfilled" && activeFulfillment) {
+      return { fulfilled: true };
+    }
+
+    const fulfillmentId =
+      activeFulfillment?._id ??
+      (await ctx.db.insert("fulfillments", {
+        acceptedProposalId: acceptedProposal?._id,
+        completedSummary: "Marked fulfilled by owner. Final delivery happened in the request chat.",
+        fulfillerUserId: acceptedProposal?.proposerUserId,
+        intentKey: intent.intentKey,
+        ownerUserId: intent.ownerUserId,
+        status: "fulfilled",
+      }));
+
+    if (activeFulfillment) {
+      await ctx.db.patch(activeFulfillment._id, {
+        acceptedProposalId: acceptedProposal?._id ?? activeFulfillment.acceptedProposalId,
+        completedSummary:
+          activeFulfillment.completedSummary ||
+          "Marked fulfilled by owner. Final delivery happened in the request chat.",
+        status: "fulfilled",
+      });
+    }
+
+    const existingEvidence = await ctx.db
+      .query("evidences")
+      .withIndex("by_fulfillmentId_and_createdAt", (queryBuilder) =>
+        queryBuilder.eq("fulfillmentId", fulfillmentId),
+      )
+      .order("desc")
+      .take(1);
+
+    if (!existingEvidence[0]) {
+      await ctx.db.insert("evidences", {
+        body: "Marked fulfilled by owner. Final delivery happened in the request chat.",
+        createdAt: now,
+        fulfillmentId,
+        mediaType: "text/markdown",
+        url: undefined,
+      });
+    }
+
+    await ctx.db.patch(intent._id, {
+      completedAt: now,
+      status: "fulfilled",
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        markedBy: args.ownerExternalId,
+      }),
+      type: "fulfillment.marked_complete",
+    });
+
+    return { fulfilled: true };
+  },
+});
