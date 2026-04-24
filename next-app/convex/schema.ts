@@ -5,7 +5,12 @@ import {
   actorKindValidator,
   artifactKindValidator,
   artifactStatusValidator,
+  cartStatusValidator,
+  checkoutItemStatusValidator,
+  checkoutProtocolValidator,
+  checkoutStatusValidator,
   deliveryTypeValidator,
+  fulfillmentKindValidator,
   fulfillmentStatusValidator,
   generationSignalsValidator,
   intentStatusValidator,
@@ -178,18 +183,28 @@ export default defineSchema({
   supplies: defineTable({
     acceptanceRate: v.number(),
     actorKind: actorKindValidator,
+    brand: v.optional(v.string()),
     capabilityTags: v.array(v.string()),
     category: v.string(),
+    checkoutProtocol: v.optional(checkoutProtocolValidator),
+    checkoutProvider: v.optional(v.string()),
+    currency: v.string(),
     deliveryType: deliveryTypeValidator,
     description: v.string(),
     embedding: v.array(v.number()),
+    estimatedDeliveryLabel: v.optional(v.string()),
     executorUrl: v.optional(v.string()),
+    fulfillmentKind: fulfillmentKindValidator,
     fulfillmentRate: v.number(),
+    isCartEnabled: v.boolean(),
     keywords: v.array(v.string()),
+    metadataJson: v.optional(v.string()),
     matchCount: v.number(),
     priceAmount: v.optional(v.number()),
     priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    searchText: v.string(),
     status: supplyStatusValidator,
+    subtitle: v.optional(v.string()),
     supplyType: v.union(
       v.literal("product"),
       v.literal("capability"),
@@ -205,10 +220,87 @@ export default defineSchema({
     .index("by_supplierUserId", ["supplierUserId"])
     .index("by_supplierUserId_and_status", ["supplierUserId", "status"])
     .index("by_status_and_trustScore", ["status", "trustScore"])
-    .searchIndex("search_description", {
-      searchField: "description",
-      filterFields: ["category", "status"],
+    .index("by_status_and_supplyType", ["status", "supplyType"])
+    .searchIndex("search_market", {
+      searchField: "searchText",
+      filterFields: ["category", "fulfillmentKind", "isCartEnabled", "status", "supplyType"],
     }),
+
+  carts: defineTable({
+    createdAt: v.number(),
+    ownerUserId: v.optional(v.string()),
+    sourceIntentId: v.optional(v.id("intents")),
+    status: cartStatusValidator,
+    updatedAt: v.number(),
+  })
+    .index("by_ownerUserId_and_status", ["ownerUserId", "status"])
+    .index("by_status_and_updatedAt", ["status", "updatedAt"]),
+
+  cartLineItems: defineTable({
+    addedAt: v.number(),
+    cartId: v.id("carts"),
+    category: v.string(),
+    currency: v.string(),
+    deliveryType: deliveryTypeValidator,
+    fulfillmentKind: fulfillmentKindValidator,
+    priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    quantity: v.number(),
+    sellerDisplayName: v.optional(v.string()),
+    sellerProfileId: v.optional(v.id("profiles")),
+    sellerUserId: v.optional(v.string()),
+    subtitleSnapshot: v.optional(v.string()),
+    supplyId: v.id("supplies"),
+    titleSnapshot: v.string(),
+    unitPriceAmount: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_cartId_and_updatedAt", ["cartId", "updatedAt"])
+    .index("by_cartId_and_supplyId", ["cartId", "supplyId"])
+    .index("by_supplyId", ["supplyId"]),
+
+  checkouts: defineTable({
+    cartId: v.id("carts"),
+    createdAt: v.number(),
+    currency: v.string(),
+    itemCount: v.number(),
+    ownerUserId: v.optional(v.string()),
+    sourceIntentId: v.optional(v.id("intents")),
+    status: checkoutStatusValidator,
+    subtotalAmount: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_ownerUserId_and_createdAt", ["ownerUserId", "createdAt"])
+    .index("by_ownerUserId_and_status", ["ownerUserId", "status"])
+    .index("by_sourceIntentId", ["sourceIntentId"]),
+
+  checkoutItems: defineTable({
+    accessLabel: v.optional(v.string()),
+    accessUrl: v.optional(v.string()),
+    category: v.string(),
+    checkoutId: v.id("checkouts"),
+    createdAt: v.number(),
+    currency: v.string(),
+    deliveryType: deliveryTypeValidator,
+    fulfillmentKind: fulfillmentKindValidator,
+    metadataJson: v.optional(v.string()),
+    priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    quantity: v.number(),
+    reviewComment: v.optional(v.string()),
+    reviewRating: v.optional(v.number()),
+    reviewedAt: v.optional(v.number()),
+    sellerDisplayName: v.optional(v.string()),
+    sellerProfileId: v.optional(v.id("profiles")),
+    sellerUserId: v.optional(v.string()),
+    status: checkoutItemStatusValidator,
+    subtitleSnapshot: v.optional(v.string()),
+    supplyId: v.id("supplies"),
+    titleSnapshot: v.string(),
+    unitPriceAmount: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_checkoutId_and_createdAt", ["checkoutId", "createdAt"])
+    .index("by_supplyId_and_createdAt", ["supplyId", "createdAt"])
+    .index("by_supplyId_and_reviewedAt", ["supplyId", "reviewedAt"]),
 
   artifacts: defineTable({
     artifactKind: artifactKindValidator,

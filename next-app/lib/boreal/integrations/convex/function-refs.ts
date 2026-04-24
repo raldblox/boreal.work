@@ -59,15 +59,90 @@ export type SidebarIntentPreview = {
 
 export type CatalogEntry = {
   _id: string;
+  actorKind: "agent" | "human" | "tool";
+  averageRating: number | null;
+  brand: string | null;
   capabilityTags: string[];
   category: string;
+  checkoutProtocol: "acp" | "custom" | "ucp" | null;
+  currency: string;
   deliveryType: string;
   description: string;
+  estimatedDeliveryLabel: string | null;
+  executorUrl: string | null;
+  fulfillmentKind: string;
+  isCartEnabled: boolean;
+  matchReasons: string[];
+  matchScore: number | null;
   priceAmount: number | null;
   priceType: string;
+  reviewCount: number;
+  seller: {
+    actorKind: "agent" | "human" | "tool";
+    displayName: string;
+    handle: string | null;
+    profileId: string | null;
+  } | null;
+  subtitle: string | null;
   supplyType: string;
   title: string;
   trustScore: number;
+};
+
+export type ActiveCart = {
+  _id: string;
+  createdAt: number;
+  currency: string;
+  itemCount: number;
+  items: Array<{
+    _id: string;
+    category: string;
+    currency: string;
+    deliveryType: string;
+    fulfillmentKind: string;
+    lineTotalAmount: number;
+    priceType: string;
+    quantity: number;
+    sellerDisplayName: string | null;
+    sellerProfileId: string | null;
+    subtitle: string | null;
+    supplyId: string;
+    title: string;
+    unitPriceAmount: number | null;
+    updatedAt: number;
+  }>;
+  sourceIntentId: string | null;
+  status: string;
+  subtotalAmount: number;
+  updatedAt: number;
+} | null;
+
+export type CheckoutRecord = {
+  _id: string;
+  createdAt: number;
+  currency: string;
+  itemCount: number;
+  items: Array<{
+    _id: string;
+    accessLabel: string | null;
+    accessUrl: string | null;
+    category: string;
+    deliveryType: string;
+    fulfillmentKind: string;
+    priceType: string;
+    quantity: number;
+    reviewRating: number | null;
+    sellerDisplayName: string | null;
+    sellerProfileId: string | null;
+    status: string;
+    subtitle: string | null;
+    supplyId: string;
+    title: string;
+    unitPriceAmount: number | null;
+  }>;
+  status: string;
+  subtotalAmount: number;
+  updatedAt: number;
 };
 
 export type PublicProfilePreview = {
@@ -266,6 +341,7 @@ export type RequestDetail = {
     provider: string;
     tools: string[];
   } | null;
+  catalogItems: CatalogEntry[];
   conversationId: string | null;
   fulfillment: {
     acceptedProposalId: string | null;
@@ -290,6 +366,7 @@ export type RequestDetail = {
     _id: string;
     approvedAt: number | null;
     body: string;
+    catalogQuery: string;
     cancelledAt: number | null;
     category: string;
     closedReason: string | null;
@@ -303,6 +380,7 @@ export type RequestDetail = {
     resolutionTier: string;
     reviewPending: boolean;
     routeTarget: PersistedIntent["routeTarget"];
+    shouldSearchCatalog: boolean;
     startedAt: number | null;
     status: string;
     suggestedReplies: string[];
@@ -440,6 +518,16 @@ export const convexFunctionRefs = {
     { limit: number },
     CatalogEntry[]
   >("supplies:listCatalog"),
+  getActiveCart: makeFunctionReference<
+    "query",
+    { ownerExternalId?: string },
+    ActiveCart
+  >("commerce:getActiveCart"),
+  listCheckoutHistory: makeFunctionReference<
+    "query",
+    { limit: number; ownerExternalId?: string },
+    CheckoutRecord[]
+  >("commerce:listCheckoutHistory"),
   listRecentIntents: makeFunctionReference<
     "query",
     { limit: number },
@@ -516,6 +604,36 @@ export const convexFunctionRefs = {
     { limit: number; query: string },
     CatalogEntry[]
   >("supplies:searchCatalog"),
+  addToCart: makeFunctionReference<
+    "mutation",
+    {
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      sourceIntentId?: string;
+      supplyId: string;
+    },
+    { added: boolean; cartId: string | null; itemCount: number }
+  >("commerce:addToCart"),
+  updateCartLineQuantity: makeFunctionReference<
+    "mutation",
+    { cartLineItemId: string; ownerExternalId?: string; quantity: number },
+    { updated: boolean }
+  >("commerce:updateCartLineQuantity"),
+  removeFromCart: makeFunctionReference<
+    "mutation",
+    { cartLineItemId: string; ownerExternalId?: string },
+    { removed: boolean }
+  >("commerce:removeFromCart"),
+  clearActiveCart: makeFunctionReference<
+    "mutation",
+    { ownerExternalId?: string },
+    { cleared: boolean }
+  >("commerce:clearActiveCart"),
+  checkoutCart: makeFunctionReference<
+    "mutation",
+    { ownerDisplayName?: string; ownerExternalId?: string; sourceIntentId?: string },
+    { checkoutId: string | null; placed: boolean }
+  >("commerce:checkoutCart"),
   submitWork: makeFunctionReference<
     "mutation",
     {

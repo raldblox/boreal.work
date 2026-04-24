@@ -19,10 +19,13 @@ import {
   FileIcon,
   LoaderIcon,
   MicIcon,
+  MinusIcon,
   PackageIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
+  PlusIcon,
   RefreshCwIcon,
+  ShoppingCartIcon,
   SparklesIcon,
   StarIcon,
   Trash2Icon,
@@ -79,6 +82,9 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
+  ActiveCart,
+  CatalogEntry,
+  CheckoutRecord,
   RequestDetail,
   SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs";
@@ -212,6 +218,9 @@ export function ChatShell() {
   const [deliveryDraft, setDeliveryDraft] = useState<DeliveryDraft>(emptyDeliveryDraft);
   const [isSubmittingDelivery, setIsSubmittingDelivery] = useState(false);
   const [isArchivingRequest, setIsArchivingRequest] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckingOutCart, setIsCheckingOutCart] = useState(false);
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
 
   const { data: session } = useSession();
   const ownerExternalId = session?.user?.id;
@@ -236,8 +245,18 @@ export function ChatShell() {
     requestDetailQuery,
     activeIntentId ? { intentId: activeIntentId, ownerExternalId } : "skip",
   );
+  const activeCartResult = useQuery(
+    convexFunctionRefs.getActiveCart,
+    ownerExternalId ? { ownerExternalId } : "skip",
+  );
+  const checkoutHistoryResult = useQuery(
+    convexFunctionRefs.listCheckoutHistory,
+    ownerExternalId ? { limit: 12, ownerExternalId } : "skip",
+  );
   const isRequestLoading = Boolean(activeIntentId) && requestDetailResult === undefined;
   const requestDetail = (requestDetailResult ?? null) as RequestDetail | null;
+  const activeCart = (activeCartResult ?? null) as ActiveCart;
+  const checkoutHistory = (checkoutHistoryResult ?? []) as CheckoutRecord[];
   const isArchivedTranscript = Boolean(
     requestDetail?.intent?.status === "closed" &&
       requestDetail.intent.closedReason === "archived_by_user",
@@ -260,6 +279,11 @@ export function ChatShell() {
   const deleteIntent = useMutation(deleteIntentMutation);
   const generateUploadUrl = useMutation(generateUploadUrlMutation);
   const borealAgentStats = useQuery(convexFunctionRefs.getBorealAgentStats, {});
+  const addToCart = useMutation(convexFunctionRefs.addToCart);
+  const updateCartLineQuantity = useMutation(convexFunctionRefs.updateCartLineQuantity);
+  const removeFromCart = useMutation(convexFunctionRefs.removeFromCart);
+  const clearActiveCart = useMutation(convexFunctionRefs.clearActiveCart);
+  const checkoutCart = useMutation(convexFunctionRefs.checkoutCart);
 
   const requestWorkspace = requestDetail?.intent
     ? buildWorkspaceFromRequestDetail(requestDetail)
@@ -402,6 +426,110 @@ export function ChatShell() {
       );
     } finally {
       setIsRefreshingVideo(false);
+    }
+  }
+
+  async function handleAddToCart(supplyId: string) {
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X first before adding items to cart.");
+      return;
+    }
+
+    setCartNotice(null);
+
+    try {
+      const result = await addToCart({
+        ownerDisplayName: session?.user?.name ?? undefined,
+        ownerExternalId,
+        sourceIntentId: activeIntentId ?? undefined,
+        supplyId,
+      });
+
+      if (!result.added) {
+        throw new Error("Could not add this listing to cart.");
+      }
+
+      setIsCartOpen(true);
+      setCartNotice("Added to cart.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not add to cart.");
+    }
+  }
+
+  async function handleUpdateCartQuantity(cartLineItemId: string, quantity: number) {
+    if (!ownerExternalId) {
+      return;
+    }
+
+    setCartNotice(null);
+
+    try {
+      await updateCartLineQuantity({
+        cartLineItemId,
+        ownerExternalId,
+        quantity,
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not update cart.");
+    }
+  }
+
+  async function handleRemoveFromCart(cartLineItemId: string) {
+    if (!ownerExternalId) {
+      return;
+    }
+
+    setCartNotice(null);
+
+    try {
+      await removeFromCart({
+        cartLineItemId,
+        ownerExternalId,
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not remove cart item.");
+    }
+  }
+
+  async function handleClearCart() {
+    if (!ownerExternalId) {
+      return;
+    }
+
+    setCartNotice(null);
+
+    try {
+      await clearActiveCart({ ownerExternalId });
+      setCartNotice("Cart cleared.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not clear cart.");
+    }
+  }
+
+  async function handleCheckoutCart() {
+    if (!ownerExternalId || isCheckingOutCart) {
+      return;
+    }
+
+    setIsCheckingOutCart(true);
+    setCartNotice(null);
+
+    try {
+      const result = await checkoutCart({
+        ownerDisplayName: session?.user?.name ?? undefined,
+        ownerExternalId,
+        sourceIntentId: activeIntentId ?? activeCart?.sourceIntentId ?? undefined,
+      });
+
+      if (!result.placed) {
+        throw new Error("Could not place checkout.");
+      }
+
+      setCartNotice("Checkout placed. Instant digital items are now available below.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not place checkout.");
+    } finally {
+      setIsCheckingOutCart(false);
     }
   }
 
@@ -1325,6 +1453,7 @@ export function ChatShell() {
                         isDraftingProposal={isDraftingProposal}
                         isSubmittingDelivery={isSubmittingDelivery}
                         isSubmittingProposal={isSubmittingProposal}
+                        onAddToCart={handleAddToCart}
                         proposalDraft={proposalDraft}
                         proposalMessage={proposalMessage}
                         onApproveProposal={handleApproveProposal}
@@ -1356,6 +1485,7 @@ export function ChatShell() {
                     <ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
                       {activeIntentId && requestDetail ? (
                         <RequestChatTimeline
+                          onAddToCart={handleAddToCart}
                           isRefreshingVideo={isRefreshingVideo}
                           onAskCatalogItem={(item) => {
                             void submitMessage(
@@ -1400,7 +1530,7 @@ export function ChatShell() {
                         displayedMessages.map((message) => (
                           <Message from={message.role} key={message.id}>
                             <MessageContent>
-                              <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:border [&_a]:border-border [&_a]:px-2 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
+                              <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
                                 {message.content}
                               </MessageResponse>
                             </MessageContent>
@@ -1475,6 +1605,16 @@ export function ChatShell() {
                       </Button>
                     ) : null}
                     <Button
+                      onClick={() => setIsCartOpen(true)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <ShoppingCartIcon />
+                      Cart
+                      {activeCart?.itemCount ? ` (${activeCart.itemCount})` : ""}
+                    </Button>
+                    <Button
                       onClick={login}
                       size="sm"
                       type="button"
@@ -1506,6 +1646,7 @@ export function ChatShell() {
           <div className="min-h-0 lg:col-span-2 xl:col-span-1">
             <WorkspacePanel
               activeTab={workspaceTab}
+              onAddToCart={handleAddToCart}
               onSelectRequest={handleMarketplaceSelect}
               onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
               ownerExternalId={ownerExternalId}
@@ -1524,6 +1665,18 @@ export function ChatShell() {
           </div>
         </DialogContent>
       </Dialog>
+      <CartDialog
+        activeCart={activeCart}
+        checkoutHistory={checkoutHistory}
+        isCheckingOutCart={isCheckingOutCart}
+        isOpen={isCartOpen}
+        notice={cartNotice}
+        onCheckout={handleCheckoutCart}
+        onClearCart={handleClearCart}
+        onOpenChange={setIsCartOpen}
+        onRemoveItem={handleRemoveFromCart}
+        onUpdateQuantity={handleUpdateCartQuantity}
+      />
     </>
   );
 }
@@ -1896,6 +2049,7 @@ function RequestChatTimeline({
   isRefreshingRequest,
   isRefreshingVideo,
   isSubmittingReview,
+  onAddToCart,
   onArchiveRequest,
   onApproveProposal,
   onApproveRequest,
@@ -1923,6 +2077,7 @@ function RequestChatTimeline({
   isRefreshingRequest: boolean;
   isRefreshingVideo: boolean;
   isSubmittingReview: boolean;
+  onAddToCart: (supplyId: string) => Promise<void>;
   onArchiveRequest: () => Promise<void>;
   onApproveProposal: (proposalId: string) => Promise<void>;
   onApproveRequest: (intentId?: string | null) => Promise<void>;
@@ -1962,7 +2117,7 @@ function RequestChatTimeline({
                 </p>
               ) : null}
               <MessageContent>
-                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:border [&_a]:border-border [&_a]:px-2 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
+                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
                   {entry.item.body}
                 </MessageResponse>
               </MessageContent>
@@ -1978,7 +2133,7 @@ function RequestChatTimeline({
                 <span>Boreal Agent</span>
               </p>
               <MessageContent>
-                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:border [&_a]:border-border [&_a]:px-2 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
+                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
                   {entry.item.content}
                 </MessageResponse>
               </MessageContent>
@@ -1991,6 +2146,7 @@ function RequestChatTimeline({
             <InlineArtifactEvent
               artifact={entry.item}
               isRefreshingVideo={isRefreshingVideo}
+              onAddToCart={onAddToCart}
               onDownloadVideo={onDownloadVideo}
               onRefreshVideo={onRefreshVideo}
               workspace={workspace}
@@ -2044,9 +2200,10 @@ function RequestChatTimeline({
         />
       ) : null}
 
-      {timeline.length === 0 && hasRenderableInlineWorkspace(workspace) ? (
+      {workspace.kind === "catalog" || (timeline.length === 0 && hasRenderableInlineWorkspace(workspace)) ? (
         <InlineWorkspaceCard
           isRefreshingVideo={isRefreshingVideo}
+          onAddToCart={onAddToCart}
           onAskCatalogItem={onAskCatalogItem}
           onDownloadVideo={onDownloadVideo}
           onQuickReply={onQuickReply}
@@ -2124,12 +2281,14 @@ function buildRequestTimeline(
 function InlineArtifactEvent({
   artifact,
   isRefreshingVideo,
+  onAddToCart,
   onDownloadVideo,
   onRefreshVideo,
   workspace,
 }: {
   artifact: NonNullable<RequestDetail["artifact"]>;
   isRefreshingVideo: boolean;
+  onAddToCart: (supplyId: string) => Promise<void>;
   onDownloadVideo: (videoId: string) => void;
   onRefreshVideo: () => void;
   workspace: WorkspaceState;
@@ -2145,6 +2304,7 @@ function InlineArtifactEvent({
       </p>
       <InlineWorkspaceCard
         isRefreshingVideo={isRefreshingVideo}
+        onAddToCart={onAddToCart}
         onAskCatalogItem={() => undefined}
         onDownloadVideo={onDownloadVideo}
         onQuickReply={() => undefined}
@@ -2554,6 +2714,7 @@ function ProposalViewerPanel({
   isDraftingProposal,
   isSubmittingDelivery,
   isSubmittingProposal,
+  onAddToCart,
   onApproveProposal,
   onDeliveryFilesSelected,
   onDraftProposal,
@@ -2575,6 +2736,7 @@ function ProposalViewerPanel({
   isDraftingProposal: boolean;
   isSubmittingDelivery: boolean;
   isSubmittingProposal: boolean;
+  onAddToCart: (supplyId: string) => Promise<void>;
   onApproveProposal: (proposalId: string) => Promise<void>;
   onDeliveryFilesSelected: (files: File[]) => Promise<void>;
   onDraftProposal: () => Promise<void>;
@@ -2595,9 +2757,40 @@ function ProposalViewerPanel({
   const [isDeliveryDialogOpen, setIsDeliveryDialogOpen] = useState(false);
   const proposalDialogOpen = isProposalDialogOpen && !hasSubmittedProposal;
   const deliveryDialogOpen = isDeliveryDialogOpen && !deliverySubmitted;
+  const requestCatalogWorkspace =
+    requestDetail && requestDetail.catalogItems.length > 0
+      ? ({
+          highlightedId: requestDetail.catalogItems[0]?._id,
+          items: requestDetail.catalogItems.map(mapCatalogEntryToItem),
+          kind: "catalog" as const,
+          subtitle:
+            "Matched supply stays attached to this request so you can compare listings, add items to cart, and check out without losing context.",
+          title: "Matched supply",
+        })
+      : null;
 
   return (
     <div className="space-y-4">
+      {requestCatalogWorkspace ? (
+        <div className="space-y-4 border border-border p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Matched supply</p>
+            <p className="text-xs text-muted-foreground">
+              These listings were matched against this request and are ready for cart or checkout.
+            </p>
+          </div>
+          <InlineWorkspaceCard
+            isRefreshingVideo={false}
+            onAddToCart={onAddToCart}
+            onAskCatalogItem={() => undefined}
+            onDownloadVideo={() => undefined}
+            onQuickReply={() => undefined}
+            onRefreshVideo={() => undefined}
+            workspace={requestCatalogWorkspace}
+          />
+        </div>
+      ) : null}
+
       {isOwner ? (
         <div className="space-y-3 border border-border p-4">
           <p className="text-sm font-medium">Proposal approvals</p>
@@ -3127,6 +3320,282 @@ function DeliveryDraftFields({
   );
 }
 
+function CartDialog({
+  activeCart,
+  checkoutHistory,
+  isCheckingOutCart,
+  isOpen,
+  notice,
+  onCheckout,
+  onClearCart,
+  onOpenChange,
+  onRemoveItem,
+  onUpdateQuantity,
+}: {
+  activeCart: ActiveCart;
+  checkoutHistory: CheckoutRecord[];
+  isCheckingOutCart: boolean;
+  isOpen: boolean;
+  notice: string | null;
+  onCheckout: () => Promise<void>;
+  onClearCart: () => Promise<void>;
+  onOpenChange: (open: boolean) => void;
+  onRemoveItem: (cartLineItemId: string) => Promise<void>;
+  onUpdateQuantity: (cartLineItemId: string, quantity: number) => Promise<void>;
+}) {
+  const cartItems = activeCart?.items ?? [];
+  const hasCartItems = cartItems.length > 0;
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={isOpen}>
+      <DialogContent className="max-w-5xl p-0 sm:max-w-5xl">
+        <div className="flex max-h-[88svh] min-h-[72svh] flex-col overflow-hidden">
+          <DialogHeader className="border-b border-border px-6 py-4">
+            <DialogTitle>Cart and checkout</DialogTitle>
+            <DialogDescription>
+              Compare selected supply, adjust quantities, then check out. Instant digital goods unlock immediately. Async services stay tracked as submitted orders.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="space-y-6">
+              <section className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Active cart</p>
+                    <p className="text-xs text-muted-foreground">
+                      This cart stays tied to your signed-in X account and can also be linked to the current request.
+                    </p>
+                  </div>
+                  {hasCartItems ? (
+                    <span className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      {activeCart?.itemCount ?? 0} item{(activeCart?.itemCount ?? 0) === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
+                </div>
+
+                {notice ? (
+                  <div className="border border-teal-500/30 bg-teal-500/5 px-3 py-2 text-xs text-teal-700 dark:text-teal-300">
+                    {notice}
+                  </div>
+                ) : null}
+
+                {!hasCartItems ? (
+                  <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">
+                    Your cart is empty. Add a product or service from matched supply or the public market.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {cartItems.map((item) => (
+                      <CartLineItemCard
+                        item={item}
+                        key={item._id}
+                        onRemoveItem={onRemoveItem}
+                        onUpdateQuantity={onUpdateQuantity}
+                      />
+                    ))}
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border border-border px-4 py-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Subtotal</p>
+                        <p className="text-xs text-muted-foreground">
+                          Shipping and payment are not modeled yet in this dev checkout flow.
+                        </p>
+                      </div>
+                      <p className="text-sm font-medium">
+                        {formatMoney(activeCart?.subtotalAmount ?? 0, activeCart?.currency ?? "USD")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Recent checkouts</p>
+                  <p className="text-xs text-muted-foreground">
+                    Completed digital downloads and submitted service orders stay visible here.
+                  </p>
+                </div>
+
+                {checkoutHistory.length === 0 ? (
+                  <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">
+                    No checkout history yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {checkoutHistory.map((checkout) => (
+                      <div className="space-y-4 border border-border p-4" key={checkout._id}>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">
+                              Checkout {formatRequestDate(checkout.createdAt)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {checkout.itemCount} item{checkout.itemCount === 1 ? "" : "s"} · {formatMoney(checkout.subtotalAmount, checkout.currency)}
+                            </p>
+                          </div>
+                          <CheckoutStatusPill status={checkout.status} />
+                        </div>
+
+                        <div className="space-y-3">
+                          {checkout.items.map((item) => (
+                            <div
+                              className="flex flex-wrap items-center justify-between gap-3 border border-border px-3 py-3"
+                              key={item._id}
+                            >
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-medium">{item.title}</p>
+                                  <span className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                                    {item.status.replaceAll("_", " ")}
+                                  </span>
+                                </div>
+                                {item.subtitle ? (
+                                  <p className="text-xs text-muted-foreground">{item.subtitle}</p>
+                                ) : null}
+                                <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                                  <span>{item.fulfillmentKind}</span>
+                                  <span>{item.deliveryType}</span>
+                                  <span>Qty {item.quantity}</span>
+                                  <span>
+                                    {formatMoney((item.unitPriceAmount ?? 0) * item.quantity, checkout.currency)}
+                                  </span>
+                                  {item.sellerDisplayName ? <span>By {item.sellerDisplayName}</span> : null}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                {item.accessUrl ? (
+                                  <Button asChild size="sm" type="button" variant="outline">
+                                    <a href={item.accessUrl} rel="noreferrer" target="_blank">
+                                      <DownloadIcon />
+                                      {item.accessLabel ?? "Open"}
+                                    </a>
+                                  </Button>
+                                ) : null}
+                                {item.sellerProfileId ? (
+                                  <Button asChild size="sm" type="button" variant="ghost">
+                                    <Link href={`/p/${item.sellerProfileId}`}>View seller</Link>
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+
+          <DialogFooter className="border-t border-border px-6 py-4 sm:justify-between">
+            <Button
+              disabled={!hasCartItems || isCheckingOutCart}
+              onClick={() => void onClearCart()}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Clear cart
+            </Button>
+            <Button
+              disabled={!hasCartItems || isCheckingOutCart}
+              onClick={() => void onCheckout()}
+              size="sm"
+              type="button"
+            >
+              {isCheckingOutCart ? <LoaderIcon className="animate-spin" /> : <ShoppingCartIcon />}
+              {isCheckingOutCart ? "Placing checkout..." : "Checkout now"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CartLineItemCard({
+  item,
+  onRemoveItem,
+  onUpdateQuantity,
+}: {
+  item: NonNullable<ActiveCart>["items"][number];
+  onRemoveItem: (cartLineItemId: string) => Promise<void>;
+  onUpdateQuantity: (cartLineItemId: string, quantity: number) => Promise<void>;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border border-border p-4">
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-sm font-medium">{item.title}</p>
+        {item.subtitle ? <p className="text-xs text-muted-foreground">{item.subtitle}</p> : null}
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          <span>{item.fulfillmentKind}</span>
+          <span>{item.deliveryType}</span>
+          <span>
+            {item.unitPriceAmount === null
+              ? "Custom"
+              : formatMoney(item.unitPriceAmount, item.currency)}
+          </span>
+          {item.sellerDisplayName ? <span>By {item.sellerDisplayName}</span> : null}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 border border-border px-2 py-1">
+          <Button
+            onClick={() => void onUpdateQuantity(item._id, item.quantity - 1)}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <MinusIcon />
+          </Button>
+          <span className="min-w-6 text-center text-sm font-medium">{item.quantity}</span>
+          <Button
+            onClick={() => void onUpdateQuantity(item._id, item.quantity + 1)}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <PlusIcon />
+          </Button>
+        </div>
+        <div className="min-w-20 text-right text-sm font-medium">
+          {formatMoney(item.lineTotalAmount, item.currency)}
+        </div>
+        <Button
+          onClick={() => void onRemoveItem(item._id)}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          <Trash2Icon />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function CheckoutStatusPill({ status }: { status: string }) {
+  const isFulfilled = status === "fulfilled";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center border px-2 py-1 text-[11px] uppercase tracking-[0.16em]",
+        isFulfilled
+          ? "border-teal-500/30 text-teal-700 dark:text-teal-300"
+          : "border-border text-muted-foreground",
+      )}
+    >
+      {status.replaceAll("_", " ")}
+    </span>
+  );
+}
+
 function ProposalCardBody({
   proposal,
 }: {
@@ -3236,6 +3705,18 @@ function formatFileSize(sizeBytes: number) {
   }
 
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      currency,
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+      style: "currency",
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount}`;
+  }
 }
 
 function getRequestActionState(
@@ -3456,6 +3937,7 @@ function hasRenderableInlineWorkspace(workspaceState: WorkspaceState) {
 
 function InlineWorkspaceCard({
   isRefreshingVideo,
+  onAddToCart,
   onAskCatalogItem,
   onDownloadVideo,
   onQuickReply,
@@ -3463,6 +3945,7 @@ function InlineWorkspaceCard({
   workspace,
 }: {
   isRefreshingVideo: boolean;
+  onAddToCart: (supplyId: string) => Promise<void>;
   onAskCatalogItem: (item: CatalogItem) => void;
   onDownloadVideo: (videoId: string) => void;
   onQuickReply: (value: string) => void;
@@ -3544,27 +4027,12 @@ function InlineWorkspaceCard({
         </div>
         <div className="space-y-3">
           {workspace.items.map((item) => (
-            <div className="border border-border p-3" key={item.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{item.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                    <span>{item.category}</span>
-                    <span>{item.deliveryType}</span>
-                    <span>{item.priceLabel}</span>
-                  </div>
-                </div>
-                <Button
-                  onClick={() => onAskCatalogItem(item)}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  Ask more
-                </Button>
-              </div>
-            </div>
+            <CatalogWorkspaceCard
+              item={item}
+              key={item.id}
+              onAddToCart={onAddToCart}
+              onAskCatalogItem={onAskCatalogItem}
+            />
           ))}
         </div>
       </div>
@@ -3606,6 +4074,83 @@ function InlineWorkspaceCard({
   }
 
   return null;
+}
+
+function CatalogWorkspaceCard({
+  item,
+  onAddToCart,
+  onAskCatalogItem,
+}: {
+  item: CatalogItem;
+  onAddToCart: (supplyId: string) => Promise<void>;
+  onAskCatalogItem: (item: CatalogItem) => void;
+}) {
+  return (
+    <div className="space-y-4 border border-border p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{item.title}</p>
+            {item.matchScore !== null ? (
+              <span className="inline-flex items-center border border-teal-500/30 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+                {item.matchScore}% match
+              </span>
+            ) : null}
+            <span className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              {item.fulfillmentKind}
+            </span>
+          </div>
+          {item.subtitle ? <p className="text-sm">{item.subtitle}</p> : null}
+          <p className="text-sm text-muted-foreground">{item.description}</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span>{item.category}</span>
+            <span>{item.deliveryType}</span>
+            <span>{item.priceLabel}</span>
+            {item.estimatedDeliveryLabel ? <span>{item.estimatedDeliveryLabel}</span> : null}
+            {item.seller?.displayName ? <span>By {item.seller.displayName}</span> : null}
+          </div>
+        </div>
+      </div>
+
+      {item.matchReasons.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {item.matchReasons.map((reason) => (
+            <span
+              className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+              key={`${item.id}-${reason}`}
+            >
+              {reason}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        {item.isCartEnabled ? (
+          <Button onClick={() => void onAddToCart(item.id)} size="sm" type="button">
+            <ShoppingCartIcon />
+            Add to cart
+          </Button>
+        ) : null}
+        {item.executorUrl ? (
+          <Button asChild size="sm" type="button" variant="outline">
+            <a href={item.executorUrl} rel="noreferrer" target="_blank">
+              <DownloadIcon />
+              Preview
+            </a>
+          </Button>
+        ) : null}
+        {item.seller?.profileId ? (
+          <Button asChild size="sm" type="button" variant="outline">
+            <Link href={`/p/${item.seller.profileId}`}>View seller</Link>
+          </Button>
+        ) : null}
+        <Button onClick={() => onAskCatalogItem(item)} size="sm" type="button" variant="ghost">
+          Ask more
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function InlineVideoCard({
@@ -3902,7 +4447,51 @@ function buildWorkspaceFromRequestDetail(detail: RequestDetail | null): Workspac
     };
   }
 
+  if (detail.catalogItems.length > 0) {
+    return {
+      highlightedId: detail.catalogItems[0]?._id,
+      items: detail.catalogItems.map(mapCatalogEntryToItem),
+      kind: "catalog",
+      subtitle:
+        "Matched supply stays attached to this request so products and services remain actionable after refresh.",
+      title: "Matched supply",
+    };
+  }
+
   return emptyWorkspace;
+}
+
+function mapCatalogEntryToItem(entry: CatalogEntry): CatalogItem {
+  return {
+    actorKind: entry.actorKind,
+    averageRating: entry.averageRating,
+    brand: entry.brand,
+    capabilityTags: entry.capabilityTags,
+    category: entry.category,
+    checkoutProtocol: entry.checkoutProtocol,
+    currency: entry.currency,
+    deliveryType: entry.deliveryType,
+    description: entry.description,
+    estimatedDeliveryLabel: entry.estimatedDeliveryLabel,
+    executorUrl: entry.executorUrl,
+    fulfillmentKind: entry.fulfillmentKind,
+    id: entry._id,
+    isCartEnabled: entry.isCartEnabled,
+    matchReasons: entry.matchReasons,
+    matchScore: entry.matchScore,
+    priceAmount: entry.priceAmount,
+    priceLabel:
+      entry.priceAmount === null
+        ? "Custom"
+        : entry.priceAmount === 0
+          ? "Included"
+          : `${entry.currency} ${entry.priceAmount}/${entry.priceType}`,
+    reviewCount: entry.reviewCount,
+    seller: entry.seller,
+    subtitle: entry.subtitle,
+    supplyType: entry.supplyType,
+    title: entry.title,
+  };
 }
 
 function normalizeVideoStatus(

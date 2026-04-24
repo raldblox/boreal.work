@@ -26,17 +26,32 @@ export async function searchCatalog(input: {
 
 function mapCatalogEntry(entry: CatalogEntry): CatalogItem {
   return {
+    actorKind: entry.actorKind,
+    averageRating: entry.averageRating,
+    brand: entry.brand,
     capabilityTags: entry.capabilityTags,
     category: entry.category,
+    checkoutProtocol: entry.checkoutProtocol,
+    currency: entry.currency,
     deliveryType: entry.deliveryType,
     description: entry.description,
+    estimatedDeliveryLabel: entry.estimatedDeliveryLabel,
+    executorUrl: entry.executorUrl,
+    fulfillmentKind: entry.fulfillmentKind,
     id: entry._id,
+    isCartEnabled: entry.isCartEnabled,
+    matchReasons: entry.matchReasons,
+    matchScore: entry.matchScore,
+    priceAmount: entry.priceAmount,
     priceLabel:
       entry.priceAmount === null
         ? "Custom"
         : entry.priceAmount === 0
           ? "Included"
-          : `$${entry.priceAmount}/${entry.priceType}`,
+          : `${entry.currency} ${entry.priceAmount}/${entry.priceType}`,
+    reviewCount: entry.reviewCount,
+    seller: entry.seller,
+    subtitle: entry.subtitle,
     supplyType: entry.supplyType,
     title: entry.title,
   };

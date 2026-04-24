@@ -1,6 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+import { searchCatalogListings } from "./supplies";
+
 export const listSidebar = query({
   args: {
     limit: v.number(),
@@ -99,6 +101,7 @@ export const getRequestDetail = query({
         activity: [],
         artifact: null,
         assignment: null,
+        catalogItems: [],
         conversationId: null,
         intent: null,
         messages: [],
@@ -180,6 +183,14 @@ export const getRequestDetail = query({
     const artifact = artifacts[0];
     const participants = await getRequestParticipants(ctx, intent, acceptedProposal);
     const fulfillment = await getRequestFulfillment(ctx, intent, acceptedProposal);
+    const catalogItems =
+      intent.shouldSearchCatalog || intent.routeTarget === "catalog_lookup"
+        ? await searchCatalogListings(
+            ctx,
+            intent.catalogQuery?.trim() || intent.summary || intent.body,
+            8,
+          )
+        : [];
 
     return {
       access: {
@@ -218,6 +229,7 @@ export const getRequestDetail = query({
         provider: intent.provider,
         tools: intent.assignedToolNames ?? [],
       },
+      catalogItems,
       conversationId: intent.conversationId ?? null,
       fulfillment,
       intent: {
@@ -225,6 +237,7 @@ export const getRequestDetail = query({
         _id: intent._id,
         approvedAt: intent.approvedAt ?? null,
         body: intent.body,
+        catalogQuery: intent.catalogQuery ?? "",
         cancelledAt: intent.cancelledAt ?? null,
         category: intent.category,
         closedReason: intent.closedReason ?? null,
@@ -239,6 +252,7 @@ export const getRequestDetail = query({
         reviewPending:
           intent.status === "fulfilled" && typeof intent.reviewRating !== "number",
         routeTarget: intent.routeTarget ?? "general_assistance",
+        shouldSearchCatalog: intent.shouldSearchCatalog ?? false,
         startedAt: intent.startedAt ?? null,
         status: intent.status,
         suggestedReplies: intent.suggestedReplies ?? [],

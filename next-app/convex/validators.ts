@@ -80,6 +80,37 @@ export const deliveryTypeValidator = v.union(
   v.literal("scheduled"),
 );
 
+export const fulfillmentKindValidator = v.union(
+  v.literal("digital"),
+  v.literal("service"),
+  v.literal("physical"),
+  v.literal("hybrid"),
+);
+
+export const checkoutProtocolValidator = v.union(
+  v.literal("ucp"),
+  v.literal("acp"),
+  v.literal("custom"),
+);
+
+export const cartStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("checked_out"),
+  v.literal("abandoned"),
+);
+
+export const checkoutStatusValidator = v.union(
+  v.literal("submitted"),
+  v.literal("fulfilled"),
+  v.literal("cancelled"),
+);
+
+export const checkoutItemStatusValidator = v.union(
+  v.literal("submitted"),
+  v.literal("fulfilled"),
+  v.literal("cancelled"),
+);
+
 export const messageRoleValidator = v.union(
   v.literal("user"),
   v.literal("assistant"),

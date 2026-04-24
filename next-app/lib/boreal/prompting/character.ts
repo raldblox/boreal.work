@@ -61,12 +61,6 @@ export function buildIntentRoutingHint(uiContext?: ChatUiContext) {
     );
   }
 
-  if (uiContext.browseTab === "profile") {
-    lines.push(
-      "The user is editing supply-side profile data. Prefer capability-listing guidance over demand intake.",
-    );
-  }
-
   if (
     uiContext.surface === "request" &&
     (uiContext.centerTab === "workers" || uiContext.centerTab === "participants")
@@ -137,10 +131,6 @@ function pickCharacterContextKey(uiContext?: ChatUiContext) {
     (uiContext.requestStatus === "open" || uiContext.requestStatus === "proposed")
   ) {
     return "CTX-02";
-  }
-
-  if (uiContext.browseTab === "profile") {
-    return "CTX-03";
   }
 
   return "CTX-01";

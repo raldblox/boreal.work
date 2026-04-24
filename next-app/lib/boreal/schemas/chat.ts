@@ -1,7 +1,7 @@
 import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
 
 export type ChatUiContext = {
-  browseTab?: "profile" | "requests" | "workers" | null;
+  browseTab?: "requests" | "workers" | null;
   canApproveProposals?: boolean;
   canSubmitProposal?: boolean;
   centerTab?: "activity" | "chat" | "participants" | "proposals" | "workspace" | "workers" | null;
@@ -12,14 +12,34 @@ export type ChatUiContext = {
 };
 
 export type CatalogItem = {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
+  actorKind: "agent" | "human" | "tool";
+  averageRating: number | null;
+  brand: string | null;
   capabilityTags: string[];
+  category: string;
+  checkoutProtocol: "acp" | "custom" | "ucp" | null;
+  currency: string;
   deliveryType: string;
+  description: string;
+  estimatedDeliveryLabel: string | null;
+  executorUrl: string | null;
+  fulfillmentKind: string;
+  id: string;
+  isCartEnabled: boolean;
+  matchReasons: string[];
+  matchScore: number | null;
+  priceAmount: number | null;
   priceLabel: string;
+  reviewCount: number;
+  seller: {
+    actorKind: "agent" | "human" | "tool";
+    displayName: string;
+    handle: string | null;
+    profileId: string | null;
+  } | null;
+  subtitle: string | null;
   supplyType: string;
+  title: string;
 };
 
 export type MediaArtifact =

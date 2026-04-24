@@ -9,14 +9,17 @@ import {
 import { useQuery } from "convex/react";
 import {
   BotIcon,
+  DownloadIcon,
   LoaderIcon,
   PackageIcon,
   SearchIcon,
+  ShoppingCartIcon,
   UserIcon,
 } from "lucide-react";
 
 import { BorealProfileView } from "@/components/profiles/boreal-profile-view";
 import { ProfileView } from "@/components/profiles/profile-view";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -27,8 +30,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  type CatalogEntry,
   convexFunctionRefs,
-  type PublicProfilePreview,
   type SidebarIntentPreview,
   type WorkerProfileDetail,
 } from "@/lib/boreal/integrations/convex/function-refs";
@@ -37,6 +40,7 @@ export type WorkspaceTab = "requests" | "workers";
 
 type WorkspacePanelProps = {
   activeTab: WorkspaceTab;
+  onAddToCart: (supplyId: string) => Promise<void>;
   onSelectRequest: (request: SidebarIntentPreview) => void;
   onTabChange: (value: WorkspaceTab) => void;
   ownerExternalId?: string;
@@ -85,6 +89,7 @@ const staticBorealProfile: NonNullable<WorkerProfileDetail> = {
 
 export function WorkspacePanel({
   activeTab,
+  onAddToCart,
   onSelectRequest,
   onTabChange,
   ownerExternalId,
@@ -99,12 +104,25 @@ export function WorkspacePanel({
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false);
 
-  const publicProfiles =
-    (useQuery(convexFunctionRefs.listPublicProfiles, {
-      limit: 36,
-      ownerExternalId,
-      query: activeTab === "workers" && deferredSearch ? deferredSearch : undefined,
-    }) ?? []) as PublicProfilePreview[];
+  const searchedSupplyListings = useQuery(
+    convexFunctionRefs.searchCatalog,
+    activeTab === "workers" && deferredSearch
+      ? {
+          limit: 36,
+          query: deferredSearch,
+        }
+      : "skip",
+  );
+  const defaultSupplyListings = useQuery(
+    convexFunctionRefs.listCatalog,
+    activeTab === "workers" && !deferredSearch
+      ? {
+          limit: 36,
+        }
+      : "skip",
+  );
+  const supplyListings =
+    ((deferredSearch ? searchedSupplyListings : defaultSupplyListings) ?? []) as CatalogEntry[];
   const publicRequests =
     (useQuery(convexFunctionRefs.listMarketplaceIntents, {
       limit: 48,
@@ -171,7 +189,7 @@ export function WorkspacePanel({
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={
                   activeTab === "workers"
-                    ? "Search products, capabilities, workers, or agents"
+                    ? "Search products, services, capabilities, or tools"
                     : "Search requests, asks, or unresolved work"
                 }
                 value={search}
@@ -182,40 +200,21 @@ export function WorkspacePanel({
           <TabsContent className="min-h-0" value="workers">
             <ScrollArea className="h-full">
               <div className="space-y-0.5 p-1">
-                <WorkerCard
-                  onOpen={() => {
-                    setSelectedProfileId("boreal-agent");
-                    setIsBorealProfileOpen(true);
-                  }}
-                  profile={{
-                    _id: "boreal-agent",
-                    actorKind: "agent",
-                    availabilityStatus: "available",
-                    bio: staticBorealProfile.profile.bio,
-                    capabilityTags: staticBorealProfile.profile.capabilityTags,
-                    displayName: "Boreal Agent",
-                    handle: "boreal",
-                    headline: "Default orchestration worker",
-                    isMine: false,
-                    productLabels: staticBorealProfile.profile.productLabels,
-                    skillTags: staticBorealProfile.profile.skillTags,
-                    supplyCount: 0,
-                  }}
-                />
-                {publicProfiles.length === 0 ? (
+                {supplyListings.length === 0 ? (
                   <EmptyBlock
-                    subtitle="Worker profiles will appear here once people publish their public capabilities."
-                    title="No public workers yet"
+                    subtitle="Listings will appear here once public supply is published."
+                    title="No public supply yet"
                   />
                 ) : (
-                  publicProfiles.map((profile) => (
-                    <WorkerCard
-                      key={profile._id}
-                      onOpen={() => {
-                        setSelectedProfileId(profile._id);
-                        setIsBorealProfileOpen(false);
+                  supplyListings.map((listing) => (
+                    <SupplyCard
+                      key={listing._id}
+                      listing={listing}
+                      onAddToCart={onAddToCart}
+                      onOpenSellerProfile={(profileId) => {
+                        setSelectedProfileId(profileId);
+                        setIsBorealProfileOpen(profileId === "boreal-agent");
                       }}
-                      profile={profile}
                     />
                   ))
                 )}
@@ -279,48 +278,97 @@ export function WorkspacePanel({
   );
 }
 
-function WorkerCard({
-  onOpen,
-  profile,
+function SupplyCard({
+  listing,
+  onAddToCart,
+  onOpenSellerProfile,
 }: {
-  onOpen: () => void;
-  profile: PublicProfilePreview;
+  listing: CatalogEntry;
+  onAddToCart: (supplyId: string) => Promise<void>;
+  onOpenSellerProfile: (profileId: string) => void;
 }) {
-  const Icon = profile.actorKind === "agent" ? BotIcon : UserIcon;
+  const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon;
 
   return (
-    <button
-      className="w-full border border-transparent p-3 text-left transition-colors hover:border-border hover:bg-foreground/5"
-      onClick={onOpen}
-      type="button"
-    >
+    <div className="space-y-3 border border-transparent p-3 transition-colors hover:border-border hover:bg-foreground/5">
       <div className="flex items-start gap-3">
         <div className="flex size-10 items-center justify-center border border-border">
           <Icon className="size-4 text-muted-foreground" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium">{profile.displayName}</p>
+            <p className="text-sm font-medium">{listing.title}</p>
+            {listing.matchScore !== null ? (
+              <span className="text-[11px] uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+                {listing.matchScore}% match
+              </span>
+            ) : null}
             <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              {profile.availabilityStatus}
+              {listing.fulfillmentKind}
             </span>
-            {profile.isMine ? (
-              <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                me
+          </div>
+          {listing.subtitle ? <p className="mt-1 text-xs">{listing.subtitle}</p> : null}
+          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{listing.description}</p>
+          {listing.seller?.displayName ? (
+            <p className="mt-2 text-xs text-muted-foreground">By {listing.seller.displayName}</p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span>{listing.category}</span>
+            <span>{listing.deliveryType}</span>
+            <span>
+              {listing.priceAmount === null
+                ? "Custom"
+                : `${listing.currency} ${listing.priceAmount}/${listing.priceType}`}
+            </span>
+            {listing.estimatedDeliveryLabel ? <span>{listing.estimatedDeliveryLabel}</span> : null}
+            {typeof listing.averageRating === "number" ? (
+              <span>
+                {listing.averageRating.toFixed(1)} stars
+                {listing.reviewCount > 0 ? ` · ${listing.reviewCount} reviews` : ""}
               </span>
             ) : null}
           </div>
-          {profile.headline ? <p className="mt-1 text-xs">{profile.headline}</p> : null}
-          {profile.bio ? (
-            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{profile.bio}</p>
+          {listing.matchReasons.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {listing.matchReasons.map((reason) => (
+                <span
+                  className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+                  key={reason}
+                >
+                  {reason}
+                </span>
+              ))}
+            </div>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            <span>{profile.capabilityTags.slice(0, 2).join(" / ") || profile.actorKind}</span>
-            <span>{profile.supplyCount} entries</span>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {listing.isCartEnabled ? (
+              <Button onClick={() => void onAddToCart(listing._id)} size="sm" type="button">
+                <ShoppingCartIcon />
+                Add to cart
+              </Button>
+            ) : null}
+            {listing.executorUrl && listing.fulfillmentKind === "digital" ? (
+              <Button asChild size="sm" type="button" variant="outline">
+                <a href={listing.executorUrl} rel="noreferrer" target="_blank">
+                  <DownloadIcon />
+                  Preview
+                </a>
+              </Button>
+            ) : null}
+            {listing.seller?.profileId ? (
+              <Button
+                onClick={() => onOpenSellerProfile(listing.seller!.profileId!)}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                View seller
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
