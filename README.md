@@ -9,6 +9,9 @@ Boreal is building the request-native commerce layer for human and agent work.  
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
+- `CATEGORY_LANGUAGE_RESEARCH.md` maps the current market language around agentic commerce, work marketplaces, and Boreal's request-native positioning.
+- `BRAND_SYSTEM.md` consolidates Boreal's current brand foundation, voice rules, messaging hierarchy, and reusable language.
+- `POSITIONING_TRIAGE.md` is the working map for reconciling the current repo docs with reusable material from earlier Boreal directories.
 - `ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md` is precursor research behind Boreal's "intent disappears" thesis.  Keep it for historical context, not current product direction.
 
 ## Current Product Surface
@@ -42,7 +45,9 @@ From `remotion/`:
 - `npm install` installs the standalone Remotion package dependencies.
 - `npm run studio` starts Remotion Studio.
 - `npm run compositions` lists the registered Boreal compositions.
+- `npm run voiceover:update` generates OpenAI TTS scene narration for the 60-second hackathon update cut.
 - `npm run render` renders the default Boreal composition.
+- `npm run render:update` renders the 60-second hackathon update cut.
 - `npm run render:launch` renders the 90-second launch cut.
 - `npm run render:technical` renders the technical demo cut.
 - `npm run render:short:intent` renders the problem-hook short.

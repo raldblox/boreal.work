@@ -4,10 +4,28 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 
 ## Current Readout
 
-- Boreal is already a real public alpha for request-native commerce: chat intake, request workspaces, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
+- Boreal is already a real public alpha for request-native commerce, delivered through a chat-native interface: chat intake, request workspaces, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
 - Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Privy-backed x402 payment initiation, and Agentic Market discovery sync.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
-- Public release should position Boreal as an alpha market and operating surface for requests, supply, and paid execution, not yet as full protocol-native settlement infrastructure.
+- Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
+
+## Documentation And Positioning Consolidation
+
+Goal: make the written story match the live alpha while recycling the strongest prior Boreal work instead of rewriting from zero.
+
+- [x] Create `POSITIONING_TRIAGE.md` to classify what to keep, rewrite, recycle, and archive from earlier Boreal repos
+- [x] Create `CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
+- [x] Rewrite the top of `WHITEPAPER.md` and its `What Boreal Has Built` / `What Is Live Today` sections so live alpha claims are separated from target architecture
+- [ ] Finish the rest of `WHITEPAPER.md` so `live today`, `in progress`, and `target architecture` stay clearly separated end to end
+- [ ] Align `README.md`, homepage copy, the actual landing-page implementation, `ROADMAP.md`, and public alpha messaging on one canonical naming stack:
+  - `chat-native` for the interface layer
+  - `request-native` for the system and category layer
+  - `intent-to-fulfillment` for the thesis layer
+- [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
+- [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
+- [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`
+- [ ] Archive `../boreal-work` as a previous attention-gate branch, pulling forward only reusable qualification and scoring ideas
+- [ ] Publish a separate litepaper or one-pager if Boreal still needs a more visionary investor and partner narrative than the public alpha story
 
 ## Phase 0 - Foundation Built
 
@@ -68,7 +86,9 @@ Goal: make `boreal.work` functional and credible for public use without overclai
 
 ### Release Messaging Guardrails
 
-- [x] Can claim: chat-native requests, proposals, workspaces, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
+- [x] Can claim: chat-native request intake, request workspaces, proposals, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
+- [x] Can claim: Boreal is a chat-native interface for request-native commerce
+- [x] Can claim: Boreal is building intent-to-fulfillment infrastructure, as long as the live alpha boundary stays explicit
 - [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, collective fulfillment, trust-score routing, or generalized autonomous settlement
 
 ## Phase 2 - Whitepaper Layer 2 Parity
@@ -194,7 +214,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 ### Milestone A - Public Alpha
 
 - Finish all unchecked Phase 1 release blockers.
-- Keep public messaging constrained to Boreal as an alpha market and operating surface for requests, supply, and paid execution.
+- Keep public messaging constrained to Boreal as a chat-native market and operating surface for request-native commerce.
 
 ### Milestone B - Demand Routing Beta
 
@@ -213,6 +233,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 ## Immediate Next Actions
 
 - [ ] Close the Phase 1 public-alpha blockers
+- [ ] Execute the documentation and positioning consolidation workstream
 - [ ] Add end-to-end smoke tests for the request lifecycle
 - [ ] Implement proposal attachments and richer seller-side submission assets
 - [ ] Add monitoring, rate limiting, moderation, and refund handling

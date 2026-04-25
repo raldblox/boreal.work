@@ -1,4 +1,4 @@
-import type {CSSProperties, ReactNode} from "react";
+import type {ReactNode} from "react";
 import {
   AbsoluteFill,
   interpolate,
@@ -7,16 +7,19 @@ import {
   useVideoConfig,
 } from "remotion";
 
-import type {SceneSpec, VideoVariant} from "../data/video-variants";
+import {getSceneBeat, type SceneSpec, type VideoVariant} from "../data/video-variants";
 
 const BACKGROUND = "#071115";
-const PANEL = "rgba(10, 18, 24, 0.9)";
-const PANEL_SOFT = "rgba(12, 22, 30, 0.78)";
+const PANEL = "rgba(8, 16, 22, 0.92)";
+const PANEL_SOFT = "rgba(11, 19, 26, 0.8)";
+const PANEL_MUTED = "rgba(255, 255, 255, 0.04)";
 const BORDER = "rgba(148, 163, 184, 0.16)";
 const TEXT = "#f8fafc";
-const MUTED = "#9fb0be";
-const MONO = '"IBM Plex Mono", "Consolas", monospace';
+const MUTED = "#96a7b5";
+const MUTED_SOFT = "#7a8a96";
+const WARNING = "#f97316";
 const SANS = '"IBM Plex Sans", "Aptos", "Segoe UI", sans-serif';
+const MONO = '"IBM Plex Mono", "Consolas", monospace';
 
 export type FilmSceneProps = {
   scene: SceneSpec;
@@ -27,7 +30,12 @@ export type FilmSceneProps = {
 
 type SceneFrameProps = FilmSceneProps & {
   children: ReactNode;
-  notes?: string[];
+};
+
+type SurfaceProps = {
+  accent: string;
+  mode?: "hackathon-update" | "standard";
+  title?: string;
 };
 
 type WindowFrameProps = {
@@ -36,23 +44,19 @@ type WindowFrameProps = {
   title: string;
 };
 
-type SurfaceProps = {
-  accent: string;
-};
-
 export const BorealBackdrop: React.FC<{accent: string}> = ({accent}) => {
   const frame = useCurrentFrame();
-  const drift = interpolate(frame, [0, 300], [0, 140], {
+  const gridDrift = interpolate(frame, [0, 320], [0, 80], {
     extrapolateRight: "extend",
   });
 
   return (
     <AbsoluteFill
       style={{
-        background: `radial-gradient(circle at 18% 18%, ${withAlpha(
+        background: `radial-gradient(circle at 82% 18%, ${withAlpha(
           accent,
-          0.18,
-        )}, transparent 34%), radial-gradient(circle at 86% 12%, rgba(56, 189, 248, 0.12), transparent 28%), ${BACKGROUND}`,
+          0.16,
+        )}, transparent 34%), radial-gradient(circle at 16% 78%, rgba(56, 189, 248, 0.08), transparent 30%), linear-gradient(180deg, #091318 0%, ${BACKGROUND} 100%)`,
       }}
     >
       <div
@@ -60,151 +64,54 @@ export const BorealBackdrop: React.FC<{accent: string}> = ({accent}) => {
           position: "absolute",
           inset: 0,
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
+            "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
           backgroundSize: "96px 96px",
-          opacity: 0.34,
-          transform: `translateY(${drift}px)`,
+          opacity: 0.18,
+          transform: `translateY(${gridDrift}px)`,
         }}
       />
       <div
         style={{
           position: "absolute",
           inset: 24,
-          border: `1px solid ${withAlpha(accent, 0.26)}`,
-          boxShadow: `0 0 0 1px ${withAlpha(accent, 0.08)} inset`,
+          border: `1px solid ${withAlpha(accent, 0.16)}`,
+          boxShadow: `0 0 0 1px ${withAlpha(accent, 0.06)} inset`,
         }}
       />
     </AbsoluteFill>
   );
 };
 
-export const SceneFrame: React.FC<SceneFrameProps> = ({
-  children,
-  notes = [],
-  scene,
-  sceneCount,
-  sceneIndex,
-  variant,
-}) => {
+export const SceneFrame: React.FC<SceneFrameProps> = ({children, scene, variant}) => {
   const {durationInFrames, fps} = useVideoConfig();
   const frame = useCurrentFrame();
   const enter = spring({
     fps,
     frame,
     config: {
-      damping: 16,
+      damping: 18,
       stiffness: 120,
     },
   });
-  const outro = interpolate(
-    frame,
-    [durationInFrames - 12, durationInFrames],
-    [1, 0],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
-  );
+  const outro = interpolate(frame, [durationInFrames - 10, durationInFrames], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
   const opacity = Math.min(enter, outro);
-  const shift = interpolate(enter, [0, 1], [34, 0]);
+  const lift = interpolate(enter, [0, 1], [26, 0]);
+  const {beat, nextStartAtSecond} = getSceneBeat(scene, frame / fps);
+  const beatStartFrame = Math.floor(beat.startAtSecond * fps);
+  const beatEndFrame = Math.floor(nextStartAtSecond * fps);
+  const beatIn = interpolate(frame, [beatStartFrame, beatStartFrame + 8], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const beatOut = interpolate(frame, [beatEndFrame - 8, beatEndFrame], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const beatOpacity = Math.min(beatIn, beatOut);
   const isMinimal = variant.overlayMode === "minimal";
-
-  if (isMinimal) {
-    return (
-      <AbsoluteFill
-        style={{
-          color: TEXT,
-          fontFamily: SANS,
-          opacity,
-          padding: "68px 78px 112px",
-          transform: `translateY(${shift}px)`,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 34,
-            height: "100%",
-          }}
-        >
-          <div
-            style={{
-              alignItems: "flex-end",
-              display: "flex",
-              gap: 28,
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{maxWidth: 1040}}>
-              <div
-                style={{
-                  alignItems: "center",
-                  border: `1px solid ${withAlpha(variant.accent, 0.48)}`,
-                  color: variant.accent,
-                  display: "inline-flex",
-                  fontFamily: MONO,
-                  fontSize: 15,
-                  gap: 12,
-                  letterSpacing: "0.18em",
-                  padding: "10px 14px",
-                  textTransform: "uppercase",
-                }}
-              >
-                {variant.kicker}
-              </div>
-
-              <h2
-                style={{
-                  fontSize: 82,
-                  letterSpacing: "-0.055em",
-                  lineHeight: 0.94,
-                  margin: "18px 0 14px 0",
-                }}
-              >
-                {scene.title}
-              </h2>
-
-              <p
-                style={{
-                  color: MUTED,
-                  fontSize: 24,
-                  lineHeight: 1.52,
-                  margin: 0,
-                  maxWidth: 960,
-                }}
-              >
-                {scene.message}
-              </p>
-            </div>
-
-            <div
-              style={{
-                color: MUTED,
-                fontFamily: MONO,
-                fontSize: 14,
-                letterSpacing: "0.18em",
-                textAlign: "right",
-                textTransform: "uppercase",
-              }}
-            >
-              Scene {String(sceneIndex + 1).padStart(2, "0")} / {String(sceneCount).padStart(2, "0")}
-            </div>
-          </div>
-
-          <div
-            style={{
-              alignItems: "center",
-              display: "flex",
-              flex: 1,
-            }}
-          >
-            {children}
-          </div>
-        </div>
-      </AbsoluteFill>
-    );
-  }
 
   return (
     <AbsoluteFill
@@ -212,117 +119,244 @@ export const SceneFrame: React.FC<SceneFrameProps> = ({
         color: TEXT,
         fontFamily: SANS,
         opacity,
-        padding: "72px 84px",
-        transform: `translateY(${shift}px)`,
+        padding: isMinimal ? "58px 64px 78px" : "60px 64px 88px",
+        transform: `translateY(${lift}px)`,
       }}
     >
+      <div style={{left: 64, position: "absolute", top: 52}}>
+        <BrandBug accent={variant.accent} label="boreal.work" />
+      </div>
+
       <div
         style={{
-          display: "grid",
-          gap: 40,
-          gridTemplateColumns: "460px minmax(0, 1fr)",
-          height: "100%",
+          alignItems: "center",
+          display: "flex",
+          flex: 1,
         }}
       >
-        <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between"}}>
-          <div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 12,
-                border: `1px solid ${withAlpha(variant.accent, 0.48)}`,
-                color: variant.accent,
-                fontFamily: MONO,
-                fontSize: 16,
-                letterSpacing: "0.18em",
-                padding: "10px 14px",
-                textTransform: "uppercase",
-              }}
-            >
-              {variant.kicker}
-            </div>
+        {children}
+      </div>
 
-            <div
-              style={{
-                color: MUTED,
-                fontFamily: MONO,
-                fontSize: 14,
-                letterSpacing: "0.18em",
-                marginTop: 22,
-                textTransform: "uppercase",
-              }}
-            >
-              Scene {String(sceneIndex + 1).padStart(2, "0")} / {String(sceneCount).padStart(2, "0")}
-            </div>
-
-            <h2
-              style={{
-                fontSize: 68,
-                letterSpacing: "-0.05em",
-                lineHeight: 0.95,
-                margin: "18px 0 18px 0",
-              }}
-            >
-              {scene.title}
-            </h2>
-
-            <p
-              style={{
-                color: MUTED,
-                fontSize: 24,
-                lineHeight: 1.55,
-                margin: 0,
-              }}
-            >
-              {scene.message}
-            </p>
+      <div
+        style={{
+          bottom: isMinimal ? 54 : 58,
+          left: 64,
+          maxWidth: isMinimal ? 1180 : 940,
+          opacity: beatOpacity,
+          position: "absolute",
+        }}
+      >
+        {!isMinimal ? (
+          <div
+            style={{
+              color: variant.accent,
+              fontFamily: MONO,
+              fontSize: 13,
+              letterSpacing: "0.18em",
+              marginBottom: 12,
+              textTransform: "uppercase",
+            }}
+          >
+            {variant.kicker}
           </div>
-
-          {notes.length > 0 ? (
-            <div style={{display: "flex", flexDirection: "column", gap: 14}}>
-              {notes.map((note) => (
-                <div
-                  key={note}
-                  style={{
-                    background: PANEL_SOFT,
-                    border: `1px solid ${BORDER}`,
-                    color: MUTED,
-                    fontSize: 18,
-                    lineHeight: 1.5,
-                    padding: "16px 18px",
-                  }}
-                >
-                  {note}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div style={{display: "flex", flexDirection: "column", justifyContent: "center"}}>
-          {children}
+        ) : null}
+        <div
+          style={{
+            fontSize: isMinimal ? 58 : 46,
+            letterSpacing: "-0.05em",
+            lineHeight: 0.98,
+            textShadow: "0 10px 40px rgba(0,0,0,0.42)",
+          }}
+        >
+          {beat.overlay}
         </div>
       </div>
     </AbsoluteFill>
   );
 };
 
-export const ProblemPulseSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const ProblemPulseSurface: React.FC<SurfaceProps> = ({accent, mode = "standard"}) => {
   const frame = useCurrentFrame();
   const prompts = [
-    "Need this done by Friday",
-    "Can someone handle this?",
-    "Find the best person or tool",
-    "Still unresolved",
+    {
+      label: "Ask",
+      progress: 0.82,
+      text: "Need this done by Friday",
+    },
+    {
+      label: "Search",
+      progress: 0.62,
+      text: "Find the best person or tool",
+    },
+    {
+      label: "Chat",
+      progress: 0.54,
+      text: "Can someone handle this?",
+    },
+    {
+      label: "Outcome",
+      progress: 0.18,
+      text: "Still unresolved",
+      warning: true,
+    },
   ];
+
+  if (mode === "hackathon-update") {
+    const heatmap = Array.from({length: 10}).map((_, row) =>
+      Array.from({length: 18}).map((__, column) => {
+        const intensity = Math.max(
+          0.08,
+          Math.sin((frame + row * 14 + column * 9) / 18) * 0.28 + 0.42,
+        );
+        return intensity;
+      }),
+    );
+
+    return (
+      <div
+        style={{
+          display: "grid",
+          gap: 18,
+          gridTemplateColumns: "0.38fr 0.34fr 0.28fr",
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            background: PANEL,
+            border: `1px solid ${withAlpha(accent, 0.22)}`,
+            minHeight: 420,
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              color: MUTED,
+              fontFamily: MONO,
+              fontSize: 12,
+              letterSpacing: "0.16em",
+              marginBottom: 16,
+              textTransform: "uppercase",
+            }}
+          >
+            Intent heatmap
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gap: 6,
+              gridTemplateColumns: "repeat(18, minmax(0, 1fr))",
+            }}
+          >
+            {heatmap.flatMap((row, rowIndex) =>
+              row.map((intensity, columnIndex) => (
+                <div
+                  key={`${rowIndex}-${columnIndex}`}
+                  style={{
+                    background:
+                      intensity > 0.56
+                        ? withAlpha(WARNING, intensity)
+                        : withAlpha(accent, intensity),
+                    height: 18,
+                  }}
+                />
+              )),
+            )}
+          </div>
+          <div
+            style={{
+              color: MUTED,
+              fontSize: 16,
+              lineHeight: 1.5,
+              marginTop: 20,
+            }}
+          >
+            Requests keep appearing across chat, search, and ops surfaces. Most still do not get routed to fulfillment.
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: PANEL,
+            border: `1px solid ${withAlpha(accent, 0.22)}`,
+            minHeight: 420,
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              color: MUTED,
+              fontFamily: MONO,
+              fontSize: 12,
+              letterSpacing: "0.16em",
+              marginBottom: 16,
+              textTransform: "uppercase",
+            }}
+          >
+            Dead logs
+          </div>
+          <div style={{display: "flex", flexDirection: "column", gap: 10}}>
+            {[
+              "Need an explainer video / still unresolved",
+              "Looking for Manila supplier verifier / no route",
+              "Package this service for checkout / stuck in draft",
+              "Need a launch script this week / dead thread",
+            ].map((line, index) => (
+              <div
+                key={line}
+                style={{
+                  background: index === 0 ? withAlpha(WARNING, 0.1) : PANEL_MUTED,
+                  border: `1px solid ${index === 0 ? withAlpha(WARNING, 0.24) : BORDER}`,
+                  color: MUTED,
+                  fontSize: 15,
+                  lineHeight: 1.45,
+                  padding: 14,
+                }}
+              >
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: PANEL,
+            border: `1px solid ${withAlpha(accent, 0.22)}`,
+            minHeight: 420,
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              color: MUTED,
+              fontFamily: MONO,
+              fontSize: 12,
+              letterSpacing: "0.16em",
+              marginBottom: 16,
+              textTransform: "uppercase",
+            }}
+          >
+            Missing route
+          </div>
+          <div style={{fontSize: 56, letterSpacing: "-0.05em", lineHeight: 0.92}}>
+            Unfulfilled demand
+          </div>
+          <div style={{color: MUTED, fontSize: 18, lineHeight: 1.48, marginTop: 16}}>
+            The signal is obvious. The routing layer is what is missing.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       style={{
         display: "grid",
-        gap: 22,
+        gap: 18,
         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        width: "100%",
       }}
     >
       {prompts.map((prompt, index) => {
@@ -331,25 +365,25 @@ export const ProblemPulseSurface: React.FC<SurfaceProps> = ({accent}) => {
           frame: frame - index * 4,
           config: {
             damping: 18,
-            stiffness: 130,
+            stiffness: 120,
           },
         });
 
         return (
           <div
-            key={prompt}
+            key={prompt.text}
             style={{
               background: PANEL,
-              border: `1px solid ${withAlpha(accent, 0.26)}`,
-              minHeight: 220,
+              border: `1px solid ${withAlpha(accent, 0.22)}`,
+              minHeight: 234,
               opacity: reveal,
               padding: 26,
-              transform: `translateY(${interpolate(reveal, [0, 1], [24, 0])}px)`,
+              transform: `translateY(${interpolate(reveal, [0, 1], [18, 0])}px)`,
             }}
           >
             <div
               style={{
-                color: MUTED,
+                color: prompt.warning ? WARNING : MUTED,
                 fontFamily: MONO,
                 fontSize: 13,
                 letterSpacing: "0.16em",
@@ -357,33 +391,23 @@ export const ProblemPulseSurface: React.FC<SurfaceProps> = ({accent}) => {
                 textTransform: "uppercase",
               }}
             >
-              {index === 3 ? "Dead end" : "User intent"}
+              {prompt.label}
             </div>
             <div
               style={{
-                fontSize: index === 3 ? 54 : 34,
+                fontSize: prompt.warning ? 54 : 34,
                 letterSpacing: "-0.04em",
-                lineHeight: index === 3 ? 0.94 : 1.05,
-                marginBottom: 18,
+                lineHeight: prompt.warning ? 0.92 : 1.04,
+                marginBottom: 26,
+                maxWidth: 480,
               }}
             >
-              {prompt}
+              {prompt.text}
             </div>
-            <div
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                height: 8,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  background: index === 3 ? "#f97316" : accent,
-                  height: "100%",
-                  width: `${[82, 64, 72, 18][index]}%`,
-                }}
-              />
-            </div>
+            <ProgressBar
+              accent={prompt.warning ? WARNING : accent}
+              progress={prompt.progress}
+            />
           </div>
         );
       })}
@@ -391,110 +415,225 @@ export const ProblemPulseSurface: React.FC<SurfaceProps> = ({accent}) => {
   );
 };
 
-export const HomepageSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const HomepageSurface: React.FC<SurfaceProps> = ({accent, title}) => {
   return (
-    <WindowFrame accent={accent} title="boreal.work">
+    <WindowFrame accent={accent} title={title ?? "boreal.work"}>
       <div
         style={{
           display: "grid",
-          gap: 26,
-          gridTemplateColumns: "1.1fr 0.9fr",
-          padding: 30,
+          gap: 20,
+          gridTemplateColumns: "1.08fr 0.92fr",
+          height: 720,
+          padding: 28,
         }}
       >
-        <div style={{display: "flex", flexDirection: "column", gap: 22}}>
-          <Pill accent={accent} label="Request-native commerce infrastructure" />
-          <div style={{fontSize: 74, letterSpacing: "-0.06em", lineHeight: 0.96}}>
-            Route demand into matched supply, tracked work, and paid execution.
+        <div style={{display: "flex", flexDirection: "column", justifyContent: "space-between"}}>
+          <div>
+            <Pill accent={accent} label="Commerce, headed north." />
+            <div
+              style={{
+                fontSize: 62,
+                letterSpacing: "-0.06em",
+                lineHeight: 0.92,
+                marginTop: 18,
+                maxWidth: 760,
+              }}
+            >
+              Turn intent into accountable work.
+            </div>
+            <div
+              style={{
+                color: MUTED,
+                fontSize: 20,
+                lineHeight: 1.52,
+                marginTop: 18,
+                maxWidth: 760,
+              }}
+            >
+              Post the work. Match the right supply. Approve the route. Keep the
+              result attached until it is fulfilled.
+            </div>
+            <div style={{display: "flex", gap: 12, marginTop: 24}}>
+              <ActionButton accent={accent} label="Open Boreal" mode="solid" />
+              <ActionButton accent={accent} label="Browse supply" mode="ghost" />
+              <ActionButton accent={accent} label="Post a request" mode="ghost" />
+            </div>
           </div>
-          <div style={{color: MUTED, fontSize: 23, lineHeight: 1.5, maxWidth: 760}}>
-            Boreal turns chat into a market surface. A message can become a structured request, a
-            matched product search, a proposal workflow, a provider-backed service call, or a
-            delivery thread that stays accountable until the outcome is complete.
-          </div>
-          <div style={{display: "flex", gap: 12}}>
-            <ActionButton accent={accent} label="Open Boreal" mode="solid" />
-            <ActionButton accent={accent} label="Post a request" mode="outline" />
-            <ActionButton accent={accent} label="List supply" mode="outline" />
-          </div>
-          <div style={{display: "grid", gap: 16, gridTemplateColumns: "repeat(3, minmax(0, 1fr))"}}>
-            {[
-              {
-                title: "Post work that needs an outcome",
-                body: "Turn the need into a structured request and keep the work visible until it is fulfilled.",
-              },
-              {
-                title: "Publish supply that can actually be matched",
-                body: "Register skills, services, products, or agent capability with the metadata Boreal needs for routing.",
-              },
-              {
-                title: "Sell digital products and provider-backed services",
-                body: "Surface buyable supply inside requests, move items into cart, and route supported paid flows.",
-              },
-            ].map((card) => (
-              <Card key={card.title} title={card.title} body={card.body} />
-            ))}
+
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            }}
+          >
+            <MetricTile label="Requests stay live" value="Tracked" />
+            <MetricTile label="Supply stays visible" value="Searchable" />
+            <MetricTile label="Results stay attached" value="Reviewable" />
           </div>
         </div>
 
         <div style={{display: "flex", flexDirection: "column", gap: 16}}>
-          <CalloutCard
-            accent={accent}
-            title="One market, several outcomes"
-            body="Some asks should become request workspaces. Some should resolve through supply discovery. Some should move into cart and checkout."
-          />
-          <CalloutCard
-            accent={accent}
-            title="Requests"
-            body="Post open work, collect proposals, assign participants, review delivery, and keep the full audit trail in one place."
-          />
-          <CalloutCard
-            accent={accent}
-            title="Supply"
-            body="Publish human expertise, agent capability, products, and services with enough structure to be found and trusted."
-          />
-          <CalloutCard
-            accent={accent}
-            title="Commerce"
-            body="Add digital items to cart, track checkout state, and route supported provider-backed calls into paid execution."
-          />
+          <FeatureShowcase accent={accent} />
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            }}
+          >
+            <CompactCard label="Requests" value="Demand becomes structured work" />
+            <CompactCard label="Supply" value="People, agents, products, and tools" />
+            <CompactCard label="Commerce" value="Checkout, payment, and fulfillment" />
+          </div>
         </div>
       </div>
     </WindowFrame>
   );
 };
 
-export const ChatWorkspaceSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const ChatWorkspaceSurface: React.FC<SurfaceProps> = ({
+  accent,
+  mode = "standard",
+  title,
+}) => {
+  if (mode === "hackathon-update") {
+    return (
+      <WindowFrame accent={accent} title={title ?? "/chat"}>
+        <div
+          style={{
+            display: "grid",
+            gap: 18,
+            gridTemplateColumns: "0.22fr 0.46fr 0.32fr",
+            height: 720,
+            padding: 22,
+          }}
+        >
+          <SidebarPane subtitle="Tracked requests and route candidates" title="Intake">
+            <SidebarItem
+              active
+              subtitle="video / motion graphics / 3 days / budget set"
+              title="Explainer video for product launch"
+            />
+            <SidebarItem
+              active={false}
+              subtitle="physical verification / Manila / this week"
+              title="Verify supplier facility"
+            />
+            <SidebarItem
+              active={false}
+              subtitle="product metadata / catalog / checkout"
+              title="Package a digital product"
+            />
+          </SidebarPane>
+
+          <div
+            style={{
+              background: PANEL_SOFT,
+              border: `1px solid ${BORDER}`,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                borderBottom: `1px solid ${BORDER}`,
+                padding: "20px 22px 18px",
+              }}
+            >
+              <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
+                <div>
+                  <div style={{fontSize: 30, letterSpacing: "-0.04em"}}>
+                    Explainer video for product launch
+                  </div>
+                  <div style={{color: MUTED, fontSize: 16, marginTop: 8}}>
+                    Request drafted / matching engine running
+                  </div>
+                </div>
+                <StatusChip accent={accent} label="Route ready" />
+              </div>
+              <div style={{marginTop: 18}}>
+                <StageRail accent={accent} activeIndex={1} />
+              </div>
+            </div>
+
+            <div style={{display: "flex", flex: 1, flexDirection: "column", gap: 14, padding: 22}}>
+              <MessageBubble
+                role="user"
+                text="I need a short explainer video for my product launch. Under 60 seconds, clean motion graphics, delivery in 3 days, budget $200."
+              />
+              <MessageBubble
+                role="assistant"
+                text="Structured. I’m scoring humans, agents, products, and provider-backed workflows against the request now."
+              />
+              <InlineDecisionCard
+                accent={accent}
+                title="Route selected"
+                body="Boreal found a strong direct path first. If you want, this can still open to the market instead."
+                primary="Approve direct route"
+                secondary="Open swarm"
+              />
+              <InlineMatchStrip
+                accent={accent}
+                matches={[
+                  "Provider-backed workflow / 97% / motion graphics / instant",
+                  "Copywriter + video editor / 91% / proposal path",
+                  "Research analyst / 76% / script support only",
+                ]}
+              />
+            </div>
+          </div>
+
+          <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+            <InfoPanel title="Matching engine">
+              <DataRow label="Top route" value="Provider-backed workflow" />
+              <DataRow label="Fit" value="97% / output + speed + budget" />
+              <DataRow label="Fallback" value="Open swarm / human + agent" />
+              <DataRow label="Decision" value="Direct now, market optional" />
+            </InfoPanel>
+
+            <InfoPanel title="Score breakdown">
+              <ScoreBreakdown accent={accent} rows={[
+                {label: "Output fit", value: 0.98},
+                {label: "Deadline fit", value: 0.95},
+                {label: "Budget fit", value: 0.93},
+                {label: "Route confidence", value: 0.97},
+              ]} />
+            </InfoPanel>
+          </div>
+        </div>
+      </WindowFrame>
+    );
+  }
+
   return (
-    <WindowFrame accent={accent} title="/chat">
+    <WindowFrame accent={accent} title={title ?? "/chat"}>
       <div
         style={{
           display: "grid",
           gap: 18,
-          gridTemplateColumns: "0.24fr 0.43fr 0.33fr",
+          gridTemplateColumns: "0.23fr 0.47fr 0.3fr",
           height: 720,
           padding: 22,
         }}
       >
-        <SidebarPane title="Requests" subtitle="Tracked asks and active deliveries">
-          {[
-            "Launch video for Boreal",
-            "List a provider-backed service",
-            "Package a product for search and checkout",
-          ].map((item, index) => (
-            <SidebarItem
-              active={index === 0}
-              key={item}
-              subtitle={
-                index === 0
-                  ? "Video / launch / proposals first"
-                  : index === 1
-                    ? "Service provider / x402 / Privy"
-                    : "Catalog / cart / metadata"
-              }
-              title={item}
-            />
-          ))}
+        <SidebarPane subtitle="Tracked asks and live workspaces" title="Requests">
+          <SidebarItem
+            active
+            subtitle="Video / launch / proposals first"
+            title="Launch video for Boreal"
+          />
+          <SidebarItem
+            active={false}
+            subtitle="Profile / skills / supply packaging"
+            title="Publish a supply listing"
+          />
+          <SidebarItem
+            active={false}
+            subtitle="Product / metadata / checkout"
+            title="Package a digital product"
+          />
         </SidebarPane>
 
         <div
@@ -503,89 +642,173 @@ export const ChatWorkspaceSurface: React.FC<SurfaceProps> = ({accent}) => {
             border: `1px solid ${BORDER}`,
             display: "flex",
             flexDirection: "column",
-            padding: 24,
+            overflow: "hidden",
           }}
         >
-          <div style={{display: "flex", justifyContent: "space-between", marginBottom: 18}}>
-            <div>
-              <div style={{fontSize: 28, letterSpacing: "-0.04em"}}>Launch video for Boreal</div>
-              <div style={{color: MUTED, fontSize: 16, marginTop: 6}}>
-                Open Boreal / request workspace / proposals first
-              </div>
-            </div>
-            <StatusPill accent={accent} label="Waiting for approval" />
-          </div>
-
-          <StageRail accent={accent} activeIndex={1} />
-
-          <div style={{display: "flex", flexDirection: "column", gap: 18, marginTop: 26}}>
-            <ChatBubble
-              role="user"
-              text="We need a 3-minute launch video for Boreal for a Solana hackathon. Build the concept, route the work, and suggest the best suppliers or tools."
-            />
-            <ChatBubble
-              role="assistant"
-              text="I can turn this into a tracked request, recommend the best supply path, and keep the full workflow visible until the final cut is delivered."
-            />
-          </div>
-
           <div
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: `1px solid ${BORDER}`,
-              marginTop: "auto",
-              padding: 18,
+              borderBottom: `1px solid ${BORDER}`,
+              padding: "20px 22px 18px",
             }}
           >
-            <div
-              style={{
-                color: MUTED,
-                fontFamily: MONO,
-                fontSize: 12,
-                letterSpacing: "0.16em",
-                marginBottom: 10,
-                textTransform: "uppercase",
-              }}
-            >
-              Prompt input
+            <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
+              <div>
+                <div style={{fontSize: 30, letterSpacing: "-0.04em"}}>
+                  Launch video for Boreal
+                </div>
+                <div style={{color: MUTED, fontSize: 16, marginTop: 8}}>
+                  Request workspace / proposals first
+                </div>
+              </div>
+              <StatusChip accent={accent} label="Waiting for approval" />
             </div>
-            <div style={{color: MUTED, fontSize: 17, lineHeight: 1.5}}>
-              Start in natural language. Route the outcome, not just the conversation.
+            <div style={{marginTop: 18}}>
+              <StageRail accent={accent} activeIndex={1} />
             </div>
+          </div>
+
+          <div style={{display: "flex", flex: 1, flexDirection: "column", gap: 14, padding: 22}}>
+            <MessageBubble
+              role="user"
+              text="We need a launch video for Boreal. Build the concept, route the work, and show the best suppliers or tools."
+            />
+            <MessageBubble
+              role="assistant"
+              text="Turning this into a request. I can clarify the scope, open it for proposals, or route it directly if the right supply is already known."
+            />
+            <InlineDecisionCard
+              accent={accent}
+              title="Prepare request"
+              body="Approve Boreal to draft the request, or open this for worker proposals."
+              primary="Approve Boreal"
+              secondary="Open for proposals"
+            />
+            <InlineMatchStrip
+              accent={accent}
+              matches={[
+                "Copywriter / strong for script and framing",
+                "Research Analyst / strong for competitive framing",
+              ]}
+            />
+            <ComposerCard />
           </div>
         </div>
 
         <div style={{display: "flex", flexDirection: "column", gap: 16}}>
-          <Panel title="Request draft">
-            <TagRow
-              tags={["video", "launch", "supply routing", "proposals first"]}
+          <InfoPanel title="Request routing">
+            <DataRow label="Outcome" value="3-minute launch film" />
+            <DataRow label="Route" value="Request workspace with proposals" />
+            <DataRow label="Artifacts" value="Script / structure / supplier picks" />
+          </InfoPanel>
+
+          <InfoPanel title="Matched supply">
+            <SupplyPathCard
+              accent={accent}
+              score="96% match"
+              title="Copywriter"
+              subtitle="Script, angle, hook, CTA"
             />
-            <DataLine label="Route target" value="proposal workflow" />
-            <DataLine label="Requested outputs" value="video / messaging / strategy" />
-            <DataLine label="Why this matters" value="Turn the ask into a visible execution path." />
-          </Panel>
-          <Panel title="Operating flow">
-            <BulletLine text="A message can become an answer, a request workspace, or a store-like result surface with matched supply." />
-            <BulletLine text="Approval stays explicit before work or spend advances." />
-            <BulletLine text="Messages, files, and reviews stay attached to the same request." />
-          </Panel>
-          <Panel title="Next step">
-            <ActionButton accent={accent} label="Prepare request" mode="solid" fullWidth />
-          </Panel>
+            <SupplyPathCard
+              accent={accent}
+              score="91% match"
+              title="Research Analyst"
+              subtitle="Evidence, messaging proof, positioning"
+            />
+          </InfoPanel>
         </div>
       </div>
     </WindowFrame>
   );
 };
 
-export const SupplyMarketSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const SupplyMarketSurface: React.FC<SurfaceProps> = ({
+  accent,
+  mode = "standard",
+  title,
+}) => {
+  if (mode === "hackathon-update") {
+    return (
+      <WindowFrame accent={accent} title={title ?? "Supply"}>
+        <div
+          style={{
+            display: "grid",
+            gap: 18,
+            gridTemplateColumns: "0.54fr 0.46fr",
+            height: 720,
+            padding: 22,
+          }}
+        >
+          <div
+            style={{
+              background: PANEL_SOFT,
+              border: `1px solid ${BORDER}`,
+              display: "flex",
+              flexDirection: "column",
+              padding: 20,
+            }}
+          >
+            <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
+              <div>
+                <div style={{fontSize: 26, letterSpacing: "-0.04em"}}>Open requests</div>
+                <div style={{color: MUTED, fontSize: 16, marginTop: 8}}>
+                  When no direct route wins, Boreal opens the right market around the request.
+                </div>
+              </div>
+              <Pill accent={accent} label="Swarm live" />
+            </div>
+
+            <div style={{marginTop: 16}}>
+              <SearchBar placeholder="Search builders, agents, services, or requests" />
+            </div>
+
+            <div style={{display: "flex", flexDirection: "column", gap: 12, marginTop: 18}}>
+              <RequestCard
+                category="field ops"
+                status="Open to propose"
+                summary="Need someone physically present in Manila to verify a supplier facility this week."
+                title="Verify supplier facility in Manila"
+              />
+              <MarketCard
+                accent={accent}
+                body="On-the-ground verification with timestamped evidence, supplier photos, and compliance notes."
+                meta="human collective / proposal / Manila"
+                score="94% swarm fit"
+                subtitle="By Manila operator collective"
+                title="Field verification collective"
+              />
+              <MarketCard
+                accent={accent}
+                body="Local operator plus remote agent coordination for checklist execution and evidence packaging."
+                meta="human + agent / proposal / hybrid"
+                score="92% swarm fit"
+                subtitle="By hybrid operator pod"
+                title="Operator pod with agent coordinator"
+              />
+            </div>
+          </div>
+
+          <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+            <InfoPanel title="Swarm response">
+              <ProposalQueue accent={accent} />
+            </InfoPanel>
+            <InfoPanel title="What is live now">
+              <CompactCard label="Profiles" value="Humans and agents are public supply" />
+              <CompactCard label="Proposals" value="Price, ETA, and deliverables in-thread" />
+              <CompactCard label="Matching" value="One engine across requests and supply" />
+            </InfoPanel>
+          </div>
+        </div>
+      </WindowFrame>
+    );
+  }
+
   return (
-    <WindowFrame accent={accent} title="Market">
+    <WindowFrame accent={accent} title={title ?? "Supply"}>
       <div
         style={{
           display: "grid",
           gap: 18,
-          gridTemplateColumns: "0.54fr 0.46fr",
+          gridTemplateColumns: "0.56fr 0.44fr",
           height: 720,
           padding: 22,
         }}
@@ -599,200 +822,334 @@ export const SupplyMarketSurface: React.FC<SurfaceProps> = ({accent}) => {
             padding: 20,
           }}
         >
-          <div style={{display: "flex", justifyContent: "space-between", marginBottom: 14}}>
+          <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
             <div>
-              <div style={{fontSize: 24, letterSpacing: "-0.04em"}}>Public supply and requests</div>
-              <div style={{color: MUTED, fontSize: 16, marginTop: 6}}>
-                Discovery stays here. Execution stays in the workspace.
+              <div style={{fontSize: 26, letterSpacing: "-0.04em"}}>Public supply</div>
+              <div style={{color: MUTED, fontSize: 16, marginTop: 8}}>
+                Search once. Route people, agents, tools, or products from the same market.
               </div>
             </div>
-            <Pill accent={accent} label="Supply" />
+            <Pill accent={accent} label="Live directory" />
           </div>
 
-          <SearchBar placeholder="Search products, services, capabilities, or tools" />
+          <div style={{marginTop: 16}}>
+            <SearchBar placeholder="Search profiles, products, services, or requests" />
+          </div>
 
           <div style={{display: "flex", flexDirection: "column", gap: 12, marginTop: 18}}>
-            {[
-              {
-                title: "Copywriter for Product and Launch Messaging",
-                subtitle: "By Copywriter",
-                body: "Creates conversion-oriented copy for pages, campaigns, launches, and structured messaging requests.",
-                meta: "content / async / USD 45 fixed",
-              },
-              {
-                title: "Research Analyst for Structured Decision Support",
-                subtitle: "By Research Analyst",
-                body: "Turns open-ended questions into concise research memos, comparisons, and recommendation-ready summaries.",
-                meta: "research / async / USD 55 fixed",
-              },
-              {
-                title: "Math Expert Solves Technical Problems",
-                subtitle: "By Math Expert",
-                body: "Produces structured math solutions, derivations, proof sketches, and concise explainers for technical requests.",
-                meta: "research / async / USD 35 fixed",
-              },
-            ].map((listing, index) => (
-              <MarketCard
-                accent={accent}
-                body={listing.body}
-                key={listing.title}
-                meta={listing.meta}
-                score={`${[96, 93, 88][index]}% match`}
-                subtitle={listing.subtitle}
-                title={listing.title}
-              />
-            ))}
+            <MarketCard
+              accent={accent}
+              body="Launch and product messaging for pages, campaigns, and request workspaces."
+              meta="human / fixed price / async"
+              score="96% match"
+              subtitle="By Copywriter"
+              title="Copywriter for launch messaging"
+            />
+            <MarketCard
+              accent={accent}
+              body="Structured research that turns open questions into concise operator-ready memos."
+              meta="agent / fixed price / async"
+              score="91% match"
+              subtitle="By Research Analyst"
+              title="Research analyst for decision support"
+            />
+            <MarketCard
+              accent={accent}
+              body="Packaged digital product with searchable metadata, instant checkout, and immediate delivery."
+              meta="product / instant / digital"
+              score="88% match"
+              subtitle="By Boreal Supply"
+              title="Launch messaging starter pack"
+            />
           </div>
         </div>
 
         <div style={{display: "flex", flexDirection: "column", gap: 16}}>
-          <Panel title="Boreal Agent profile">
-            <div style={{fontSize: 28, letterSpacing: "-0.04em", marginBottom: 8}}>Boreal Agent</div>
-            <div style={{color: MUTED, fontSize: 18, lineHeight: 1.5, marginBottom: 18}}>
-              Boreal is the system operator for request-first work. It drafts intent, coordinates
-              approvals, collaborates in thread, and fulfills supported tasks directly when the
-              workspace allows it.
-            </div>
-            <TagRow
-              tags={[
-                "intent extraction",
-                "chat assistance",
-                "catalog search",
-                "image generation",
-                "speech generation",
-                "video orchestration",
-              ]}
-            />
-            <div
-              style={{
-                display: "grid",
-                gap: 10,
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                marginTop: 18,
-              }}
-            >
-              <MetricTile label="Average rating" value="4.9" />
-              <MetricTile label="Fulfilled" value="128" />
-              <MetricTile label="Active" value="17" />
-              <MetricTile label="Avg delivery" value="2.1h" />
-            </div>
-          </Panel>
-
-          <Panel title="Open requests">
+          <InfoPanel title="Profile spotlight">
+            <ProfileSpotlight accent={accent} />
+          </InfoPanel>
+          <InfoPanel title="Open requests">
             <RequestCard
               category="content"
-              status="open to propose"
-              summary="Need a short launch film, script options, and a strong demo structure for a hackathon submission."
+              status="Open to propose"
+              summary="Need a short launch film, script options, and demo structure for a hackathon submission."
               title="Prepare a 3-minute launch video for Boreal"
             />
             <RequestCard
               category="commerce"
-              status="awaiting approval"
-              summary="Package a provider-backed service listing with metadata for search, cart, and payment-aware invocation."
-              title="List a provider-backed item"
+              status="Waiting for approval"
+              summary="Package a provider-backed item with searchable metadata and payment-aware invocation."
+              title="List a provider-backed service"
             />
-          </Panel>
+          </InfoPanel>
         </div>
       </div>
     </WindowFrame>
   );
 };
 
-export const LifecycleSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const LifecycleSurface: React.FC<SurfaceProps> = ({
+  accent,
+  mode = "standard",
+  title,
+}) => {
+  if (mode === "hackathon-update") {
+    return (
+      <WindowFrame accent={accent} title={title ?? "Request workspace"}>
+        <div
+          style={{
+            display: "grid",
+            gap: 18,
+            gridTemplateColumns: "0.58fr 0.42fr",
+            height: 720,
+            padding: 22,
+          }}
+        >
+          <div
+            style={{
+              background: PANEL_SOFT,
+              border: `1px solid ${BORDER}`,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                borderBottom: `1px solid ${BORDER}`,
+                padding: "20px 22px 18px",
+              }}
+            >
+              <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
+                <div>
+                  <div style={{fontSize: 30, letterSpacing: "-0.04em"}}>
+                    Verify supplier facility in Manila
+                  </div>
+                  <div style={{color: MUTED, fontSize: 16, marginTop: 8}}>
+                    Swarm route / collective accepted / delivery in thread
+                  </div>
+                </div>
+                <StatusChip accent={accent} label="In delivery" />
+              </div>
+              <div style={{marginTop: 18}}>
+                <StageRail accent={accent} activeIndex={2} />
+              </div>
+            </div>
+
+            <div style={{display: "flex", flex: 1, flexDirection: "column", gap: 14, padding: 22}}>
+              <TimelineCard
+                accent={accent}
+                label="Proposal"
+                title="Hybrid operator pod proposed a coordinated response"
+              >
+                <TagRow tags={["field operator", "agent coordinator", "2 days", "$180"]} />
+              </TimelineCard>
+              <TimelineCard
+                accent={accent}
+                label="Approval"
+                title="Owner accepted the collective route"
+              >
+                <ParticipantRow names={["Owner", "Local operator", "Agent coordinator"]} />
+              </TimelineCard>
+              <TimelineCard
+                accent={accent}
+                label="Delivery"
+                title="Evidence package lands on the request"
+              >
+                <div style={{display: "flex", gap: 10, marginTop: 4}}>
+                  <FileChip label="facility-photos.zip" />
+                  <FileChip label="verification-notes.md" />
+                  <FileChip label="checklist.pdf" />
+                </div>
+              </TimelineCard>
+            </div>
+          </div>
+
+          <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+            <InfoPanel title="Accountability thread">
+              <DataRow label="Route" value="Open swarm / hybrid collective" />
+              <DataRow label="Accepted by" value="Owner approval in-thread" />
+              <DataRow label="Evidence" value="Files, notes, and timestamps attached" />
+              <DataRow label="Closeout" value="Reviewable completion state" />
+            </InfoPanel>
+
+            <InfoPanel title="Why this matters">
+              <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52}}>
+                The same request model can handle instant digital fulfillment and harder real-world coordination without losing accountability.
+              </div>
+            </InfoPanel>
+          </div>
+        </div>
+      </WindowFrame>
+    );
+  }
+
   return (
-    <WindowFrame accent={accent} title="Request workspace">
+    <WindowFrame accent={accent} title={title ?? "Request workspace"}>
       <div
         style={{
           display: "grid",
           gap: 18,
-          gridTemplateColumns: "0.56fr 0.44fr",
+          gridTemplateColumns: "0.6fr 0.4fr",
           height: 720,
           padding: 22,
         }}
       >
-        <div style={{display: "flex", flexDirection: "column", gap: 16}}>
-          <Panel title="Request status">
-            <div style={{display: "flex", justifyContent: "space-between", marginBottom: 18}}>
+        <div
+          style={{
+            background: PANEL_SOFT,
+            border: `1px solid ${BORDER}`,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              borderBottom: `1px solid ${BORDER}`,
+              padding: "20px 22px 18px",
+            }}
+          >
+            <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
               <div>
                 <div style={{fontSize: 30, letterSpacing: "-0.04em"}}>
                   Prepare a 3-minute launch video for Boreal
                 </div>
-                <div style={{color: MUTED, fontSize: 18, marginTop: 8}}>
-                  Open request / assigned / delivery in thread
+                <div style={{color: MUTED, fontSize: 16, marginTop: 8}}>
+                  Proposal accepted / delivery in thread
                 </div>
               </div>
-              <StatusPill accent={accent} label="Assigned" />
+              <StatusChip accent={accent} label="Delivered" />
             </div>
-            <StageRail accent={accent} activeIndex={2} />
-            <div style={{display: "flex", gap: 10, marginTop: 16}}>
-              <Pill accent={accent} label="video" />
-              <Pill accent={accent} label="launch messaging" />
-              <Pill accent={accent} label="strategy" />
+            <div style={{marginTop: 18}}>
+              <StageRail accent={accent} activeIndex={3} />
             </div>
-          </Panel>
+          </div>
 
-          <Panel title="Activity">
-            {[
-              "request.created  |  Route: proposal workflow",
-              "proposal.submitted  |  Agent: Copywriter",
-              "proposal.approved  |  Status: claimed",
-              "delivery.submitted  |  Progress: 100%",
-            ].map((item) => (
-              <BulletLine key={item} text={item} />
-            ))}
-          </Panel>
-
-          <Panel title="Review">
-            <div style={{display: "flex", gap: 8, marginBottom: 14}}>
-              {Array.from({length: 5}).map((_, index) => (
-                <div
-                  key={index}
-                  style={{
-                    color: index < 5 ? "#f59e0b" : MUTED,
-                    fontSize: 24,
-                  }}
-                >
-                  *
-                </div>
-              ))}
-            </div>
-            <div style={{color: MUTED, fontSize: 17, lineHeight: 1.5}}>
-              Messages, files, fulfillments, reviews, and outcomes stay attached to the same
-              request so the market learns from the result.
-            </div>
-          </Panel>
+          <div style={{display: "flex", flex: 1, flexDirection: "column", gap: 14, padding: 22}}>
+            <TimelineCard
+              accent={accent}
+              label="Proposal"
+              title="Copywriter proposed a fixed-price delivery"
+            >
+              <TagRow tags={["USD 45", "2 hours", "script", "hook", "CTA"]} />
+            </TimelineCard>
+            <TimelineCard
+              accent={accent}
+              label="Approval"
+              title="Owner approved the route and the participant"
+            >
+              <ParticipantRow names={["Owner", "Copywriter", "Boreal Agent"]} />
+            </TimelineCard>
+            <TimelineCard
+              accent={accent}
+              label="Delivery"
+              title="Work submission landed on the request"
+            >
+              <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52}}>
+                Hero angle, launch hook, pacing notes, and CTA variants delivered into the
+                same accountable thread.
+              </div>
+              <div style={{display: "flex", gap: 10, marginTop: 14}}>
+                <FileChip label="launch-script.md" />
+                <FileChip label="hook-options.md" />
+                <FileChip label="cta-variants.md" />
+              </div>
+            </TimelineCard>
+            <TimelineCard
+              accent={accent}
+              label="Review"
+              title="The request closed with a visible rating"
+            >
+              <ReviewStars />
+            </TimelineCard>
+          </div>
         </div>
 
         <div style={{display: "flex", flexDirection: "column", gap: 16}}>
-          <Panel title="Accepted proposal">
-            <DataLine label="Supplier" value="Copywriter" />
-            <DataLine label="Price" value="USD 45 fixed" />
-            <DataLine label="ETA" value="2 hours" />
-            <DataLine
-              label="Deliverables"
-              value="Hero angle / script options / pacing and tone notes"
-            />
-          </Panel>
+          <InfoPanel title="Accepted scope">
+            <DataRow label="Supplier" value="Copywriter" />
+            <DataRow label="Price" value="USD 45 fixed" />
+            <DataRow label="ETA" value="2 hours" />
+            <DataRow label="Deliverables" value="Hook / structure / script / CTA" />
+          </InfoPanel>
 
-          <Panel title="Delivery package">
-            <div style={{fontSize: 24, letterSpacing: "-0.03em", marginBottom: 10}}>
-              Boreal launch draft
+          <InfoPanel title="Participants">
+            <ParticipantRow names={["Owner", "Copywriter", "Boreal Agent"]} />
+          </InfoPanel>
+
+          <InfoPanel title="Outcome">
+            <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52}}>
+              Messages, files, rating, and resolution all stay attached to the same request.
             </div>
-            <div style={{color: MUTED, fontSize: 17, lineHeight: 1.5, marginBottom: 16}}>
-              Messaging angle, hero line, visual structure, and short-form variants delivered into
-              the same accountable thread.
-            </div>
-            <TagRow tags={["script", "video flow", "hook", "CTA"]} />
-          </Panel>
+          </InfoPanel>
         </div>
       </div>
     </WindowFrame>
   );
 };
 
-export const FulfillmentSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const FulfillmentSurface: React.FC<SurfaceProps> = ({
+  accent,
+  mode = "standard",
+  title,
+}) => {
+  if (mode === "hackathon-update") {
+    return (
+      <WindowFrame accent={accent} title={title ?? "Direct fulfillment"}>
+        <div
+          style={{
+            display: "grid",
+            gap: 18,
+            gridTemplateColumns: "0.6fr 0.4fr",
+            height: 720,
+            padding: 22,
+          }}
+        >
+          <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+            <InfoPanel title="Instant route">
+              <div style={{fontSize: 28, letterSpacing: "-0.04em"}}>
+                Provider-backed explainer workflow
+              </div>
+              <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52, marginTop: 10}}>
+                Boreal found a ready route for the request without opening the market first.
+              </div>
+              <div style={{marginTop: 14}}>
+                <DataRow label="Match" value="97% / output + deadline + budget" />
+                <DataRow label="ETA" value="4 minutes estimated" />
+                <DataRow label="Path" value="Provider-backed execution" />
+                <DataRow label="Proof" value="Artifacts and evidence attached to request" />
+              </div>
+            </InfoPanel>
+
+            <InfoPanel title="Execution state">
+              <ArtifactPipeline accent={accent} />
+            </InfoPanel>
+          </div>
+
+          <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+            <InfoPanel title="Why it won">
+              <ScoreBreakdown accent={accent} rows={[
+                {label: "Motion fit", value: 0.98},
+                {label: "Speed", value: 0.97},
+                {label: "Budget", value: 0.94},
+                {label: "Confidence", value: 0.97},
+              ]} />
+            </InfoPanel>
+
+            <InfoPanel title="Attached result">
+              <CompactCard label="Preview" value="Video thumbnail + timestamp" />
+              <CompactCard label="Download" value="Attached to request thread" />
+              <CompactCard label="Evidence" value="Execution trail preserved" />
+            </InfoPanel>
+          </div>
+        </div>
+      </WindowFrame>
+    );
+  }
+
   return (
-    <WindowFrame accent={accent} title="Direct fulfillment">
+    <WindowFrame accent={accent} title={title ?? "Direct fulfillment"}>
       <div
         style={{
           display: "grid",
@@ -809,123 +1166,83 @@ export const FulfillmentSurface: React.FC<SurfaceProps> = ({accent}) => {
         </div>
 
         <div style={{display: "flex", flexDirection: "column", gap: 16}}>
-          <Panel title="Matched supply">
-            <div style={{fontSize: 24, letterSpacing: "-0.04em", marginBottom: 8}}>
-              Provider-backed creative service
+          <InfoPanel title="Matched listing">
+            <div style={{fontSize: 24, letterSpacing: "-0.04em"}}>Provider-backed creative pack</div>
+            <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52, marginTop: 10}}>
+              Known supply can move from request context into cart, checkout, and attached fulfillment
+              without leaving the market surface.
             </div>
-            <div style={{color: MUTED, fontSize: 17, lineHeight: 1.5, marginBottom: 14}}>
-              Supported listings can move from request context into cart, checkout, or paid
-              provider-backed execution without leaving the market surface.
+            <div style={{marginTop: 14}}>
+              <DataRow label="Type" value="Digital service" />
+              <DataRow label="Price" value="USD 29 fixed" />
+              <DataRow label="Checkout" value="Payment-aware invocation" />
             </div>
-            <DataLine label="Category" value="creative / digital delivery" />
-            <DataLine label="Price" value="USD 29 / fixed" />
-            <DataLine label="Checkout" value="payment-aware invocation" />
-            <div style={{display: "flex", gap: 10, marginTop: 14}}>
-              <ActionButton accent={accent} label="Add to cart" mode="solid" />
-              <ActionButton accent={accent} label="Preview" mode="outline" />
-            </div>
-          </Panel>
+          </InfoPanel>
 
-          <Panel title="Why it matters">
-            <BulletLine text="The user does not have to know in advance whether the answer is a person, an agent, a product, or a provider-backed service." />
-            <BulletLine text="Boreal picks the right route and keeps the result attached to the original request." />
-          </Panel>
+          <InfoPanel title="Cart and delivery">
+            <div style={{display: "flex", flexDirection: "column", gap: 12}}>
+              <CompactCard label="Cart" value="1 ready item" />
+              <CompactCard label="Checkout" value="Approve, pay, attach result" />
+              <CompactCard label="Delivery" value="Result lands on the request" />
+            </div>
+            <div style={{display: "flex", gap: 10, marginTop: 16}}>
+              <ActionButton accent={accent} label="Add to cart" mode="solid" />
+              <ActionButton accent={accent} label="Preview" mode="ghost" />
+            </div>
+          </InfoPanel>
         </div>
       </div>
     </WindowFrame>
   );
 };
 
-export const SolanaSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const SolanaSurface: React.FC<SurfaceProps> = ({accent, title}) => {
   return (
-    <WindowFrame accent={accent} title="Boreal x Solana">
+    <WindowFrame accent={accent} title={title ?? "Boreal x Solana"}>
       <div
         style={{
           display: "grid",
           gap: 18,
-          gridTemplateColumns: "0.46fr 0.54fr",
+          gridTemplateColumns: "0.38fr 0.62fr",
           height: 720,
           padding: 22,
         }}
       >
         <div style={{display: "flex", flexDirection: "column", gap: 16}}>
-          <Panel title="Current alpha">
-            <BulletLine text="Provider-backed service flows" />
-            <BulletLine text="Agentic Market discovery sync" />
-            <BulletLine text="Privy-backed x402 payment initiation" />
-          </Panel>
-          <Panel title="Next layer">
-            <BulletLine text="Solana Agent Kit execution" />
-            <BulletLine text="MoonPay funding and bridge adapters" />
-            <BulletLine text="Settlement, trust, and evidence that compound" />
-          </Panel>
+          <InfoPanel title="Live today">
+            <CompactCard label="Provider sync" value="External services enter supply" />
+            <CompactCard label="Payment start" value="Privy-backed x402 flow" />
+            <CompactCard label="Request trace" value="Evidence stays attached" />
+          </InfoPanel>
+
+          <InfoPanel title="Why Solana">
+            <CompactCard label="Fast" value="Stay inside the product loop" />
+            <CompactCard label="Programmable" value="Approvals and settlement can coordinate" />
+            <CompactCard label="Verifiable" value="Trust can compound with evidence" />
+          </InfoPanel>
         </div>
 
         <div
           style={{
             background: PANEL_SOFT,
             border: `1px solid ${BORDER}`,
-            padding: 26,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: 24,
           }}
         >
-          <div style={{fontSize: 30, letterSpacing: "-0.04em", marginBottom: 18}}>
-            {"Request -> Supply -> Approval -> Settlement"}
+          <div>
+            <div style={{fontSize: 30, letterSpacing: "-0.04em"}}>Request to settlement</div>
+            <div style={{color: MUTED, fontSize: 17, lineHeight: 1.52, marginTop: 10, maxWidth: 760}}>
+              The market loop does not end at chat. It ends when approval, payment, and outcome can
+              be coordinated with trust.
+            </div>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gap: 14,
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            }}
-          >
-            {[
-              {
-                title: "Intent",
-                body: "Chat, search, and requests become structured market demand.",
-              },
-              {
-                title: "Routing",
-                body: "Boreal matches people, agents, products, or provider-backed services.",
-              },
-              {
-                title: "Approval",
-                body: "Privy-backed approval keeps spend and action explicit.",
-              },
-              {
-                title: "Settlement",
-                body: "Solana is the economic layer for speed, programmability, and verifiable trust.",
-              },
-            ].map((column) => (
-              <div
-                key={column.title}
-                style={{
-                  border: `1px solid ${withAlpha(accent, 0.22)}`,
-                  padding: 18,
-                }}
-              >
-                <div
-                  style={{
-                    color: accent,
-                    fontFamily: MONO,
-                    fontSize: 13,
-                    letterSpacing: "0.16em",
-                    marginBottom: 12,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {column.title}
-                </div>
-                <div style={{fontSize: 20, lineHeight: 1.45, color: MUTED}}>{column.body}</div>
-              </div>
-            ))}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              marginTop: 18,
-            }}
-          >
+
+          <FlowDiagram accent={accent} />
+
+          <div style={{display: "flex", gap: 10}}>
             <Pill accent={accent} label="fast coordination" />
             <Pill accent={accent} label="programmable trust" />
             <Pill accent={accent} label="verifiable execution" />
@@ -936,212 +1253,134 @@ export const SolanaSurface: React.FC<SurfaceProps> = ({accent}) => {
   );
 };
 
-export const ClosingMontageSurface: React.FC<SurfaceProps> = ({accent}) => {
+export const ClosingMontageSurface: React.FC<SurfaceProps> = ({
+  accent,
+  mode = "standard",
+  title,
+}) => {
+  if (mode === "hackathon-update") {
+    return (
+      <WindowFrame accent={accent} title={title ?? "Boreal"}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            height: 720,
+            justifyContent: "space-between",
+            padding: 28,
+          }}
+        >
+          <div>
+            <Pill accent={accent} label="Solana hackathon update" />
+            <div
+              style={{
+                fontSize: 64,
+                letterSpacing: "-0.06em",
+                lineHeight: 0.92,
+                marginTop: 18,
+                maxWidth: 1120,
+              }}
+            >
+              Matching engine live. Public supply live. Request-native coordination live.
+            </div>
+            <div style={{color: MUTED, fontSize: 20, lineHeight: 1.5, marginTop: 18, maxWidth: 980}}>
+              Provider sync is wired. Accountable delivery is live. Boreal is closing in on launch.
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+            }}
+          >
+            <CompactCard label="Intent" value="Tracked" />
+            <CompactCard label="Matching" value="Live" />
+            <CompactCard label="Supply" value="Public" />
+            <CompactCard label="Swarm" value="Open" />
+            <CompactCard label="Checkout" value="Wired" />
+            <CompactCard label="Launch" value="Close" />
+          </div>
+
+          <FeatureShowcase accent={accent} />
+        </div>
+      </WindowFrame>
+    );
+  }
+
   return (
-    <WindowFrame accent={accent} title="Boreal montage">
+    <WindowFrame accent={accent} title={title ?? "Boreal"}>
       <div
         style={{
-          display: "grid",
-          gap: 18,
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          display: "flex",
+          flexDirection: "column",
           height: 720,
-          padding: 22,
+          justifyContent: "space-between",
+          padding: 28,
         }}
       >
-        <MiniSurface title="Homepage" body="Route demand into matched supply, tracked work, and paid execution." />
-        <MiniSurface title="Request workspace" body="Chat becomes structure, approvals stay explicit, and outcomes stay attached." />
-        <MiniSurface title="Supply market" body="Humans, agents, products, and services become routable supply." />
-        <MiniSurface title="Direct fulfillment" body="Known supply can resolve instantly while harder work still routes to specialists." />
+        <div>
+          <Pill accent={accent} label="The missing layer" />
+          <div
+            style={{
+              fontSize: 68,
+              letterSpacing: "-0.06em",
+              lineHeight: 0.92,
+              marginTop: 20,
+              maxWidth: 1160,
+            }}
+          >
+            Search finds information. Boreal keeps work alive to fulfillment.
+          </div>
+        </div>
+
+        <FeatureShowcase accent={accent} />
+
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          }}
+        >
+          <CompactCard label="Requests" value="Demand becomes structure" />
+          <CompactCard label="Supply" value="Markets become searchable" />
+          <CompactCard label="Commerce" value="Outcomes become accountable" />
+        </div>
       </div>
     </WindowFrame>
   );
 };
 
-export const FilmOverlay: React.FC<{variant: VideoVariant}> = ({variant}) => {
-  const frame = useCurrentFrame();
-  const sceneFrames = variant.scenes.map((scene) => scene.durationInSeconds * VIDEO_FPS);
-  const currentSceneIndex = getCurrentSceneIndex(frame, sceneFrames);
-
-  if (variant.overlayMode === "minimal") {
-    return (
-      <div
-        style={{
-          alignItems: "center",
-          bottom: 32,
-          color: TEXT,
-          display: "flex",
-          justifyContent: "space-between",
-          left: 48,
-          pointerEvents: "none",
-          position: "absolute",
-          right: 48,
-        }}
-      >
-        <div
-          style={{
-            background: PANEL_SOFT,
-            border: `1px solid ${withAlpha(variant.accent, 0.28)}`,
-            color: variant.accent,
-            fontFamily: MONO,
-            fontSize: 14,
-            letterSpacing: "0.18em",
-            padding: "10px 14px",
-            textTransform: "uppercase",
-          }}
-        >
-          {variant.label}
-        </div>
-        <div
-          style={{
-            background: PANEL_SOFT,
-            border: `1px solid ${withAlpha(variant.accent, 0.28)}`,
-            color: MUTED,
-            fontFamily: MONO,
-            fontSize: 14,
-            letterSpacing: "0.18em",
-            padding: "10px 14px",
-            textTransform: "uppercase",
-          }}
-        >
-          {variant.scenes[currentSceneIndex]?.title ?? "Boreal"}
-        </div>
-      </div>
-    );
-  }
-
+const BrandBug: React.FC<{accent: string; label: string}> = ({accent, label}) => {
   return (
     <div
       style={{
-        bottom: 28,
-        display: "flex",
-        gap: 16,
-        left: 48,
-        pointerEvents: "none",
-        position: "absolute",
-        right: 48,
+        alignItems: "center",
+        background: withAlpha("#061116", 0.82),
+        border: `1px solid ${withAlpha(accent, 0.28)}`,
+        color: TEXT,
+        display: "inline-flex",
+        fontFamily: MONO,
+        fontSize: 13,
+        gap: 10,
+        letterSpacing: "0.16em",
+        padding: "10px 14px",
+        textTransform: "uppercase",
       }}
     >
       <div
         style={{
-          alignItems: "center",
-          background: PANEL_SOFT,
-          border: `1px solid ${withAlpha(variant.accent, 0.28)}`,
-          display: "flex",
-          gap: 12,
-          padding: "12px 16px",
+          background: accent,
+          boxShadow: `0 0 24px ${withAlpha(accent, 0.36)}`,
+          height: 8,
+          width: 8,
         }}
-      >
-        <div
-          style={{
-            color: variant.accent,
-            fontFamily: MONO,
-            fontSize: 14,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-          }}
-        >
-          {variant.label}
-        </div>
-        <div style={{color: MUTED, fontSize: 16}}>{variant.subheadline}</div>
-      </div>
-
-      <div
-        style={{
-          background: PANEL_SOFT,
-          border: `1px solid ${withAlpha(variant.accent, 0.28)}`,
-          display: "grid",
-          gap: 10,
-          gridAutoFlow: "column",
-          padding: "12px 16px",
-        }}
-      >
-        {variant.scenes.map((scene, index) => {
-          const progress = getSceneProgress(frame, index, sceneFrames);
-          return (
-            <div key={`${scene.id}-${index}`} style={{display: "flex", flexDirection: "column", gap: 8}}>
-              <div
-                style={{
-                  color: index === currentSceneIndex ? variant.accent : MUTED,
-                  fontFamily: MONO,
-                  fontSize: 12,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                }}
-              >
-                {String(index + 1).padStart(2, "0")}
-              </div>
-              <div
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  height: 6,
-                  width: 42,
-                }}
-              >
-                <div
-                  style={{
-                    background: variant.accent,
-                    height: "100%",
-                    width: `${Math.round(progress * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      />
+      {label}
     </div>
   );
-};
-
-export const getCurrentSceneIndex = (frame: number, sceneFrames: number[]) => {
-  let consumed = 0;
-
-  for (let index = 0; index < sceneFrames.length; index++) {
-    const next = consumed + sceneFrames[index];
-    if (frame < next) {
-      return index;
-    }
-
-    consumed = next;
-  }
-
-  return sceneFrames.length - 1;
-};
-
-export const getSceneProgress = (frame: number, sceneIndex: number, sceneFrames: number[]) => {
-  const start = getSceneStartFrame(sceneIndex, sceneFrames);
-  const duration = sceneFrames[sceneIndex];
-
-  if (frame <= start) {
-    return 0;
-  }
-
-  if (frame >= start + duration) {
-    return 1;
-  }
-
-  return (frame - start) / duration;
-};
-
-export const getSceneStartFrame = (sceneIndex: number, sceneFrames: number[]) => {
-  return sceneFrames.slice(0, sceneIndex).reduce((sum, duration) => sum + duration, 0);
-};
-
-export const withAlpha = (hex: string, alpha: number) => {
-  const normalized = hex.replace("#", "");
-  const expanded =
-    normalized.length === 3
-      ? normalized
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : normalized;
-
-  const red = Number.parseInt(expanded.slice(0, 2), 16);
-  const green = Number.parseInt(expanded.slice(2, 4), 16);
-  const blue = Number.parseInt(expanded.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 };
 
 const WindowFrame: React.FC<WindowFrameProps> = ({accent, children, title}) => {
@@ -1149,9 +1388,10 @@ const WindowFrame: React.FC<WindowFrameProps> = ({accent, children, title}) => {
     <div
       style={{
         background: PANEL,
-        border: `1px solid ${withAlpha(accent, 0.28)}`,
+        border: `1px solid ${withAlpha(accent, 0.22)}`,
         boxShadow: `0 18px 80px ${withAlpha("#000000", 0.34)}`,
         overflow: "hidden",
+        width: "100%",
       }}
     >
       <div
@@ -1198,7 +1438,7 @@ const Pill: React.FC<{accent: string; label: string}> = ({accent, label}) => {
     <div
       style={{
         alignItems: "center",
-        border: `1px solid ${withAlpha(accent, 0.4)}`,
+        border: `1px solid ${withAlpha(accent, 0.38)}`,
         color: accent,
         display: "inline-flex",
         fontFamily: MONO,
@@ -1213,12 +1453,12 @@ const Pill: React.FC<{accent: string; label: string}> = ({accent, label}) => {
   );
 };
 
-const StatusPill: React.FC<{accent: string; label: string}> = ({accent, label}) => {
+const StatusChip: React.FC<{accent: string; label: string}> = ({accent, label}) => {
   return (
     <div
       style={{
-        background: withAlpha(accent, 0.14),
-        border: `1px solid ${withAlpha(accent, 0.34)}`,
+        background: withAlpha(accent, 0.12),
+        border: `1px solid ${withAlpha(accent, 0.26)}`,
         color: TEXT,
         fontFamily: MONO,
         fontSize: 12,
@@ -1234,67 +1474,24 @@ const StatusPill: React.FC<{accent: string; label: string}> = ({accent, label}) 
 
 const ActionButton: React.FC<{
   accent: string;
-  fullWidth?: boolean;
   label: string;
-  mode: "outline" | "solid";
-}> = ({accent, fullWidth = false, label, mode}) => {
+  mode: "ghost" | "solid";
+}> = ({accent, label, mode}) => {
   return (
     <div
       style={{
         alignItems: "center",
         background: mode === "solid" ? accent : "transparent",
-        border: `1px solid ${mode === "solid" ? accent : withAlpha(accent, 0.44)}`,
+        border: `1px solid ${mode === "solid" ? accent : withAlpha(accent, 0.32)}`,
         color: mode === "solid" ? "#041017" : TEXT,
         display: "inline-flex",
         fontSize: 16,
         fontWeight: 600,
         justifyContent: "center",
-        padding: "12px 18px",
-        width: fullWidth ? "100%" : "auto",
+        padding: "12px 16px",
       }}
     >
       {label}
-    </div>
-  );
-};
-
-const Card: React.FC<{body: string; title: string}> = ({body, title}) => {
-  return (
-    <div
-      style={{
-        background: PANEL_SOFT,
-        border: `1px solid ${BORDER}`,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        minHeight: 220,
-        padding: 18,
-      }}
-    >
-      <div style={{fontSize: 22, letterSpacing: "-0.03em", lineHeight: 1.12}}>{title}</div>
-      <div style={{color: MUTED, fontSize: 17, lineHeight: 1.5}}>{body}</div>
-    </div>
-  );
-};
-
-const CalloutCard: React.FC<{accent: string; body: string; title: string}> = ({
-  accent,
-  body,
-  title,
-}) => {
-  return (
-    <div
-      style={{
-        background: PANEL_SOFT,
-        border: `1px solid ${withAlpha(accent, 0.24)}`,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        padding: 18,
-      }}
-    >
-      <div style={{fontSize: 22, letterSpacing: "-0.03em"}}>{title}</div>
-      <div style={{color: MUTED, fontSize: 17, lineHeight: 1.5}}>{body}</div>
     </div>
   );
 };
@@ -1318,15 +1515,15 @@ const SidebarPane: React.FC<{children: ReactNode; subtitle: string; title: strin
         style={{
           color: MUTED,
           fontFamily: MONO,
-          fontSize: 13,
+          fontSize: 12,
           letterSpacing: "0.16em",
           textTransform: "uppercase",
         }}
       >
         {title}
       </div>
-      <div style={{fontSize: 20, marginTop: 10}}>{subtitle}</div>
-      <div style={{display: "flex", flexDirection: "column", gap: 10, marginTop: 18}}>
+      <div style={{fontSize: 20, letterSpacing: "-0.03em", marginTop: 10}}>{subtitle}</div>
+      <div style={{display: "flex", flexDirection: "column", gap: 10, marginTop: 16}}>
         {children}
       </div>
     </div>
@@ -1341,25 +1538,25 @@ const SidebarItem: React.FC<{active: boolean; subtitle: string; title: string}> 
   return (
     <div
       style={{
-        background: active ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.02)",
-        border: `1px solid ${active ? "rgba(20, 184, 166, 0.3)" : BORDER}`,
+        background: active ? withAlpha("#ffffff", 0.08) : withAlpha("#ffffff", 0.03),
+        border: `1px solid ${active ? withAlpha("#14b8a6", 0.36) : BORDER}`,
         padding: 14,
       }}
     >
-      <div style={{fontSize: 17, lineHeight: 1.35}}>{title}</div>
+      <div style={{fontSize: 17, lineHeight: 1.32}}>{title}</div>
       <div style={{color: MUTED, fontSize: 14, marginTop: 6}}>{subtitle}</div>
     </div>
   );
 };
 
-const ChatBubble: React.FC<{role: "assistant" | "user"; text: string}> = ({role, text}) => {
+const MessageBubble: React.FC<{role: "assistant" | "user"; text: string}> = ({role, text}) => {
   return (
     <div
       style={{
         alignSelf: role === "user" ? "flex-end" : "flex-start",
-        background: role === "user" ? "rgba(20, 184, 166, 0.16)" : "rgba(255,255,255,0.05)",
-        border: `1px solid ${role === "user" ? "rgba(20, 184, 166, 0.32)" : BORDER}`,
-        maxWidth: role === "user" ? "86%" : "92%",
+        background: role === "user" ? withAlpha("#14b8a6", 0.14) : PANEL_MUTED,
+        border: `1px solid ${role === "user" ? withAlpha("#14b8a6", 0.24) : BORDER}`,
+        maxWidth: role === "user" ? "82%" : "92%",
         padding: "16px 18px",
       }}
     >
@@ -1375,63 +1572,78 @@ const ChatBubble: React.FC<{role: "assistant" | "user"; text: string}> = ({role,
       >
         {role}
       </div>
-      <div style={{fontSize: 18, lineHeight: 1.5}}>{text}</div>
+      <div style={{fontSize: 18, lineHeight: 1.52}}>{text}</div>
     </div>
   );
 };
 
 const StageRail: React.FC<{accent: string; activeIndex: number}> = ({accent, activeIndex}) => {
-  const labels = ["Detect", "Approve", "Work", "Deliver"];
+  const labels = ["Scope", "Approve", "Active", "Deliver"];
+
   return (
     <div
       style={{
         alignItems: "center",
         display: "grid",
-        gap: 6,
+        gap: 0,
         gridTemplateColumns: "auto 1fr auto 1fr auto 1fr auto",
       }}
     >
       {labels.map((label, index) => (
-        <StageRailNode
+        <StageNode
           accent={accent}
-          active={index <= activeIndex}
+          activeIndex={activeIndex}
+          index={index}
           key={label}
           label={label}
-          showLine={index < labels.length - 1}
+          showConnector={index < labels.length - 1}
         />
       ))}
     </div>
   );
 };
 
-const StageRailNode: React.FC<{
+const StageNode: React.FC<{
   accent: string;
-  active: boolean;
+  activeIndex: number;
+  index: number;
   label: string;
-  showLine: boolean;
-}> = ({accent, active, label, showLine}) => {
+  showConnector: boolean;
+}> = ({accent, activeIndex, index, label, showConnector}) => {
+  const isComplete = index < activeIndex;
+  const isCurrent = index === activeIndex;
+
   return (
     <>
-      <div style={{display: "flex", flexDirection: "column", alignItems: "center", gap: 8}}>
+      <div style={{alignItems: "center", display: "flex", flexDirection: "column", gap: 10}}>
         <div
           style={{
             alignItems: "center",
-            background: active ? accent : "rgba(255,255,255,0.08)",
+            background: isComplete ? accent : isCurrent ? withAlpha(accent, 0.14) : "transparent",
+            border: `2px solid ${isComplete || isCurrent ? accent : withAlpha("#ffffff", 0.2)}`,
             borderRadius: 999,
-            color: active ? "#041017" : TEXT,
             display: "flex",
-            height: 28,
+            height: 22,
             justifyContent: "center",
-            width: 28,
+            width: 22,
           }}
         >
-          {active ? "+" : "o"}
+          {isCurrent && !isComplete ? (
+            <div
+              style={{
+                background: accent,
+                borderRadius: 999,
+                height: 8,
+                width: 8,
+              }}
+            />
+          ) : null}
         </div>
         <div
           style={{
-            color: MUTED,
+            color: isComplete || isCurrent ? TEXT : MUTED_SOFT,
             fontFamily: MONO,
-            fontSize: 12,
+            fontSize: 11,
             letterSpacing: "0.16em",
             textTransform: "uppercase",
           }}
@@ -1439,11 +1651,12 @@ const StageRailNode: React.FC<{
           {label}
         </div>
       </div>
-      {showLine ? (
+      {showConnector ? (
         <div
           style={{
-            background: active ? accent : "rgba(255,255,255,0.08)",
+            background: index < activeIndex ? accent : withAlpha("#ffffff", 0.12),
             height: 2,
+            marginBottom: 20,
             width: "100%",
           }}
         />
@@ -1452,7 +1665,7 @@ const StageRailNode: React.FC<{
   );
 };
 
-const Panel: React.FC<{children: ReactNode; title: string}> = ({children, title}) => {
+const InfoPanel: React.FC<{children: ReactNode; title: string}> = ({children, title}) => {
   return (
     <div
       style={{
@@ -1465,7 +1678,7 @@ const Panel: React.FC<{children: ReactNode; title: string}> = ({children, title}
         style={{
           color: MUTED,
           fontFamily: MONO,
-          fontSize: 13,
+          fontSize: 12,
           letterSpacing: "0.16em",
           marginBottom: 14,
           textTransform: "uppercase",
@@ -1478,36 +1691,15 @@ const Panel: React.FC<{children: ReactNode; title: string}> = ({children, title}
   );
 };
 
-const TagRow: React.FC<{tags: string[]}> = ({tags}) => {
-  return (
-    <div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
-      {tags.map((tag) => (
-        <div
-          key={tag}
-          style={{
-            border: `1px solid ${BORDER}`,
-            color: MUTED,
-            fontSize: 13,
-            padding: "8px 10px",
-            textTransform: "uppercase",
-          }}
-        >
-          {tag}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const DataLine: React.FC<{label: string; value: string}> = ({label, value}) => {
+const DataRow: React.FC<{label: string; value: string}> = ({label, value}) => {
   return (
     <div
       style={{
         borderTop: `1px solid ${BORDER}`,
         display: "grid",
-        gap: 16,
-        gridTemplateColumns: "180px 1fr",
-        padding: "12px 0",
+        gap: 14,
+        gridTemplateColumns: "130px 1fr",
+        padding: "10px 0",
       }}
     >
       <div
@@ -1521,23 +1713,28 @@ const DataLine: React.FC<{label: string; value: string}> = ({label, value}) => {
       >
         {label}
       </div>
-      <div style={{fontSize: 16, lineHeight: 1.5}}>{value}</div>
+      <div style={{fontSize: 15, lineHeight: 1.5}}>{value}</div>
     </div>
   );
 };
 
-const BulletLine: React.FC<{text: string}> = ({text}) => {
+const TagRow: React.FC<{tags: string[]}> = ({tags}) => {
   return (
-    <div style={{display: "flex", gap: 12, alignItems: "flex-start"}}>
-      <div
-        style={{
-          background: "#14b8a6",
-          height: 8,
-          marginTop: 9,
-          width: 8,
-        }}
-      />
-      <div style={{color: MUTED, fontSize: 17, lineHeight: 1.5}}>{text}</div>
+    <div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
+      {tags.map((tag) => (
+        <div
+          key={tag}
+          style={{
+            border: `1px solid ${BORDER}`,
+            color: MUTED,
+            fontSize: 12,
+            padding: "8px 10px",
+            textTransform: "uppercase",
+          }}
+        >
+          {tag}
+        </div>
+      ))}
     </div>
   );
 };
@@ -1546,7 +1743,7 @@ const SearchBar: React.FC<{placeholder: string}> = ({placeholder}) => {
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.04)",
+        background: PANEL_MUTED,
         border: `1px solid ${BORDER}`,
         color: MUTED,
         fontSize: 16,
@@ -1569,20 +1766,22 @@ const MarketCard: React.FC<{
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.03)",
+        background: PANEL_MUTED,
         border: `1px solid ${BORDER}`,
         padding: 16,
       }}
     >
-      <div style={{display: "flex", justifyContent: "space-between", gap: 12}}>
-        <div style={{fontSize: 19, letterSpacing: "-0.03em", lineHeight: 1.3}}>{title}</div>
-        <div style={{color: accent, fontFamily: MONO, fontSize: 12, textTransform: "uppercase"}}>
-          {score}
+      <div style={{alignItems: "flex-start", display: "flex", gap: 12, justifyContent: "space-between"}}>
+        <div style={{fontSize: 20, letterSpacing: "-0.03em", lineHeight: 1.28, maxWidth: 520}}>
+          {title}
         </div>
+        <MatchBadge accent={accent} label={score} />
       </div>
       <div style={{color: MUTED, fontSize: 14, marginTop: 6}}>{subtitle}</div>
-      <div style={{color: MUTED, fontSize: 16, lineHeight: 1.5, marginTop: 10}}>{body}</div>
-      <div style={{color: MUTED, fontFamily: MONO, fontSize: 12, marginTop: 12}}>{meta}</div>
+      <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52, marginTop: 10}}>{body}</div>
+      <div style={{color: MUTED_SOFT, fontFamily: MONO, fontSize: 12, marginTop: 14}}>
+        {meta}
+      </div>
     </div>
   );
 };
@@ -1591,6 +1790,7 @@ const MetricTile: React.FC<{label: string; value: string}> = ({label, value}) =>
   return (
     <div
       style={{
+        background: PANEL_MUTED,
         border: `1px solid ${BORDER}`,
         padding: 14,
       }}
@@ -1607,7 +1807,7 @@ const MetricTile: React.FC<{label: string; value: string}> = ({label, value}) =>
       >
         {label}
       </div>
-      <div style={{fontSize: 28, letterSpacing: "-0.04em"}}>{value}</div>
+      <div style={{fontSize: 28, letterSpacing: "-0.04em", lineHeight: 1}}>{value}</div>
     </div>
   );
 };
@@ -1621,16 +1821,17 @@ const RequestCard: React.FC<{
   return (
     <div
       style={{
+        background: PANEL_MUTED,
         border: `1px solid ${BORDER}`,
         marginTop: 10,
         padding: 16,
       }}
     >
-      <div style={{fontSize: 20, letterSpacing: "-0.03em"}}>{title}</div>
-      <div style={{color: MUTED, fontSize: 16, lineHeight: 1.5, marginTop: 10}}>{summary}</div>
+      <div style={{fontSize: 20, letterSpacing: "-0.03em", lineHeight: 1.28}}>{title}</div>
+      <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52, marginTop: 10}}>{summary}</div>
       <div
         style={{
-          color: MUTED,
+          color: MUTED_SOFT,
           fontFamily: MONO,
           fontSize: 12,
           marginTop: 12,
@@ -1639,6 +1840,360 @@ const RequestCard: React.FC<{
       >
         {category} / {status}
       </div>
+    </div>
+  );
+};
+
+const InlineDecisionCard: React.FC<{
+  accent: string;
+  body: string;
+  primary: string;
+  secondary: string;
+  title: string;
+}> = ({accent, body, primary, secondary, title}) => {
+  return (
+    <div
+      style={{
+        background: withAlpha(accent, 0.08),
+        border: `1px solid ${withAlpha(accent, 0.24)}`,
+        padding: 18,
+      }}
+    >
+      <div style={{fontSize: 22, letterSpacing: "-0.03em"}}>{title}</div>
+      <div style={{color: MUTED, fontSize: 16, lineHeight: 1.52, marginTop: 10}}>{body}</div>
+      <div style={{display: "flex", gap: 10, marginTop: 16}}>
+        <ActionButton accent={accent} label={primary} mode="solid" />
+        <ActionButton accent={accent} label={secondary} mode="ghost" />
+      </div>
+    </div>
+  );
+};
+
+const InlineMatchStrip: React.FC<{accent: string; matches: string[]}> = ({accent, matches}) => {
+  return (
+    <div
+      style={{
+        background: PANEL_MUTED,
+        border: `1px solid ${BORDER}`,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          color: MUTED,
+          fontFamily: MONO,
+          fontSize: 12,
+          letterSpacing: "0.16em",
+          textTransform: "uppercase",
+        }}
+      >
+        Matched paths
+      </div>
+      {matches.map((match) => (
+        <div
+          key={match}
+          style={{
+            alignItems: "center",
+            display: "flex",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              background: accent,
+              height: 6,
+              width: 6,
+            }}
+          />
+          <div style={{color: MUTED, fontSize: 15, lineHeight: 1.42}}>{match}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ComposerCard: React.FC = () => {
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${BORDER}`,
+        marginTop: "auto",
+        padding: 18,
+      }}
+    >
+      <div
+        style={{
+          color: MUTED,
+          fontFamily: MONO,
+          fontSize: 12,
+          letterSpacing: "0.16em",
+          marginBottom: 10,
+          textTransform: "uppercase",
+        }}
+      >
+        Composer
+      </div>
+      <div style={{color: MUTED, fontSize: 17, lineHeight: 1.52}}>
+        Start in natural language. Boreal decides whether this should become a request,
+        a match, a checkout path, or a direct result.
+      </div>
+    </div>
+  );
+};
+
+const SupplyPathCard: React.FC<{
+  accent: string;
+  score: string;
+  subtitle: string;
+  title: string;
+}> = ({accent, score, subtitle, title}) => {
+  return (
+    <div
+      style={{
+        background: PANEL_MUTED,
+        border: `1px solid ${BORDER}`,
+        marginTop: 10,
+        padding: 14,
+      }}
+    >
+      <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
+        <div style={{fontSize: 18, letterSpacing: "-0.03em"}}>{title}</div>
+        <MatchBadge accent={accent} label={score} />
+      </div>
+      <div style={{color: MUTED, fontSize: 14, marginTop: 8}}>{subtitle}</div>
+    </div>
+  );
+};
+
+const ScoreBreakdown: React.FC<{
+  accent: string;
+  rows: Array<{label: string; value: number}>;
+}> = ({accent, rows}) => {
+  return (
+    <div style={{display: "flex", flexDirection: "column", gap: 12}}>
+      {rows.map((row) => (
+        <div key={row.label}>
+          <div style={{alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 8}}>
+            <div style={{color: MUTED, fontSize: 15}}>{row.label}</div>
+            <div
+              style={{
+                color: accent,
+                fontFamily: MONO,
+                fontSize: 12,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+              }}
+            >
+              {Math.round(row.value * 100)}%
+            </div>
+          </div>
+          <ProgressBar accent={accent} progress={row.value} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ProposalQueue: React.FC<{accent: string}> = ({accent}) => {
+  const entries = [
+    {
+      eta: "2 days",
+      price: "$180",
+      title: "Manila operator collective",
+      type: "human collective",
+    },
+    {
+      eta: "36 hours",
+      price: "$220",
+      title: "Hybrid operator pod",
+      type: "human + agent",
+    },
+    {
+      eta: "3 days",
+      price: "$160",
+      title: "Local verifier",
+      type: "human",
+    },
+  ];
+
+  return (
+    <div style={{display: "flex", flexDirection: "column", gap: 12}}>
+      {entries.map((entry, index) => (
+        <div
+          key={entry.title}
+          style={{
+            background: index === 1 ? withAlpha(accent, 0.08) : PANEL_MUTED,
+            border: `1px solid ${index === 1 ? withAlpha(accent, 0.26) : BORDER}`,
+            padding: 14,
+          }}
+        >
+          <div style={{alignItems: "center", display: "flex", justifyContent: "space-between"}}>
+            <div style={{fontSize: 18, letterSpacing: "-0.03em"}}>{entry.title}</div>
+            <MatchBadge accent={accent} label={index === 1 ? "selected path" : "proposal"} />
+          </div>
+          <div style={{color: MUTED, fontSize: 14, marginTop: 8}}>{entry.type}</div>
+          <div style={{display: "flex", gap: 14, marginTop: 10}}>
+            <div style={{color: MUTED_SOFT, fontFamily: MONO, fontSize: 12}}>{entry.price}</div>
+            <div style={{color: MUTED_SOFT, fontFamily: MONO, fontSize: 12}}>{entry.eta}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const TimelineCard: React.FC<{
+  accent: string;
+  children: ReactNode;
+  label: string;
+  title: string;
+}> = ({accent, children, label, title}) => {
+  return (
+    <div
+      style={{
+        background: PANEL_MUTED,
+        border: `1px solid ${withAlpha(accent, 0.18)}`,
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          color: accent,
+          fontFamily: MONO,
+          fontSize: 12,
+          letterSpacing: "0.16em",
+          marginBottom: 8,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+      <div style={{fontSize: 22, letterSpacing: "-0.03em", lineHeight: 1.28}}>{title}</div>
+      <div style={{marginTop: 14}}>{children}</div>
+    </div>
+  );
+};
+
+const FileChip: React.FC<{label: string}> = ({label}) => {
+  return (
+    <div
+      style={{
+        border: `1px solid ${BORDER}`,
+        color: MUTED,
+        fontFamily: MONO,
+        fontSize: 12,
+        padding: "8px 10px",
+      }}
+    >
+      {label}
+    </div>
+  );
+};
+
+const ParticipantRow: React.FC<{names: string[]}> = ({names}) => {
+  return (
+    <div style={{display: "flex", gap: 12, flexWrap: "wrap"}}>
+      {names.map((name, index) => (
+        <div
+          key={name}
+          style={{
+            alignItems: "center",
+            display: "flex",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              alignItems: "center",
+              background: index === 2 ? withAlpha("#14b8a6", 0.16) : PANEL_MUTED,
+              border: `1px solid ${index === 2 ? withAlpha("#14b8a6", 0.32) : BORDER}`,
+              borderRadius: 999,
+              display: "flex",
+              height: 34,
+              justifyContent: "center",
+              width: 34,
+            }}
+          >
+            {name.charAt(0)}
+          </div>
+          <div style={{color: MUTED, fontSize: 15}}>{name}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ReviewStars: React.FC = () => {
+  return (
+    <div style={{display: "flex", gap: 8}}>
+      {Array.from({length: 5}).map((_, index) => (
+        <div
+          key={index}
+          style={{
+            color: "#f59e0b",
+            fontSize: 24,
+          }}
+        >
+          *
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ArtifactPipeline: React.FC<{accent: string}> = ({accent}) => {
+  const steps = [
+    {
+      body: "Matched workflow selected by the routing engine",
+      title: "Route",
+    },
+    {
+      body: "Approval starts the provider-backed execution",
+      title: "Execute",
+    },
+    {
+      body: "Preview, files, and timestamps attach to the request",
+      title: "Attach",
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gap: 12,
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      }}
+    >
+      {steps.map((step, index) => (
+        <div
+          key={step.title}
+          style={{
+            background: index === 1 ? withAlpha(accent, 0.08) : PANEL_MUTED,
+            border: `1px solid ${index === 1 ? withAlpha(accent, 0.24) : BORDER}`,
+            minHeight: 150,
+            padding: 14,
+          }}
+        >
+          <div
+            style={{
+              color: accent,
+              fontFamily: MONO,
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              marginBottom: 10,
+              textTransform: "uppercase",
+            }}
+          >
+            {step.title}
+          </div>
+          <div style={{color: MUTED, fontSize: 15, lineHeight: 1.45}}>{step.body}</div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -1652,7 +2207,7 @@ const ArtifactCard: React.FC<{accent: string; kind: "audio" | "image" | "video";
   const progress = Math.min(1, frame / 60);
   const waveformBars = Array.from({length: 20}).map((_, index) => {
     const oscillation = Math.sin(frame / 4 + index * 0.8);
-    return Math.max(12, 48 + oscillation * 32);
+    return Math.max(12, 44 + oscillation * 28);
   });
 
   return (
@@ -1662,7 +2217,7 @@ const ArtifactCard: React.FC<{accent: string; kind: "audio" | "image" | "video";
         border: `1px solid ${withAlpha(accent, 0.22)}`,
         display: "flex",
         flexDirection: "column",
-        minHeight: 520,
+        minHeight: 312,
         overflow: "hidden",
       }}
     >
@@ -1684,22 +2239,17 @@ const ArtifactCard: React.FC<{accent: string; kind: "audio" | "image" | "video";
           <div
             style={{
               background:
-                "linear-gradient(135deg, rgba(20, 184, 166, 0.28), rgba(56, 189, 248, 0.18), rgba(248, 250, 252, 0.08))",
+                "linear-gradient(135deg, rgba(20, 184, 166, 0.24), rgba(56, 189, 248, 0.18), rgba(255,255,255,0.06))",
               border: `1px solid ${BORDER}`,
+              display: "flex",
+              flexDirection: "column",
               height: "100%",
-              position: "relative",
+              justifyContent: "flex-end",
+              padding: 16,
             }}
           >
-            <div
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                bottom: 16,
-                left: 16,
-                padding: "10px 12px",
-                position: "absolute",
-              }}
-            >
-              Poster concept / generated artwork
+            <div style={{fontSize: 28, letterSpacing: "-0.04em", lineHeight: 1.04, maxWidth: 260}}>
+              Poster concept ready for delivery
             </div>
           </div>
         ) : null}
@@ -1745,34 +2295,25 @@ const ArtifactCard: React.FC<{accent: string; kind: "audio" | "image" | "video";
                 alignItems: "center",
                 display: "flex",
                 fontSize: 18,
-                gap: 12,
                 justifyContent: "space-between",
               }}
             >
-              <span>Status: in progress</span>
+              <span>Status: rendering</span>
               <span>{Math.round(progress * 100)}%</span>
             </div>
-            <div style={{background: "rgba(255,255,255,0.08)", height: 8}}>
-              <div
-                style={{
-                  background: accent,
-                  height: "100%",
-                  width: `${Math.round(progress * 100)}%`,
-                }}
-              />
-            </div>
+            <ProgressBar accent={accent} progress={progress} />
             <div
               style={{
-                background: "rgba(255,255,255,0.03)",
+                background: PANEL_MUTED,
                 border: `1px solid ${BORDER}`,
                 color: MUTED,
                 flex: 1,
-                fontSize: 17,
-                lineHeight: 1.5,
-                padding: 18,
+                fontSize: 16,
+                lineHeight: 1.52,
+                padding: 16,
               }}
             >
-              Product walkthrough / video orchestration / provider-backed generation state
+              Video jobs, refresh states, and finished artifacts can stay on the same request.
             </div>
           </div>
         ) : null}
@@ -1781,16 +2322,172 @@ const ArtifactCard: React.FC<{accent: string; kind: "audio" | "image" | "video";
   );
 };
 
-const MiniSurface: React.FC<{body: string; title: string}> = ({body, title}) => {
+const ProfileSpotlight: React.FC<{accent: string}> = ({accent}) => {
+  return (
+    <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+      <div style={{alignItems: "center", display: "flex", gap: 16}}>
+        <div
+          style={{
+            alignItems: "center",
+            background: withAlpha(accent, 0.16),
+            border: `1px solid ${withAlpha(accent, 0.28)}`,
+            borderRadius: 999,
+            display: "flex",
+            height: 72,
+            justifyContent: "center",
+            width: 72,
+          }}
+        >
+          BA
+        </div>
+        <div>
+          <div style={{fontSize: 28, letterSpacing: "-0.04em"}}>Boreal Agent</div>
+          <div style={{color: MUTED, fontSize: 16, marginTop: 6}}>
+            Intent routing, market coordination, direct fulfillment
+          </div>
+        </div>
+      </div>
+
+      <TagRow tags={["routing", "matching", "media", "checkout"]} />
+      <SparkBars accent={accent} values={[10, 16, 12, 20, 18, 24, 21, 26, 28, 30]} />
+      <div
+        style={{
+          display: "grid",
+          gap: 10,
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        }}
+      >
+        <MetricTile label="Rating" value="4.9" />
+        <MetricTile label="Fulfilled" value="128" />
+        <MetricTile label="Active" value="17" />
+        <MetricTile label="Avg ETA" value="2.1h" />
+      </div>
+    </div>
+  );
+};
+
+const SparkBars: React.FC<{accent: string; values: number[]}> = ({accent, values}) => {
+  return (
+    <div
+      style={{
+        alignItems: "end",
+        border: `1px solid ${BORDER}`,
+        display: "grid",
+        gap: 8,
+        gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))`,
+        height: 124,
+        padding: 14,
+      }}
+    >
+      {values.map((value, index) => (
+        <div
+          key={`${value}-${index}`}
+          style={{
+            background: index === values.length - 1 ? accent : withAlpha(accent, 0.5),
+            height: `${value * 2.3}px`,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const FlowDiagram: React.FC<{accent: string}> = ({accent}) => {
+  const steps = [
+    {
+      body: "Chat, search, and requests become structured market demand.",
+      title: "Intent",
+    },
+    {
+      body: "Boreal matches people, agents, products, or provider-backed supply.",
+      title: "Routing",
+    },
+    {
+      body: "Approval and payment can stay explicit in the same loop.",
+      title: "Approval",
+    },
+    {
+      body: "Evidence, delivery, and settlement can compound trust.",
+      title: "Settlement",
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        alignItems: "center",
+        display: "grid",
+        gap: 14,
+        gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+      }}
+    >
+      {steps.map((step, index) => (
+        <FlowNode
+          accent={accent}
+          body={step.body}
+          isLast={index === steps.length - 1}
+          key={step.title}
+          title={step.title}
+        />
+      ))}
+    </div>
+  );
+};
+
+const FlowNode: React.FC<{
+  accent: string;
+  body: string;
+  isLast: boolean;
+  title: string;
+}> = ({accent, body, isLast, title}) => {
+  return (
+    <>
+      <div
+        style={{
+          background: PANEL_MUTED,
+          border: `1px solid ${withAlpha(accent, 0.2)}`,
+          gridColumn: "span 1",
+          minHeight: 190,
+          padding: 16,
+        }}
+      >
+        <div
+          style={{
+            color: accent,
+            fontFamily: MONO,
+            fontSize: 12,
+            letterSpacing: "0.16em",
+            marginBottom: 12,
+            textTransform: "uppercase",
+          }}
+        >
+          {title}
+        </div>
+        <div style={{color: MUTED, fontSize: 16, lineHeight: 1.5}}>{body}</div>
+      </div>
+      {!isLast ? (
+        <div
+          style={{
+            background: withAlpha(accent, 0.32),
+            gridColumn: "span 1",
+            height: 2,
+          }}
+        />
+      ) : null}
+    </>
+  );
+};
+
+const FeatureShowcase: React.FC<{accent: string}> = ({accent}) => {
   return (
     <div
       style={{
         background: PANEL_SOFT,
-        border: `1px solid ${BORDER}`,
+        border: `1px solid ${withAlpha(accent, 0.2)}`,
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
-        padding: 18,
+        gap: 18,
+        padding: 20,
       }}
     >
       <div
@@ -1799,20 +2496,125 @@ const MiniSurface: React.FC<{body: string; title: string}> = ({body, title}) => 
           fontFamily: MONO,
           fontSize: 12,
           letterSpacing: "0.16em",
-          marginBottom: 12,
           textTransform: "uppercase",
         }}
       >
-        {title}
+        Operating loop
       </div>
-      <div style={{fontSize: 26, letterSpacing: "-0.04em", lineHeight: 1.1}}>{body}</div>
+      <div style={{fontSize: 32, letterSpacing: "-0.04em", lineHeight: 1.04}}>
+        Chat becomes a request. The market stays visible. The result lands back on the same thread.
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gap: 10,
+          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+        }}
+      >
+        {["Chat", "Request", "Match", "Approve", "Deliver"].map((label, index) => (
+          <div
+            key={label}
+            style={{
+              background: index === 2 ? withAlpha(accent, 0.14) : PANEL_MUTED,
+              border: `1px solid ${index === 2 ? withAlpha(accent, 0.28) : BORDER}`,
+              padding: 14,
+            }}
+          >
+            <div
+              style={{
+                color: index === 2 ? accent : MUTED,
+                fontFamily: MONO,
+                fontSize: 11,
+                letterSpacing: "0.16em",
+                marginBottom: 8,
+                textTransform: "uppercase",
+              }}
+            >
+              Step {index + 1}
+            </div>
+            <div style={{fontSize: 18, letterSpacing: "-0.03em"}}>{label}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
-export const VIDEO_FPS = 30;
+const CompactCard: React.FC<{label: string; value: string}> = ({label, value}) => {
+  return (
+    <div
+      style={{
+        background: PANEL_MUTED,
+        border: `1px solid ${BORDER}`,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        minHeight: 92,
+        padding: 14,
+      }}
+    >
+      <div
+        style={{
+          color: MUTED,
+          fontFamily: MONO,
+          fontSize: 11,
+          letterSpacing: "0.16em",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+      <div style={{fontSize: 18, letterSpacing: "-0.03em", lineHeight: 1.35}}>{value}</div>
+    </div>
+  );
+};
 
-export const sharedShadow: CSSProperties["boxShadow"] = `0 18px 80px ${withAlpha(
-  "#000000",
-  0.34,
-)}`;
+const MatchBadge: React.FC<{accent: string; label: string}> = ({accent, label}) => {
+  return (
+    <div
+      style={{
+        border: `1px solid ${withAlpha(accent, 0.3)}`,
+        color: accent,
+        fontFamily: MONO,
+        fontSize: 12,
+        letterSpacing: "0.14em",
+        padding: "8px 10px",
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </div>
+  );
+};
+
+const ProgressBar: React.FC<{accent: string; progress: number}> = ({accent, progress}) => {
+  return (
+    <div style={{background: withAlpha("#ffffff", 0.08), height: 8}}>
+      <div
+        style={{
+          background: accent,
+          height: "100%",
+          width: `${Math.round(progress * 100)}%`,
+        }}
+      />
+    </div>
+  );
+};
+
+const withAlpha = (hex: string, alpha: number) => {
+  const normalized = hex.replace("#", "");
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((character) => `${character}${character}`)
+          .join("")
+      : normalized;
+
+  const red = Number.parseInt(expanded.slice(0, 2), 16);
+  const green = Number.parseInt(expanded.slice(2, 4), 16);
+  const blue = Number.parseInt(expanded.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+};

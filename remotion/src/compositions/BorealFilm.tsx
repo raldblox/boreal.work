@@ -1,20 +1,25 @@
-import {AbsoluteFill, Sequence} from "remotion";
+import {AbsoluteFill, Audio, Sequence, staticFile} from "remotion";
 
 import {
   BorealBackdrop,
   ChatWorkspaceSurface,
   ClosingMontageSurface,
   type FilmSceneProps,
-  FilmOverlay,
   FulfillmentSurface,
   HomepageSurface,
+  LifecycleSurface,
   ProblemPulseSurface,
   SceneFrame,
   SolanaSurface,
   SupplyMarketSurface,
-  LifecycleSurface,
 } from "../components/BorealSurface";
-import {VIDEO_FPS, type SceneId, type VideoVariant} from "../data/video-variants";
+import {
+  getSceneVoiceoverFile,
+  VIDEO_FPS,
+  type SceneId,
+  type VideoVariant,
+} from "../data/video-variants";
+import {GENERATED_VOICEOVER_MANIFEST} from "../data/generated-voiceover";
 
 export type BorealFilmProps = {
   variant: VideoVariant;
@@ -22,123 +27,106 @@ export type BorealFilmProps = {
 
 type SceneRenderer = React.FC<FilmSceneProps>;
 
+const getSurfaceTitle = (variant: VideoVariant, sceneId: SceneId) => {
+  return variant.surfaceTitles?.[sceneId];
+};
+
+const getSurfaceMode = (variant: VideoVariant) => {
+  return variant.surfaceMode ?? "standard";
+};
+
+const getVoiceoverPlaybackRate = (variant: VideoVariant, sceneIndex: number) => {
+  const manifest = GENERATED_VOICEOVER_MANIFEST[
+    variant.compositionId as keyof typeof GENERATED_VOICEOVER_MANIFEST
+  ];
+
+  return manifest?.[sceneIndex]?.playbackRate ?? 1;
+};
+
 const sceneRegistry: Record<SceneId, SceneRenderer> = {
   "intent-disappears": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "Search finds information, but it does not route work.",
-        "Chat generates text, but it often does not create accountable execution.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <ProblemPulseSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <ProblemPulseSurface accent={variant.accent} mode={getSurfaceMode(variant)} />
     </SceneFrame>
   ),
   "missing-layer": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "Use the real homepage language as proof of category position.",
-        "The UI should feel like infrastructure, not a chatbot skin.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <HomepageSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <HomepageSurface
+        accent={variant.accent}
+        mode={getSurfaceMode(variant)}
+        title={getSurfaceTitle(variant, scene.id)}
+      />
     </SceneFrame>
   ),
   "chat-to-workspace": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "Natural language in. Structured work out.",
-        "Requests, approvals, and execution paths stay reviewable.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <ChatWorkspaceSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <ChatWorkspaceSurface
+        accent={variant.accent}
+        mode={getSurfaceMode(variant)}
+        title={getSurfaceTitle(variant, scene.id)}
+      />
     </SceneFrame>
   ),
   "real-supply": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "Boreal is a market surface, not a private assistant thread.",
-        "Profiles, supply cards, and request discovery make the network legible.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <SupplyMarketSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <SupplyMarketSurface
+        accent={variant.accent}
+        mode={getSurfaceMode(variant)}
+        title={getSurfaceTitle(variant, scene.id)}
+      />
     </SceneFrame>
   ),
   "proposal-delivery": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "The request persists until the outcome is delivered and reviewed.",
-        "That auditability is what lets the market improve over time.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <LifecycleSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <LifecycleSurface
+        accent={variant.accent}
+        mode={getSurfaceMode(variant)}
+        title={getSurfaceTitle(variant, scene.id)}
+      />
     </SceneFrame>
   ),
   "direct-fulfillment": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "Known supply can resolve directly inside the product surface.",
-        "Market routing and instant fulfillment can coexist in one flow.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <FulfillmentSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <FulfillmentSurface
+        accent={variant.accent}
+        mode={getSurfaceMode(variant)}
+        title={getSurfaceTitle(variant, scene.id)}
+      />
     </SceneFrame>
   ),
   "solana-fit": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "Stay honest about shipped alpha versus next-layer architecture.",
-        "Tie Solana to real product needs: speed, trust, and economic coordination.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <SolanaSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <SolanaSurface
+        accent={variant.accent}
+        mode={getSurfaceMode(variant)}
+        title={getSurfaceTitle(variant, scene.id)}
+      />
     </SceneFrame>
   ),
   "missing-piece": ({scene, sceneCount, sceneIndex, variant}) => (
-    <SceneFrame
-      notes={[
-        "This scene doubles as the reusable marketing close.",
-        "Keep the category line strong enough to stand alone in short cuts.",
-      ]}
-      scene={scene}
-      sceneCount={sceneCount}
-      sceneIndex={sceneIndex}
-      variant={variant}
-    >
-      <ClosingMontageSurface accent={variant.accent} />
+    <SceneFrame scene={scene} sceneCount={sceneCount} sceneIndex={sceneIndex} variant={variant}>
+      <ClosingMontageSurface
+        accent={variant.accent}
+        mode={getSurfaceMode(variant)}
+        title={getSurfaceTitle(variant, scene.id)}
+      />
     </SceneFrame>
   ),
 };
 
 export const BorealFilm: React.FC<BorealFilmProps> = ({variant}) => {
   let from = 0;
+  const sequencedScenes = variant.scenes.map((scene) => {
+    const durationInFrames = scene.durationInSeconds * VIDEO_FPS;
+    const sequenceFrom = from;
+    from += durationInFrames;
+
+    return {
+      durationInFrames,
+      scene,
+      sequenceFrom,
+    };
+  });
 
   return (
     <AbsoluteFill
@@ -150,11 +138,8 @@ export const BorealFilm: React.FC<BorealFilmProps> = ({variant}) => {
     >
       <BorealBackdrop accent={variant.accent} />
 
-      {variant.scenes.map((scene, sceneIndex) => {
-        const durationInFrames = scene.durationInSeconds * VIDEO_FPS;
+      {sequencedScenes.map(({durationInFrames, scene, sequenceFrom}, sceneIndex) => {
         const SceneComponent = sceneRegistry[scene.id];
-        const sequenceFrom = from;
-        from += durationInFrames;
 
         return (
           <Sequence durationInFrames={durationInFrames} from={sequenceFrom} key={`${scene.id}-${sceneIndex}`}>
@@ -168,7 +153,23 @@ export const BorealFilm: React.FC<BorealFilmProps> = ({variant}) => {
         );
       })}
 
-      <FilmOverlay variant={variant} />
+      {variant.voiceoverMode === "scene"
+        ? sequencedScenes.map(({durationInFrames, scene, sequenceFrom}, sceneIndex) => {
+            return (
+              <Sequence
+                durationInFrames={durationInFrames}
+                from={sequenceFrom}
+                key={`voiceover-${scene.id}-${sceneIndex}`}
+              >
+                <Audio
+                  playbackRate={getVoiceoverPlaybackRate(variant, sceneIndex)}
+                  src={staticFile(getSceneVoiceoverFile(variant.compositionId, sceneIndex, scene.id))}
+                  trimAfter={durationInFrames}
+                />
+              </Sequence>
+            );
+          })
+        : null}
     </AbsoluteFill>
   );
 };

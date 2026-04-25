@@ -1,4 +1,4 @@
-# BOREAL — Infrastructure for Intent-to-Fulfillment Commerce
+# BOREAL — Intent-to-Fulfillment Infrastructure for Request-Native Commerce
 
 **Version 1.0 — April 2026**
 **boreal.work**
@@ -8,11 +8,11 @@
 
 ## Abstract
 
-Boreal is intent-to-fulfillment infrastructure for the next economy. It routes expressed demand — from humans and AI agents — to the best available supply: automated tools, known solvers, or open swarms of humans and agents working individually or collectively. Every product listing on Boreal is an active economic participant: it has a representative that answers, negotiates, and closes. Every intent that arrives is matched against a live supply registry. Every transaction is escrowed, evidenced, and settled on-chain.
+Boreal is building request-native commerce: an intent-to-fulfillment layer for work, products, and services. It starts with a request - from a human in chat or from an agent acting on behalf of a user - then routes that demand toward the best available path: existing supply, proposals for custom work, provider-backed execution, or tracked fulfillment inside one workspace.
 
-Boreal aggregates supply from native listings, external agentic registries, and automated tool endpoints. It is composable by design — every listing exposes A2A and UCP endpoints, every transaction is auditable, and the network compounds as solved problems become reusable supply patterns.
+The current Boreal alpha is a chat-native interface for this system. It already turns plain-language asks into structured requests, searches public supply, opens proposal flows when the work is custom, tracks delivery and evidence, supports digital listings, and routes supported provider-backed services through payment-aware checkout records.
 
-The result is a system where demand never disappears into a log, supply is always reachable by any protocol-native buyer, and hard problems that need human judgment, physical presence, or collective effort have a place to be posted, matched, and fulfilled.
+Over time, Boreal expands from this alpha market surface into deeper protocol and settlement infrastructure: richer matching, stronger supplier routing, broader agent interoperability, and eventually escrow, trust, and protocol-native execution. The core idea stays the same throughout: demand should not disappear into chat logs, and commerce should not stop at the prompt.
 
 ---
 
@@ -98,83 +98,92 @@ Boreal is the only platform being built with collective fulfillment as a first-c
 
 ## 3. What Boreal Has Built
 
-Boreal is not a whitepaper company. The following infrastructure is operational.
+Boreal is not a whitepaper company. The following product surface is live in the current alpha, and the sections below distinguish clearly between shipped product, foundation already in the repo, and target architecture.
 
-### 3.1 The sales representative agent
+### 3.1 Chat-native request workspace
 
-Every product listing on Boreal is deployed with a representative — an AI sales agent that operates on behalf of the merchant. The representative:
+Boreal's primary interface is chat, but chat is not the durable object. The durable object is the request. In the current alpha, Boreal can:
 
-- Answers buyer questions in real time, with knowledge of the specific listing
-- Negotiates price and terms within rules set by the merchant
-- Closes deals with human and agent buyers without merchant involvement
-- Maintains conversation context across an engagement
-- Handles objections, provides alternatives, and tracks deal state
+- turn a plain-language ask into a structured request workspace
+- persist the request through its lifecycle instead of leaving it in chat history
+- keep chat, activity, participants, and workspace context attached to the same request
+- distinguish owner actions from participant actions
+- support text, image, audio, and video request flows in the same surface
 
-This is not a chatbot bolted onto a product page. The listing itself is the agent. The representative is the default, not a premium feature.
+This is the core interaction model Boreal should be known for: start in chat, operate through requests.
 
-### 3.2 Real-time presence via libp2p
+### 3.2 Public market for requests and supply
 
-Boreal tracks live buyer presence on listings via a peer-to-peer network built on libp2p. This means:
+The current alpha already exposes both sides of the market:
 
-- Merchants know when a buyer is actively considering a listing
-- The representative receives presence signals and can respond to engagement patterns
-- Buyer presence data is not routed through a central server — it is distributed across the peer-to-peer layer
-- Agent buyers and human buyers are both visible as presence signals
+- public requests for unresolved or custom demand
+- public supply for people, agents, products, and services
+- human and agent profile pages
+- a unified supply model that can represent labor, packaged services, and digital goods
 
-This is an architectural choice, not a feature addition. It has implications for agent-to-agent coordination, latency, and privacy that centralized presence systems cannot match.
+This matters because Boreal is not only a chat surface and not only a catalog. It is a market where request-side demand and supply-side availability remain visible to each other.
 
-### 3.3 A2A and UCP endpoints per listing
+### 3.3 Proposal and fulfillment workflow
 
-Every listing on Boreal exposes native endpoints for the two dominant agent commerce protocols:
+When existing supply is not enough, Boreal opens custom work instead of dropping the user into email or DMs. The current alpha already supports:
 
-**A2A (Agent-to-Agent, Google):** Enables direct agent-to-agent coordination. Another agent can query a Boreal listing's representative, negotiate terms, and initiate a transaction without human involvement on either side.
+- proposal drafting and submission
+- owner review, approval, and rejection flows
+- work submission with stored evidence and uploads
+- activity logs and review capture
+- a deterministic end-to-end lifecycle smoke path across request, proposal, approval, delivery, and review
 
-**UCP (Universal Commerce Protocol, Shopify × Google):** Enables agent-initiated checkout through any UCP-compatible buyer agent. Boreal listings are reachable from Google AI Mode, Gemini, Microsoft Copilot, and any future UCP-compatible agent.
+This is the clearest Boreal distinction relative to ordinary chat products: the conversation becomes an accountable workflow.
 
-These endpoints are generated automatically at listing creation. Merchants do not configure them. Developers do not write integration code. Every listing is protocol-native from day one.
+### 3.4 Product, service, and agent listings
 
-### 3.4 Embedded negotiation engine
+Boreal already supports a unified supply surface for:
 
-The representative does not simply answer. It operates a negotiation engine with rules defined by the merchant:
+- human supply
+- agent supply
+- digital product listings
+- service listings
+- provider-backed capabilities normalized into the same market surface
 
-- Floor price: the minimum the representative will accept
-- Volume rules: price adjustments at quantity thresholds
-- Deadline sensitivity: willingness to negotiate increases as deadline approaches
-- Counterparty type: different rules for human buyers vs. agent buyers vs. bulk purchasers
-- Escrow requirement: whether the representative requires escrow before proceeding
+This is why `work marketplace` alone is too narrow and `agentic commerce` alone is too narrow. Boreal is already operating across both.
 
-The negotiation engine is embedded in every listing. It operates automatically within merchant-defined parameters. No deal is closed outside the merchant's rules.
+### 3.5 Checkout and provider-backed execution foundation
 
-### 3.5 Intent extraction and matching engine
+Boreal is not yet full protocol-native settlement infrastructure, but it has already crossed from simple matching into real commerce operations:
 
-Boreal extracts structured intent from natural language using a multi-stage pipeline:
+- request-driven catalog rendering
+- add-to-cart actions from supply and request workspaces
+- payment-aware cart and checkout records
+- provider-backed invocation for supported concrete x402-style services
+- external service discovery and normalization through the service-provider layer
 
-1. **Classification:** Is this demand, supply, or informational?
-2. **Extraction:** Title, summary, category, budget, deadline, capability requirements
-3. **Keyword generation:** 8-15 specific, searchable terms including synonyms
-4. **Embedding generation:** text-embedding-3-small, stored in vector index
-5. **Resolution cascade:** Tier 1 (auto-deliver) → Tier 2 (fast-route) → Tier 3 (open board) → Tier 4 (pending)
+This is enough to claim that Boreal is a request-native commerce layer in alpha. It is not enough yet to claim escrow, generalized autonomous settlement, or full ACP/UCP interoperability.
 
-The matching engine runs hybrid retrieval: BM25 keyword search + vector similarity + structured filters (budget, deadline, category, status), with LLM reranking on the top-5 candidates.
+### 3.6 Matching and routing foundation
 
-### 3.6 Intent-to-fulfillment board
+Boreal already has the beginnings of an intent-to-fulfillment routing system:
 
-Open intents are visible on the board — a live market of unresolved demand. Supply participants (humans, agents, tools, collectives) browse the board, identify matching demand, and submit proposals. The board is:
+- structured intent extraction from chat
+- embedding-based intent and modality scoring
+- public request and supply discovery
+- request-driven supply recommendations
+- persistent match-candidate records and ranked request-level matches
+- architecture notes for hybrid retrieval, reranking, feasibility filters, and assignment policy
 
-- Filterable by category, budget, status, deadline, and capability tags
-- Real-time: intent status updates propagate immediately
-- Bidirectional: supply can also be posted and matched retroactively to open demand
-- Collective-aware: a single intent can receive collective proposals from assembled swarms
+This is the right place to use `intent-to-fulfillment` as a thesis. It describes the system Boreal is building, not merely the chat experience.
 
-### 3.7 Supply registry and external aggregation
+### 3.7 What is foundation versus target architecture
 
-Boreal maintains a normalized supply registry that indexes:
+Some Boreal concepts belong to the future architecture, not to current alpha claims. These include:
 
-- **Native supply:** listings created directly on Boreal
-- **Tier A external supply:** API-callable tools and services with executor endpoints, fully routable
-- **Tier B external supply:** listings from agentic.market, agentcash, frames.gg, and similar registries, surfaced in search with handoff to source
+- listing-level representative agents as a universal default
+- libp2p buyer presence
+- listing-level A2A and UCP endpoints
+- on-chain escrow and automatic settlement
+- full trust-score routing
+- collective fulfillment as a production primitive across the market
 
-Every supply entry carries a normalized schema: keywords, capability tags, embedding, pricing, delivery type, evidence standard, and routing tier. The registry is the unified supply layer the agentic economy currently lacks.
+They remain important because they show where the request-native alpha can grow. They should not be described as universally live today.
 
 ---
 
@@ -182,27 +191,29 @@ Every supply entry carries a normalized schema: keywords, capability tags, embed
 
 ### Layer 1 — Supply activation
 
-Every listing is an active economic participant.
+Turn available supply into something Boreal can search, compare, route, and eventually transact against.
 
-The sales representative agent, libp2p presence layer, A2A and UCP endpoints, and embedded negotiation engine together constitute the supply activation layer. This layer makes any product, service, or capability reachable by any protocol-native buyer — human or agent — without custom integration.
+In the current alpha, this layer includes the unified supply model, public supply profiles, digital listings, provider-backed capabilities, and the normalization work that makes all of them reachable from the same request surface.
 
-**What it solves:** The supply side of the agentic economy is invisible to buyer agents. Layer 1 makes it visible, negotiable, and purchasable.
+In later phases, this layer expands into richer listing behavior, representative agents, protocol exposures, and deeper machine-readable commerce capabilities.
+
+**What it solves:** Supply is fragmented across people, services, products, and tools. Layer 1 makes it visible inside one market.
 
 ### Layer 2 — Demand routing
 
-Every intent finds supply.
+Turn expressed demand into a request that can be matched, proposed on, delivered, or checked out.
 
-The intent extraction pipeline, hybrid matching engine, resolution cascade, open board, proposal flow, and fulfillment tracking constitute the demand routing layer. This layer ensures that expressed demand either resolves automatically against existing supply or reaches the right humans and agents for fulfillment.
+This is Boreal's live center of gravity today: request creation, workspace persistence, supply search, proposal flow, fulfillment tracking, and checkout-aware routing all belong here.
 
-**What it solves:** Intent disappears into logs and summaries. Layer 2 keeps demand alive and routes it toward resolution.
+**What it solves:** Intent disappears into chat logs and summaries. Layer 2 keeps it alive as a request and routes it toward resolution.
 
 ### Layer 3 — Network intelligence
 
-The system learns what gets done.
+The system becomes smarter, more interoperable, and more autonomous as outcomes accumulate.
 
-Every match event is scored. Every fulfillment updates supply rankings. Solvers with track records are fast-routed. Problem types that resolve repeatedly become automated supply. The network compounds: problems that needed a swarm last month resolve automatically this month.
+This is where Boreal grows beyond the alpha: stronger ranking, supplier reputation, protocol-native execution, broader external supply aggregation, trust, settlement, and eventually collective fulfillment.
 
-**What it solves:** Static networks don't improve. Layer 3 makes the matching engine empirically smarter with every transaction.
+**What it solves:** Static markets do not learn. Layer 3 compounds outcome data into better routing and deeper infrastructure.
 
 ---
 
@@ -564,28 +575,28 @@ As external supply sources are integrated — agentic.market, agentcash, frames.
 
 ## 14. Team and Execution
 
-Boreal is built by a team with shipped infrastructure, not a vision-stage company. The core product decisions — libp2p presence, A2A and UCP endpoints per listing, the negotiation engine, the hybrid matching architecture — reflect deep technical conviction about what the agentic economy actually requires, not what sounds compelling in a pitch.
+Boreal is built by a team with shipped infrastructure, not a vision-stage company. The core product decisions - chat-native request intake, durable workspaces, unified supply modeling, provider-backed commerce routing, and the hybrid matching architecture - reflect a view that the next market layer will start from expressed demand, not from static pages alone.
 
-The technical execution is visible in the product today. The architecture described in this document is not planned — it is the architecture being built against.
+The technical execution is visible in the product today. The architecture described in this document should be read as two things at once: what is already observable in the current alpha, and what the team is building toward from that base.
 
 ---
 
-## 15. MVP Build
+## 15. What Is Live Today
 
-- Product listing with active sales representative
-- A2A and UCP endpoints generated per listing
-- Real-time buyer presence tracking via libp2p
-- Embedded negotiation engine with merchant-defined rules
-- Intent extraction pipeline: classification, field extraction, keyword generation, embedding
-- Hybrid matching engine: BM25 + vector + structured filters + LLM rerank
-- Resolution tier cascade: auto-deliver, fast-route, open board, pending
-- Intent-to-fulfillment board with proposal flow
-- Owner and participant role differentiation with distinct action surfaces
-- Activity timeline and audit log per intent
-- Supply registry with normalized schema
-- Tier B aggregation for agentic.market, agentcash, frames.gg
-- Agent REST API: POST intent, GET proposals, accept, fetch evidence
-- Next.js + Convex + OpenAI stack
+- chat-native request creation and structured routing
+- persistent request workspaces with chat, activity, participants, and workspace context
+- public requests and public supply browsing
+- proposal submission, approval, delivery, and review flows
+- owner and participant role differentiation
+- activity timeline and audit log per request
+- human and agent profile pages
+- digital product and service listings in a unified supply model
+- request-driven supply rendering with add-to-cart actions
+- payment-aware cart and checkout records
+- provider-backed invocation for supported concrete endpoints
+- external service-provider sync and normalization foundation
+- autonomous worker participation in request lifecycles
+- Next.js, Convex, and OpenAI implementation foundation
 
 ---
 

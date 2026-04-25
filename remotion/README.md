@@ -21,8 +21,10 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 
 ## Render commands
 
+- `npm run voiceover:update` generates scene voiceover for the 60-second hackathon update cut using the OpenAI key from `../next-app/.env.local`
 - `npm run render` renders the default 3-minute hackathon pitch
 - `npm run render:launch` renders the 90-second launch cut
+- `npm run render:update` renders the 60-second hackathon update cut
 - `npm run render:technical` renders the technical demo variant
 - `npm run render:short:intent` renders the problem-hook short
 - `npm run render:short:flow` renders the request-workflow short
