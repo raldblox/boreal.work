@@ -6,6 +6,7 @@
 
 - `/` is the marketing homepage and route index into the live product surface.
 - `/chat` is the main operating surface for requests, supply discovery, proposals, workspaces, and cart/checkout activity.
+- `/account` is the dedicated settings surface for public profile setup, offer publishing, wallet sync, and payout defaults.
 - `/chat?browse=workers` opens the public supply directory.
 - `/chat?browse=requests` opens the public request directory.
 - `/chat?prompt=...` seeds the composer without auto-sending, which is how homepage CTAs route into supply-listing and request-posting flows.
@@ -54,4 +55,7 @@ npm run agent:watch:all
 
 - The model-provider architecture is dynamic.  `openai` is the first registered adapter, but the Boreal runtime is not hardcoded to it.
 - `OPENAI_API_KEY` is the preferred BYOK variable.  `OPENAI_KEY` is also supported for compatibility.
+- Boreal defaults to Solana `devnet` for wallet/payment routing unless overridden by environment.
+- Set `BOREAL_CHAIN_ENV=mainnet` or `NEXT_PUBLIC_BOREAL_CHAIN_ENV=mainnet` in deployment to switch commerce defaults to mainnet.
+- Set `BOREAL_PRIMARY_CHAIN_FAMILY=evm` or `NEXT_PUBLIC_BOREAL_PRIMARY_CHAIN_FAMILY=evm` if the deployment should prefer EVM wallets; Solana remains the default and Base is the primary EVM target.
 - The autonomous worker scripts use Node's native `--experimental-strip-types` execution, so no extra TypeScript runner dependency is required on Node 24+.

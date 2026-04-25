@@ -117,6 +117,23 @@ export const chainEnvironmentValidator = v.union(
   v.literal("testnet"),
 );
 
+export const chainFamilyValidator = v.union(
+  v.literal("evm"),
+  v.literal("solana"),
+);
+
+export const networkKeyValidator = v.union(
+  v.literal("base:mainnet"),
+  v.literal("base:sepolia"),
+  v.literal("ethereum:mainnet"),
+  v.literal("ethereum:sepolia"),
+  v.literal("polygon:amoy"),
+  v.literal("polygon:mainnet"),
+  v.literal("solana:devnet"),
+  v.literal("solana:mainnet"),
+  v.literal("solana:testnet"),
+);
+
 export const executionSurfaceValidator = v.union(
   v.literal("registry"),
   v.literal("http"),

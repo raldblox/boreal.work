@@ -189,6 +189,7 @@ Prefer:
 
 - `Request`
 - `Supply`
+- In public UI copy, prefer `Offers` when the meaning is a seller-facing listing people can hire or buy
 - `Proposal`
 - `Workspace`
 - `Fulfillment`

@@ -1,9 +1,18 @@
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 
+import {
+  type BorealChainEnvironment,
+  type BorealChainFamily,
+  type BorealSupportedNetworkKey,
+  getBorealChainEnvironment,
+  inferBorealNetworkSelection,
+} from "../lib/boreal/commerce/networks";
 import { getScenarioId } from "./transactionScenarios";
 
-export type CommerceEnvironment = "devnet" | "mainnet" | "testnet";
+export type CommerceEnvironment = BorealChainEnvironment;
+export type CommerceChainFamily = BorealChainFamily;
+export type CommerceNetworkKey = BorealSupportedNetworkKey;
 export type TransactionScenario =
   | "instant_digital_purchase"
   | "provider_paid_service"
@@ -38,23 +47,21 @@ export type SettlementStatus =
 export function getCommerceEnvironment(
   explicit?: string | null,
 ): CommerceEnvironment {
-  const candidate =
-    explicit ??
-    process.env.BOREAL_CHAIN_ENV ??
-    process.env.NEXT_PUBLIC_SOLANA_ENV ??
-    process.env.SOLANA_ENV ??
-    "mainnet";
-  const normalized = candidate.trim().toLowerCase();
+  return getBorealChainEnvironment(explicit);
+}
 
-  if (normalized === "devnet") {
-    return "devnet";
-  }
-
-  if (normalized === "testnet") {
-    return "testnet";
-  }
-
-  return "mainnet";
+export function getCommerceNetworkSelection(input?: {
+  chainFamily?: string | null;
+  chainId?: string | null;
+  environment?: string | null;
+  networkKey?: string | null;
+}) {
+  return inferBorealNetworkSelection({
+    chainFamily: input?.chainFamily,
+    chainId: input?.chainId,
+    environment: input?.environment,
+    networkKey: input?.networkKey,
+  });
 }
 
 export function deriveCheckoutScenario(input: {
@@ -207,12 +214,36 @@ export async function getDefaultBuyerWalletAccountId(
   return preferred?._id ?? accounts[0]?._id;
 }
 
+export async function getWalletAccountContext(
+  ctx: MutationCtx | QueryCtx,
+  walletAccountId?: Id<"walletAccounts"> | undefined,
+) {
+  if (!walletAccountId) {
+    return null;
+  }
+
+  const account = await ctx.db.get(walletAccountId);
+
+  if (!account) {
+    return null;
+  }
+
+  return {
+    chainFamily: account.chainFamily,
+    chainId: account.chainId ?? null,
+    environment: account.environment,
+    networkKey: account.networkKey,
+  };
+}
+
 export async function ensureTransactionForCheckoutItem(
   ctx: MutationCtx,
   input: {
     amount?: number | null;
     buyerUserId?: string | null;
     buyerWalletAccountId?: Id<"walletAccounts"> | undefined;
+    chainFamily?: CommerceChainFamily | null;
+    chainId?: string | null;
     checkoutId: Id<"checkouts">;
     checkoutItemId: Id<"checkoutItems">;
     currency?: string | null;
@@ -221,6 +252,7 @@ export async function ensureTransactionForCheckoutItem(
     intentKey?: string | null;
     paymentAttemptId?: Id<"paymentAttempts"> | undefined;
     paymentProtocol?: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
+    networkKey?: CommerceNetworkKey | null;
     paymentStatus:
       | "cancelled"
       | "failed"
@@ -246,6 +278,12 @@ export async function ensureTransactionForCheckoutItem(
     titleSnapshot?: string | null;
   },
 ): Promise<Id<"transactions">> {
+  const networkSelection = getCommerceNetworkSelection({
+    chainFamily: input.chainFamily,
+    chainId: input.chainId,
+    environment: input.environment,
+    networkKey: input.networkKey,
+  });
   const existing = await ctx.db
     .query("transactions")
     .withIndex("by_checkoutItemId", (queryBuilder) =>
@@ -257,12 +295,14 @@ export async function ensureTransactionForCheckoutItem(
     amount: input.amount ?? undefined,
     buyerUserId: input.buyerUserId ?? undefined,
     buyerWalletAccountId: input.buyerWalletAccountId,
+    chainFamily: networkSelection.chainFamily,
     checkoutId: input.checkoutId,
     checkoutItemId: input.checkoutItemId,
     currency: input.currency ?? undefined,
-    environment: getCommerceEnvironment(input.environment),
+    environment: networkSelection.environment,
     intentId: input.intentId,
     intentKey: input.intentKey ?? undefined,
+    networkKey: networkSelection.networkKey,
     paymentAttemptId: input.paymentAttemptId,
     paymentProtocol: input.paymentProtocol ?? undefined,
     paymentStatus: input.paymentStatus,
@@ -298,6 +338,8 @@ export async function ensureWorkTransaction(
     amount?: number | null;
     buyerUserId?: string | null;
     buyerWalletAccountId?: Id<"walletAccounts"> | undefined;
+    chainFamily?: CommerceChainFamily | null;
+    chainId?: string | null;
     currency?: string | null;
     environment?: string | null;
     intentId?: Id<"intents"> | undefined;
@@ -308,8 +350,15 @@ export async function ensureWorkTransaction(
     sourceProviderKey?: null;
     status: TransactionStatus;
     titleSnapshot?: string | null;
+    networkKey?: CommerceNetworkKey | null;
   },
 ): Promise<Id<"transactions">> {
+  const networkSelection = getCommerceNetworkSelection({
+    chainFamily: input.chainFamily,
+    chainId: input.chainId,
+    environment: input.environment,
+    networkKey: input.networkKey,
+  });
   const existing = input.proposalId
     ? await ctx.db
         .query("transactions")
@@ -323,10 +372,12 @@ export async function ensureWorkTransaction(
     amount: input.amount ?? undefined,
     buyerUserId: input.buyerUserId ?? undefined,
     buyerWalletAccountId: input.buyerWalletAccountId,
+    chainFamily: networkSelection.chainFamily,
     currency: input.currency ?? undefined,
-    environment: getCommerceEnvironment(input.environment),
+    environment: networkSelection.environment,
     intentId: input.intentId,
     intentKey: input.intentKey,
+    networkKey: networkSelection.networkKey,
     paymentAttemptId: undefined,
     paymentProtocol: undefined,
     paymentStatus:
@@ -367,8 +418,11 @@ export async function ensureSettlementForTransaction(
   input: {
     amount?: number | null;
     buyerWalletAccountId?: Id<"walletAccounts"> | undefined;
+    chainFamily?: CommerceChainFamily | null;
+    chainId?: string | null;
     currency?: string | null;
     environment?: string | null;
+    networkKey?: CommerceNetworkKey | null;
     payoutWalletAccountId?: Id<"walletAccounts"> | undefined;
     protocol?: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
     status: SettlementStatus;
@@ -376,6 +430,12 @@ export async function ensureSettlementForTransaction(
     txHash?: string | null;
   },
 ): Promise<Id<"settlements">> {
+  const networkSelection = getCommerceNetworkSelection({
+    chainFamily: input.chainFamily,
+    chainId: input.chainId,
+    environment: input.environment,
+    networkKey: input.networkKey,
+  });
   const existing = await ctx.db
     .query("settlements")
     .withIndex("by_transactionId", (queryBuilder) =>
@@ -386,8 +446,10 @@ export async function ensureSettlementForTransaction(
   const payload = {
     amount: input.amount ?? undefined,
     buyerWalletAccountId: input.buyerWalletAccountId,
+    chainFamily: networkSelection.chainFamily,
     currency: input.currency ?? undefined,
-    environment: getCommerceEnvironment(input.environment),
+    environment: networkSelection.environment,
+    networkKey: networkSelection.networkKey,
     payoutWalletAccountId: input.payoutWalletAccountId,
     settlementProtocol: input.protocol ?? undefined,
     status: input.status,

@@ -14,7 +14,9 @@ async function main() {
   let trackedTransactionId: Id<"transactions"> | null = null;
 
   await client.mutation(api.wallets.syncWalletAccount, {
+    chainFamily: "solana",
     environment: "devnet",
+    networkKey: "solana:devnet",
     ownerExternalId,
     roles: ["connected", "buyer"],
     setAsDefaultBuyer: true,
@@ -23,7 +25,9 @@ async function main() {
   });
 
   await client.mutation(api.wallets.syncWalletAccount, {
+    chainFamily: "solana",
     environment: "devnet",
+    networkKey: "solana:devnet",
     ownerExternalId: workerExternalId,
     roles: ["connected", "payout"],
     setAsDefaultBuyer: false,

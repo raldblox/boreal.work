@@ -423,8 +423,10 @@ export const completePaymentAttempt = mutation({
       const transaction = await ctx.db.get(item.transactionId);
       const settlementId = await ensureSettlementForTransaction(ctx, {
         amount: transaction?.amount,
+        chainFamily: transaction?.chainFamily,
         currency: transaction?.currency,
         environment: transaction?.environment,
+        networkKey: transaction?.networkKey,
         protocol: transaction?.paymentProtocol,
         status: "not_applicable",
         transactionId: item.transactionId,

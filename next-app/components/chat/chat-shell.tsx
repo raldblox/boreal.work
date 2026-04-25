@@ -62,6 +62,7 @@ import {
   AudioPlayerVolumeRange,
 } from "@/components/ai-elements/audio-player"
 import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
+import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
 import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
@@ -71,10 +72,10 @@ import {
   DeliverySubmissionDialog,
   ProposalSubmissionDialog,
 } from "@/components/chat/request-workflow-dialogs"
+import { HomeChatSurface } from "@/components/chat/chat-home-surface"
 import {
   Conversation,
   ConversationContent,
-  ConversationEmptyState,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation"
 import {
@@ -116,9 +117,12 @@ import type {
   ActiveCart,
   CatalogEntry,
   CheckoutRecord,
+  ConversationSidebarPreview,
+  ConversationThreadRecord,
   MyProfileRecord,
   RequestDetail,
   SidebarIntentPreview,
+  WalletAccountRecord,
 } from "@/lib/boreal/integrations/convex/function-refs"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import type {
@@ -146,6 +150,11 @@ import {
   normalizeProposalDraft,
   type ProposalDraft,
 } from "@/lib/boreal/schemas/proposal"
+import {
+  getBorealChainEnvironment,
+  getBorealPrimaryChainFamily,
+  getDefaultBorealNetworkKey,
+} from "@/lib/boreal/commerce/networks"
 import { cn } from "@/lib/utils"
 import { usePayment } from "@/hooks/use-payment"
 import {
@@ -196,11 +205,39 @@ const deleteIntentMutation = makeFunctionReference<
 >("intents:deleteIntent")
 
 const starterPrompts = [
-  "Help me package my capabilities into a strong public worker profile with skills, offers, and products.",
-  "Turn this into a public request for a problem nobody has solved for me yet, and prepare it for proposals first.",
-  "Generate a short voiceover for a product announcement in a warm tone.",
-  "Show me the supply catalog and explain which Boreal tool fits each use case.",
-]
+  {
+    description:
+      "Turn skills, services, and products into a stronger public offer.",
+    icon: CircleUserRoundIcon,
+    prompt:
+      "Help me package my capabilities into a strong public worker profile with skills, offers, and products.",
+    title: "Package my capabilities",
+  },
+  {
+    description:
+      "Open a request for something that still needs the right people.",
+    icon: MessagesSquareIcon,
+    prompt:
+      "Turn this into a public request for a problem nobody has solved for me yet, and prepare it for proposals first.",
+    title: "Post a hard problem",
+  },
+  {
+    description:
+      "Find what already exists before opening a custom request thread.",
+    icon: SearchIcon,
+    prompt:
+      "Show me the offers catalog and explain which Boreal tool fits each use case.",
+    title: "Search the market",
+  },
+  {
+    description:
+      "Draft launch-ready media and route it into the right execution path.",
+    icon: ClapperboardIcon,
+    prompt:
+      "Generate a short voiceover for a product announcement in a warm tone.",
+    title: "Make launch media",
+  },
+] as const
 
 const emptyWorkspace: WorkspaceState = {
   kind: "empty",
@@ -243,6 +280,7 @@ export function ChatShell() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const activeIntentId = searchParams.get("request")
+  const selectedConversationId = searchParams.get("chat")
   const seededPrompt = searchParams.get("prompt")
   const requestedCenterTab = searchParams.get("view")
   const selectedCenterTab = normalizeCenterViewTab(requestedCenterTab)
@@ -266,6 +304,7 @@ export function ChatShell() {
   const [workspace, setWorkspace] = useState<WorkspaceState>(emptyWorkspace)
   const [showIntentSidebar, setShowIntentSidebar] = useState(true)
   const [showWorkspace, setShowWorkspace] = useState(false)
+  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isMobileIntentSidebarOpen, setIsMobileIntentSidebarOpen] =
     useState(false)
   const [isMobileWorkspaceOpen, setIsMobileWorkspaceOpen] = useState(false)
@@ -293,9 +332,12 @@ export function ChatShell() {
     null
   )
   const [isProfileBuilderOpen, setIsProfileBuilderOpen] = useState(false)
+  const [isSettingDefaultPayoutWalletId, setIsSettingDefaultPayoutWalletId] =
+    useState<string | null>(null)
   const [isDraftingProfileBuilder, setIsDraftingProfileBuilder] =
     useState(false)
   const [isSavingProfileBuilder, setIsSavingProfileBuilder] = useState(false)
+  const [accountNotice, setAccountNotice] = useState<string | null>(null)
   const [profileBuilderMessage, setProfileBuilderMessage] = useState("")
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
@@ -307,20 +349,38 @@ export function ChatShell() {
     authenticated: privyAuthenticated,
     login,
   } = usePrivy()
-  const { defaultWalletAddress, isWalletReady, payWithX402 } = usePayment()
+  const { defaultWallet, defaultWalletAddress, isWalletReady, payWithX402 } =
+    usePayment()
 
   const sidebarIntentsResult = useQuery(sidebarIntentQuery, {
     limit: 24,
     ownerExternalId,
   }) as SidebarIntentPreview[] | undefined
+  const conversationSidebarResult = useQuery(
+    convexFunctionRefs.listConversationSidebar,
+    ownerExternalId ? { limit: 24, ownerExternalId } : "skip"
+  )
+  const selectedConversationThreadResult = useQuery(
+    convexFunctionRefs.getConversationThread,
+    !activeIntentId && selectedConversationId
+      ? { conversationId: selectedConversationId, ownerExternalId }
+      : "skip"
+  )
   const sidebarIntents = useMemo(
     () => sidebarIntentsResult ?? [],
     [sidebarIntentsResult]
+  )
+  const conversationSidebar = useMemo(
+    () =>
+      (conversationSidebarResult ?? []) as ConversationSidebarPreview[],
+    [conversationSidebarResult]
   )
   const visibleSidebarIntents = useMemo(
     () => sidebarIntents.filter((intent) => intent.status !== "closed"),
     [sidebarIntents]
   )
+  const selectedConversationThread =
+    (selectedConversationThreadResult ?? null) as ConversationThreadRecord
   const selectedIntent =
     visibleSidebarIntents.find((intent) => intent._id === activeIntentId) ??
     sidebarIntents.find((intent) => intent._id === activeIntentId) ??
@@ -342,6 +402,10 @@ export function ChatShell() {
     convexFunctionRefs.getMyProfile,
     ownerExternalId ? { ownerExternalId } : "skip"
   )
+  const walletAccountsResult = useQuery(
+    convexFunctionRefs.getMyWalletAccounts,
+    ownerExternalId ? { ownerExternalId } : "skip"
+  )
   const isRequestLoading =
     Boolean(activeIntentId) && requestDetailResult === undefined
   const requestDetail = (requestDetailResult ?? null) as RequestDetail | null
@@ -358,6 +422,15 @@ export function ChatShell() {
   const activeCart = (activeCartResult ?? null) as ActiveCart
   const checkoutHistory = (checkoutHistoryResult ?? []) as CheckoutRecord[]
   const myProfileRecord = (myProfileResult ?? null) as MyProfileRecord
+  const walletAccounts = (walletAccountsResult ?? []) as WalletAccountRecord
+  const isConversationLoading =
+    Boolean(!activeIntentId && selectedConversationId) &&
+    selectedConversationThreadResult === undefined &&
+    messages.length === 0
+  const isMissingConversation =
+    Boolean(!activeIntentId && selectedConversationId) &&
+    !isConversationLoading &&
+    selectedConversationThread === null
   const isArchivedTranscript = Boolean(
     requestDetail?.intent?.status === "closed" &&
     requestDetail.intent.closedReason === "archived_by_user"
@@ -381,6 +454,12 @@ export function ChatShell() {
   const shouldShowAssignedBorealButton = Boolean(
     activeIntentId && isBorealAssignedToActiveRequest
   )
+  const runtimeEnvironment = getBorealChainEnvironment()
+  const runtimePrimaryChainFamily = getBorealPrimaryChainFamily()
+  const runtimeDefaultNetworkKey = getDefaultBorealNetworkKey({
+    chainFamily: runtimePrimaryChainFamily,
+    environment: runtimeEnvironment,
+  })
   const shouldShowBorealToolbarButton =
     shouldShowHomeBorealButton || shouldShowAssignedBorealButton
   const isChatSurfaceActive = !activeIntentId || activeCenterTab === "chat"
@@ -423,6 +502,9 @@ export function ChatShell() {
   const upsertMyProfile = useMutation(convexFunctionRefs.upsertMyProfile)
   const createSupplyEntry = useMutation(convexFunctionRefs.createSupplyEntry)
   const syncWalletAccount = useMutation(convexFunctionRefs.syncWalletAccount)
+  const setDefaultPayoutWalletAccount = useMutation(
+    convexFunctionRefs.setDefaultPayoutWalletAccount
+  )
 
   const requestWorkspace = requestDetail?.intent
     ? buildWorkspaceFromRequestDetail(requestDetail)
@@ -436,13 +518,26 @@ export function ChatShell() {
       role:
         message.role === "user" ? ("user" as const) : ("assistant" as const),
     })) ?? []
+  const conversationMessages: ChatMessage[] =
+    selectedConversationThread?.messages.map((message) => ({
+      content: message.body,
+      createdAt: message.createdAt,
+      id: message._id,
+      role:
+        message.role === "user" ? ("user" as const) : ("assistant" as const),
+    })) ?? []
 
   const displayedMessages: ChatMessage[] = activeIntentId
     ? [...requestMessages, ...messages]
-    : messages
+    : messages.length > 0 || !selectedConversationId
+      ? messages
+      : conversationMessages
 
   const activeConversationId =
-    conversationId ?? requestDetail?.conversationId ?? undefined
+    conversationId ??
+    requestDetail?.conversationId ??
+    selectedConversationId ??
+    undefined
 
   const effectiveWorkspace =
     activeIntentId && requestWorkspace ? requestWorkspace : workspace
@@ -503,12 +598,46 @@ export function ChatShell() {
     setIsProfileBuilderOpen(true)
   }
 
+  async function handleSetDefaultPayoutWallet(walletAccountId: string) {
+    if (!ownerExternalId) {
+      setAccountNotice("Sign in with X first so Boreal can save wallet settings.")
+      return
+    }
+
+    setIsSettingDefaultPayoutWalletId(walletAccountId)
+    setAccountNotice(null)
+
+    try {
+      const result = await setDefaultPayoutWalletAccount({
+        ownerExternalId,
+        walletAccountId,
+      })
+
+      setAccountNotice(
+        result.updated
+          ? "Default payout wallet updated."
+          : "Boreal could not update the payout wallet right now."
+      )
+    } catch {
+      setAccountNotice("Boreal could not update the payout wallet right now.")
+    } finally {
+      setIsSettingDefaultPayoutWalletId(null)
+    }
+  }
+
   function updateWorkspaceUrl(next: {
     browse?: WorkspaceTab | null
+    chat?: string | null
     request?: string | null
     view?: CenterViewTab | null
   }) {
     const params = new URLSearchParams(searchParams.toString())
+
+    if (next.chat === null) {
+      params.delete("chat")
+    } else if (next.chat) {
+      params.set("chat", next.chat)
+    }
 
     if (next.request === null) {
       params.delete("request")
@@ -549,19 +678,24 @@ export function ChatShell() {
   }, [pathname, router, searchParams, seededPrompt])
 
   useEffect(() => {
-    if (!ownerExternalId || !defaultWalletAddress || !isWalletReady) {
+    if (!ownerExternalId || !defaultWallet || !isWalletReady) {
       return
     }
 
     void syncWalletAccount({
+      chainFamily:
+        defaultWallet.chainFamily === "evm" ? "evm" : "solana",
+      chainId: defaultWallet.chainId ?? undefined,
+      networkKey: defaultWallet.networkKey,
       ownerDisplayName: session?.user?.name ?? undefined,
       ownerExternalId,
       roles: ["connected", "buyer", "payout"],
       setAsDefaultBuyer: true,
-      walletAddress: defaultWalletAddress,
+      setAsDefaultPayout: true,
+      walletAddress: defaultWallet.address,
     })
   }, [
-    defaultWalletAddress,
+    defaultWallet,
     isWalletReady,
     ownerExternalId,
     session?.user?.name,
@@ -765,6 +899,8 @@ export function ChatShell() {
         throw new Error(
           result.reason === "missing_buyer_wallet"
             ? "Connect a buyer wallet before placing paid checkout items."
+            : result.reason === "wallet_network_mismatch"
+              ? "Your connected wallet network does not match the selected listing's settlement network."
             : "Could not place checkout."
         )
       }
@@ -970,7 +1106,11 @@ export function ChatShell() {
 
         setConversationId(payload.conversationId)
         setMessages((current) => [
-          ...current,
+          ...(!activeIntentId &&
+          current.length === 0 &&
+          selectedConversationId
+            ? conversationMessages
+            : current),
           {
             content: trimmed,
             createdAt: now,
@@ -978,6 +1118,7 @@ export function ChatShell() {
             role: "user",
           },
         ])
+        updateWorkspaceUrl({ chat: payload.conversationId })
         setComposerText("")
         return
       } catch (error) {
@@ -994,7 +1135,11 @@ export function ChatShell() {
 
     const assistantMessageId = crypto.randomUUID()
     setMessages((current) => [
-      ...current,
+      ...(!activeIntentId &&
+      current.length === 0 &&
+      selectedConversationId
+        ? conversationMessages
+        : current),
       ...(!activeIntentId
         ? [
           {
@@ -1050,12 +1195,17 @@ export function ChatShell() {
       setConversationId(finalPayload.conversationId)
       setWorkspace(finalPayload.workspace)
       setComposerText("")
-      updateWorkspaceUrl({ browse: "workers" })
-      setShowWorkspace(true)
+      updateWorkspaceUrl({
+        browse:
+          finalPayload.workspace.kind === "empty" ? null : "workers",
+        chat: finalPayload.conversationId,
+      })
+      setShowWorkspace(finalPayload.workspace.kind !== "empty")
 
       if (finalPayload.requiresApproval && finalPayload.intentId) {
         updateWorkspaceUrl({
           browse: "workers",
+          chat: finalPayload.conversationId,
           request: finalPayload.intentId,
           view: "chat",
         })
@@ -1706,7 +1856,7 @@ export function ChatShell() {
 
     if (includeListing && !hasPublishableSupplyListing(profileBuilderDraft)) {
       setErrorMessage(
-        "Complete the listing title, category, and description before publishing."
+        "Complete the offer title, category, and description before publishing."
       )
       return
     }
@@ -1743,7 +1893,7 @@ export function ChatShell() {
         )
 
         if (!supplyInput) {
-          throw new Error("Could not publish the listing.")
+          throw new Error("Could not publish the offer.")
         }
 
         const supplyResult = await createSupplyEntry(supplyInput)
@@ -1751,8 +1901,8 @@ export function ChatShell() {
         if (!supplyResult.created) {
           throw new Error(
             supplyResult.reason === "missing_payout_wallet"
-              ? "Connect a wallet first before publishing monetized supply so Boreal knows where payouts should go."
-              : "Could not publish the listing."
+              ? "Connect a wallet first before publishing a paid offer so Boreal knows where payouts should go."
+              : "Could not publish the offer."
           )
         }
       }
@@ -1784,9 +1934,9 @@ export function ChatShell() {
           kind: "profile_builder",
           sourceBrief: profileBuilderMessage,
           subtitle: includeListing
-            ? "Your public profile was saved and the first listing is now published."
-            : "Your public profile was saved. Publish a listing whenever you are ready.",
-          title: "Profile and supply builder",
+            ? "Your public profile was saved and the first offer is now published."
+            : "Your public profile was saved. Publish an offer whenever you are ready.",
+          title: "Profile and offer setup",
         })
       }
 
@@ -1828,6 +1978,48 @@ export function ChatShell() {
     setMessages([])
   }
 
+  function handleConversationSelect(conversation: ConversationSidebarPreview) {
+    updateWorkspaceUrl({
+      chat: conversation.conversationId,
+      request: null,
+      view: null,
+    })
+    setMatchQueryDraft(null)
+    setProposalDraft(emptyProposalDraft())
+    setProposalMessage("")
+    setDeliveryDraft(emptyDeliveryDraft())
+    setOptimisticReviewRating(null)
+    setConversationId(conversation.conversationId)
+    setMessages([])
+    setWorkspace(emptyWorkspace)
+    setIsMobileIntentSidebarOpen(false)
+    setIsMobileWorkspaceOpen(false)
+  }
+
+  function handleConversationOpenRequest(
+    conversation: ConversationSidebarPreview
+  ) {
+    if (!conversation.linkedRequest) {
+      return
+    }
+
+    updateWorkspaceUrl({
+      browse: "workers",
+      chat: conversation.conversationId,
+      request: conversation.linkedRequest.id,
+      view: "chat",
+    })
+    setMatchQueryDraft(null)
+    setProposalDraft(emptyProposalDraft())
+    setProposalMessage("")
+    setDeliveryDraft(emptyDeliveryDraft())
+    setOptimisticReviewRating(null)
+    setIsMobileIntentSidebarOpen(false)
+    setIsMobileWorkspaceOpen(false)
+    setShowWorkspace(true)
+    setMessages([])
+  }
+
   function handleMarketplaceSelect(
     intent: SidebarIntentPreview,
     view?: RequestNavigationView
@@ -1856,6 +2048,7 @@ export function ChatShell() {
 
   function handleClearSelection() {
     updateWorkspaceUrl({
+      chat: null,
       request: null,
       view: null,
     })
@@ -1866,6 +2059,23 @@ export function ChatShell() {
     setOptimisticReviewRating(null)
     setMessages([])
     setConversationId(undefined)
+    setIsMobileIntentSidebarOpen(false)
+    setIsMobileWorkspaceOpen(false)
+    setWorkspace(emptyWorkspace)
+  }
+
+  function handleReturnHome() {
+    updateWorkspaceUrl({
+      request: null,
+      view: null,
+    })
+    setMatchQueryDraft(null)
+    setProposalDraft(emptyProposalDraft())
+    setProposalMessage("")
+    setDeliveryDraft(emptyDeliveryDraft())
+    setOptimisticReviewRating(null)
+    setMessages([])
+    setConversationId(selectedConversationId ?? undefined)
     setIsMobileIntentSidebarOpen(false)
     setIsMobileWorkspaceOpen(false)
     setWorkspace(emptyWorkspace)
@@ -1897,7 +2107,11 @@ export function ChatShell() {
     setIsMobileWorkspaceOpen(true)
   }
 
-  const isHomeView = !activeIntentId && displayedMessages.length === 0
+  const isHomeView =
+    !activeIntentId &&
+    !selectedConversationId &&
+    displayedMessages.length === 0
+  const shouldShowFooterComposer = shouldShowChatComposer && !isHomeView
 
   return (
     <>
@@ -1920,8 +2134,11 @@ export function ChatShell() {
             >
               <>
                 <IntentSidebar
+                  conversations={conversationSidebar}
                   intents={visibleSidebarIntents}
+                  onOpenAccount={() => setIsAccountDialogOpen(true)}
                   onCollapse={() => setShowIntentSidebar(false)}
+                  onOpenConversationRequest={handleConversationOpenRequest}
                   onDeselect={handleClearSelection}
                   onOpenPendingApprovals={() => {
                     const nextIntent = pendingApprovalIntents[0]
@@ -1929,8 +2146,10 @@ export function ChatShell() {
                       handleSidebarSelect(nextIntent, "workspace")
                     }
                   }}
+                  onSelectConversation={handleConversationSelect}
                   onSelect={handleSidebarSelect}
                   pendingApprovalCount={pendingApprovalIntents.length}
+                  selectedConversationId={selectedConversationId}
                   selectedIntentId={activeIntentId}
                 />
               </>
@@ -1949,6 +2168,7 @@ export function ChatShell() {
               <CollapsedRequestsRail
                 accountImageUrl={session?.user?.image ?? null}
                 accountName={session?.user?.name ?? null}
+                onOpenAccount={() => setIsAccountDialogOpen(true)}
                 onExpand={() => setShowIntentSidebar(true)}
                 onNewChat={handleClearSelection}
                 requestCount={visibleSidebarIntents.length}
@@ -1972,7 +2192,7 @@ export function ChatShell() {
                       <>
                         <button
                           className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                          onClick={handleClearSelection}
+                          onClick={handleReturnHome}
                           type="button"
                         >
                           <ArrowLeftIcon className="size-4" />
@@ -2315,89 +2535,168 @@ export function ChatShell() {
                 </Tabs>
               ) : (
                 <div className="min-h-0 flex-1 overflow-hidden">
-                  {isHomeView ? (
+                  {isConversationLoading ? (
                     <div className={HOME_PANEL_CLASS}>
-                      <ConversationEmptyState
-                        description="Boreal is a chat-native interface for request-native commerce. Start with the ask. Boreal drafts the request, searches supply first, and opens proposals only when the work is custom."
-                        title="Turn chat into a request that can actually run."
-                      >
-                        <div className="space-y-6 text-left">
-                          <div className="space-y-3">
-                            <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
-                              Chat-native interface / Request-native system
-                            </p>
-                            <h2 className="max-w-3xl text-3xl font-medium tracking-tight">
-                              Start in chat. Promote only the work that should
-                              become supply, proposals, delivery, or checkout.
-                            </h2>
-                            <p className="max-w-2xl text-sm/7 text-muted-foreground">
-                              Boreal should not trap demand in a prompt thread.
-                              It should turn the ask into a structured request,
-                              check live supply first, and keep execution
-                              attached once work begins.
-                            </p>
-                          </div>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            <div className="border border-border bg-background px-4 py-4">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                                Input
-                              </p>
-                              <p className="mt-2 text-sm font-medium">
-                                Plain-language ask
-                              </p>
-                            </div>
-                            <div className="border border-border bg-background px-4 py-4">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                                Routing
-                              </p>
-                              <p className="mt-2 text-sm font-medium">
-                                Search supply first
-                              </p>
-                            </div>
-                            <div className="border border-border bg-background px-4 py-4">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                                Outcome
-                              </p>
-                              <p className="mt-2 text-sm font-medium">
-                                Keep execution attached
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button asChild size="sm" variant="outline">
-                              <Link href={`${pathname}?browse=workers`}>
-                                Browse supply
-                              </Link>
-                            </Button>
-                            <Button asChild size="sm" variant="outline">
-                              <Link href={`${pathname}?browse=requests`}>
-                                Browse requests
-                              </Link>
-                            </Button>
-                            <Button asChild size="sm" variant="outline">
-                              <Link href="/about">About Boreal</Link>
-                            </Button>
-                          </div>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            {starterPrompts.map((prompt) => (
-                              <button
-                                className="rounded-xl border border-border bg-background px-4 py-4 text-left text-sm transition-colors hover:bg-muted/30"
-                                key={prompt}
-                                onClick={() => {
-                                  setComposerText(prompt)
-                                }}
-                                type="button"
-                              >
-                                {prompt}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </ConversationEmptyState>
+                      <div className="flex items-center justify-center py-16">
+                        <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+                      </div>
+                    </div>
+                  ) : isMissingConversation ? (
+                    <div className={HOME_PANEL_CLASS}>
+                      <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-3 text-center">
+                        <p className="text-lg font-medium">
+                          This chat thread is no longer available.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Start a fresh chat or pick another thread from the
+                          sidebar.
+                        </p>
+                        <Button onClick={handleClearSelection} type="button">
+                          Start new chat
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isHomeView ? (
+                    <div className={HOME_PANEL_CLASS}>
+                      <HomeChatSurface
+                        composer={
+                          <PromptInput
+                            className="w-full"
+                            onSubmit={async (input) => {
+                              if (!input.text.trim()) {
+                                return
+                              }
+
+                              await submitMessage(input.text)
+                            }}
+                          >
+                            <PromptInputBody>
+                              <PromptInputTextarea
+                                className="min-h-[140px] text-base"
+                                onChange={(event) =>
+                                  setComposerText(event.currentTarget.value)
+                                }
+                                placeholder="Ask for work, describe an offer, or tell Boreal what should happen."
+                                value={composerText}
+                              />
+                            </PromptInputBody>
+                            <PromptInputFooter className="justify-end">
+                              <PromptInputSubmit
+                                disabled={
+                                  isSubmitting || composerText.trim().length === 0
+                                }
+                                status={isSubmitting ? "submitted" : undefined}
+                              />
+                            </PromptInputFooter>
+                          </PromptInput>
+                        }
+                        quickActions={
+                          <>
+                          <Button
+                            className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
+                            onClick={() => setIsBorealProfileOpen(true)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <BotIcon className="size-4" />
+                            Boreal Agent
+                          </Button>
+                          <Button
+                            onClick={openProfileBuilder}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <CircleUserRoundIcon className="size-4" />
+                            My profile
+                          </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`${pathname}?browse=workers`}>
+                              Browse offers
+                            </Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`${pathname}?browse=requests`}>
+                              Browse requests
+                            </Link>
+                          </Button>
+                          <Button
+                            onClick={() => setIsAccountDialogOpen(true)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            Account
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              if (privyAuthenticated) {
+                                setIsAccountDialogOpen(true)
+                                return
+                              }
+
+                              login()
+                            }}
+                            size="sm"
+                            type="button"
+                            variant={privyAuthenticated ? "secondary" : "outline"}
+                          >
+                            <WalletIcon className="size-4" />
+                            {privyReady
+                              ? privyAuthenticated
+                                ? "Wallet connected"
+                                : runtimePrimaryChainFamily === "solana"
+                                  ? "Connect Solana"
+                                  : "Connect wallet"
+                              : "Wallet"}
+                          </Button>
+                          </>
+                        }
+                        starterPrompts={starterPrompts.map((prompt) => {
+                          const Icon = prompt.icon
+
+                          return {
+                            description: prompt.description,
+                            icon: <Icon className="size-4" />,
+                            onSelect: () => {
+                              setComposerText(prompt.prompt)
+                            },
+                            title: prompt.title,
+                          }
+                        })}
+                      />
                     </div>
                   ) : (
                     <Conversation className="h-full min-h-0">
                       <ConversationContent className={CHAT_RAIL_CLASS}>
+                        {!activeIntentId &&
+                        selectedConversationThread?.linkedRequest ? (
+                          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">
+                                This chat was promoted into a request.
+                              </p>
+                              <p className="truncate text-sm text-muted-foreground">
+                                {selectedConversationThread.linkedRequest.title}
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() =>
+                                handleConversationOpenRequest({
+                                  ...selectedConversationThread.conversation,
+                                  linkedRequest:
+                                    selectedConversationThread.linkedRequest,
+                                })
+                              }
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Open request
+                            </Button>
+                          </div>
+                        ) : null}
                         {displayedMessages.map((message) => (
                           <Message from={message.role} key={message.id}>
                             <MessageContent>
@@ -2444,14 +2743,14 @@ export function ChatShell() {
               )}
 
               <div
-                aria-hidden={!shouldShowChatComposer}
+                aria-hidden={!shouldShowFooterComposer}
                 className={cn(
                   "overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out",
-                  shouldShowChatComposer
+                  shouldShowFooterComposer
                     ? "max-h-[40rem] opacity-100"
                     : "pointer-events-none max-h-0 -translate-y-2 opacity-0"
                 )}
-                inert={!shouldShowChatComposer}
+                inert={!shouldShowFooterComposer}
               >
                 <div className="py-4">
                   <div className={CHAT_COMPOSER_CLASS}>
@@ -2463,7 +2762,7 @@ export function ChatShell() {
                         variant="outline"
                       >
                         <CircleUserRoundIcon />
-                        Profile update
+                        My profile
                       </Button>
                       <Button
                         onClick={() => setIsCartOpen(true)}
@@ -2476,6 +2775,15 @@ export function ChatShell() {
                         {activeCart?.itemCount ? ` (${activeCart.itemCount})` : ""}
                       </Button>
                       <Button
+                        onClick={() => setIsAccountDialogOpen(true)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <CircleUserRoundIcon />
+                        Account
+                      </Button>
+                      <Button
                         onClick={login}
                         size="sm"
                         type="button"
@@ -2485,7 +2793,9 @@ export function ChatShell() {
                         {privyReady
                           ? privyAuthenticated
                             ? "Connected"
-                            : "Connect Wallet"
+                            : runtimePrimaryChainFamily === "solana"
+                              ? "Connect Solana"
+                              : "Connect Wallet"
                           : "Wallet"}
                       </Button>
                     </PromptInputTools>
@@ -2601,8 +2911,11 @@ export function ChatShell() {
         side="left"
       >
         <IntentSidebar
+          conversations={conversationSidebar}
           intents={visibleSidebarIntents}
+          onOpenAccount={() => setIsAccountDialogOpen(true)}
           onCollapse={() => setIsMobileIntentSidebarOpen(false)}
+          onOpenConversationRequest={handleConversationOpenRequest}
           onDeselect={handleClearSelection}
           onOpenPendingApprovals={() => {
             const nextIntent = pendingApprovalIntents[0]
@@ -2610,8 +2923,10 @@ export function ChatShell() {
               handleSidebarSelect(nextIntent, "workspace")
             }
           }}
+          onSelectConversation={handleConversationSelect}
           onSelect={handleSidebarSelect}
           pendingApprovalCount={pendingApprovalIntents.length}
+          selectedConversationId={selectedConversationId}
           selectedIntentId={activeIntentId}
         />
       </MobileSidebarDrawer>
@@ -2629,6 +2944,27 @@ export function ChatShell() {
           ownerExternalId={ownerExternalId}
         />
       </MobileSidebarDrawer>
+      <AccountSettingsDialog
+        accountName={session?.user?.name ?? null}
+        defaultWalletAddress={defaultWalletAddress}
+        isOpen={isAccountDialogOpen}
+        isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
+        isPrivyAuthenticated={privyAuthenticated}
+        isWalletReady={isWalletReady}
+        myProfileRecord={myProfileRecord}
+        notice={accountNotice}
+        onConnectWallet={login}
+        onOpenChange={setIsAccountDialogOpen}
+        onOpenProfileBuilder={() => {
+          setIsAccountDialogOpen(false)
+          openProfileBuilder()
+        }}
+        onSetDefaultPayoutWallet={handleSetDefaultPayoutWallet}
+        runtimeDefaultNetworkKey={runtimeDefaultNetworkKey}
+        runtimeEnvironment={runtimeEnvironment}
+        runtimePrimaryChainFamily={runtimePrimaryChainFamily}
+        walletAccounts={walletAccounts}
+      />
       <Dialog onOpenChange={setIsBorealProfileOpen} open={isBorealProfileOpen}>
         <DialogContent className="h-[min(88svh,54rem)] max-w-[min(72rem,calc(100vw-2rem))] gap-0 overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(72rem,calc(100vw-2rem))]">
           <DialogHeader className="sr-only">
@@ -2640,10 +2976,17 @@ export function ChatShell() {
         </DialogContent>
       </Dialog>
       <ProfileBuilderDialog
+        connectWalletLabel={
+          runtimePrimaryChainFamily === "solana"
+            ? "Connect Solana wallet"
+            : "Connect EVM wallet"
+        }
         draft={profileBuilderDraft}
         isDrafting={isDraftingProfileBuilder}
         isOpen={isProfileBuilderOpen}
         isSaving={isSavingProfileBuilder}
+        isWalletReady={isWalletReady}
+        onConnectWallet={login}
         onDraftWithBoreal={handleDraftProfileBuilder}
         onOpenChange={setIsProfileBuilderOpen}
         onSaveProfile={() => saveProfileBuilder(false)}
@@ -2674,12 +3017,14 @@ export function ChatShell() {
 function CollapsedRequestsRail({
   accountImageUrl,
   accountName,
+  onOpenAccount,
   onNewChat,
   onExpand,
   requestCount,
 }: {
   accountImageUrl: string | null
   accountName: string | null
+  onOpenAccount: () => void
   onNewChat: () => void
   onExpand: () => void
   requestCount: number
@@ -2728,7 +3073,12 @@ function CollapsedRequestsRail({
       </div>
 
       <div className="mt-auto flex flex-col items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl border border-border bg-background">
+        <button
+          aria-label="Open account settings"
+          className="flex size-10 items-center justify-center rounded-xl border border-border bg-background transition-colors hover:bg-muted/40"
+          onClick={onOpenAccount}
+          type="button"
+        >
           <Avatar className="size-7 rounded-lg">
             {accountImageUrl ? (
               <AvatarImage
@@ -2744,9 +3094,98 @@ function CollapsedRequestsRail({
               )}
             </AvatarFallback>
           </Avatar>
-        </div>
+        </button>
       </div>
     </aside>
+  )
+}
+
+function AccountSettingsDialog({
+  accountName,
+  defaultWalletAddress,
+  isOpen,
+  isPayoutWalletUpdating,
+  isPrivyAuthenticated,
+  isWalletReady,
+  myProfileRecord,
+  notice,
+  onConnectWallet,
+  onOpenChange,
+  onOpenProfileBuilder,
+  onSetDefaultPayoutWallet,
+  runtimeDefaultNetworkKey,
+  runtimeEnvironment,
+  runtimePrimaryChainFamily,
+  walletAccounts,
+}: {
+  accountName: string | null
+  defaultWalletAddress: string | null
+  isOpen: boolean
+  isPayoutWalletUpdating: string | null
+  isPrivyAuthenticated: boolean
+  isWalletReady: boolean
+  myProfileRecord: MyProfileRecord
+  notice: string | null
+  onConnectWallet: () => void
+  onOpenChange: (open: boolean) => void
+  onOpenProfileBuilder: () => void
+  onSetDefaultPayoutWallet: (walletAccountId: string) => Promise<void>
+  runtimeDefaultNetworkKey: string
+  runtimeEnvironment: "devnet" | "mainnet" | "testnet"
+  runtimePrimaryChainFamily: "evm" | "solana"
+  walletAccounts: WalletAccountRecord
+}) {
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={isOpen}>
+      <DialogContent className="max-h-[min(88svh,52rem)] max-w-[min(48rem,calc(100vw-2rem))] overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(48rem,calc(100vw-2rem))]">
+        <DialogHeader className="border-b border-border px-6 py-5">
+          <DialogTitle>Account settings</DialogTitle>
+          <DialogDescription>
+            Boreal binds wallet identity, payout routing, and public offers to
+            your signed-in X account.
+          </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="max-h-[calc(88svh-8.5rem)]">
+          <div className="px-6 py-6">
+            <AccountSettingsSurface
+              accountName={accountName}
+              defaultWalletAddress={defaultWalletAddress}
+              isPayoutWalletUpdating={isPayoutWalletUpdating}
+              isPrivyAuthenticated={isPrivyAuthenticated}
+              isWalletReady={isWalletReady}
+              myProfileRecord={myProfileRecord}
+              notice={notice}
+              onConnectWallet={onConnectWallet}
+              onOpenProfileBuilder={onOpenProfileBuilder}
+              onSetDefaultPayoutWallet={onSetDefaultPayoutWallet}
+              runtimeDefaultNetworkKey={runtimeDefaultNetworkKey}
+              runtimeEnvironment={runtimeEnvironment}
+              runtimePrimaryChainFamily={runtimePrimaryChainFamily}
+              walletAccounts={walletAccounts}
+            />
+          </div>
+        </ScrollArea>
+        <DialogFooter className="border-t border-border px-6 py-4">
+          <div className="flex w-full items-center justify-between gap-3 text-xs text-muted-foreground">
+            <p>
+              Deploy with <code>BOREAL_CHAIN_ENV=mainnet</code> to switch the
+              commerce layer out of devnet defaults.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button asChild size="sm" type="button" variant="outline">
+                <Link href="/account" onClick={() => onOpenChange(false)}>
+                  Full settings
+                </Link>
+              </Button>
+              <Button onClick={() => onOpenChange(false)} size="sm" type="button" variant="outline">
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -6007,14 +6446,14 @@ function buildWorkspaceFromRequestDetail(
         buildProfileBuilderSeedFromIntent(detail.intent),
       kind: "profile_builder",
       sourceBrief: draftActivity?.sourceBrief ?? detail.intent.body,
-      subtitle:
-        detail.intent.status === "fulfilled"
-          ? "The profile onboarding request is complete. You can still reopen the builder and refine the record later."
-          : detail.intent.status === "in_progress" ||
-            detail.intent.status === "claimed"
-            ? "Boreal delivered an editable draft. Review it, then save the profile and publish the listing when ready."
-            : "Open the builder form manually, or approve Boreal to draft a stronger profile and first listing from this brief.",
-      title: "Profile and supply builder",
+          subtitle:
+            detail.intent.status === "fulfilled"
+              ? "The profile onboarding request is complete. You can still reopen the setup and refine the record later."
+              : detail.intent.status === "in_progress" ||
+                detail.intent.status === "claimed"
+                ? "Boreal delivered an editable draft. Review it, then save the profile and publish the offer when ready."
+                : "Open the setup form manually, or approve Boreal to draft a stronger profile and first offer from this brief.",
+      title: "Profile and offer setup",
     }
   }
 
@@ -6139,8 +6578,8 @@ function buildWorkspaceFromRequestDetail(
       items: detail.catalogItems.map(mapCatalogEntryToItem),
       kind: "catalog",
       subtitle:
-        "Matched supply stays attached to this request so products and services remain actionable after refresh.",
-      title: "Matched supply",
+        "Matched offers stay attached to this request so products and services remain actionable after refresh.",
+      title: "Matched offers",
     }
   }
 

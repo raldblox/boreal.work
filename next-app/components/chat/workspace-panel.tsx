@@ -221,7 +221,7 @@ export function WorkspacePanel({
           <div className="space-y-3 border-b border-border p-3">
             <TabsList className="h-auto w-full" variant="button">
               <TabsTrigger className="flex-1" value="workers">
-                Supply
+                Offers
               </TabsTrigger>
               <TabsTrigger className="flex-1" value="requests">
                 Requests
@@ -235,7 +235,7 @@ export function WorkspacePanel({
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={
                   activeTab === "workers"
-                    ? "Search products, services, capabilities, or tools"
+                    ? "Search offers, services, products, or workers"
                     : "Search requests, asks, or unresolved work"
                 }
                 value={search}
@@ -250,15 +250,15 @@ export function WorkspacePanel({
                   <DiscoveryPanelLoader
                     subtitle={
                       deferredSearch
-                        ? "Searching public supply..."
-                        : "Loading public supply..."
+                        ? "Searching public offers..."
+                        : "Loading public offers..."
                     }
                     variant="workers"
                   />
                 ) : supplyListings.length === 0 ? (
                   <EmptyBlock
-                    subtitle="Listings will appear here once public supply is published."
-                    title="No public supply yet"
+                    subtitle="Offers will appear here once people publish services, products, or packaged capabilities."
+                    title="No public offers yet"
                   />
                 ) : (
                   supplyListings.map((listing) => (

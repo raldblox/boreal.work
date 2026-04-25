@@ -9,9 +9,15 @@ import {
   ensureSettlementForTransaction,
   ensureTransactionForCheckoutItem,
   getCommerceEnvironment,
+  getCommerceNetworkSelection,
   getDefaultBuyerWalletAccountId,
   getDefaultPayoutWalletAccountId,
+  getWalletAccountContext,
 } from "./commerceCore";
+import {
+  areBorealNetworksCompatible,
+  normalizeBorealNetworkKey,
+} from "../lib/boreal/commerce/networks";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 import {
   completeTransactionScenarioRun,
@@ -452,6 +458,10 @@ export const checkoutCart = mutation({
       payableScenarios.length > 0
         ? await getDefaultBuyerWalletAccountId(ctx, owner._id)
         : undefined;
+    const buyerWalletContext = await getWalletAccountContext(
+      ctx,
+      buyerWalletAccountId,
+    );
 
     if (payableScenarios.length > 0 && !buyerWalletAccountId) {
       if (sourceIntentId) {
@@ -477,6 +487,72 @@ export const checkoutCart = mutation({
         placed: false,
         reason: "missing_buyer_wallet" as const,
       };
+    }
+
+    if (buyerWalletContext) {
+      for (const [index, line] of cartItems.entries()) {
+        const supply = cartSupplies[index];
+        const amount = line.unitPriceAmount ?? supply?.priceAmount ?? 0;
+
+        if (amount <= 0) {
+          continue;
+        }
+
+        const scenarioType = deriveCheckoutScenario({
+          deliveryType: line.deliveryType,
+          fulfillmentKind: line.fulfillmentKind,
+          sourceProviderKey: supply?.sourceProviderKey,
+          supportsDirectInvoke: supply?.supportsDirectInvoke,
+        });
+        const hintedNetworkKey = normalizeBorealNetworkKey(
+          derivePrimaryNetworkHint(supply?.paymentNetworkHints),
+        );
+        const sellerPayoutWalletAccountId = await getDefaultPayoutWalletAccountId(
+          ctx,
+          line.sellerUserId,
+        );
+        const sellerPayoutWalletContext = await getWalletAccountContext(
+          ctx,
+          sellerPayoutWalletAccountId,
+        );
+        const targetNetworkKey =
+          hintedNetworkKey ??
+          sellerPayoutWalletContext?.networkKey ??
+          buyerWalletContext.networkKey;
+
+        if (
+          !areBorealNetworksCompatible({
+            left: buyerWalletContext.networkKey,
+            right: targetNetworkKey,
+          })
+        ) {
+          if (sourceIntentId) {
+            await recordTransactionAuditEvent(ctx, {
+              intentId: sourceIntentId,
+              message:
+                "Buyer wallet network does not match the listing settlement network.",
+              metadata: {
+                buyerNetworkKey: buyerWalletContext.networkKey,
+                scenarioId: getScenarioId(scenarioType),
+                sellerNetworkKey: sellerPayoutWalletContext?.networkKey,
+                targetNetworkKey,
+                title: line.titleSnapshot,
+              },
+              scenarioType,
+              source: "wallet",
+              stage: "wallet",
+              status: "blocked",
+              supplyId: line.supplyId,
+            });
+          }
+
+          return {
+            checkoutId: null,
+            placed: false,
+            reason: "wallet_network_mismatch" as const,
+          };
+        }
+      }
     }
 
     const now = Date.now();
@@ -541,6 +617,16 @@ export const checkoutCart = mutation({
         supportsDirectInvoke: supply?.supportsDirectInvoke,
       });
       const scenarioId = getScenarioId(scenarioType);
+      const normalizedNetworkKey =
+        normalizeBorealNetworkKey(derivePrimaryNetworkHint(supply?.paymentNetworkHints)) ??
+        buyerWalletContext?.networkKey ??
+        getCommerceNetworkSelection({
+          environment,
+        }).networkKey;
+      const networkSelection = getCommerceNetworkSelection({
+        environment,
+        networkKey: normalizedNetworkKey,
+      });
       const checkoutItemStatus = instantAccess
         ? "fulfilled"
         : directExternalInvoke
@@ -562,6 +648,7 @@ export const checkoutCart = mutation({
         createdAt: now,
         currency: line.currency,
         deliveryType: line.deliveryType,
+        chainFamily: networkSelection.chainFamily,
         environment,
         executionSurface: supply?.executionSurface,
         fulfillmentKind: line.fulfillmentKind,
@@ -570,6 +657,7 @@ export const checkoutCart = mutation({
         paymentProtocol: supply?.paymentProtocol,
         priceType: line.priceType,
         quantity: line.quantity,
+        networkKey: networkSelection.networkKey,
         sellerDisplayName: line.sellerDisplayName,
         sellerProfileId: line.sellerProfileId,
         sellerUserId: line.sellerUserId,
@@ -591,6 +679,7 @@ export const checkoutCart = mutation({
       if (directExternalInvoke && supply) {
         paymentAttemptId = await ctx.db.insert("paymentAttempts", {
           amount: supply.priceAmount,
+          chainFamily: networkSelection.chainFamily,
           checkoutId,
           checkoutItemId,
           createdAt: now,
@@ -598,6 +687,7 @@ export const checkoutCart = mutation({
           environment,
           errorMessage: undefined,
           network: derivePrimaryNetworkHint(supply.paymentNetworkHints),
+          networkKey: networkSelection.networkKey,
           paymentProtocol: supply.paymentProtocol ?? "x402",
           providerKey: supply.sourceProviderKey!,
           receiptJson: undefined,
@@ -609,6 +699,7 @@ export const checkoutCart = mutation({
         });
         serviceInvocationId = await ctx.db.insert("serviceInvocations", {
           amount: supply.priceAmount,
+          chainFamily: networkSelection.chainFamily,
           checkoutId,
           checkoutItemId,
           createdAt: now,
@@ -620,6 +711,7 @@ export const checkoutCart = mutation({
           externalJobId: undefined,
           externalRequestId: undefined,
           network: derivePrimaryNetworkHint(supply.paymentNetworkHints),
+          networkKey: networkSelection.networkKey,
           paymentAttemptId,
           paymentProtocol: supply.paymentProtocol ?? "x402",
           requestJson: undefined,
@@ -640,6 +732,7 @@ export const checkoutCart = mutation({
       } else if (handoffExternalInvoke && supply?.sourceProviderKey) {
         serviceInvocationId = await ctx.db.insert("serviceInvocations", {
           amount: supply.priceAmount,
+          chainFamily: networkSelection.chainFamily,
           checkoutId,
           checkoutItemId,
           createdAt: now,
@@ -651,6 +744,7 @@ export const checkoutCart = mutation({
           externalJobId: undefined,
           externalRequestId: undefined,
           network: derivePrimaryNetworkHint(supply.paymentNetworkHints),
+          networkKey: networkSelection.networkKey,
           paymentAttemptId: undefined,
           paymentProtocol: supply.paymentProtocol ?? "none",
           requestJson: undefined,
@@ -673,12 +767,15 @@ export const checkoutCart = mutation({
         amount: line.unitPriceAmount ?? supply?.priceAmount ?? undefined,
         buyerUserId: owner._id,
         buyerWalletAccountId,
+        chainFamily: networkSelection.chainFamily,
+        chainId: undefined,
         checkoutId,
         checkoutItemId,
         currency: line.currency,
         environment,
         intentId: sourceIntentId ?? undefined,
         intentKey: undefined,
+        networkKey: networkSelection.networkKey,
         paymentAttemptId,
         paymentProtocol: supply?.paymentProtocol ?? null,
         paymentStatus:
@@ -725,8 +822,10 @@ export const checkoutCart = mutation({
       const settlementId = await ensureSettlementForTransaction(ctx, {
         amount: line.unitPriceAmount ?? supply?.priceAmount ?? undefined,
         buyerWalletAccountId,
+        chainFamily: networkSelection.chainFamily,
         currency: line.currency,
         environment,
+        networkKey: networkSelection.networkKey,
         payoutWalletAccountId: await getDefaultPayoutWalletAccountId(
           ctx,
           line.sellerUserId,

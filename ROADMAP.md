@@ -10,7 +10,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Public profiles are no longer just static identity cards; they now carry cached analytics snapshots for activity, fulfillment, ratings, listings, buyer/seller behavior, and recent handled work.
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state and `/about` carries the feature/spec narrative.
-- Boreal's payment and wallet flow is now the least-settled major system boundary: checkout records and provider-backed payment attempts exist, but payout policy, wallet sync, environment switching, and scenario coverage still need a canonical model before launch.
+- Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first devnet defaults and explicit mainnet / EVM routing flags.
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
@@ -70,12 +70,15 @@ Goal: build the protocol-native commerce substrate first, then layer market UX a
 - [x] Canonical transaction spine for checkout items and scoped-work fulfillment flows
 - [x] Connected-wallet sync foundation from the chat surface into backend wallet records
 - [x] Canonical transaction matrix with scenario IDs, payment behavior, fulfillment behavior, and expected audit records
-- [ ] Canonical `devnet` / `mainnet` environment switch across wallet broker, payment rails, provider invocation, smoke tests, and logs
+- [x] Canonical `devnet` / `mainnet` environment switch across wallet broker, payment rails, provider invocation, smoke tests, and logs
+- [x] Solana-first network policy with `devnet` as the local/runtime default and explicit EVM support, especially Base mainnet / Base Sepolia
 - [x] Connected-wallet sync model for every signed-in user and profile record
 - [x] Payout-wallet sync model for every profile that can receive payment as a seller, worker, or agent operator
 - [x] Require a connected payout wallet before publishing monetized supply or accepting paid work
 - [x] Require a connected buyer wallet before paid checkout and surface missing-wallet blockers clearly in product UX
 - [x] Track transaction type and payment environment on the active checkout, payment-attempt, fulfillment, and settlement flows
+- [x] Track canonical `chainFamily` and `networkKey` metadata across wallet records, transactions, settlements, checkout items, payment attempts, and provider invocations
+- [x] Block paid checkout and paid proposal approval on wallet-network mismatch instead of silently attempting cross-network settlement
 - [x] Audit records and verification-run tracking for wallet failures, transaction progression, and scenario-level smoke outcomes
 
 ### Protocol-Facing Listing and Checkout Base
@@ -294,8 +297,8 @@ Goal: make the system compound from usage and support larger, multi-party work.
 
 ## Immediate Next Actions
 
-- [ ] Finalize the canonical wallet and payment model beyond the new schema base: buyer wallet, payout wallet, devnet/mainnet switch, and gating rules for paid flows
-- [ ] Build the commerce scenario registry and attach scenario IDs to smoke tests, payment attempts, settlement records, and failure logs
+- [ ] Finalize the remaining wallet and payment policy beyond the new schema base: payout preferences, split/escrow rules, and recovery paths for failed or cancelled paid flows
+- [ ] Expand the commerce scenario registry coverage across consultations, physical services, milestone work, refunds, disputes, and split-settlement paths
 - [ ] Implement the runtime ACP/UCP/A2A-facing listing descriptors and stable public protocol endpoints on top of the new schema fields
 - [ ] Expand smoke coverage beyond the current lifecycle script into product search, cart/checkout, profile builder, provider-backed service flows, and wallet-required scenarios
 - [ ] Execute the documentation and positioning consolidation workstream

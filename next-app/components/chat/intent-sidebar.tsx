@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useState } from "react"
 import { useWallets } from "@privy-io/react-auth"
 import { signIn, signOut, useSession } from "next-auth/react"
@@ -10,6 +9,7 @@ import {
   LogOutIcon,
   MessageSquarePlusIcon,
   PanelLeftCloseIcon,
+  Settings2Icon,
   ShieldAlertIcon,
   UserIcon,
 } from "lucide-react"
@@ -17,29 +17,44 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs"
+import type {
+  ConversationSidebarPreview,
+  SidebarIntentPreview,
+} from "@/lib/boreal/integrations/convex/function-refs"
 import type { RequestNavigationView } from "@/components/chat/request-notifications"
 
-import { RequestListCard } from "./request-list-card"
+import {
+  ConversationSidebarSection,
+  RequestSidebarSection,
+} from "./intent-sidebar-sections"
 
 type IntentSidebarProps = {
+  conversations: ConversationSidebarPreview[]
   intents: SidebarIntentPreview[]
+  onOpenAccount?: () => void
   onCollapse?: () => void
   onDeselect: () => void
+  onOpenConversationRequest?: (conversation: ConversationSidebarPreview) => void
   onOpenPendingApprovals?: () => void
+  onSelectConversation?: (conversation: ConversationSidebarPreview) => void
   onSelect: (intent: SidebarIntentPreview, view?: RequestNavigationView) => void
   pendingApprovalCount: number
+  selectedConversationId: string | null
   selectedIntentId: string | null
 }
 
 export function IntentSidebar({
+  conversations,
   intents,
+  onOpenAccount,
   onCollapse,
   onDeselect,
+  onOpenConversationRequest,
   onOpenPendingApprovals,
+  onSelectConversation,
   onSelect,
   pendingApprovalCount,
+  selectedConversationId,
   selectedIntentId,
 }: IntentSidebarProps) {
   const { data: session, status } = useSession()
@@ -117,57 +132,57 @@ export function IntentSidebar({
         ) : null}
       </div>
 
-      <div className=" px-4 py-3">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          Your requests
-        </p>
-      </div>
+      <ConversationSidebarSection
+        conversations={conversations}
+        onOpenConversationRequest={onOpenConversationRequest}
+        onSelectConversation={onSelectConversation}
+        selectedConversationId={selectedConversationId}
+        selectedIntentId={selectedIntentId}
+      />
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-2 px-4 pb-4">
-          {intents.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-              Active requests appear here once Boreal turns a live ask into
-              tracked work.
-            </div>
-          ) : (
-            intents.map((intent) => {
-              const isActive = intent._id === selectedIntentId
-
-              return (
-                <RequestListCard
-                  intent={intent}
-                  key={intent._id}
-                  onOpen={onSelect}
-                  selected={isActive}
-                />
-              )
-            })
-          )}
-        </div>
-      </ScrollArea>
+      <RequestSidebarSection
+        intents={intents}
+        onSelect={onSelect}
+        selectedIntentId={selectedIntentId}
+      />
 
       <div className="border-t border-border px-4 py-4">
         {isAuthenticated && user ? (
           <div className="flex items-center gap-3">
-            <Avatar className="size-10 rounded-lg border border-border bg-background">
-              {user.image ? (
-                <AvatarImage alt={user.name ?? "X user"} src={user.image} />
-              ) : null}
-              <AvatarFallback className="rounded-lg">
-                <UserIcon className="size-4" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {user.name ?? "X user"}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {connectedAddress
-                  ? formatAddress(connectedAddress)
-                  : "Wallet not connected"}
-              </p>
-            </div>
+            <button
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-left transition-colors hover:border-border hover:bg-background/70"
+              onClick={onOpenAccount}
+              type="button"
+            >
+              <Avatar className="size-10 rounded-lg border border-border bg-background">
+                {user.image ? (
+                  <AvatarImage alt={user.name ?? "X user"} src={user.image} />
+                ) : null}
+                <AvatarFallback className="rounded-lg">
+                  <UserIcon className="size-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {user.name ?? "X user"}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {connectedAddress
+                    ? formatAddress(connectedAddress)
+                    : "Wallet not connected"}
+                </p>
+              </div>
+            </button>
+            {onOpenAccount ? (
+              <Button
+                onClick={onOpenAccount}
+                size="icon-sm"
+                type="button"
+                variant="outline"
+              >
+                <Settings2Icon />
+              </Button>
+            ) : null}
             <Button
               disabled={isLoading}
               onClick={handleSignOut}

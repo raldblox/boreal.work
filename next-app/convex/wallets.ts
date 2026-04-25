@@ -2,11 +2,13 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
-import { getCommerceEnvironment } from "./commerceCore";
 import {
+  chainFamilyValidator,
   chainEnvironmentValidator,
+  networkKeyValidator,
   walletAccountRoleValidator,
 } from "./validators";
+import { inferBorealNetworkSelection } from "../lib/boreal/commerce/networks";
 
 export const getMyWalletAccounts = query({
   args: {
@@ -29,9 +31,12 @@ export const getMyWalletAccounts = query({
 
     return accounts.map((account) => ({
       _id: account._id,
+      chainFamily: account.chainFamily,
+      chainId: account.chainId ?? null,
       environment: account.environment,
       isDefaultBuyer: account.isDefaultBuyer,
       isDefaultPayout: account.isDefaultPayout,
+      networkKey: account.networkKey,
       roles: account.roles,
       walletAddress: account.walletAddress,
       walletProvider: account.walletProvider,
@@ -41,7 +46,10 @@ export const getMyWalletAccounts = query({
 
 export const syncWalletAccount = mutation({
   args: {
+    chainFamily: v.optional(chainFamilyValidator),
+    chainId: v.optional(v.string()),
     environment: v.optional(chainEnvironmentValidator),
+    networkKey: v.optional(networkKeyValidator),
     ownerDisplayName: v.optional(v.string()),
     ownerExternalId: v.optional(v.string()),
     roles: v.optional(v.array(walletAccountRoleValidator)),
@@ -51,7 +59,10 @@ export const syncWalletAccount = mutation({
   },
   handler: async (ctx, args) => {
     const synced = await syncWalletAccountRecord(ctx, {
+      chainFamily: args.chainFamily,
+      chainId: args.chainId,
       environment: args.environment,
+      networkKey: args.networkKey,
       ownerDisplayName: args.ownerDisplayName,
       ownerExternalId: args.ownerExternalId,
       roles: args.roles ?? ["connected", "buyer"],
@@ -104,7 +115,9 @@ export const setDefaultPayoutWalletAccount = mutation({
     if (profile) {
       await ctx.db.patch(profile._id, {
         defaultPayoutWalletAccountId: args.walletAccountId,
+        walletChainFamily: account.chainFamily,
         walletEnvironment: account.environment,
+        walletNetworkKey: account.networkKey,
         walletSyncStatus: "ready",
       });
     }
@@ -116,7 +129,10 @@ export const setDefaultPayoutWalletAccount = mutation({
 export async function syncWalletAccountRecord(
   ctx: MutationCtx,
   input: {
+    chainFamily?: "evm" | "solana";
+    chainId?: string;
     environment?: "devnet" | "mainnet" | "testnet";
+    networkKey?: string;
     ownerDisplayName?: string;
     ownerExternalId?: string;
     roles: Array<"buyer" | "connected" | "payout">;
@@ -138,7 +154,12 @@ export async function syncWalletAccountRecord(
   }
 
   const now = Date.now();
-  const environment = getCommerceEnvironment(input.environment);
+  const networkSelection = inferBorealNetworkSelection({
+    chainFamily: input.chainFamily,
+    chainId: input.chainId,
+    environment: input.environment,
+    networkKey: input.networkKey,
+  });
   const user = await upsertWalletUser(ctx, {
     displayName: input.ownerDisplayName,
     externalId: input.ownerExternalId,
@@ -175,12 +196,14 @@ export async function syncWalletAccountRecord(
     walletAccountId = existing._id;
     await ctx.db.patch(existing._id, {
       actorExternalId: input.ownerExternalId,
-      chainId: existing.chainId,
-      environment,
+      chainFamily: networkSelection.chainFamily,
+      chainId: input.chainId ?? existing.chainId,
+      environment: networkSelection.environment,
       isDefaultBuyer: shouldDefaultBuyer ? true : existing.isDefaultBuyer,
       isDefaultPayout: shouldDefaultPayout ? true : existing.isDefaultPayout,
       lastSyncedAt: now,
       metadataJson: existing.metadataJson,
+      networkKey: networkSelection.networkKey,
       profileId: profile?._id,
       roles: Array.from(new Set([...existing.roles, ...roles])),
       userId: user._id,
@@ -188,13 +211,15 @@ export async function syncWalletAccountRecord(
   } else {
     walletAccountId = await ctx.db.insert("walletAccounts", {
       actorExternalId: input.ownerExternalId,
-      chainId: undefined,
+      chainFamily: networkSelection.chainFamily,
+      chainId: input.chainId,
       createdAt: now,
-      environment,
+      environment: networkSelection.environment,
       isDefaultBuyer: shouldDefaultBuyer,
       isDefaultPayout: shouldDefaultPayout,
       lastSyncedAt: now,
       metadataJson: undefined,
+      networkKey: networkSelection.networkKey,
       profileId: profile?._id,
       roles,
       userId: user._id,
@@ -220,17 +245,22 @@ export async function syncWalletAccountRecord(
   if (walletSession) {
     await ctx.db.patch(walletSession._id, {
       actorExternalId: input.ownerExternalId,
-      environment,
+      chainFamily: networkSelection.chainFamily,
+      chainId: input.chainId ?? walletSession.chainId,
+      environment: networkSelection.environment,
       lastUsedAt: now,
+      networkKey: networkSelection.networkKey,
     });
   } else {
     await ctx.db.insert("walletSessions", {
       actorExternalId: input.ownerExternalId,
-      chainId: undefined,
+      chainFamily: networkSelection.chainFamily,
+      chainId: input.chainId,
       createdAt: now,
-      environment,
+      environment: networkSelection.environment,
       lastUsedAt: now,
       metadataJson: undefined,
+      networkKey: networkSelection.networkKey,
       walletAddress: input.walletAddress,
       walletProvider: "privy",
     });
@@ -241,13 +271,15 @@ export async function syncWalletAccountRecord(
       defaultPayoutWalletAccountId: shouldDefaultPayout
         ? walletAccountId
         : profile.defaultPayoutWalletAccountId,
-      walletEnvironment: environment,
+      walletChainFamily: networkSelection.chainFamily,
+      walletEnvironment: networkSelection.environment,
+      walletNetworkKey: networkSelection.networkKey,
       walletSyncStatus: roles.includes("payout") ? "ready" : "connected",
     });
   }
 
   return {
-    environment,
+    environment: networkSelection.environment,
     profileId: profile?._id,
     userId: user._id,
     walletAccountId,

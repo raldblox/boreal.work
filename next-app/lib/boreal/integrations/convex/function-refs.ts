@@ -58,6 +58,54 @@ export type SidebarIntentPreview = {
   visibility?: "private" | "public";
 };
 
+export type ConversationSidebarPreview = {
+  _id: string;
+  conversationId: string;
+  intentCount: number;
+  lastMessageBody: string | null;
+  lastMessageRole: "assistant" | "system" | "user" | null;
+  latestMessageAt: number;
+  linkedRequest: {
+    id: string;
+    status: string;
+    title: string;
+  } | null;
+  messageCount: number;
+  title: string;
+  updatedAt: number;
+};
+
+export type ConversationThreadRecord = {
+  conversation: {
+    _id: string;
+    conversationId: string;
+    intentCount: number;
+    lastMessageBody: string | null;
+    lastMessageRole: "assistant" | "system" | "user" | null;
+    latestMessageAt: number;
+    messageCount: number;
+    title: string;
+    updatedAt: number;
+  };
+  linkedRequest: {
+    id: string;
+    status: string;
+    title: string;
+  } | null;
+  messages: Array<{
+    _id: string;
+    body: string;
+    createdAt: number;
+    role: "assistant" | "system" | "user";
+    sender: {
+      actorKind: "agent" | "human" | "tool";
+      displayName: string;
+      externalId: string | null;
+      handle: string | null;
+    };
+  }>;
+} | null;
+
 export type CatalogEntry = {
   _id: string;
   actorKind: "agent" | "human" | "tool";
@@ -239,9 +287,21 @@ export type MyProfileRecord = {
 
 export type WalletAccountRecord = Array<{
   _id: string;
+  chainFamily: "evm" | "solana";
+  chainId: string | null;
   environment: "devnet" | "mainnet" | "testnet";
   isDefaultBuyer: boolean;
   isDefaultPayout: boolean;
+  networkKey:
+    | "base:mainnet"
+    | "base:sepolia"
+    | "ethereum:mainnet"
+    | "ethereum:sepolia"
+    | "polygon:amoy"
+    | "polygon:mainnet"
+    | "solana:devnet"
+    | "solana:mainnet"
+    | "solana:testnet";
   roles: Array<"buyer" | "connected" | "payout">;
   walletAddress: string;
   walletProvider: "privy";
@@ -510,6 +570,14 @@ export const convexFunctionRefs = {
     },
     { appended: boolean }
   >("chats:appendRequestExecution"),
+  getConversationThread: makeFunctionReference<
+    "query",
+    {
+      conversationId: string;
+      ownerExternalId?: string;
+    },
+    ConversationThreadRecord
+  >("chats:getConversationThread"),
   postConversationMessage: makeFunctionReference<
     "mutation",
     {
@@ -521,6 +589,23 @@ export const convexFunctionRefs = {
     },
     { conversationId: string; messageId: string; posted: boolean }
   >("chats:postConversationMessage"),
+  recordConversationExchange: makeFunctionReference<
+    "mutation",
+    {
+      assistantMessage: string;
+      conversationId?: string;
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      ownerHandle?: string;
+      userMessage: string;
+    },
+    {
+      assistantMessageId: string;
+      conversationId: string;
+      posted: boolean;
+      userMessageId: string;
+    }
+  >("chats:recordConversationExchange"),
   approveRequest: makeFunctionReference<
     "mutation",
     {
@@ -576,6 +661,11 @@ export const convexFunctionRefs = {
     { limit: number },
     CatalogEntry[]
   >("supplies:listCatalog"),
+  listConversationSidebar: makeFunctionReference<
+    "query",
+    { limit: number; ownerExternalId?: string },
+    ConversationSidebarPreview[]
+  >("chats:listConversationSidebar"),
   getActiveCart: makeFunctionReference<
     "query",
     { ownerExternalId?: string },
@@ -647,7 +737,10 @@ export const convexFunctionRefs = {
     { intentId: string; ownerExternalId?: string; proposalId: string },
     {
       approved: boolean;
-      reason?: "missing_buyer_wallet" | "missing_payout_wallet";
+      reason?:
+        | "missing_buyer_wallet"
+        | "missing_payout_wallet"
+        | "wallet_network_mismatch";
     }
   >("proposals:approveProposal"),
   rateRequest: makeFunctionReference<
@@ -757,7 +850,7 @@ export const convexFunctionRefs = {
     {
       checkoutId: string | null;
       placed: boolean;
-      reason?: "missing_buyer_wallet";
+      reason?: "missing_buyer_wallet" | "wallet_network_mismatch";
     }
   >("commerce:checkoutCart"),
   beginPaymentAttempt: makeFunctionReference<
@@ -825,7 +918,19 @@ export const convexFunctionRefs = {
   syncWalletAccount: makeFunctionReference<
     "mutation",
     {
+      chainFamily?: "evm" | "solana";
+      chainId?: string;
       environment?: "devnet" | "mainnet" | "testnet";
+      networkKey?:
+        | "base:mainnet"
+        | "base:sepolia"
+        | "ethereum:mainnet"
+        | "ethereum:sepolia"
+        | "polygon:amoy"
+        | "polygon:mainnet"
+        | "solana:devnet"
+        | "solana:mainnet"
+        | "solana:testnet";
       ownerDisplayName?: string;
       ownerExternalId?: string;
       roles?: Array<"buyer" | "connected" | "payout">;

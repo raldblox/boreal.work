@@ -8,11 +8,11 @@
 
 ## Abstract
 
-Boreal is building request-native commerce: an intent-to-fulfillment layer for work, products, and services. It starts with a request - from a human in chat or from an agent acting on behalf of a user - then routes that demand toward the best available path: existing supply, proposals for custom work, provider-backed execution, or tracked fulfillment inside one workspace.
+Boreal helps people complete work from one request, without choosing tools first. A buyer, operator, or agent starts in chat, describes the outcome, and Boreal routes that demand toward the best executable path: an existing product, a callable provider, a known agent workflow, or the right human team when the work is custom.
 
-The current Boreal alpha is a chat-native interface for this system. It already turns plain-language asks into structured requests, searches public supply, opens proposal flows when the work is custom, tracks delivery and evidence, supports digital listings, and routes supported provider-backed services through payment-aware checkout records.
+The current Boreal alpha is the chat-native interface for this system. It already turns plain-language asks into structured requests, searches public offers, opens proposal flows when the work is custom, tracks delivery and evidence, supports digital listings, and routes supported provider-backed services through payment-aware checkout records.
 
-Over time, Boreal expands from this alpha market surface into deeper protocol and settlement infrastructure: richer matching, stronger supplier routing, broader agent interoperability, and eventually escrow, trust, and protocol-native execution. The core idea stays the same throughout: demand should not disappear into chat logs, and commerce should not stop at the prompt.
+The long-term thesis is still request-native commerce and intent-to-fulfillment infrastructure. The practical product wedge is simpler: one request in, best fulfillment path out. Boreal exists so demand does not disappear into chat logs, and so commerce does not stop at the prompt.
 
 ---
 
@@ -100,6 +100,21 @@ Boreal is the only platform being built with collective fulfillment as a first-c
 
 Boreal is not a whitepaper company. The following product surface is live in the current alpha, and the sections below distinguish clearly between shipped product, foundation already in the repo, and target architecture.
 
+### 3.0 Product definition in plain language
+
+The clearest way to describe Boreal today is:
+
+> **Submit one request. Boreal finds the best way to fulfill it.**
+
+That means:
+
+- the user should not have to choose tools first
+- Boreal should check direct executable supply before opening a custom workflow
+- humans are not merely a failure path; they are part of the market when judgment, trust, local presence, or custom work is required
+- the same request should carry the full trail: matching, approval, delivery, payment, and proof
+
+This is narrower than the full whitepaper thesis and better for product messaging.  `Request-native commerce` remains the category.  `Intent-to-fulfillment` remains the technical thesis.  But the live product promise should stay concrete.
+
 ### 3.1 Chat-native request workspace
 
 Boreal's primary interface is chat, but chat is not the durable object. The durable object is the request. In the current alpha, Boreal can:
@@ -184,6 +199,20 @@ Some Boreal concepts belong to the future architecture, not to current alpha cla
 - collective fulfillment as a production primitive across the market
 
 They remain important because they show where the request-native alpha can grow. They should not be described as universally live today.
+
+### 3.8 Plain-language product labels
+
+The product thesis can stay technical.  The interface should not.
+
+For ordinary users, Boreal should prefer plain terms:
+
+- **Request** â€” something a person wants done, found, bought, or delivered
+- **Offer** â€” something a person, merchant, tool, or agent publishes to be hired or bought
+- **Proposal** â€” a scoped response to a request with price, timing, and deliverables
+- **Work thread** â€” the running conversation, delivery trail, and approvals attached to one request
+- **Checkout** â€” the direct purchase path when the offer is already buyable
+
+Internally, Boreal can still use `intent`, `supply`, `fulfillment`, and other system-level terms.  In the user-facing product, `request` and `offer` should do most of the work because they are easier to understand across buyers, merchants, freelancers, and agent operators.
 
 ---
 

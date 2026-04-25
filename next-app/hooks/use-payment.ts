@@ -4,18 +4,20 @@ import { useMemo } from "react";
 import { usePrivy, useWallets, useX402Fetch } from "@privy-io/react-auth";
 
 import { toUsdcMicros } from "@/lib/boreal/integrations/service-providers/payments/x402";
-import { getDefaultPrivyWalletAddress } from "@/lib/boreal/integrations/service-providers/wallets/privy";
+import { getDefaultPrivyWallet } from "@/lib/boreal/integrations/service-providers/wallets/privy";
 
 export function usePayment() {
   const { login, logout, user, ready, authenticated } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
   const { wrapFetchWithPayment } = useX402Fetch();
-  const defaultWalletAddress = useMemo(
-    () => getDefaultPrivyWalletAddress(wallets),
+  const defaultWallet = useMemo(
+    () => getDefaultPrivyWallet(wallets),
     [wallets],
   );
+  const defaultWalletAddress = defaultWallet?.address ?? null;
 
   return {
+    defaultWallet,
     defaultWalletAddress,
     payWithX402: async (input: {
       fetcher?: typeof fetch;

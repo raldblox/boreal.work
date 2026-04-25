@@ -7,6 +7,7 @@ import {
   ensureCatalogSeeded,
   getMyProfileRecord,
   getRequestExecutionContext,
+  saveConversationExchange,
   saveArtifactMetadata,
   saveIntentPipelineRecord,
 } from "@/lib/boreal/dal/intent-repository";
@@ -264,6 +265,15 @@ export const chatAssistantAgent: ComposableAgent<
           title: resolved.artifact.title,
         });
       }
+    } else {
+      await saveConversationExchange({
+        assistantMessage: resolved.assistantMessage,
+        conversationId,
+        ownerDisplayName: input.requester?.displayName,
+        ownerExternalId: input.requester?.externalId,
+        ownerHandle: input.requester?.handle,
+        userMessage: input.message,
+      });
     }
 
     return {

@@ -8,7 +8,9 @@ import {
   getDefaultBuyerWalletAccountId,
   getDefaultPayoutWalletAccountId,
   getProfileIdForUser,
+  getWalletAccountContext,
 } from "./commerceCore";
+import { areBorealNetworksCompatible } from "../lib/boreal/commerce/networks";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 import {
   getScenarioId,
@@ -163,6 +165,14 @@ export const approveProposal = mutation({
     )
       ? await getDefaultPayoutWalletAccountId(ctx, proposal.proposerUserId)
       : undefined;
+    const ownerBuyerWalletContext = await getWalletAccountContext(
+      ctx,
+      ownerBuyerWalletAccountId,
+    );
+    const proposerPayoutWalletContext = await getWalletAccountContext(
+      ctx,
+      proposerPayoutWalletAccountId,
+    );
 
     if (scenarioNeedsBuyerWallet("custom_scoped_work", proposal.price) && !ownerBuyerWalletAccountId) {
       await recordTransactionAuditEvent(ctx, {
@@ -211,6 +221,35 @@ export const approveProposal = mutation({
       };
     }
 
+    if (
+      proposal.price > 0 &&
+      !areBorealNetworksCompatible({
+        left: ownerBuyerWalletContext?.networkKey ?? null,
+        right: proposerPayoutWalletContext?.networkKey ?? null,
+      })
+    ) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "Buyer and payout wallets are on different networks. Cross-network settlement is not enabled yet.",
+        metadata: {
+          buyerNetworkKey: ownerBuyerWalletContext?.networkKey,
+          payoutNetworkKey: proposerPayoutWalletContext?.networkKey,
+          proposalId: args.proposalId,
+        },
+        proposalId: proposal._id,
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "blocked",
+      });
+
+      return {
+        approved: false,
+        reason: "wallet_network_mismatch" as const,
+      };
+    }
+
     const relatedProposals = await ctx.db
       .query("proposals")
       .withIndex("by_intentKey_and_createdAt", (queryBuilder) =>
@@ -238,10 +277,22 @@ export const approveProposal = mutation({
       amount: proposal.price,
       buyerUserId: intent.ownerUserId,
       buyerWalletAccountId: ownerBuyerWalletAccountId,
+      chainFamily:
+        proposerPayoutWalletContext?.chainFamily ??
+        ownerBuyerWalletContext?.chainFamily ??
+        undefined,
+      chainId:
+        proposerPayoutWalletContext?.chainId ??
+        ownerBuyerWalletContext?.chainId ??
+        undefined,
       currency: proposal.currency,
       environment: getCommerceEnvironment(),
       intentId: intent._id,
       intentKey: intent.intentKey,
+      networkKey:
+        proposerPayoutWalletContext?.networkKey ??
+        ownerBuyerWalletContext?.networkKey ??
+        undefined,
       proposalId: proposal._id,
       sellerProfileId: acceptedProposerProfileId,
       sellerUserId: proposal.proposerUserId,
@@ -265,8 +316,16 @@ export const approveProposal = mutation({
     await ensureSettlementForTransaction(ctx, {
       amount: proposal.price,
       buyerWalletAccountId: ownerBuyerWalletAccountId,
+      chainFamily:
+        proposerPayoutWalletContext?.chainFamily ??
+        ownerBuyerWalletContext?.chainFamily ??
+        undefined,
       currency: proposal.currency,
       environment: getCommerceEnvironment(),
+      networkKey:
+        proposerPayoutWalletContext?.networkKey ??
+        ownerBuyerWalletContext?.networkKey ??
+        undefined,
       payoutWalletAccountId: proposerPayoutWalletAccountId,
       protocol: null,
       status: proposal.price > 0 ? "pending" : "not_applicable",

@@ -16,6 +16,18 @@ export async function saveIntentPipelineRecord(args: RecordIntentPipelineArgs) {
   return client.mutation(convexFunctionRefs.recordIntentPipeline, args);
 }
 
+export async function saveConversationExchange(args: {
+  assistantMessage: string;
+  conversationId?: string;
+  ownerDisplayName?: string;
+  ownerExternalId?: string;
+  ownerHandle?: string;
+  userMessage: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.recordConversationExchange, args);
+}
+
 export async function approveRequestDraft(args: {
   assignedAgent?: string;
   assignedToolNames?: string[];

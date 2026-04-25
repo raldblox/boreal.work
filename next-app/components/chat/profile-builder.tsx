@@ -7,6 +7,7 @@ import {
   SparklesIcon,
   StoreIcon,
   UserRoundPenIcon,
+  WalletIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -51,9 +52,9 @@ export function ProfileBuilderWorkspaceCard({
   return (
     <div className="space-y-4 border border-border p-4">
       <div className="space-y-1">
-        <p className="text-sm font-medium">Profile and supply builder</p>
+        <p className="text-sm font-medium">Profile and offer setup</p>
         <p className="text-xs text-muted-foreground">
-          Boreal can draft this for you, but the final profile and listing stay
+          Boreal can draft this for you, but the final profile and offer stay
           editable before anything is saved.
         </p>
       </div>
@@ -95,14 +96,14 @@ export function ProfileBuilderWorkspaceCard({
         <div className="space-y-2 border border-border p-3">
           <div className="flex items-center gap-2">
             <StoreIcon className="size-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Listing draft</p>
+            <p className="text-sm font-medium">Offer draft</p>
           </div>
           <p className="text-sm">
-            {draft.listing.title || "Listing not drafted yet."}
+            {draft.listing.title || "Offer not drafted yet."}
           </p>
           <p className="text-xs text-muted-foreground">
             {draft.listing.description ||
-              "Open the builder to shape the listing, delivery terms, pricing, and searchable metadata."}
+              "Open the setup to shape the offer, delivery terms, pricing, and searchable details."}
           </p>
           <div className="flex flex-wrap gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
             <span className="border border-border px-2 py-1">
@@ -122,7 +123,7 @@ export function ProfileBuilderWorkspaceCard({
       <div className="flex flex-wrap gap-2">
         <Button onClick={onOpen} size="sm" type="button">
           <SparklesIcon />
-          {hasProfile || hasListing ? "Review builder" : "Open builder form"}
+          {hasProfile || hasListing ? "Review setup" : "Open setup"}
         </Button>
       </div>
     </div>
@@ -134,6 +135,9 @@ export function ProfileBuilderDialog({
   isDrafting,
   isOpen,
   isSaving,
+  isWalletReady,
+  connectWalletLabel,
+  onConnectWallet,
   onDraftWithBoreal,
   onOpenChange,
   onSaveProfile,
@@ -146,6 +150,9 @@ export function ProfileBuilderDialog({
   isDrafting: boolean
   isOpen: boolean
   isSaving: boolean
+  isWalletReady: boolean
+  connectWalletLabel: string
+  onConnectWallet: () => void
   onDraftWithBoreal: () => Promise<void>
   onOpenChange: (open: boolean) => void
   onSaveProfile: () => Promise<void>
@@ -162,11 +169,10 @@ export function ProfileBuilderDialog({
       <DialogContent className="max-w-5xl p-0 sm:max-w-5xl">
         <div className="flex max-h-[88svh] min-h-[72svh] flex-col overflow-hidden">
           <DialogHeader className="border-b border-border px-6 py-4">
-            <DialogTitle>Profile and supply builder</DialogTitle>
+            <DialogTitle>Profile and offer setup</DialogTitle>
             <DialogDescription>
-              Draft the profile manually or let Boreal shape it first. Save the
-              public profile on its own, or publish the first listing together
-              with it.
+              Start with your public profile. Then, if you want, publish one
+              clear offer people can hire or buy.
             </DialogDescription>
           </DialogHeader>
 
@@ -174,20 +180,35 @@ export function ProfileBuilderDialog({
             <div className="space-y-6">
               <label className="space-y-2">
                 <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                  Source brief
+                  Describe what you do
                 </span>
                 <Textarea
                   className="min-h-32 rounded-xl px-3 py-3 text-sm"
                   onChange={(event) => setSourceMessage(event.target.value)}
-                  placeholder="Describe what you offer, who it is for, what makes you good at it, and anything you want Boreal to highlight."
+                  placeholder="Describe your skills, services, products, ideal buyers, and anything Boreal should highlight."
                   value={sourceMessage}
                 />
               </label>
 
+              {!isWalletReady ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/15 p-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Connect a payout wallet before publishing paid offers</p>
+                    <p className="text-xs text-muted-foreground">
+                      You can still save your public profile without a wallet. Paid offers need a wallet so Boreal knows where proceeds should go.
+                    </p>
+                  </div>
+                  <Button onClick={onConnectWallet} size="sm" type="button" variant="outline">
+                    <WalletIcon />
+                    {connectWalletLabel}
+                  </Button>
+                </div>
+              ) : null}
+
               <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                 <div className="space-y-4 border border-border p-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Public profile</p>
+                    <p className="text-sm font-medium">Step 1. Public profile</p>
                     <p className="text-xs text-muted-foreground">
                       This shapes how Boreal presents and matches you.
                     </p>
@@ -341,16 +362,16 @@ export function ProfileBuilderDialog({
 
                 <div className="space-y-4 border border-border p-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Supply listing</p>
+                    <p className="text-sm font-medium">Step 2. First offer</p>
                     <p className="text-xs text-muted-foreground">
-                      Publish one strong listing now, or save only the profile
+                      Publish one clear offer now, or save only the profile
                       first.
                     </p>
                   </div>
 
                   <ToggleField
                     checked={draft.listing.enabled}
-                    label="Publish a first supply listing"
+                    label="Publish a first public offer"
                     onCheckedChange={(checked) =>
                       setDraft((current) => ({
                         ...current,
@@ -362,7 +383,7 @@ export function ProfileBuilderDialog({
                   <div className="grid gap-3">
                     <label className="space-y-2">
                       <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                        Listing title
+                        Offer title
                       </span>
                       <Input
                         className="h-10"
@@ -382,7 +403,7 @@ export function ProfileBuilderDialog({
 
                     <label className="space-y-2">
                       <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                        Subtitle
+                        Short summary
                       </span>
                       <Input
                         className="h-10"
@@ -395,7 +416,7 @@ export function ProfileBuilderDialog({
                             },
                           }))
                         }
-                        placeholder="One-line context or positioning"
+                        placeholder="One-line explanation of the offer"
                         value={draft.listing.subtitle}
                       />
                     </label>
@@ -415,7 +436,7 @@ export function ProfileBuilderDialog({
                             },
                           }))
                         }
-                        placeholder="Describe the offer, outcome, buyer fit, and what is included."
+                        placeholder="Describe the offer, the outcome, who it is for, and what is included."
                         value={draft.listing.description}
                       />
                     </label>
@@ -442,7 +463,7 @@ export function ProfileBuilderDialog({
                       </label>
 
                       <BuilderSelectField
-                        label="Type"
+                        label="Offer type"
                         onValueChange={(value) =>
                           setDraft((current) => ({
                             ...current,
@@ -557,7 +578,7 @@ export function ProfileBuilderDialog({
                       </label>
 
                       <TagField
-                        label="Listing tags"
+                        label="Offer tags"
                         onChange={(value) =>
                           setDraft((current) => ({
                             ...current,
@@ -595,7 +616,7 @@ export function ProfileBuilderDialog({
                 ) : (
                   <SparklesIcon />
                 )}
-                Improve with Boreal
+                Draft with Boreal
               </Button>
               <Button
                 disabled={isSaving || !canSaveProfile}
@@ -609,7 +630,7 @@ export function ProfileBuilderDialog({
                 ) : (
                   <CheckIcon />
                 )}
-                Save profile
+                Save profile only
               </Button>
               <Button
                 disabled={isSaving || !canSaveProfile || !canPublishListing}
@@ -622,7 +643,7 @@ export function ProfileBuilderDialog({
                 ) : (
                   <StoreIcon />
                 )}
-                Save profile & publish listing
+                Save profile & publish offer
               </Button>
             </div>
           </DialogFooter>

@@ -161,8 +161,10 @@ export const submitWork = mutation({
       const transaction = await ctx.db.get(transactionId);
       const settlementId = await ensureSettlementForTransaction(ctx, {
         amount: transaction?.amount ?? acceptedProposal.price,
+        chainFamily: transaction?.chainFamily,
         currency: transaction?.currency ?? acceptedProposal.currency,
         environment: transaction?.environment ?? getCommerceEnvironment(),
+        networkKey: transaction?.networkKey,
         protocol: transaction?.paymentProtocol ?? null,
         status:
           acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
@@ -397,8 +399,10 @@ export const markRequestFulfilled = mutation({
       const transaction = await ctx.db.get(transactionId);
       const settlementId = await ensureSettlementForTransaction(ctx, {
         amount: transaction?.amount ?? acceptedProposal?.price,
+        chainFamily: transaction?.chainFamily,
         currency: transaction?.currency ?? acceptedProposal?.currency,
         environment: transaction?.environment ?? getCommerceEnvironment(),
+        networkKey: transaction?.networkKey,
         protocol: transaction?.paymentProtocol ?? null,
         status:
           acceptedProposal && acceptedProposal.price > 0

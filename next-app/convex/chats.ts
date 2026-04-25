@@ -23,18 +23,34 @@ export const recordIntentPipeline = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const conversationId = args.conversationId ?? crypto.randomUUID();
+    const ownerUserId: string | undefined = await upsertOwnerUser(ctx, {
+      displayName: args.ownerDisplayName,
+      externalId: args.ownerExternalId,
+      handle: args.ownerHandle,
+    });
     const existingConversation = await ctx.db
       .query("conversations")
       .withIndex("by_conversationId", (queryBuilder) =>
         queryBuilder.eq("conversationId", conversationId),
       )
       .unique();
+    const conversationTitle =
+      args.intent.title.trim().length > 0
+        ? args.intent.title
+        : buildConversationTitle(args.userMessage);
 
     if (existingConversation) {
       await ctx.db.patch(existingConversation._id, {
         intentCount: existingConversation.intentCount + 1,
+        lastMessageBody: args.assistantMessage,
+        lastMessageRole: "assistant",
         latestMessageAt: now,
-        title: args.intent.title,
+        messageCount: (existingConversation.messageCount ?? 0) + 2,
+        ownerExternalId:
+          args.ownerExternalId ?? existingConversation.ownerExternalId,
+        ownerHandle: args.ownerHandle ?? existingConversation.ownerHandle,
+        ownerUserId: ownerUserId ?? existingConversation.ownerUserId,
+        title: conversationTitle,
         updatedAt: now,
       });
     } else {
@@ -42,21 +58,22 @@ export const recordIntentPipeline = mutation({
         conversationId,
         createdAt: now,
         intentCount: 1,
+        lastMessageBody: args.assistantMessage,
+        lastMessageRole: "assistant",
         latestMessageAt: now,
+        messageCount: 2,
+        ownerExternalId: args.ownerExternalId,
+        ownerHandle: args.ownerHandle,
+        ownerUserId,
         provider: args.intent.provider,
         source: "chat",
         status: "active",
-        title: args.intent.title,
+        title: conversationTitle,
         updatedAt: now,
       });
     }
 
     const intentKey = crypto.randomUUID();
-    const ownerUserId: string | undefined = await upsertOwnerUser(ctx, {
-      displayName: args.ownerDisplayName,
-      externalId: args.ownerExternalId,
-      handle: args.ownerHandle,
-    });
     const status =
       args.initialStatus ??
       (args.intent.persistence.isUnresolved ? "open" : "fulfilled");
@@ -319,16 +336,33 @@ export const postConversationMessage = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const conversationId = args.conversationId ?? crypto.randomUUID();
+    const ownerUserId: string | undefined = await upsertOwnerUser(ctx, {
+      displayName: args.ownerDisplayName,
+      externalId: args.ownerExternalId,
+      handle: args.ownerHandle,
+    });
     const existingConversation = await ctx.db
       .query("conversations")
       .withIndex("by_conversationId", (queryBuilder) =>
         queryBuilder.eq("conversationId", conversationId),
       )
       .unique();
+    const trimmedBody = args.body.trim();
 
     if (existingConversation) {
       await ctx.db.patch(existingConversation._id, {
+        lastMessageBody: trimmedBody,
+        lastMessageRole: "user",
         latestMessageAt: now,
+        messageCount: (existingConversation.messageCount ?? 0) + 1,
+        ownerExternalId:
+          args.ownerExternalId ?? existingConversation.ownerExternalId,
+        ownerHandle: args.ownerHandle ?? existingConversation.ownerHandle,
+        ownerUserId: ownerUserId ?? existingConversation.ownerUserId,
+        title:
+          existingConversation.title === "Chat thread"
+            ? buildConversationTitle(trimmedBody)
+            : existingConversation.title,
         updatedAt: now,
       });
     } else {
@@ -336,18 +370,24 @@ export const postConversationMessage = mutation({
         conversationId,
         createdAt: now,
         intentCount: 0,
+        lastMessageBody: trimmedBody,
+        lastMessageRole: "user",
         latestMessageAt: now,
+        messageCount: 1,
+        ownerExternalId: args.ownerExternalId,
+        ownerHandle: args.ownerHandle,
+        ownerUserId,
         provider: "boreal-agent",
         source: "chat",
         status: "active",
-        title: "Chat thread",
+        title: buildConversationTitle(trimmedBody),
         updatedAt: now,
       });
     }
 
     const messageId = crypto.randomUUID();
     await ctx.db.insert("chatMessages", {
-      body: args.body.trim(),
+      body: trimmedBody,
       conversationId,
       createdAt: now,
       intentKey: undefined,
@@ -364,6 +404,108 @@ export const postConversationMessage = mutation({
       conversationId,
       messageId,
       posted: true,
+    };
+  },
+});
+
+export const recordConversationExchange = mutation({
+  args: {
+    assistantMessage: v.string(),
+    conversationId: v.optional(v.string()),
+    ownerDisplayName: v.optional(v.string()),
+    ownerExternalId: v.optional(v.string()),
+    ownerHandle: v.optional(v.string()),
+    userMessage: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const conversationId = args.conversationId ?? crypto.randomUUID();
+    const ownerUserId: string | undefined = await upsertOwnerUser(ctx, {
+      displayName: args.ownerDisplayName,
+      externalId: args.ownerExternalId,
+      handle: args.ownerHandle,
+    });
+    const existingConversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_conversationId", (queryBuilder) =>
+        queryBuilder.eq("conversationId", conversationId),
+      )
+      .unique();
+    const trimmedUserMessage = args.userMessage.trim();
+    const trimmedAssistantMessage = args.assistantMessage.trim();
+
+    if (existingConversation) {
+      await ctx.db.patch(existingConversation._id, {
+        lastMessageBody: trimmedAssistantMessage,
+        lastMessageRole: "assistant",
+        latestMessageAt: now,
+        messageCount: (existingConversation.messageCount ?? 0) + 2,
+        ownerExternalId:
+          args.ownerExternalId ?? existingConversation.ownerExternalId,
+        ownerHandle: args.ownerHandle ?? existingConversation.ownerHandle,
+        ownerUserId: ownerUserId ?? existingConversation.ownerUserId,
+        title:
+          existingConversation.title === "Chat thread"
+            ? buildConversationTitle(trimmedUserMessage)
+            : existingConversation.title,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("conversations", {
+        conversationId,
+        createdAt: now,
+        intentCount: 0,
+        lastMessageBody: trimmedAssistantMessage,
+        lastMessageRole: "assistant",
+        latestMessageAt: now,
+        messageCount: 2,
+        ownerExternalId: args.ownerExternalId,
+        ownerHandle: args.ownerHandle,
+        ownerUserId,
+        provider: "boreal-agent",
+        source: "chat",
+        status: "active",
+        title: buildConversationTitle(trimmedUserMessage),
+        updatedAt: now,
+      });
+    }
+
+    const userMessageId = crypto.randomUUID();
+    const assistantMessageId = crypto.randomUUID();
+
+    await ctx.db.insert("chatMessages", {
+      body: trimmedUserMessage,
+      conversationId,
+      createdAt: now,
+      intentKey: undefined,
+      messageId: userMessageId,
+      provider: "boreal-agent",
+      role: "user",
+      senderActorKind: "human",
+      senderDisplayName: args.ownerDisplayName ?? "X user",
+      senderExternalId: args.ownerExternalId,
+      senderHandle: args.ownerHandle,
+    });
+
+    await ctx.db.insert("chatMessages", {
+      body: trimmedAssistantMessage,
+      conversationId,
+      createdAt: now,
+      intentKey: undefined,
+      messageId: assistantMessageId,
+      provider: "boreal-agent",
+      role: "assistant",
+      senderActorKind: "agent",
+      senderDisplayName: "Boreal Agent",
+      senderExternalId: "agent:boreal",
+      senderHandle: "boreal",
+    });
+
+    return {
+      assistantMessageId,
+      conversationId,
+      posted: true,
+      userMessageId,
     };
   },
 });
@@ -700,6 +842,138 @@ export const listConversationMessages = query({
   },
 });
 
+export const listConversationSidebar = query({
+  args: {
+    limit: v.number(),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (!args.ownerExternalId) {
+      return [];
+    }
+
+    const conversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_ownerExternalId_and_latestMessageAt", (queryBuilder) =>
+        queryBuilder.eq("ownerExternalId", args.ownerExternalId),
+      )
+      .order("desc")
+      .take(args.limit);
+
+    return Promise.all(
+      conversations.map(async (conversation) => {
+        const linkedIntent = await ctx.db
+          .query("intents")
+          .withIndex("by_conversationId", (queryBuilder) =>
+            queryBuilder.eq("conversationId", conversation.conversationId),
+          )
+          .collect();
+        const latestLinkedIntent =
+          linkedIntent.sort((left, right) => right.createdAt - left.createdAt)[0] ??
+          null;
+
+        return {
+          _id: conversation._id,
+          conversationId: conversation.conversationId,
+          intentCount: conversation.intentCount,
+          lastMessageBody: conversation.lastMessageBody ?? null,
+          lastMessageRole: conversation.lastMessageRole ?? null,
+          latestMessageAt: conversation.latestMessageAt,
+          linkedRequest:
+            latestLinkedIntent
+              ? {
+                  id: latestLinkedIntent._id,
+                  status: latestLinkedIntent.status,
+                  title: latestLinkedIntent.title,
+                }
+              : null,
+          messageCount: conversation.messageCount ?? 0,
+          title: conversation.title,
+          updatedAt: conversation.updatedAt,
+        };
+      }),
+    );
+  },
+});
+
+export const getConversationThread = query({
+  args: {
+    conversationId: v.string(),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_conversationId", (queryBuilder) =>
+        queryBuilder.eq("conversationId", args.conversationId),
+      )
+      .unique();
+
+    if (!conversation) {
+      return null;
+    }
+
+    if (
+      args.ownerExternalId &&
+      conversation.ownerExternalId &&
+      conversation.ownerExternalId !== args.ownerExternalId
+    ) {
+      return null;
+    }
+
+    const messages = await ctx.db
+      .query("chatMessages")
+      .withIndex("by_conversationId_and_createdAt", (queryBuilder) =>
+        queryBuilder.eq("conversationId", args.conversationId),
+      )
+      .collect();
+
+    const linkedIntent = await ctx.db
+      .query("intents")
+      .withIndex("by_conversationId", (queryBuilder) =>
+        queryBuilder.eq("conversationId", args.conversationId),
+      )
+      .collect();
+    const latestLinkedIntent =
+      linkedIntent.sort((left, right) => right.createdAt - left.createdAt)[0] ??
+      null;
+
+    return {
+      conversation: {
+        _id: conversation._id,
+        conversationId: conversation.conversationId,
+        intentCount: conversation.intentCount,
+        lastMessageBody: conversation.lastMessageBody ?? null,
+        lastMessageRole: conversation.lastMessageRole ?? null,
+        latestMessageAt: conversation.latestMessageAt,
+        messageCount: conversation.messageCount ?? 0,
+        title: conversation.title,
+        updatedAt: conversation.updatedAt,
+      },
+      linkedRequest:
+        latestLinkedIntent
+          ? {
+              id: latestLinkedIntent._id,
+              status: latestLinkedIntent.status,
+              title: latestLinkedIntent.title,
+            }
+          : null,
+      messages: messages.map((message) => ({
+        _id: message._id,
+        body: message.body,
+        createdAt: message.createdAt,
+        role: message.role,
+        sender: {
+          actorKind: message.senderActorKind ?? "human",
+          displayName: message.senderDisplayName ?? "Unknown",
+          externalId: message.senderExternalId ?? null,
+          handle: message.senderHandle ?? null,
+        },
+      })),
+    };
+  },
+});
+
 async function upsertOwnerUser(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: any,
@@ -740,6 +1014,16 @@ async function upsertOwnerUser(
     trustScore: 0.5,
     updatedAt: Date.now(),
   });
+}
+
+function buildConversationTitle(body: string) {
+  const trimmed = body.trim().replace(/\s+/g, " ");
+
+  if (trimmed.length === 0) {
+    return "Chat thread";
+  }
+
+  return trimmed.length > 72 ? `${trimmed.slice(0, 69)}...` : trimmed;
 }
 
 async function hasRequestAccess(
