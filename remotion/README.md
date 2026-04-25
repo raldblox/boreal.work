@@ -18,6 +18,8 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 - The scene-by-scene storyboard lives in `docs/scenes.md`
 - The video system now has a reusable scene architecture for full-length films and standalone short cuts
 - Current registered compositions include the main hackathon / launch films plus short reusable marketing cuts
+- `src/generations/request-native-2026/` holds a preserved parallel generation for `BorealDemo`, `BorealUpdate`, and `BorealLaunch`
+- `src/generations/request-native-2026/player-preview.tsx` exposes an `@remotion/player` preview surface for those three compositions
 
 ## Render commands
 
@@ -25,6 +27,9 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 - `npm run render` renders the default 3-minute hackathon pitch
 - `npm run render:launch` renders the 90-second launch cut
 - `npm run render:update` renders the 60-second hackathon update cut
+- `npm run render:truth:demo` renders the 90-second truthful Boreal demo cut
+- `npm run render:truth:update` renders the 2-minute truthful Boreal project update cut
+- `npm run render:truth:launch` renders the 60-second truthful Boreal launch cut
 - `npm run render:technical` renders the technical demo variant
 - `npm run render:short:intent` renders the problem-hook short
 - `npm run render:short:flow` renders the request-workflow short
@@ -36,6 +41,13 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 1. Boreal demo-video code belongs under this folder, not under unrelated `app/`, `components/`, or `lib/` paths.
 2. Use actual Boreal UI and product language from `next-app/` as source material.
 3. Keep shipped-vs-roadmap claims honest in all video assets and scripts.
+4. Preserve prior Remotion generations under `src/generations/` instead of replacing them when a new creative direction lands.
+
+## Truthful 2026 generation notes
+
+- The `request-native-2026` cuts deliberately use Boreal's live app typography and dark teal-accented theme, not the earlier draft prompt's Playfair / DM Mono / paper palette.
+- Live claims stay inside the current public-alpha boundary: chat-native requests, workspaces, proposals, matching candidates, activity logs, and provider-backed x402 flows.
+- Roadmap claims stay future-facing: on-chain escrow, deeper protocol interoperability, collective proposals, MCP tooling, and stronger matching quality remain roadmap work.
 
 ## Planned next step
 

@@ -9,6 +9,7 @@ import {
   VIDEO_WIDTH,
 } from "./data/video-variants";
 import {BorealFilm, type BorealFilmProps} from "./compositions/BorealFilm";
+import {BorealTruthful2026Compositions} from "./generations/request-native-2026/compositions";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -50,6 +51,8 @@ export const RemotionRoot: React.FC = () => {
           />
         ))}
       </Folder>
+
+      <BorealTruthful2026Compositions />
     </>
   );
 };

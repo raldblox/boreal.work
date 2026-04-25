@@ -10,6 +10,9 @@
     "render": "remotion render src/index.ts HackathonPitch3Min out/HackathonPitch3Min.mp4",
     "render:update": "remotion render src/index.ts HackathonUpdate60Sec out/HackathonUpdate60Sec.mp4",
     "render:launch": "remotion render src/index.ts LaunchCut90Sec out/LaunchCut90Sec.mp4",
+    "render:truth:demo": "remotion render src/index.ts BorealDemo out/BorealDemo.mp4",
+    "render:truth:update": "remotion render src/index.ts BorealUpdate out/BorealUpdate.mp4",
+    "render:truth:launch": "remotion render src/index.ts BorealLaunch out/BorealLaunch.mp4",
     "render:short:intent": "remotion render src/index.ts ShortIntentHook20Sec out/ShortIntentHook20Sec.mp4",
     "render:short:flow": "remotion render src/index.ts ShortChatToOutcome30Sec out/ShortChatToOutcome30Sec.mp4",
     "render:short:supply": "remotion render src/index.ts ShortSupplyMarket25Sec out/ShortSupplyMarket25Sec.mp4",
@@ -26,5 +29,9 @@
     "react-dom": "^19.2.5",
     "remotion": "^4.0.451",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@remotion/google-fonts": "4.0.451",
+    "@remotion/player": "4.0.451"
   }
 }
