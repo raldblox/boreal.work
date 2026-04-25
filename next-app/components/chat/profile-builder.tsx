@@ -1,9 +1,15 @@
-"use client";
+"use client"
 
-import type { Dispatch, SetStateAction } from "react";
-import { CheckIcon, LoaderIcon, SparklesIcon, StoreIcon, UserRoundPenIcon } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react"
+import {
+  CheckIcon,
+  LoaderIcon,
+  SparklesIcon,
+  StoreIcon,
+  UserRoundPenIcon,
+} from "lucide-react"
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -11,40 +17,50 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import {
   formatTagInput,
   hasPublishableSupplyListing,
   hasSavableProfileBuilderDraft,
   parseTagInput,
   type ProfileBuilderDraft,
-} from "@/lib/boreal/schemas/profile-builder";
+} from "@/lib/boreal/schemas/profile-builder"
 
 export function ProfileBuilderWorkspaceCard({
   draft,
   onOpen,
   sourceBrief,
 }: {
-  draft: ProfileBuilderDraft;
-  onOpen: () => void;
-  sourceBrief: string;
+  draft: ProfileBuilderDraft
+  onOpen: () => void
+  sourceBrief: string
 }) {
-  const hasListing = hasPublishableSupplyListing(draft);
-  const hasProfile = hasSavableProfileBuilderDraft(draft);
+  const hasListing = hasPublishableSupplyListing(draft)
+  const hasProfile = hasSavableProfileBuilderDraft(draft)
 
   return (
     <div className="space-y-4 border border-border p-4">
       <div className="space-y-1">
         <p className="text-sm font-medium">Profile and supply builder</p>
         <p className="text-xs text-muted-foreground">
-          Boreal can draft this for you, but the final profile and listing stay editable before anything is saved.
+          Boreal can draft this for you, but the final profile and listing stay
+          editable before anything is saved.
         </p>
       </div>
 
       {sourceBrief.trim().length > 0 ? (
         <div className="space-y-2 border border-border p-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
             Source brief
           </p>
           <p className="text-sm text-muted-foreground">{sourceBrief}</p>
@@ -57,14 +73,17 @@ export function ProfileBuilderWorkspaceCard({
             <UserRoundPenIcon className="size-4 text-muted-foreground" />
             <p className="text-sm font-medium">Profile draft</p>
           </div>
-          <p className="text-sm">{draft.profile.headline || "Headline not drafted yet."}</p>
+          <p className="text-sm">
+            {draft.profile.headline || "Headline not drafted yet."}
+          </p>
           <p className="text-xs text-muted-foreground">
-            {draft.profile.bio || "Open the builder to write the bio, skills, and capability tags."}
+            {draft.profile.bio ||
+              "Open the builder to write the bio, skills, and capability tags."}
           </p>
           <div className="flex flex-wrap gap-2">
             {draft.profile.skillTags.slice(0, 6).map((tag) => (
               <span
-                className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+                className="inline-flex items-center border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase"
                 key={tag}
               >
                 {tag}
@@ -78,17 +97,23 @@ export function ProfileBuilderWorkspaceCard({
             <StoreIcon className="size-4 text-muted-foreground" />
             <p className="text-sm font-medium">Listing draft</p>
           </div>
-          <p className="text-sm">{draft.listing.title || "Listing not drafted yet."}</p>
+          <p className="text-sm">
+            {draft.listing.title || "Listing not drafted yet."}
+          </p>
           <p className="text-xs text-muted-foreground">
             {draft.listing.description ||
               "Open the builder to shape the listing, delivery terms, pricing, and searchable metadata."}
           </p>
-          <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          <div className="flex flex-wrap gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
             <span className="border border-border px-2 py-1">
-              {hasListing ? draft.listing.supplyType.replaceAll("_", " ") : "not published"}
+              {hasListing
+                ? draft.listing.supplyType.replaceAll("_", " ")
+                : "not published"}
             </span>
             {draft.listing.category ? (
-              <span className="border border-border px-2 py-1">{draft.listing.category}</span>
+              <span className="border border-border px-2 py-1">
+                {draft.listing.category}
+              </span>
             ) : null}
           </div>
         </div>
@@ -101,7 +126,7 @@ export function ProfileBuilderWorkspaceCard({
         </Button>
       </div>
     </div>
-  );
+  )
 }
 
 export function ProfileBuilderDialog({
@@ -117,20 +142,20 @@ export function ProfileBuilderDialog({
   setSourceMessage,
   sourceMessage,
 }: {
-  draft: ProfileBuilderDraft;
-  isDrafting: boolean;
-  isOpen: boolean;
-  isSaving: boolean;
-  onDraftWithBoreal: () => Promise<void>;
-  onOpenChange: (open: boolean) => void;
-  onSaveProfile: () => Promise<void>;
-  onSaveProfileAndListing: () => Promise<void>;
-  setDraft: Dispatch<SetStateAction<ProfileBuilderDraft>>;
-  setSourceMessage: Dispatch<SetStateAction<string>>;
-  sourceMessage: string;
+  draft: ProfileBuilderDraft
+  isDrafting: boolean
+  isOpen: boolean
+  isSaving: boolean
+  onDraftWithBoreal: () => Promise<void>
+  onOpenChange: (open: boolean) => void
+  onSaveProfile: () => Promise<void>
+  onSaveProfileAndListing: () => Promise<void>
+  setDraft: Dispatch<SetStateAction<ProfileBuilderDraft>>
+  setSourceMessage: Dispatch<SetStateAction<string>>
+  sourceMessage: string
 }) {
-  const canSaveProfile = hasSavableProfileBuilderDraft(draft);
-  const canPublishListing = hasPublishableSupplyListing(draft);
+  const canSaveProfile = hasSavableProfileBuilderDraft(draft)
+  const canPublishListing = hasPublishableSupplyListing(draft)
 
   return (
     <Dialog onOpenChange={onOpenChange} open={isOpen}>
@@ -139,18 +164,20 @@ export function ProfileBuilderDialog({
           <DialogHeader className="border-b border-border px-6 py-4">
             <DialogTitle>Profile and supply builder</DialogTitle>
             <DialogDescription>
-              Draft the profile manually or let Boreal shape it first. Save the public profile on its own, or publish the first listing together with it.
+              Draft the profile manually or let Boreal shape it first. Save the
+              public profile on its own, or publish the first listing together
+              with it.
             </DialogDescription>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <div className="space-y-6">
               <label className="space-y-2">
-                <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                   Source brief
                 </span>
-                <textarea
-                  className="min-h-32 w-full border border-border bg-transparent p-3 text-sm outline-none"
+                <Textarea
+                  className="min-h-32 rounded-xl px-3 py-3 text-sm"
                   onChange={(event) => setSourceMessage(event.target.value)}
                   placeholder="Describe what you offer, who it is for, what makes you good at it, and anything you want Boreal to highlight."
                   value={sourceMessage}
@@ -168,14 +195,18 @@ export function ProfileBuilderDialog({
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                         Display name
                       </span>
                       <Input
+                        className="h-10"
                         onChange={(event) =>
                           setDraft((current) => ({
                             ...current,
-                            profile: { ...current.profile, displayName: event.target.value },
+                            profile: {
+                              ...current.profile,
+                              displayName: event.target.value,
+                            },
                           }))
                         }
                         placeholder="How you should appear publicly"
@@ -183,42 +214,41 @@ export function ProfileBuilderDialog({
                       />
                     </label>
 
-                    <label className="space-y-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                        Availability
+                    <BuilderSelectField
+                      label="Availability"
+                      onValueChange={(value) =>
+                        setDraft((current) => ({
+                          ...current,
+                          profile: {
+                            ...current.profile,
+                            availabilityStatus:
+                              value === "limited" || value === "unavailable"
+                                ? value
+                                : "available",
+                          },
+                        }))
+                      }
+                      options={[
+                        { label: "Available", value: "available" },
+                        { label: "Limited", value: "limited" },
+                        { label: "Unavailable", value: "unavailable" },
+                      ]}
+                      value={draft.profile.availabilityStatus}
+                    />
+
+                    <label className="space-y-2 md:col-span-2">
+                      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+                        Headline
                       </span>
-                      <select
-                        className="h-10 w-full border border-border bg-transparent px-3 text-sm outline-none"
+                      <Input
+                        className="h-10"
                         onChange={(event) =>
                           setDraft((current) => ({
                             ...current,
                             profile: {
                               ...current.profile,
-                              availabilityStatus:
-                                event.target.value === "limited" ||
-                                event.target.value === "unavailable"
-                                  ? event.target.value
-                                  : "available",
+                              headline: event.target.value,
                             },
-                          }))
-                        }
-                        value={draft.profile.availabilityStatus}
-                      >
-                        <option value="available">Available</option>
-                        <option value="limited">Limited</option>
-                        <option value="unavailable">Unavailable</option>
-                      </select>
-                    </label>
-
-                    <label className="space-y-2 md:col-span-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                        Headline
-                      </span>
-                      <Input
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            profile: { ...current.profile, headline: event.target.value },
                           }))
                         }
                         placeholder="Short line describing what you do best"
@@ -227,15 +257,18 @@ export function ProfileBuilderDialog({
                     </label>
 
                     <label className="space-y-2 md:col-span-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                         Bio
                       </span>
-                      <textarea
-                        className="min-h-40 w-full border border-border bg-transparent p-3 text-sm outline-none"
+                      <Textarea
+                        className="min-h-40 rounded-xl px-3 py-3 text-sm"
                         onChange={(event) =>
                           setDraft((current) => ({
                             ...current,
-                            profile: { ...current.profile, bio: event.target.value },
+                            profile: {
+                              ...current.profile,
+                              bio: event.target.value,
+                            },
                           }))
                         }
                         placeholder="Explain what you offer, who it is for, and what makes you useful on Boreal."
@@ -248,7 +281,10 @@ export function ProfileBuilderDialog({
                       onChange={(value) =>
                         setDraft((current) => ({
                           ...current,
-                          profile: { ...current.profile, skillTags: parseTagInput(value) },
+                          profile: {
+                            ...current.profile,
+                            skillTags: parseTagInput(value),
+                          },
                         }))
                       }
                       placeholder="copywriting, tutoring, design systems"
@@ -260,7 +296,10 @@ export function ProfileBuilderDialog({
                       onChange={(value) =>
                         setDraft((current) => ({
                           ...current,
-                          profile: { ...current.profile, capabilityTags: parseTagInput(value) },
+                          profile: {
+                            ...current.profile,
+                            capabilityTags: parseTagInput(value),
+                          },
                         }))
                       }
                       placeholder="landing pages, research, math tutorials"
@@ -268,10 +307,11 @@ export function ProfileBuilderDialog({
                     />
 
                     <label className="space-y-2 md:col-span-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                         Products or offer labels
                       </span>
                       <Input
+                        className="h-10"
                         onChange={(event) =>
                           setDraft((current) => ({
                             ...current,
@@ -286,20 +326,16 @@ export function ProfileBuilderDialog({
                       />
                     </label>
 
-                    <label className="flex items-center gap-3 text-sm text-muted-foreground md:col-span-2">
-                      <input
-                        checked={draft.profile.isPublic}
-                        className="size-4 border border-border bg-transparent"
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            profile: { ...current.profile, isPublic: event.target.checked },
-                          }))
-                        }
-                        type="checkbox"
-                      />
-                      Keep this profile public in Boreal discovery
-                    </label>
+                    <ToggleField
+                      checked={draft.profile.isPublic}
+                      label="Keep this profile public in Boreal discovery"
+                      onCheckedChange={(checked) =>
+                        setDraft((current) => ({
+                          ...current,
+                          profile: { ...current.profile, isPublic: checked },
+                        }))
+                      }
+                    />
                   </div>
                 </div>
 
@@ -307,35 +343,36 @@ export function ProfileBuilderDialog({
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Supply listing</p>
                     <p className="text-xs text-muted-foreground">
-                      Publish one strong listing now, or save only the profile first.
+                      Publish one strong listing now, or save only the profile
+                      first.
                     </p>
                   </div>
 
-                  <label className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <input
-                      checked={draft.listing.enabled}
-                      className="size-4 border border-border bg-transparent"
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          listing: { ...current.listing, enabled: event.target.checked },
-                        }))
-                      }
-                      type="checkbox"
-                    />
-                    Publish a first supply listing
-                  </label>
+                  <ToggleField
+                    checked={draft.listing.enabled}
+                    label="Publish a first supply listing"
+                    onCheckedChange={(checked) =>
+                      setDraft((current) => ({
+                        ...current,
+                        listing: { ...current.listing, enabled: checked },
+                      }))
+                    }
+                  />
 
                   <div className="grid gap-3">
                     <label className="space-y-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                         Listing title
                       </span>
                       <Input
+                        className="h-10"
                         onChange={(event) =>
                           setDraft((current) => ({
                             ...current,
-                            listing: { ...current.listing, title: event.target.value },
+                            listing: {
+                              ...current.listing,
+                              title: event.target.value,
+                            },
                           }))
                         }
                         placeholder="What buyers should see first"
@@ -344,14 +381,18 @@ export function ProfileBuilderDialog({
                     </label>
 
                     <label className="space-y-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                         Subtitle
                       </span>
                       <Input
+                        className="h-10"
                         onChange={(event) =>
                           setDraft((current) => ({
                             ...current,
-                            listing: { ...current.listing, subtitle: event.target.value },
+                            listing: {
+                              ...current.listing,
+                              subtitle: event.target.value,
+                            },
                           }))
                         }
                         placeholder="One-line context or positioning"
@@ -360,15 +401,18 @@ export function ProfileBuilderDialog({
                     </label>
 
                     <label className="space-y-2">
-                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                         Description
                       </span>
-                      <textarea
-                        className="min-h-36 w-full border border-border bg-transparent p-3 text-sm outline-none"
+                      <Textarea
+                        className="min-h-36 rounded-xl px-3 py-3 text-sm"
                         onChange={(event) =>
                           setDraft((current) => ({
                             ...current,
-                            listing: { ...current.listing, description: event.target.value },
+                            listing: {
+                              ...current.listing,
+                              description: event.target.value,
+                            },
                           }))
                         }
                         placeholder="Describe the offer, outcome, buyer fit, and what is included."
@@ -378,14 +422,18 @@ export function ProfileBuilderDialog({
 
                     <div className="grid gap-3 md:grid-cols-2">
                       <label className="space-y-2">
-                        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                           Category
                         </span>
                         <Input
+                          className="h-10"
                           onChange={(event) =>
                             setDraft((current) => ({
                               ...current,
-                              listing: { ...current.listing, category: event.target.value },
+                              listing: {
+                                ...current.listing,
+                                category: event.target.value,
+                              },
                             }))
                           }
                           placeholder="education, marketing, operations"
@@ -393,94 +441,81 @@ export function ProfileBuilderDialog({
                         />
                       </label>
 
-                      <label className="space-y-2">
-                        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                          Type
-                        </span>
-                        <select
-                          className="h-10 w-full border border-border bg-transparent px-3 text-sm outline-none"
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              listing: {
-                                ...current.listing,
-                                supplyType:
-                                  event.target.value === "product" ||
-                                  event.target.value === "agent_tool" ||
-                                  event.target.value === "collective"
-                                    ? event.target.value
-                                    : "capability",
-                              },
-                            }))
-                          }
-                          value={draft.listing.supplyType}
-                        >
-                          <option value="capability">Capability</option>
-                          <option value="product">Product</option>
-                          <option value="agent_tool">Agent tool</option>
-                          <option value="collective">Collective</option>
-                        </select>
-                      </label>
+                      <BuilderSelectField
+                        label="Type"
+                        onValueChange={(value) =>
+                          setDraft((current) => ({
+                            ...current,
+                            listing: {
+                              ...current.listing,
+                              supplyType:
+                                value === "product" ||
+                                value === "agent_tool" ||
+                                value === "collective"
+                                  ? value
+                                  : "capability",
+                            },
+                          }))
+                        }
+                        options={[
+                          { label: "Capability", value: "capability" },
+                          { label: "Product", value: "product" },
+                          { label: "Agent tool", value: "agent_tool" },
+                          { label: "Collective", value: "collective" },
+                        ]}
+                        value={draft.listing.supplyType}
+                      />
+
+                      <BuilderSelectField
+                        label="Delivery"
+                        onValueChange={(value) =>
+                          setDraft((current) => ({
+                            ...current,
+                            listing: {
+                              ...current.listing,
+                              deliveryType:
+                                value === "instant" || value === "scheduled"
+                                  ? value
+                                  : "async",
+                            },
+                          }))
+                        }
+                        options={[
+                          { label: "Async", value: "async" },
+                          { label: "Instant", value: "instant" },
+                          { label: "Scheduled", value: "scheduled" },
+                        ]}
+                        value={draft.listing.deliveryType}
+                      />
+
+                      <BuilderSelectField
+                        label="Pricing"
+                        onValueChange={(value) =>
+                          setDraft((current) => ({
+                            ...current,
+                            listing: {
+                              ...current.listing,
+                              priceType:
+                                value === "fixed" || value === "hourly"
+                                  ? value
+                                  : "scoped",
+                            },
+                          }))
+                        }
+                        options={[
+                          { label: "Scoped", value: "scoped" },
+                          { label: "Fixed", value: "fixed" },
+                          { label: "Hourly", value: "hourly" },
+                        ]}
+                        value={draft.listing.priceType}
+                      />
 
                       <label className="space-y-2">
-                        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                          Delivery
-                        </span>
-                        <select
-                          className="h-10 w-full border border-border bg-transparent px-3 text-sm outline-none"
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              listing: {
-                                ...current.listing,
-                                deliveryType:
-                                  event.target.value === "instant" ||
-                                  event.target.value === "scheduled"
-                                    ? event.target.value
-                                    : "async",
-                              },
-                            }))
-                          }
-                          value={draft.listing.deliveryType}
-                        >
-                          <option value="async">Async</option>
-                          <option value="instant">Instant</option>
-                          <option value="scheduled">Scheduled</option>
-                        </select>
-                      </label>
-
-                      <label className="space-y-2">
-                        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                          Pricing
-                        </span>
-                        <select
-                          className="h-10 w-full border border-border bg-transparent px-3 text-sm outline-none"
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              listing: {
-                                ...current.listing,
-                                priceType:
-                                  event.target.value === "fixed" ||
-                                  event.target.value === "hourly"
-                                    ? event.target.value
-                                    : "scoped",
-                              },
-                            }))
-                          }
-                          value={draft.listing.priceType}
-                        >
-                          <option value="scoped">Scoped</option>
-                          <option value="fixed">Fixed</option>
-                          <option value="hourly">Hourly</option>
-                        </select>
-                      </label>
-
-                      <label className="space-y-2">
-                        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                           Price amount
                         </span>
                         <Input
+                          className="h-10"
                           inputMode="decimal"
                           onChange={(event) =>
                             setDraft((current) => ({
@@ -490,7 +525,8 @@ export function ProfileBuilderDialog({
                                 priceAmount:
                                   event.target.value.trim().length === 0
                                     ? null
-                                    : Number.parseFloat(event.target.value) || null,
+                                    : Number.parseFloat(event.target.value) ||
+                                      null,
                               },
                             }))
                           }
@@ -501,10 +537,11 @@ export function ProfileBuilderDialog({
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
                           Est. delivery
                         </span>
                         <Input
+                          className="h-10"
                           onChange={(event) =>
                             setDraft((current) => ({
                               ...current,
@@ -524,7 +561,10 @@ export function ProfileBuilderDialog({
                         onChange={(value) =>
                           setDraft((current) => ({
                             ...current,
-                            listing: { ...current.listing, capabilityTags: parseTagInput(value) },
+                            listing: {
+                              ...current.listing,
+                              capabilityTags: parseTagInput(value),
+                            },
                           }))
                         }
                         placeholder="quadratic equations, tutoring, study guides"
@@ -539,7 +579,8 @@ export function ProfileBuilderDialog({
 
           <DialogFooter className="border-t border-border px-6 py-4 sm:justify-between">
             <div className="text-xs text-muted-foreground">
-              Manual save does not require Boreal approval. Boreal drafting only runs when you click Improve with Boreal.
+              Manual save does not require Boreal approval. Boreal drafting only
+              runs when you click Improve with Boreal.
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -549,7 +590,11 @@ export function ProfileBuilderDialog({
                 type="button"
                 variant="outline"
               >
-                {isDrafting ? <LoaderIcon className="animate-spin" /> : <SparklesIcon />}
+                {isDrafting ? (
+                  <LoaderIcon className="animate-spin" />
+                ) : (
+                  <SparklesIcon />
+                )}
                 Improve with Boreal
               </Button>
               <Button
@@ -559,7 +604,11 @@ export function ProfileBuilderDialog({
                 type="button"
                 variant="outline"
               >
-                {isSaving ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
+                {isSaving ? (
+                  <LoaderIcon className="animate-spin" />
+                ) : (
+                  <CheckIcon />
+                )}
                 Save profile
               </Button>
               <Button
@@ -568,7 +617,11 @@ export function ProfileBuilderDialog({
                 size="sm"
                 type="button"
               >
-                {isSaving ? <LoaderIcon className="animate-spin" /> : <StoreIcon />}
+                {isSaving ? (
+                  <LoaderIcon className="animate-spin" />
+                ) : (
+                  <StoreIcon />
+                )}
                 Save profile & publish listing
               </Button>
             </div>
@@ -576,7 +629,7 @@ export function ProfileBuilderDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 function TagField({
@@ -585,17 +638,71 @@ function TagField({
   placeholder,
   value,
 }: {
-  label: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  value: string;
+  label: string
+  onChange: (value: string) => void
+  placeholder: string
+  value: string
 }) {
   return (
     <label className="space-y-2">
-      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
         {label}
       </span>
-      <Input onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} />
+      <Input
+        className="h-10"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        value={value}
+      />
     </label>
-  );
+  )
+}
+
+function BuilderSelectField({
+  label,
+  onValueChange,
+  options,
+  value,
+}: {
+  label: string
+  onValueChange: (value: string) => void
+  options: Array<{ label: string; value: string }>
+  value: string
+}) {
+  return (
+    <label className="space-y-2">
+      <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+        {label}
+      </span>
+      <Select onValueChange={onValueChange} value={value}>
+        <SelectTrigger className="h-10 w-full text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </label>
+  )
+}
+
+function ToggleField({
+  checked,
+  label,
+  onCheckedChange,
+}: {
+  checked: boolean
+  label: string
+  onCheckedChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex items-center gap-3 rounded-xl border border-border/80 p-3 text-sm text-muted-foreground md:col-span-2">
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      <span>{label}</span>
+    </label>
+  )
 }

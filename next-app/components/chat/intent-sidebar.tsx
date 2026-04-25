@@ -1,129 +1,121 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { useWallets } from "@privy-io/react-auth";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useState } from "react"
+import { useWallets } from "@privy-io/react-auth"
+import { signIn, signOut, useSession } from "next-auth/react"
 import {
-  BotIcon,
   LoaderIcon,
   LogInIcon,
   LogOutIcon,
   MessageSquarePlusIcon,
+  ShieldAlertIcon,
   UserIcon,
-} from "lucide-react";
+} from "lucide-react"
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs"
+import type { RequestNavigationView } from "@/components/chat/request-notifications"
 
-import { cn } from "@/lib/utils";
+import { RequestListCard } from "./request-list-card"
 
 type IntentSidebarProps = {
-  intents: SidebarIntentPreview[];
-  onDeselect: () => void;
-  onSelect: (intent: SidebarIntentPreview) => void;
-  selectedIntentId: string | null;
-};
+  intents: SidebarIntentPreview[]
+  onDeselect: () => void
+  onOpenPendingApprovals?: () => void
+  onSelect: (intent: SidebarIntentPreview, view?: RequestNavigationView) => void
+  pendingApprovalCount: number
+  selectedIntentId: string | null
+}
 
 export function IntentSidebar({
   intents,
   onDeselect,
+  onOpenPendingApprovals,
   onSelect,
+  pendingApprovalCount,
   selectedIntentId,
 }: IntentSidebarProps) {
-  const { data: session, status } = useSession();
-  const { wallets } = useWallets();
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: session, status } = useSession()
+  const { wallets } = useWallets()
+  const [isLoading, setIsLoading] = useState(false)
 
   async function handleSignIn() {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      await signIn("twitter", { callbackUrl: "/chat" });
+      await signIn("twitter", { callbackUrl: "/chat" })
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
   async function handleSignOut() {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      await signOut({ callbackUrl: "/" });
+      await signOut({ callbackUrl: "/" })
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
-  const user = session?.user;
-  const isAuthenticated = status === "authenticated";
-  const connectedAddress = wallets[0]?.address ?? null;
+  const user = session?.user
+  const isAuthenticated = status === "authenticated"
+  const connectedAddress = wallets[0]?.address ?? null
 
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden border border-border">
-      <div className="space-y-4 border-b border-border px-4 py-4">
-        <div className="space-y-2">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="space-y-3 border-b border-border px-4 py-4">
+        <div className="space-y-1">
+          <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
             Requests
           </p>
-          <h2 className="text-sm font-medium">Tracked asks and active deliveries</h2>
+          <h2 className="text-sm font-medium">Active work</h2>
         </div>
-        <Button className="w-full justify-start" onClick={onDeselect} type="button" variant="outline">
+        <Button
+          className="w-full justify-start"
+          onClick={onDeselect}
+          type="button"
+          variant="outline"
+        >
           <MessageSquarePlusIcon />
           New chat
         </Button>
+        {pendingApprovalCount > 0 ? (
+          <Button
+            className="w-full justify-between"
+            onClick={onOpenPendingApprovals}
+            type="button"
+            variant="secondary"
+          >
+            <span className="flex items-center gap-2">
+              <ShieldAlertIcon />
+              Pending approvals
+            </span>
+            <span className="text-primary">{pendingApprovalCount}</span>
+          </Button>
+        ) : null}
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col">
+        <div className="space-y-1 p-1">
           {intents.length === 0 ? (
             <div className="px-4 py-5 text-sm text-muted-foreground">
-              Approved or pending requests will appear here after the first tracked ask.
+              Active requests appear here after the first tracked ask.
             </div>
           ) : (
             intents.map((intent) => {
-              const isActive = intent._id === selectedIntentId;
+              const isActive = intent._id === selectedIntentId
 
               return (
-                <div
-                  className="border-b border-border p-1"
+                <RequestListCard
+                  intent={intent}
                   key={intent._id}
-                >
-                  <div className="flex items-start gap-3">
-                    <button
-                      className={
-                        isActive
-                          ? "min-w-0 flex-1 bg-foreground/5 p-3 text-left"
-                          : "min-w-0 flex-1 p-3 text-left"
-                      }
-                      onClick={() => onSelect(intent)}
-                      type="button"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="line-clamp-1 text-sm font-medium">
-                            {intent.title}
-                          </p>
-                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            {intent.summary}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* <RequestStageRail status={intent.status} /> */}
-
-                      <div className="mt-3 flex items-center gap-1.5">
-                        <ParticipantAvatarRow participants={intent.participants} />
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              );
+                  onOpen={onSelect}
+                  selected={isActive}
+                />
+              )
             })
           )}
         </div>
@@ -143,9 +135,13 @@ export function IntentSidebar({
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{user.name ?? "X user"}</p>
+              <p className="truncate text-sm font-medium">
+                {user.name ?? "X user"}
+              </p>
               <p className="truncate text-xs text-muted-foreground">
-                {connectedAddress ? formatAddress(connectedAddress) : "Wallet not connected"}
+                {connectedAddress
+                  ? formatAddress(connectedAddress)
+                  : "Wallet not connected"}
               </p>
             </div>
             <Button
@@ -163,7 +159,12 @@ export function IntentSidebar({
             </Button>
           </div>
         ) : (
-          <Button className="w-full" disabled={isLoading} onClick={handleSignIn} type="button">
+          <Button
+            className="w-full"
+            disabled={isLoading}
+            onClick={handleSignIn}
+            type="button"
+          >
             {isLoading ? (
               <LoaderIcon className="mr-2 animate-spin" />
             ) : (
@@ -174,50 +175,9 @@ export function IntentSidebar({
         )}
       </div>
     </aside>
-  );
+  )
 }
 
 function formatAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function ParticipantAvatarRow({
-  participants,
-}: {
-  participants?: SidebarIntentPreview["participants"];
-}) {
-  const safeParticipants = participants ?? [];
-
-  if (safeParticipants.length === 0) {
-    return (
-      <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        No participants yet
-      </span>
-    );
-  }
-
-  return (
-    <TooltipProvider>
-      <div className="flex items-center">
-        {safeParticipants.slice(0, 4).map((participant, index) => {
-          const Icon = participant.kind === "agent" ? BotIcon : UserIcon;
-
-          return (
-            <Tooltip key={`${participant.displayName}-${index}`}>
-              <TooltipTrigger asChild>
-                <span
-                  className={cn(
-                    "relative -ml-1.5 flex size-7 items-center justify-center border border-border bg-background text-muted-foreground first:ml-0",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">{participant.displayName}</TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </div>
-    </TooltipProvider>
-  );
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
 }

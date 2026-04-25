@@ -1,51 +1,56 @@
-"use client";
+"use client"
 
 import {
   useDeferredValue,
   useMemo,
   useState,
   useSyncExternalStore,
-} from "react";
-import { useQuery } from "convex/react";
+} from "react"
+import { useQuery } from "convex/react"
 import {
   BotIcon,
   DownloadIcon,
   LoaderIcon,
-  PackageIcon,
   SearchIcon,
   ShoppingCartIcon,
   UserIcon,
-} from "lucide-react";
+} from "lucide-react"
 
-import { BorealProfileView } from "@/components/profiles/boreal-profile-view";
-import { ProfileView } from "@/components/profiles/profile-view";
-import { Button } from "@/components/ui/button";
+import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
+import { ProfileView } from "@/components/profiles/profile-view"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   type CatalogEntry,
   convexFunctionRefs,
   type SidebarIntentPreview,
   type WorkerProfileDetail,
-} from "@/lib/boreal/integrations/convex/function-refs";
-import { cn } from "@/lib/utils";
+} from "@/lib/boreal/integrations/convex/function-refs"
+import { cn } from "@/lib/utils"
 
-export type WorkspaceTab = "requests" | "workers";
+import { RequestListCard } from "./request-list-card"
+import type { RequestNavigationView } from "./request-notifications"
+
+export type WorkspaceTab = "requests" | "workers"
 
 type WorkspacePanelProps = {
-  activeTab: WorkspaceTab;
-  onAddToCart: (supplyId: string) => Promise<void>;
-  onSelectRequest: (request: SidebarIntentPreview) => void;
-  onTabChange: (value: WorkspaceTab) => void;
-  ownerExternalId?: string;
-};
+  activeTab: WorkspaceTab
+  onAddToCart: (supplyId: string) => Promise<void>
+  onSelectRequest: (
+    request: SidebarIntentPreview,
+    view?: RequestNavigationView
+  ) => void
+  onTabChange: (value: WorkspaceTab) => void
+  ownerExternalId?: string
+}
 
 const staticBorealProfile: NonNullable<WorkerProfileDetail> = {
   analytics: {
@@ -96,7 +101,7 @@ const staticBorealProfile: NonNullable<WorkerProfileDetail> = {
     skillTags: ["llm routing", "tool orchestration", "asset generation"],
   },
   supplies: [],
-};
+}
 
 export function WorkspacePanel({
   activeTab,
@@ -108,12 +113,14 @@ export function WorkspacePanel({
   const isMounted = useSyncExternalStore(
     () => () => undefined,
     () => true,
-    () => false,
-  );
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search.trim());
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false);
+    () => false
+  )
+  const [search, setSearch] = useState("")
+  const deferredSearch = useDeferredValue(search.trim())
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    null
+  )
+  const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false)
 
   const searchedSupplyListings = useQuery(
     convexFunctionRefs.searchCatalog,
@@ -122,51 +129,67 @@ export function WorkspacePanel({
           limit: 36,
           query: deferredSearch,
         }
-      : "skip",
-  );
+      : "skip"
+  )
   const defaultSupplyListings = useQuery(
     convexFunctionRefs.listCatalog,
     activeTab === "workers" && !deferredSearch
       ? {
           limit: 36,
         }
-      : "skip",
-  );
-  const supplyListings =
-    ((deferredSearch ? searchedSupplyListings : defaultSupplyListings) ?? []) as CatalogEntry[];
-  const publicRequests =
-    (useQuery(convexFunctionRefs.listMarketplaceIntents, {
+      : "skip"
+  )
+  const supplyListings = ((deferredSearch
+    ? searchedSupplyListings
+    : defaultSupplyListings) ?? []) as CatalogEntry[]
+  const publicRequestsResult = useQuery(
+    convexFunctionRefs.listMarketplaceIntents,
+    {
       limit: 48,
       ownerExternalId,
-      query: activeTab === "requests" && deferredSearch ? deferredSearch : undefined,
-    }) ?? []) as SidebarIntentPreview[];
-  const borealStats = useQuery(convexFunctionRefs.getBorealAgentStats, {});
+      query:
+        activeTab === "requests" && deferredSearch ? deferredSearch : undefined,
+    }
+  ) as SidebarIntentPreview[] | undefined
+  const publicRequests = useMemo(
+    () => publicRequestsResult ?? [],
+    [publicRequestsResult]
+  )
+  const visiblePublicRequests = useMemo(
+    () =>
+      publicRequests.filter(
+        (request) =>
+          request.status !== "closed" && request.status !== "fulfilled"
+      ),
+    [publicRequests]
+  )
+  const borealStats = useQuery(convexFunctionRefs.getBorealAgentStats, {})
   const selectedProfile = useQuery(
     convexFunctionRefs.getPublicProfile,
     selectedProfileId && selectedProfileId !== "boreal-agent"
       ? { ownerExternalId, profileId: selectedProfileId }
-      : "skip",
-  ) as WorkerProfileDetail;
+      : "skip"
+  ) as WorkerProfileDetail
 
   const selectedProfileDetail = useMemo(() => {
     if (selectedProfileId === "boreal-agent") {
-      return staticBorealProfile;
+      return staticBorealProfile
     }
 
-    return selectedProfile;
-  }, [selectedProfile, selectedProfileId]);
+    return selectedProfile
+  }, [selectedProfile, selectedProfileId])
 
   if (!isMounted) {
     return (
       <aside className="flex min-h-0 flex-col overflow-hidden border border-border">
         <div className="border-b border-border px-4 py-4">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
             Directory
           </p>
           <h2 className="mt-2 text-sm font-medium">Loading public surface</h2>
         </div>
       </aside>
-    );
+    )
   }
 
   return (
@@ -179,12 +202,15 @@ export function WorkspacePanel({
         >
           <div className="space-y-4 p-3">
             <div className="space-y-1 px-1">
-              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
                 Discovery
               </p>
-              <h2 className="text-sm font-medium">Search public supply and requests</h2>
+              <h2 className="text-sm font-medium">
+                Search public supply and requests
+              </h2>
               <p className="text-xs text-muted-foreground">
-                Search public supply, compare offers, and jump into open requests from here.
+                Search public supply, compare offers, and jump into open
+                requests from here.
               </p>
             </div>
 
@@ -194,7 +220,7 @@ export function WorkspacePanel({
             </TabsList>
 
             <div className="relative">
-              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="h-9 pl-9"
                 onChange={(event) => setSearch(event.target.value)}
@@ -223,8 +249,8 @@ export function WorkspacePanel({
                       listing={listing}
                       onAddToCart={onAddToCart}
                       onOpenSellerProfile={(profileId) => {
-                        setSelectedProfileId(profileId);
-                        setIsBorealProfileOpen(profileId === "boreal-agent");
+                        setSelectedProfileId(profileId)
+                        setIsBorealProfileOpen(profileId === "boreal-agent")
                       }}
                     />
                   ))
@@ -236,28 +262,31 @@ export function WorkspacePanel({
           <TabsContent className="min-h-0" value="requests">
             <ScrollArea className="h-full">
               <div className="space-y-0.5 p-1">
-                {publicRequests.length === 0 ? (
+                {visiblePublicRequests.length === 0 ? (
                   <EmptyBlock
-                    subtitle="Public asks, open requests, and unresolved intents will appear here."
+                    subtitle="Open public asks and unresolved work will appear here."
                     title="No public requests found"
                   />
                 ) : (
-                  publicRequests.map((request) => (
-                    <RequestCard key={request._id} onSelect={onSelectRequest} request={request} />
+                  visiblePublicRequests.map((request) => (
+                    <RequestListCard
+                      key={request._id}
+                      intent={request}
+                      onOpen={onSelectRequest}
+                    />
                   ))
                 )}
               </div>
             </ScrollArea>
           </TabsContent>
-
         </Tabs>
       </aside>
 
       <Dialog
         onOpenChange={(open) => {
           if (!open) {
-            setSelectedProfileId(null);
-            setIsBorealProfileOpen(false);
+            setSelectedProfileId(null)
+            setIsBorealProfileOpen(false)
           }
         }}
         open={Boolean(selectedProfileId)}
@@ -286,27 +315,27 @@ export function WorkspacePanel({
         </DialogContent>
       </Dialog>
     </>
-  );
+  )
 }
 
 function getMatchScoreTone(score: number | null) {
   if (score === null) {
-    return "text-muted-foreground";
+    return "text-muted-foreground"
   }
 
   if (score >= 80) {
-    return "text-emerald-700 dark:text-emerald-300";
+    return "text-primary"
   }
 
   if (score >= 65) {
-    return "text-amber-700 dark:text-amber-300";
+    return "text-primary/80"
   }
 
   if (score >= 50) {
-    return "text-orange-700 dark:text-orange-300";
+    return "text-primary"
   }
 
-  return "text-rose-700 dark:text-rose-300";
+  return "text-muted-foreground"
 }
 
 function SupplyCard({
@@ -314,11 +343,11 @@ function SupplyCard({
   onAddToCart,
   onOpenSellerProfile,
 }: {
-  listing: CatalogEntry;
-  onAddToCart: (supplyId: string) => Promise<void>;
-  onOpenSellerProfile: (profileId: string) => void;
+  listing: CatalogEntry
+  onAddToCart: (supplyId: string) => Promise<void>
+  onOpenSellerProfile: (profileId: string) => void
 }) {
-  const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon;
+  const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
 
   return (
     <div className="space-y-3 border border-transparent p-3 transition-colors hover:border-border hover:bg-foreground/5">
@@ -332,23 +361,29 @@ function SupplyCard({
             {listing.matchScore !== null ? (
               <span
                 className={cn(
-                  "text-[11px] uppercase tracking-[0.16em]",
-                  getMatchScoreTone(listing.matchScore),
+                  "text-[11px] tracking-[0.16em] uppercase",
+                  getMatchScoreTone(listing.matchScore)
                 )}
               >
                 {listing.matchScore}% match
               </span>
             ) : null}
-            <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
               {listing.fulfillmentKind}
             </span>
           </div>
-          {listing.subtitle ? <p className="mt-1 text-xs">{listing.subtitle}</p> : null}
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{listing.description}</p>
-          {listing.seller?.displayName ? (
-            <p className="mt-2 text-xs text-muted-foreground">By {listing.seller.displayName}</p>
+          {listing.subtitle ? (
+            <p className="mt-1 text-xs">{listing.subtitle}</p>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+            {listing.description}
+          </p>
+          {listing.seller?.displayName ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              By {listing.seller.displayName}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
             <span>{listing.category}</span>
             <span>{listing.deliveryType}</span>
             <span>
@@ -356,11 +391,15 @@ function SupplyCard({
                 ? "Custom"
                 : `${listing.currency} ${listing.priceAmount}/${listing.priceType}`}
             </span>
-            {listing.estimatedDeliveryLabel ? <span>{listing.estimatedDeliveryLabel}</span> : null}
+            {listing.estimatedDeliveryLabel ? (
+              <span>{listing.estimatedDeliveryLabel}</span>
+            ) : null}
             {typeof listing.averageRating === "number" ? (
               <span>
                 {listing.averageRating.toFixed(1)} stars
-                {listing.reviewCount > 0 ? ` · ${listing.reviewCount} reviews` : ""}
+                {listing.reviewCount > 0
+                  ? ` · ${listing.reviewCount} reviews`
+                  : ""}
               </span>
             ) : null}
           </div>
@@ -368,7 +407,7 @@ function SupplyCard({
             <div className="mt-3 flex flex-wrap gap-2">
               {listing.matchReasons.map((reason) => (
                 <span
-                  className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+                  className="inline-flex items-center border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase"
                   key={reason}
                 >
                   {reason}
@@ -378,7 +417,11 @@ function SupplyCard({
           ) : null}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {listing.isCartEnabled ? (
-              <Button onClick={() => void onAddToCart(listing._id)} size="sm" type="button">
+              <Button
+                onClick={() => void onAddToCart(listing._id)}
+                size="sm"
+                type="button"
+              >
                 <ShoppingCartIcon />
                 Add to cart
               </Button>
@@ -405,45 +448,10 @@ function SupplyCard({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-function RequestCard({
-  onSelect,
-  request,
-}: {
-  onSelect: (request: SidebarIntentPreview) => void;
-  request: SidebarIntentPreview;
-}) {
-  return (
-    <button
-      className="w-full border border-transparent p-3 text-left transition-colors hover:border-border hover:bg-foreground/5"
-      onClick={() => onSelect(request)}
-      type="button"
-    >
-      <div className="flex items-start gap-3">
-        <PackageIcon className="mt-0.5 size-4 text-muted-foreground" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">{request.title}</p>
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{request.summary}</p>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            <span>{request.category}</span>
-            <span>{request.status.replaceAll("_", " ")}</span>
-            <span>{request.isOwner ? "owner" : "open to propose"}</span>
-          </div>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function EmptyBlock({
-  subtitle,
-  title,
-}: {
-  subtitle: string;
-  title: string;
-}) {
+function EmptyBlock({ subtitle, title }: { subtitle: string; title: string }) {
   return (
     <div className="border border-dashed border-border p-6 text-center">
       <div className="mx-auto flex size-9 items-center justify-center border border-border">
@@ -452,5 +460,5 @@ function EmptyBlock({
       <p className="mt-4 text-sm font-medium">{title}</p>
       <p className="mt-2 text-xs text-muted-foreground">{subtitle}</p>
     </div>
-  );
+  )
 }

@@ -1,14 +1,16 @@
-import { Geist_Mono, Inter } from "next/font/google"
+import { Geist_Mono, Manrope, Syne } from "next/font/google"
 
 import "./globals.css"
 import { ConvexClientProvider } from "@/app/convex-client-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/auth-provider"
 import { PrivyProvider } from "@/components/privy-provider"
-import { cn } from "@/lib/utils";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans-base" })
+
+const syne = Syne({ subsets: ["latin"], variable: "--font-heading-display" })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
@@ -24,16 +26,26 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
+      className={cn(
+        "antialiased",
+        "font-sans",
+        fontMono.variable,
+        manrope.variable,
+        syne.variable
+      )}
     >
-<body>
+      <body className="min-h-screen bg-background text-foreground">
+        <a
+          className="absolute top-4 left-4 z-[1000] -translate-y-24 rounded-full border border-primary/30 bg-background px-4 py-2 text-sm text-foreground shadow-lg transition-transform focus:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          href="#main-content"
+        >
+          Skip to main content
+        </a>
         <ThemeProvider>
           <PrivyProvider>
             <AuthProvider>
               <ConvexClientProvider>
-                <TooltipProvider>
-                  {children}
-                </TooltipProvider>
+                <TooltipProvider>{children}</TooltipProvider>
               </ConvexClientProvider>
             </AuthProvider>
           </PrivyProvider>
