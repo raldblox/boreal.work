@@ -1,12 +1,20 @@
 # Boreal Roadmap
 
-This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked items are only for functionality that is observable in the current repository as of April 25, 2026.  Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
+This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked items are only for functionality that is observable in the current repository as of April 26, 2026.  Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
 
 ## Current Readout
 
 - Boreal is already a real public alpha for request-native commerce, delivered through a chat-native interface: chat intake, request workspaces, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
 - Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Privy-backed x402 payment initiation, and Agentic Market discovery sync.
+- Boreal now also has a real matching layer in the product surface: persisted match candidates, request-level score breakdowns, gated-out reasons, refinement actions, and pinned matches inside the request workspace.
+- Public profiles are no longer just static identity cards; they now carry cached analytics snapshots for activity, fulfillment, ratings, listings, buyer/seller behavior, and recent handled work.
+- Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
+- Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state and `/about` carries the feature/spec narrative.
+- Boreal's payment and wallet flow is now the least-settled major system boundary: checkout records and provider-backed payment attempts exist, but payout policy, wallet sync, environment switching, and scenario coverage still need a canonical model before launch.
+- Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
+- Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
+- Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
 
 ## Documentation And Positioning Consolidation
@@ -17,7 +25,7 @@ Goal: make the written story match the live alpha while recycling the strongest 
 - [x] Create `CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
 - [x] Rewrite the top of `WHITEPAPER.md` and its `What Boreal Has Built` / `What Is Live Today` sections so live alpha claims are separated from target architecture
 - [ ] Finish the rest of `WHITEPAPER.md` so `live today`, `in progress`, and `target architecture` stay clearly separated end to end
-- [ ] Align `README.md`, homepage copy, the actual landing-page implementation, `ROADMAP.md`, and public alpha messaging on one canonical naming stack:
+- [ ] Align `README.md`, chat zero-state copy, the `/about` feature/spec page, `ROADMAP.md`, and public alpha messaging on one canonical naming stack:
   - `chat-native` for the interface layer
   - `request-native` for the system and category layer
   - `intent-to-fulfillment` for the thesis layer
@@ -52,12 +60,69 @@ Goal: make the written story match the live alpha while recycling the strongest 
 - [x] Autonomous worker scripts for seeded Boreal agents
 - [x] Build, typecheck, and lint workflows
 
-## Phase 1 - Public Alpha Release
+## Phase 1 - Core Commerce Infrastructure
 
-Goal: make `boreal.work` functional and credible for public use without overclaiming settlement or protocol completeness.
+Goal: build the protocol-native commerce substrate first, then layer market UX and operations on top of it.
+
+### Wallet and Payment Base
+
+- [x] Canonical wallet-account registry for connected, buyer, and payout wallet roles
+- [x] Canonical transaction spine for checkout items and scoped-work fulfillment flows
+- [x] Connected-wallet sync foundation from the chat surface into backend wallet records
+- [x] Canonical transaction matrix with scenario IDs, payment behavior, fulfillment behavior, and expected audit records
+- [ ] Canonical `devnet` / `mainnet` environment switch across wallet broker, payment rails, provider invocation, smoke tests, and logs
+- [x] Connected-wallet sync model for every signed-in user and profile record
+- [x] Payout-wallet sync model for every profile that can receive payment as a seller, worker, or agent operator
+- [x] Require a connected payout wallet before publishing monetized supply or accepting paid work
+- [x] Require a connected buyer wallet before paid checkout and surface missing-wallet blockers clearly in product UX
+- [x] Track transaction type and payment environment on the active checkout, payment-attempt, fulfillment, and settlement flows
+- [x] Audit records and verification-run tracking for wallet failures, transaction progression, and scenario-level smoke outcomes
+
+### Protocol-Facing Listing and Checkout Base
+
+- [x] Unified supply model for products, services, humans, agents, and provider-backed capabilities
+- [x] Payment-aware cart and checkout records
+- [x] Provider-backed payment-aware checkout states for supported listings
+- [x] Privy-backed x402 payment initiation for supported provider-backed items
+- [x] Schema support for ACP/UCP/A2A-oriented listing descriptors and protocol metadata
+- [ ] Boreal-assisted listing flow for merchants, freelancers, and agent operators that drafts ACP/UCP-ready metadata and protocol descriptors
+- [ ] Stable public catalog, checkout-capability, and offer endpoints that expose merchant, freelancer, and agent supply in ACP/UCP-aligned shapes
+- [ ] UCP endpoints per listing
+- [ ] ACP checkout support
+- [ ] A2A endpoints per listing
+
+### Settlement Base
+
+- [x] Payment attempts persisted for provider-backed services
+- [x] Service invocations and checkout records persisted with status
+- [ ] Solana escrow on proposal acceptance
+- [ ] Automatic settlement on approval
+- [ ] Partial and split settlement support
+- [ ] Escrow lifecycle visible in request workspace
+
+### Transaction Scenario Matrix and Verification
+
+- [x] Product-search request that opens a store-like request workspace
+- [x] Instant digital supply purchase from directory or request workspace
+- [x] Provider-backed paid service purchase for supported direct-invoke listings
+- [x] Human or agent custom work through proposal -> approval -> delivery -> review
+- [x] Chat-only fulfillment where the owner manually marks the request fulfilled
+- [x] Human or agent supply publishing through the profile and listing builder
+- [x] Scenario verification runs and per-stage transaction audit records persisted for smoke-tested commerce flows
+- [ ] Paid consultation/session flow with explicit session scope, delivery, and settlement model
+- [ ] Physical-world service scheduling and attendance verification flow
+- [ ] Milestone, split, or partial-settlement work flows
+- [ ] Refund, cancellation-after-payment, and dispute scenarios across all paid transaction types
+- [x] End-to-end smoke test script for owner -> proposer -> approval -> delivery -> review
+- [ ] Expand smoke coverage into product search, cart/checkout, profile builder, provider-backed service flows, and wallet-required transaction paths
+
+## Phase 2 - Public Alpha Surface and Demand Routing
+
+Goal: make the request-native UX and routing layer strong on top of the commerce substrate.
 
 ### Product Surface
 
+- [x] `/` now acts as the chat-native landing state, while `/about` carries the feature/spec narrative
 - [x] Signed-in owner request tracking in the left sidebar
 - [x] Public browsing of supply and public requests in the right rail
 - [x] Request workspace with `Chat`, `Activity`, `Participants`, and `Workspace`
@@ -67,33 +132,11 @@ Goal: make `boreal.work` functional and credible for public use without overclai
 - [x] Archive, cancel, continue, delete, and review flows for requests
 - [x] Streaming Boreal responses in chat
 - [x] Boreal profile surface and public `boreal-agent` route
+- [x] Manual and Boreal-assisted profile/supply builder for publishing human or agent supply
+- [x] Cached profile analytics and richer public profile dashboards
+- [ ] Boreal Agent capability explorer with real supported-scenario cards and ready-to-run prompt starters
 - [x] Request-driven catalog/store results with add-to-cart actions
 - [x] Cart dialog with checkout history and fulfilled download access
-- [x] Provider-backed payment-aware checkout states for supported listings
-
-### Release Blockers
-
-- [ ] Production deployment checklist and environment template for all required secrets
-- [ ] Error monitoring and alerting for API, chat, Convex, and payment failures
-- [ ] Rate limiting and abuse controls for public chat, public request creation, and public supply listing
-- [ ] Moderation/admin tooling for public requests, profiles, listings, and provider-backed supply
-- [ ] Robust multi-account QA for X auth session switching and ownership boundaries
-- [x] End-to-end smoke test script for owner -> proposer -> approval -> delivery -> review
-- [ ] Proposal attachments and richer seller-side submission assets beyond the current delivery upload flow
-- [ ] Canonical external API documentation for third-party consumers
-- [ ] Privacy and access audit for private vs. public request visibility
-- [ ] Payment recovery, refund, and dispute handling for provider-backed checkout failures
-
-### Release Messaging Guardrails
-
-- [x] Can claim: chat-native request intake, request workspaces, proposals, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
-- [x] Can claim: Boreal is a chat-native interface for request-native commerce
-- [x] Can claim: Boreal is building intent-to-fulfillment infrastructure, as long as the live alpha boundary stays explicit
-- [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, collective fulfillment, trust-score routing, or generalized autonomous settlement
-
-## Phase 2 - Whitepaper Layer 2 Parity
-
-Goal: close the gap between the current alpha and the whitepaper's full demand-routing system.
 
 ### Intent Extraction and Routing
 
@@ -104,12 +147,15 @@ Goal: close the gap between the current alpha and the whitepaper's full demand-r
 - [x] Product-search intents that open a request workspace and render matched supply
 - [x] Public proposal board behavior through public requests
 - [x] Keyword generation stored and actively used in retrieval/routing
+- [x] Request-level persisted match candidates with score breakdowns and workspace attachment
+- [x] Hybrid matching foundation: lexical retrieval, embedding similarity, structured filters, and hard gates
+- [x] Match event logging with score breakdown
+- [x] Matching workspace UX with explanations, gated-out reasons, refinement, and pinning
 - [ ] Full hybrid retrieval: BM25 + vector similarity + structured filters
 - [ ] Historical analog retrieval across prior fulfilled work
 - [ ] LLM reranking over top candidates
 - [ ] Tier 2 fast-route to known solvers based on empirical score thresholds
 - [ ] Tier 4 pending/rematch scheduler
-- [ ] Match event logging with score breakdown
 
 ### Workspace and Fulfillment
 
@@ -117,13 +163,22 @@ Goal: close the gap between the current alpha and the whitepaper's full demand-r
 - [x] Activity timeline and request transcript
 - [x] Fulfillment evidence via stored submission text, uploads, and artifacts
 - [x] Reviews and ratings attached to the completed lifecycle
+- [x] Owner-side request workspace for proposals, delivery, and matching refinement
+- [x] Manual mark-fulfilled path for chat-native work that does not produce a formal asset
 - [ ] Revision-request loop between owner and fulfiller
-- [ ] Stronger request-to-supply recommendation UX
+- [x] Stronger request-to-supply recommendation UX
 - [ ] Request-side deadline, SLA, and marketplace health signals fed back into routing
 
-## Phase 3 - Supply Registry and Marketplace Depth
+### Messaging Guardrails
 
-Goal: make Boreal a real supply aggregation and matching surface, not just a request board.
+- [x] Can claim: chat-native request intake, request workspaces, proposals, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
+- [x] Can claim: Boreal is a chat-native interface for request-native commerce
+- [x] Can claim: Boreal is building intent-to-fulfillment infrastructure, as long as the live alpha boundary stays explicit
+- [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, collective fulfillment, trust-score routing, or generalized autonomous settlement
+
+## Phase 3 - Supply Registry, External Aggregation, and Agent Market Depth
+
+Goal: deepen the sell-side and provider-side market once the core commerce rails exist.
 
 ### Native Supply
 
@@ -131,6 +186,8 @@ Goal: make Boreal a real supply aggregation and matching surface, not just a req
 - [x] Supply entry registration in Convex
 - [x] Public supply directory
 - [x] Built-in seeded worker agents
+- [x] Manual plus Boreal-assisted profile/supply publishing flow
+- [x] Cached analytics on profiles for activity, ratings, listings, buyer/seller signals, and recent handled work
 - [x] Digital product and service listings within the unified supply model
 - [x] Cart and checkout records connected to supply listings
 - [ ] Rich public product/catalog pages with deeper structured metadata and merchant-grade presentation
@@ -153,18 +210,21 @@ Goal: make Boreal a real supply aggregation and matching surface, not just a req
 - [ ] Webhook/executor registration for third-party agent suppliers
 - [ ] Concurrency and availability controls for agent suppliers
 
-## Phase 4 - Settlement, Trust, and Evidence
+## Phase 4 - Launch Hardening, Trust, and Operations
 
-Goal: turn Boreal from coordination software into stronger commerce infrastructure.
+Goal: harden the system for broader public use after the core commerce and routing layers are in place.
 
-### Settlement
+### Public Release Hardening
 
-- [x] Payment attempts persisted for provider-backed services
-- [x] Service invocations and checkout records persisted with status
-- [ ] Solana escrow on proposal acceptance
-- [ ] Automatic settlement on approval
-- [ ] Partial and split settlement support
-- [ ] Escrow lifecycle visible in request workspace
+- [ ] Production deployment checklist and environment template for all required secrets
+- [ ] Error monitoring and alerting for API, chat, Convex, and payment failures
+- [ ] Rate limiting and abuse controls for public chat, public request creation, and public supply listing
+- [ ] Moderation/admin tooling for public requests, profiles, listings, and provider-backed supply
+- [ ] Robust multi-account QA for X auth session switching and ownership boundaries
+- [ ] Proposal attachments and richer seller-side submission assets beyond the current delivery upload flow
+- [ ] Canonical external API documentation for third-party consumers
+- [ ] Privacy and access audit for private vs. public request visibility
+- [ ] Payment recovery, refund, and dispute handling for provider-backed checkout failures
 
 ### Trust and Audit
 
@@ -177,15 +237,12 @@ Goal: turn Boreal from coordination software into stronger commerce infrastructu
 - [ ] Dispute workflow
 - [ ] On-chain transaction audit trail
 
-## Phase 5 - Protocol and Presence Layer
+## Phase 5 - Agent-Native Commerce Expansion
 
-Goal: reach the whitepaper's protocol-native commerce surface.
+Goal: extend Boreal from core protocol-facing commerce into deeper agent-native presence and execution.
 
 - [ ] libp2p real-time buyer presence
 - [ ] Listing-level representative agents for products/services
-- [ ] A2A endpoints per listing
-- [ ] UCP endpoints per listing
-- [ ] ACP checkout support
 - [ ] MCP tool server for Boreal
 - [ ] Agent wallet and spend-rule support
 
@@ -211,30 +268,38 @@ Goal: make the system compound from usage and support larger, multi-party work.
 
 ## Suggested Release Sequence
 
-### Milestone A - Public Alpha
+### Milestone A - Core Commerce Base
 
-- Finish all unchecked Phase 1 release blockers.
-- Keep public messaging constrained to Boreal as a chat-native market and operating surface for request-native commerce.
+- Finish the unchecked items in Phase 1.
+- Do not broaden public claims until wallet policy, scenario coverage, listing descriptors, and payment environment handling are canonical.
 
-### Milestone B - Demand Routing Beta
+### Milestone B - Demand Routing Alpha
 
 - Finish the unchecked items in Phase 2.
-- Add strong matching and recommendation quality before scaling public traffic.
+- Make Boreal reliably choose between direct supply, open market, and provider-backed execution before trying to scale discovery.
 
-### Milestone C - Commerce Beta
+### Milestone C - Supply and Agent Market Beta
 
-- Finish Phase 3 and Phase 4.
-- Only after this point should Boreal be positioned as deeper commerce infrastructure rather than mostly workflow infrastructure.
+- Finish Phase 3.
+- This is when Boreal starts to feel like a true market with strong listings, richer supplier surfaces, and deeper external aggregation.
 
-### Milestone D - Whitepaper Protocol Expansion
+### Milestone D - Launch Hardening
 
-- Finish Phase 5 and enough of Phase 6 to support the whitepaper's protocol and collective claims.
+- Finish Phase 4.
+- Only after this point should Boreal be pushed aggressively as a broader public market.
+
+### Milestone E - Network and Protocol Expansion
+
+- Finish Phase 5 and enough of Phase 6 to support the whitepaper's deeper agent-native and collective claims.
 
 ## Immediate Next Actions
 
-- [ ] Close the Phase 1 public-alpha blockers
+- [ ] Finalize the canonical wallet and payment model beyond the new schema base: buyer wallet, payout wallet, devnet/mainnet switch, and gating rules for paid flows
+- [ ] Build the commerce scenario registry and attach scenario IDs to smoke tests, payment attempts, settlement records, and failure logs
+- [ ] Implement the runtime ACP/UCP/A2A-facing listing descriptors and stable public protocol endpoints on top of the new schema fields
+- [ ] Expand smoke coverage beyond the current lifecycle script into product search, cart/checkout, profile builder, provider-backed service flows, and wallet-required scenarios
 - [ ] Execute the documentation and positioning consolidation workstream
-- [ ] Add end-to-end smoke tests for the request lifecycle
-- [ ] Implement proposal attachments and richer seller-side submission assets
-- [ ] Add monitoring, rate limiting, moderation, and refund handling
-- [ ] Start the real matching engine work for Phase 2
+- [ ] Finish the matching engine quality layer: BM25, historical analog retrieval, reranking, and rematch scheduling
+- [ ] Build revision-request loops and richer deadline/SLA signals into the request workspace
+- [ ] Deepen supply and product metadata plus merchant-grade listing pages on top of the new protocol base
+- [ ] Add a Boreal Agent capability explorer and prompt-starter surface so users can discover real supported flows directly from the Boreal profile

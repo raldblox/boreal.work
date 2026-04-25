@@ -23,8 +23,14 @@ export async function POST(
     });
 
     if (!result.approved) {
+      const error =
+        result.reason === "missing_buyer_wallet"
+          ? "Connect a buyer wallet before approving paid work."
+          : result.reason === "missing_payout_wallet"
+            ? "The selected proposer needs a payout wallet before approval."
+            : "Proposal approval failed.";
       return NextResponse.json(
-        { error: "Proposal approval failed." },
+        { error },
         { status: 403 },
       );
     }

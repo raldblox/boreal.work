@@ -1,7 +1,21 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+import {
+  ensureSettlementForTransaction,
+  ensureWorkTransaction,
+  getCommerceEnvironment,
+  getDefaultBuyerWalletAccountId,
+  getDefaultPayoutWalletAccountId,
+  getProfileIdForUser,
+} from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
+import {
+  getScenarioId,
+  recordTransactionAuditEvent,
+  scenarioNeedsBuyerWallet,
+  scenarioNeedsPayoutWallet,
+} from "./transactionScenarios";
 
 export const submitProposal = mutation({
   args: {
@@ -35,12 +49,15 @@ export const submitProposal = mutation({
       currency: args.currency,
       deliverablesBody: args.deliverablesBody,
       deliverablesType: args.deliverablesType,
+      environment: getCommerceEnvironment(),
       etaAt: args.etaAt,
       intentKey: intent.intentKey,
       isCollective: false,
       price: args.price,
       proposerKind: args.proposerKind ?? "human",
       proposerUserId,
+      scenarioId: getScenarioId("custom_scoped_work"),
+      scenarioType: "custom_scoped_work",
       status: "submitted",
     });
 
@@ -87,6 +104,21 @@ export const submitProposal = mutation({
       type: "proposal.submitted",
     });
 
+    await recordTransactionAuditEvent(ctx, {
+      intentId: intent._id,
+      message: `${proposer?.displayName ?? args.ownerDisplayName ?? "Worker"} submitted a proposal.`,
+      metadata: {
+        currency: args.currency,
+        etaAt: args.etaAt,
+        price: args.price,
+      },
+      proposalId,
+      scenarioType: "custom_scoped_work",
+      source: "proposal",
+      stage: "proposal",
+      status: "passed",
+    });
+
     await refreshProfileAnalyticsForUser(ctx, proposerUserId);
     await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
 
@@ -115,6 +147,69 @@ export const approveProposal = mutation({
 
     const now = Date.now();
     const acceptedProposerName = await getUserDisplayName(ctx, proposal.proposerUserId);
+    const acceptedProposerProfileId = await getProfileIdForUser(
+      ctx,
+      proposal.proposerUserId,
+    );
+    const ownerBuyerWalletAccountId = scenarioNeedsBuyerWallet(
+      "custom_scoped_work",
+      proposal.price,
+    )
+      ? await getDefaultBuyerWalletAccountId(ctx, intent.ownerUserId)
+      : undefined;
+    const proposerPayoutWalletAccountId = scenarioNeedsPayoutWallet(
+      "custom_scoped_work",
+      proposal.price,
+    )
+      ? await getDefaultPayoutWalletAccountId(ctx, proposal.proposerUserId)
+      : undefined;
+
+    if (scenarioNeedsBuyerWallet("custom_scoped_work", proposal.price) && !ownerBuyerWalletAccountId) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "The buyer needs a connected wallet before approving paid work.",
+        metadata: {
+          proposalId: args.proposalId,
+          price: proposal.price,
+        },
+        proposalId: proposal._id,
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "blocked",
+      });
+
+      return {
+        approved: false,
+        reason: "missing_buyer_wallet" as const,
+      };
+    }
+
+    if (
+      scenarioNeedsPayoutWallet("custom_scoped_work", proposal.price) &&
+      !proposerPayoutWalletAccountId
+    ) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "The selected worker needs a payout wallet before approval.",
+        metadata: {
+          proposalId: args.proposalId,
+          proposerUserId: proposal.proposerUserId,
+        },
+        proposalId: proposal._id,
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "blocked",
+      });
+
+      return {
+        approved: false,
+        reason: "missing_payout_wallet" as const,
+      };
+    }
 
     const relatedProposals = await ctx.db
       .query("proposals")
@@ -139,12 +234,48 @@ export const approveProposal = mutation({
       updatedAt: now,
     });
 
-    await ctx.db.insert("fulfillments", {
+    const transactionId = await ensureWorkTransaction(ctx, {
+      amount: proposal.price,
+      buyerUserId: intent.ownerUserId,
+      buyerWalletAccountId: ownerBuyerWalletAccountId,
+      currency: proposal.currency,
+      environment: getCommerceEnvironment(),
+      intentId: intent._id,
+      intentKey: intent.intentKey,
+      proposalId: proposal._id,
+      sellerProfileId: acceptedProposerProfileId,
+      sellerUserId: proposal.proposerUserId,
+      status: "active",
+      titleSnapshot: intent.title,
+    });
+
+    const fulfillmentId = await ctx.db.insert("fulfillments", {
       acceptedProposalId: args.proposalId,
+      environment: getCommerceEnvironment(),
       fulfillerUserId: proposal.proposerUserId,
       intentKey: intent.intentKey,
       ownerUserId: intent.ownerUserId,
+      scenarioId: getScenarioId("custom_scoped_work"),
+      scenarioType: "custom_scoped_work",
+      settlementStatus: proposal.price > 0 ? "pending" : "not_applicable",
       status: "approved",
+      transactionId,
+    });
+
+    await ensureSettlementForTransaction(ctx, {
+      amount: proposal.price,
+      buyerWalletAccountId: ownerBuyerWalletAccountId,
+      currency: proposal.currency,
+      environment: getCommerceEnvironment(),
+      payoutWalletAccountId: proposerPayoutWalletAccountId,
+      protocol: null,
+      status: proposal.price > 0 ? "pending" : "not_applicable",
+      transactionId,
+    });
+
+    await ctx.db.patch(transactionId, {
+      fulfillmentId,
+      updatedAt: now,
     });
 
     await ctx.db.insert("chatMessages", {
@@ -169,6 +300,52 @@ export const approveProposal = mutation({
         proposerUserId: proposal.proposerUserId,
       }),
       type: "proposal.approved",
+    });
+
+    if (proposal.price > 0) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "Buyer and payout wallets are present for this paid proposal.",
+        metadata: {
+          buyerWalletAccountId: ownerBuyerWalletAccountId,
+          payoutWalletAccountId: proposerPayoutWalletAccountId,
+        },
+        proposalId: proposal._id,
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "passed",
+        transactionId,
+      });
+    }
+
+    await recordTransactionAuditEvent(ctx, {
+      fulfillmentId,
+      intentId: intent._id,
+      message: `${acceptedProposerName ?? "A proposer"} was approved and work is now active.`,
+      metadata: {
+        price: proposal.price,
+        proposalId: proposal._id,
+      },
+      proposalId: proposal._id,
+      scenarioType: "custom_scoped_work",
+      source: "proposal",
+      stage: "approval",
+      status: "passed",
+      transactionId,
+    });
+
+    await recordTransactionAuditEvent(ctx, {
+      fulfillmentId,
+      intentId: intent._id,
+      message: "The request moved into active fulfillment.",
+      proposalId: proposal._id,
+      scenarioType: "custom_scoped_work",
+      source: "fulfillment",
+      stage: "fulfillment",
+      status: "info",
+      transactionId,
     });
 
     await refreshProfileAnalyticsForUser(ctx, proposal.proposerUserId);

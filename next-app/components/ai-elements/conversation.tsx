@@ -1,24 +1,64 @@
 "use client"
 
+import GradualBlur from "@/components/GradualBlur"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { UIMessage } from "ai"
 import { ArrowDownIcon, DownloadIcon } from "lucide-react"
-import type { ComponentProps } from "react"
-import { useCallback } from "react"
-import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom"
+import type { ComponentProps, ReactNode } from "react"
+import { useCallback, useEffect, useState } from "react"
+import {
+  StickToBottom,
+  useStickToBottomContext,
+  type StickToBottomContext,
+} from "use-stick-to-bottom"
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>
+type ConversationRenderChildren = Extract<
+  ConversationProps["children"],
+  (context: StickToBottomContext) => ReactNode
+>
 
-export const Conversation = ({ className, ...props }: ConversationProps) => (
-  <StickToBottom
-    className={cn("relative flex-1 overflow-y-hidden", className)}
-    initial="smooth"
-    resize="smooth"
-    role="log"
-    {...props}
-  />
-)
+export const Conversation = ({
+  className,
+  children,
+  ...props
+}: ConversationProps) => {
+  let content: ConversationProps["children"]
+
+  if (typeof children === "function") {
+    const renderChildren = children as ConversationRenderChildren
+    content = function renderConversationChildren(
+      context: StickToBottomContext
+    ) {
+      return (
+        <>
+          {renderChildren(context)}
+          <ConversationBlurOverlays />
+        </>
+      )
+    }
+  } else {
+    content = (
+      <>
+        {children}
+        <ConversationBlurOverlays />
+      </>
+    )
+  }
+
+  return (
+    <StickToBottom
+      className={cn("relative flex-1 overflow-y-hidden", className)}
+      initial="smooth"
+      resize="smooth"
+      role="log"
+      {...props}
+    >
+      {content}
+    </StickToBottom>
+  )
+}
 
 export type ConversationContentProps = ComponentProps<
   typeof StickToBottom.Content
@@ -85,7 +125,7 @@ export const ConversationScrollButton = ({
     !isAtBottom && (
       <Button
         className={cn(
-          "absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full bg-background/90 backdrop-blur-sm hover:bg-muted",
+          "absolute bottom-4 left-[50%] z-[3] translate-x-[-50%] rounded-full bg-background/90 backdrop-blur-sm hover:bg-muted",
           className
         )}
         onClick={handleScrollToBottom}
@@ -97,6 +137,72 @@ export const ConversationScrollButton = ({
         <ArrowDownIcon className="size-4" />
       </Button>
     )
+  )
+}
+
+const ConversationBlurOverlays = () => {
+  const { contentRef, isAtBottom, scrollRef } = useStickToBottomContext()
+  const [showTopBlur, setShowTopBlur] = useState(false)
+  const [showBottomBlur, setShowBottomBlur] = useState(false)
+
+  useEffect(() => {
+    const viewport = scrollRef.current
+    if (!viewport) {
+      return
+    }
+
+    const updateBlurState = () => {
+      const scrollTop = viewport.scrollTop
+      const hasOverflow = viewport.scrollHeight - viewport.clientHeight > 1
+
+      setShowTopBlur(scrollTop > 1)
+      setShowBottomBlur(hasOverflow && !isAtBottom)
+    }
+
+    updateBlurState()
+
+    const resizeObserver = new ResizeObserver(updateBlurState)
+    resizeObserver.observe(viewport)
+
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current)
+    }
+
+    viewport.addEventListener("scroll", updateBlurState, { passive: true })
+    window.addEventListener("resize", updateBlurState)
+
+    return () => {
+      resizeObserver.disconnect()
+      viewport.removeEventListener("scroll", updateBlurState)
+      window.removeEventListener("resize", updateBlurState)
+    }
+  }, [contentRef, isAtBottom, scrollRef])
+
+  return (
+    <>
+      {showTopBlur ? (
+        <GradualBlur
+          className="rounded-t-[inherit]"
+          divCount={3}
+          height="3rem"
+          opacity={1}
+          position="top"
+          strength={2}
+          zIndex={2}
+        />
+      ) : null}
+      {showBottomBlur ? (
+        <GradualBlur
+          className="rounded-b-[inherit]"
+          divCount={3}
+          height="3rem"
+          opacity={1}
+          position="bottom"
+          strength={2}
+          zIndex={2}
+        />
+      ) : null}
+    </>
   )
 }
 

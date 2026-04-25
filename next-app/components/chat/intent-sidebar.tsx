@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { useWallets } from "@privy-io/react-auth"
 import { signIn, signOut, useSession } from "next-auth/react"
@@ -8,14 +9,15 @@ import {
   LogInIcon,
   LogOutIcon,
   MessageSquarePlusIcon,
+  PanelLeftCloseIcon,
   ShieldAlertIcon,
   UserIcon,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/ui/logo"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs"
 import type { RequestNavigationView } from "@/components/chat/request-notifications"
 
@@ -23,6 +25,7 @@ import { RequestListCard } from "./request-list-card"
 
 type IntentSidebarProps = {
   intents: SidebarIntentPreview[]
+  onCollapse?: () => void
   onDeselect: () => void
   onOpenPendingApprovals?: () => void
   onSelect: (intent: SidebarIntentPreview, view?: RequestNavigationView) => void
@@ -32,6 +35,7 @@ type IntentSidebarProps = {
 
 export function IntentSidebar({
   intents,
+  onCollapse,
   onDeselect,
   onOpenPendingApprovals,
   onSelect,
@@ -65,44 +69,66 @@ export function IntentSidebar({
   const connectedAddress = wallets[0]?.address ?? null
 
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden border border-border">
-      <div className="space-y-3 border-b border-border px-4 py-4">
-        <div className="space-y-1">
-          <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
-            Requests
-          </p>
-          <h2 className="text-sm font-medium">Active work</h2>
+    <aside className="flex h-full min-h-0 flex-col bg-foreground/5 text-foreground">
+      <div className="flex h-16 items-center border-b border-border px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center border justify-center rounded-lg">
+            <Logo size={24} />
+          </span>
         </div>
+        {onCollapse ? (
+          <button
+            aria-label="Collapse requests sidebar"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            onClick={onCollapse}
+            type="button"
+          >
+            <PanelLeftCloseIcon className="size-4" />
+          </button>
+        ) : null}
+      </div>
+
+      <div className="space-y-2 px-4 py-4">
         <Button
+          size={"lg"}
           className="w-full justify-start"
           onClick={onDeselect}
           type="button"
-          variant="outline"
         >
           <MessageSquarePlusIcon />
           New chat
         </Button>
         {pendingApprovalCount > 0 ? (
           <Button
+            size={"lg"}
             className="w-full justify-between"
             onClick={onOpenPendingApprovals}
             type="button"
-            variant="secondary"
+            variant="ghost"
           >
             <span className="flex items-center gap-2">
-              <ShieldAlertIcon />
+              <ShieldAlertIcon className="size-4" />
               Pending approvals
             </span>
-            <span className="text-primary">{pendingApprovalCount}</span>
+            <span className="font-mono text-xs text-primary">
+              {pendingApprovalCount}
+            </span>
           </Button>
         ) : null}
       </div>
 
+      <div className=" px-4 py-3">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+          Your requests
+        </p>
+      </div>
+
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-1 p-1">
+        <div className="space-y-2 px-4 pb-4">
           {intents.length === 0 ? (
-            <div className="px-4 py-5 text-sm text-muted-foreground">
-              Active requests appear here after the first tracked ask.
+            <div className="rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+              Active requests appear here once Boreal turns a live ask into
+              tracked work.
             </div>
           ) : (
             intents.map((intent) => {
@@ -121,17 +147,15 @@ export function IntentSidebar({
         </div>
       </ScrollArea>
 
-      <Separator />
-
-      <div className="p-4">
+      <div className="border-t border-border px-4 py-4">
         {isAuthenticated && user ? (
           <div className="flex items-center gap-3">
-            <Avatar size="sm">
+            <Avatar className="size-10 rounded-lg border border-border bg-background">
               {user.image ? (
                 <AvatarImage alt={user.name ?? "X user"} src={user.image} />
               ) : null}
-              <AvatarFallback>
-                <UserIcon />
+              <AvatarFallback className="rounded-lg">
+                <UserIcon className="size-4" />
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
@@ -149,7 +173,7 @@ export function IntentSidebar({
               onClick={handleSignOut}
               size="icon-sm"
               type="button"
-              variant="ghost"
+              variant="outline"
             >
               {isLoading ? (
                 <LoaderIcon className="animate-spin" />

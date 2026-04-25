@@ -53,20 +53,20 @@ export const Logo: React.FC<IconSvgProps> = ({ size = 18, width, height, ...prop
         <path d="M4.5 1024L879.5 730.5L881.5 1024H4.5Z" fill="url(#paint3_linear_12_41)" />
         <defs>
             <linearGradient id="paint0_linear_12_41" x1="701" y1="376" x2="381" y2="376" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#01FDFF" />
-                <stop offset="1" stop-color="#62FFCE" />
+                <stop stopColor="#01FDFF" />
+                <stop offset="1" stopColor="#62FFCE" />
             </linearGradient>
             <linearGradient id="paint1_linear_12_41" x1="255" y1="519.5" x2="701" y2="534" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#22C1F3" />
-                <stop offset="1" stop-color="#01FDFF" />
+                <stop stopColor="#22C1F3" />
+                <stop offset="1" stopColor="#01FDFF" />
             </linearGradient>
             <linearGradient id="paint2_linear_12_41" x1="879" y1="522" x2="255" y2="522" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#477BE0" />
-                <stop offset="1" stop-color="#23C1F0" />
+                <stop stopColor="#477BE0" />
+                <stop offset="1" stopColor="#23C1F0" />
             </linearGradient>
             <linearGradient id="paint3_linear_12_41" x1="4" y1="1024" x2="881" y2="1024" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#6537C6" />
-                <stop offset="1" stop-color="#3D73CB" />
+                <stop stopColor="#6537C6" />
+                <stop offset="1" stopColor="#3D73CB" />
             </linearGradient>
         </defs>
     </svg>

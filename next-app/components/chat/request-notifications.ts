@@ -19,14 +19,11 @@ const emptyCounts: RequestNotificationCounts = {
 export function getPreviewRequestNotificationCounts(
   intent: SidebarIntentPreview
 ): RequestNotificationCounts {
-  const participants = intent.participants.length
+  const participants = intent.participants.filter(
+    (participant) => participant.status !== "owner"
+  ).length
   const workspace =
-    intent.status === "proposed" ||
-    intent.status === "open" ||
-    intent.status === "blocked" ||
-    (intent.status === "fulfilled" && intent.reviewRating === null)
-      ? 1
-      : 0
+    intent.status === "fulfilled" && intent.reviewRating === null ? 1 : 0
   const activity =
     intent.status === "claimed" || intent.status === "in_progress" ? 1 : 0
 

@@ -23,7 +23,7 @@ export const listSidebar = query({
         category: intent.category,
         conversationId: intent.conversationId ?? null,
         needsClarification: intent.needsClarification ?? false,
-        participants: await getIntentParticipantsPreview(ctx, intent.intentKey),
+        participants: await getIntentParticipantsPreview(ctx, intent),
         provider: intent.provider,
         requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
         reviewRating: intent.reviewRating ?? null,
@@ -68,7 +68,7 @@ export const listMarketplace = query({
         conversationId: intent.conversationId ?? null,
         isOwner: !!(ownerUserId && intent.ownerUserId === ownerUserId),
         needsClarification: intent.needsClarification ?? false,
-        participants: await getIntentParticipantsPreview(ctx, intent.intentKey),
+        participants: await getIntentParticipantsPreview(ctx, intent),
         provider: intent.provider,
         requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
         reviewRating: intent.reviewRating ?? null,
@@ -583,30 +583,33 @@ function parseJson(value: string | undefined) {
 async function getIntentParticipantsPreview(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: any,
-  intentKey: string,
+  intent: {
+    assignedAgent?: string;
+    intentKey: string;
+    ownerUserId?: string;
+    status: string;
+  },
 ) {
-  const acceptedProposals = await ctx.db
+  const acceptedProposal = await ctx.db
     .query("proposals")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .withIndex("by_intentKey_and_status", (queryBuilder: any) =>
-      queryBuilder.eq("intentKey", intentKey).eq("status", "accepted"),
+      queryBuilder.eq("intentKey", intent.intentKey).eq("status", "accepted"),
     )
-    .collect();
+    .first();
 
-  const previews = await Promise.all(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    acceptedProposals.map(async (proposal: any) => {
-      const user = proposal.proposerUserId ? await ctx.db.get(proposal.proposerUserId) : null;
-      return {
-        displayName: user?.displayName ?? "Participant",
-        externalId: user?.externalId ?? null,
-        handle: user?.handle ?? null,
-        kind: proposal.proposerKind,
-      };
-    }),
-  );
+  const participants = await getRequestParticipants(ctx, intent, acceptedProposal);
 
-  return previews.slice(0, 4);
+  return participants
+    .filter((participant) => participant.status !== "owner")
+    .map((participant) => ({
+      displayName: participant.displayName,
+      externalId: participant.externalId,
+      handle: participant.handle,
+      kind: participant.kind,
+      status: participant.status,
+    }))
+    .slice(0, 4);
 }
 
 async function getOwnerUserId(

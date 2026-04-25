@@ -142,6 +142,11 @@ export function WorkspacePanel({
   const supplyListings = ((deferredSearch
     ? searchedSupplyListings
     : defaultSupplyListings) ?? []) as CatalogEntry[]
+  const isWorkersLoading =
+    activeTab === "workers" &&
+    (deferredSearch
+      ? searchedSupplyListings === undefined
+      : defaultSupplyListings === undefined)
   const publicRequestsResult = useQuery(
     convexFunctionRefs.listMarketplaceIntents,
     {
@@ -163,13 +168,15 @@ export function WorkspacePanel({
       ),
     [publicRequests]
   )
+  const isRequestsLoading =
+    activeTab === "requests" && publicRequestsResult === undefined
   const borealStats = useQuery(convexFunctionRefs.getBorealAgentStats, {})
   const selectedProfile = useQuery(
     convexFunctionRefs.getPublicProfile,
     selectedProfileId && selectedProfileId !== "boreal-agent"
       ? { ownerExternalId, profileId: selectedProfileId }
       : "skip"
-  ) as WorkerProfileDetail
+  ) as WorkerProfileDetail | undefined
 
   const selectedProfileDetail = useMemo(() => {
     if (selectedProfileId === "boreal-agent") {
@@ -181,12 +188,14 @@ export function WorkspacePanel({
 
   if (!isMounted) {
     return (
-      <aside className="flex min-h-0 flex-col overflow-hidden border border-border">
-        <div className="border-b border-border px-4 py-4">
-          <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
-            Directory
-          </p>
-          <h2 className="mt-2 text-sm font-medium">Loading public surface</h2>
+      <aside className="flex min-h-0 flex-col overflow-hidden border border-border bg-background">
+        <div className="flex h-16 items-center border-b border-border px-4">
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-background">
+              <SearchIcon className="size-4 text-muted-foreground" />
+            </span>
+            <h2 className="text-sm font-medium">Discovery</h2>
+          </div>
         </div>
       </aside>
     )
@@ -194,29 +203,29 @@ export function WorkspacePanel({
 
   return (
     <>
-      <aside className="flex h-full flex-col overflow-hidden border border-border">
+      <aside className="flex h-full flex-col overflow-hidden border border-border bg-background">
         <Tabs
           className="min-h-0 flex-1 gap-0"
           onValueChange={(value) => onTabChange(value as WorkspaceTab)}
           value={activeTab}
         >
-          <div className="space-y-4 p-3">
-            <div className="space-y-1 px-1">
-              <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
-                Discovery
-              </p>
-              <h2 className="text-sm font-medium">
-                Search public supply and requests
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Search public supply, compare offers, and jump into open
-                requests from here.
-              </p>
+          <div className="flex h-16 items-center border-b border-border px-4">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-background">
+                <SearchIcon className="size-4 text-muted-foreground" />
+              </span>
+              <h2 className="text-sm font-medium">Discovery</h2>
             </div>
+          </div>
 
-            <TabsList className="w-full" variant="line">
-              <TabsTrigger value="workers">Supply</TabsTrigger>
-              <TabsTrigger value="requests">Requests</TabsTrigger>
+          <div className="space-y-3 border-b border-border p-3">
+            <TabsList className="h-auto w-full" variant="button">
+              <TabsTrigger className="flex-1" value="workers">
+                Supply
+              </TabsTrigger>
+              <TabsTrigger className="flex-1" value="requests">
+                Requests
+              </TabsTrigger>
             </TabsList>
 
             <div className="relative">
@@ -237,7 +246,16 @@ export function WorkspacePanel({
           <TabsContent className="min-h-0" value="workers">
             <ScrollArea className="h-full">
               <div className="space-y-0.5 p-1">
-                {supplyListings.length === 0 ? (
+                {isWorkersLoading ? (
+                  <DiscoveryPanelLoader
+                    subtitle={
+                      deferredSearch
+                        ? "Searching public supply..."
+                        : "Loading public supply..."
+                    }
+                    variant="workers"
+                  />
+                ) : supplyListings.length === 0 ? (
                   <EmptyBlock
                     subtitle="Listings will appear here once public supply is published."
                     title="No public supply yet"
@@ -262,7 +280,16 @@ export function WorkspacePanel({
           <TabsContent className="min-h-0" value="requests">
             <ScrollArea className="h-full">
               <div className="space-y-0.5 p-1">
-                {visiblePublicRequests.length === 0 ? (
+                {isRequestsLoading ? (
+                  <DiscoveryPanelLoader
+                    subtitle={
+                      deferredSearch
+                        ? "Searching public requests..."
+                        : "Loading public requests..."
+                    }
+                    variant="requests"
+                  />
+                ) : visiblePublicRequests.length === 0 ? (
                   <EmptyBlock
                     subtitle="Open public asks and unresolved work will appear here."
                     title="No public requests found"
@@ -306,10 +333,7 @@ export function WorkspacePanel({
                 />
               )
             ) : (
-              <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-                <LoaderIcon className="size-4 animate-spin" />
-                <span>Loading profile</span>
-              </div>
+              <ProfileDialogLoader />
             )}
           </div>
         </DialogContent>
@@ -459,6 +483,91 @@ function EmptyBlock({ subtitle, title }: { subtitle: string; title: string }) {
       </div>
       <p className="mt-4 text-sm font-medium">{title}</p>
       <p className="mt-2 text-xs text-muted-foreground">{subtitle}</p>
+    </div>
+  )
+}
+
+function DiscoveryPanelLoader({
+  subtitle,
+  variant,
+}: {
+  subtitle: string
+  variant: WorkspaceTab
+}) {
+  return (
+    <div className="space-y-3 p-2">
+      <div className="flex items-center gap-2 border border-border/70 bg-background px-3 py-2.5 text-xs text-muted-foreground">
+        <LoaderIcon className="size-4 animate-spin" />
+        <span>{subtitle}</span>
+      </div>
+
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          className="space-y-3 border border-border/40 bg-background px-3 py-3"
+          key={`${variant}-${index}`}
+        >
+          <div className="flex items-start gap-3">
+            <div className="size-10 shrink-0 animate-pulse border border-border bg-muted/50" />
+            <div className="min-w-0 flex-1 space-y-2.5">
+              <div className="flex flex-wrap gap-2">
+                <div className="h-4 w-32 animate-pulse bg-muted/60" />
+                <div className="h-4 w-[4.5rem] animate-pulse bg-muted/40" />
+              </div>
+              <div className="h-3 w-5/6 animate-pulse bg-muted/45" />
+              <div className="h-3 w-2/3 animate-pulse bg-muted/35" />
+              {variant === "workers" ? (
+                <>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="h-3 w-16 animate-pulse bg-muted/35" />
+                    <div className="h-3 w-20 animate-pulse bg-muted/35" />
+                    <div className="h-3 w-24 animate-pulse bg-muted/35" />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <div className="h-8 w-24 animate-pulse border border-border bg-muted/35" />
+                    <div className="h-8 w-20 animate-pulse border border-border bg-muted/25" />
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <div className="h-3 w-[4.5rem] animate-pulse bg-muted/35" />
+                  <div className="h-3 w-24 animate-pulse bg-muted/35" />
+                  <div className="h-3 w-14 animate-pulse bg-muted/35" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ProfileDialogLoader() {
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <LoaderIcon className="size-4 animate-spin" />
+        <span>Loading profile</span>
+      </div>
+      <div className="space-y-4">
+        <div className="h-16 w-16 animate-pulse rounded-2xl border border-border bg-muted/50" />
+        <div className="space-y-2">
+          <div className="h-7 w-48 animate-pulse bg-muted/55" />
+          <div className="h-4 w-5/6 animate-pulse bg-muted/40" />
+          <div className="h-4 w-2/3 animate-pulse bg-muted/30" />
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            className="space-y-2 border border-border/60 bg-background px-4 py-4"
+            key={index}
+          >
+            <div className="h-3 w-24 animate-pulse bg-muted/35" />
+            <div className="h-6 w-20 animate-pulse bg-muted/55" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

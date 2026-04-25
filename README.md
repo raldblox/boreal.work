@@ -11,6 +11,8 @@ Boreal is building the request-native commerce layer for human and agent work.  
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `CATEGORY_LANGUAGE_RESEARCH.md` maps the current market language around agentic commerce, work marketplaces, and Boreal's request-native positioning.
 - `BRAND_SYSTEM.md` consolidates Boreal's current brand foundation, voice rules, messaging hierarchy, and reusable language.
+- `VISUAL_IDENTITY.md` records Boreal's current visual direction from the live app tokens, logo, typography, and layout language.
+- `MESSAGING_MATRIX.md` turns Boreal's positioning into audience-specific messaging for buyers, sellers, agents, partners, and investors.
 - `POSITIONING_TRIAGE.md` is the working map for reconciling the current repo docs with reusable material from earlier Boreal directories.
 - `ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md` is precursor research behind Boreal's "intent disappears" thesis.  Keep it for historical context, not current product direction.
 

@@ -11,6 +11,7 @@
 import type * as artifacts from "../artifacts.js";
 import type * as chats from "../chats.js";
 import type * as commerce from "../commerce.js";
+import type * as commerceCore from "../commerceCore.js";
 import type * as fulfillments from "../fulfillments.js";
 import type * as intents from "../intents.js";
 import type * as matching from "../matching.js";
@@ -19,7 +20,9 @@ import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
 import type * as serviceProviders from "../serviceProviders.js";
 import type * as supplies from "../supplies.js";
+import type * as transactionScenarios from "../transactionScenarios.js";
 import type * as validators from "../validators.js";
+import type * as wallets from "../wallets.js";
 
 import type {
   ApiFromModules,
@@ -31,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   artifacts: typeof artifacts;
   chats: typeof chats;
   commerce: typeof commerce;
+  commerceCore: typeof commerceCore;
   fulfillments: typeof fulfillments;
   intents: typeof intents;
   matching: typeof matching;
@@ -39,7 +43,9 @@ declare const fullApi: ApiFromModules<{
   proposals: typeof proposals;
   serviceProviders: typeof serviceProviders;
   supplies: typeof supplies;
+  transactionScenarios: typeof transactionScenarios;
   validators: typeof validators;
+  wallets: typeof wallets;
 }>;
 
 /**

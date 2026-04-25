@@ -20,6 +20,9 @@ type GradualBlurProps = PropsWithChildren<{
   mobileWidth?: string;
   tabletWidth?: string;
   desktopWidth?: string;
+  backgroundFade?: boolean;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
 
   preset?:
     | 'top'
@@ -57,6 +60,9 @@ const DEFAULT_CONFIG: Partial<GradualBlurProps> = {
   opacity: 1,
   curve: 'linear',
   responsive: false,
+  backgroundFade: true,
+  backgroundColor: 'var(--background)',
+  backgroundOpacity: 0.92,
   target: 'parent',
   className: '',
   style: {}
@@ -104,6 +110,8 @@ const mergeConfigs = (...configs: Partial<GradualBlurProps>[]): Partial<GradualB
   return configs.reduce((acc, config) => ({ ...acc, ...config }), {});
 };
 
+type ResponsiveDimensionKey = 'height' | 'width';
+
 const getGradientDirection = (position: string): string => {
   const directions: Record<string, string> = {
     top: 'to top',
@@ -114,29 +122,57 @@ const getGradientDirection = (position: string): string => {
   return directions[position] || 'to bottom';
 };
 
-const debounce = <T extends (...a: any[]) => void>(fn: T, wait: number) => {
+const getBackgroundFadeDirection = (position: string): string => {
+  const directions: Record<string, string> = {
+    top: 'to bottom',
+    bottom: 'to top',
+    left: 'to right',
+    right: 'to left'
+  };
+  return directions[position] || 'to bottom';
+};
+
+const mixWithTransparent = (color: string, opacity: number): string => {
+  const clampedOpacity = Math.max(0, Math.min(1, opacity));
+  return `color-mix(in oklch, ${color} ${Math.round(clampedOpacity * 100)}%, transparent)`;
+};
+
+const debounce = <T extends (...a: unknown[]) => void>(fn: T, wait: number) => {
   let t: ReturnType<typeof setTimeout>;
   return (...a: Parameters<T>) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...a), wait);
   };
 };
+
+const RESPONSIVE_DIMENSION_KEYS = {
+  height: {
+    mobile: 'mobileHeight',
+    tablet: 'tabletHeight',
+    desktop: 'desktopHeight'
+  },
+  width: {
+    mobile: 'mobileWidth',
+    tablet: 'tabletWidth',
+    desktop: 'desktopWidth'
+  }
+} as const;
+
 const useResponsiveDimension = (
   responsive: boolean | undefined,
   config: Partial<GradualBlurProps>,
-  key: keyof GradualBlurProps
+  key: ResponsiveDimensionKey
 ) => {
-  const [val, setVal] = useState<any>(config[key]);
+  const [val, setVal] = useState<string | undefined>(config[key]);
   useEffect(() => {
     if (!responsive) return;
     const calc = () => {
       const w = window.innerWidth;
-      let v: any = config[key];
-      const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-      const k = cap(key as string);
-      if (w <= 480 && (config as any)['mobile' + k]) v = (config as any)['mobile' + k];
-      else if (w <= 768 && (config as any)['tablet' + k]) v = (config as any)['tablet' + k];
-      else if (w <= 1024 && (config as any)['desktop' + k]) v = (config as any)['desktop' + k];
+      let v = config[key];
+      const responsiveKeys = RESPONSIVE_DIMENSION_KEYS[key];
+      if (w <= 480 && config[responsiveKeys.mobile]) v = config[responsiveKeys.mobile];
+      else if (w <= 768 && config[responsiveKeys.tablet]) v = config[responsiveKeys.tablet];
+      else if (w <= 1024 && config[responsiveKeys.desktop]) v = config[responsiveKeys.desktop];
       setVal(v);
     };
     const deb = debounce(calc, 100);
@@ -144,7 +180,7 @@ const useResponsiveDimension = (
     window.addEventListener('resize', deb);
     return () => window.removeEventListener('resize', deb);
   }, [responsive, config, key]);
-  return responsive ? val : (config as any)[key];
+  return responsive ? val : config[key];
 };
 
 const useIntersectionObserver = (ref: React.RefObject<HTMLDivElement>, shouldObserve: boolean = false) => {
@@ -223,6 +259,21 @@ const GradualBlur: React.FC<GradualBlurProps> = props => {
     return divs;
   }, [config, isHovered]);
 
+  const backgroundGradientStyle = useMemo(() => {
+    if (!config.backgroundFade) {
+      return null;
+    }
+
+    const direction = getBackgroundFadeDirection(config.position);
+    const strongColor = mixWithTransparent(config.backgroundColor, config.backgroundOpacity);
+    const softColor = mixWithTransparent(config.backgroundColor, config.backgroundOpacity * 0.45);
+
+    return {
+      backgroundImage: `linear-gradient(${direction}, ${strongColor} 0%, ${softColor} 48%, transparent 100%)`,
+      borderRadius: 'inherit'
+    } as CSSProperties;
+  }, [config.backgroundColor, config.backgroundFade, config.backgroundOpacity, config.position]);
+
   const containerStyle: CSSProperties = useMemo(() => {
     const isVertical = ['top', 'bottom'].includes(config.position);
     const isHorizontal = ['left', 'right'].includes(config.position);
@@ -254,7 +305,7 @@ const GradualBlur: React.FC<GradualBlurProps> = props => {
     return baseStyle;
   }, [config, responsiveHeight, responsiveWidth, isVisible]);
 
-  const { hoverIntensity, animated, onAnimationComplete, duration } = config as any;
+  const { hoverIntensity, animated, onAnimationComplete, duration } = config;
   useEffect(() => {
     if (isVisible && animated === 'scroll' && onAnimationComplete) {
       const t = setTimeout(() => onAnimationComplete(), parseFloat(duration) * 1000);
@@ -270,16 +321,24 @@ const GradualBlur: React.FC<GradualBlurProps> = props => {
       onMouseEnter={hoverIntensity ? () => setIsHovered(true) : undefined}
       onMouseLeave={hoverIntensity ? () => setIsHovered(false) : undefined}
     >
+      {backgroundGradientStyle ? <div className="absolute inset-0" style={backgroundGradientStyle} /> : null}
       <div className="relative w-full h-full">{blurDivs}</div>
       {props.children && <div className="relative">{props.children}</div>}
     </div>
   );
 };
 
-const GradualBlurMemo = React.memo(GradualBlur);
+type GradualBlurComponent = React.MemoExoticComponent<typeof GradualBlur> & {
+  PRESETS: typeof PRESETS;
+  CURVE_FUNCTIONS: typeof CURVE_FUNCTIONS;
+};
+
+const GradualBlurMemo = Object.assign(React.memo(GradualBlur), {
+  PRESETS,
+  CURVE_FUNCTIONS
+}) as GradualBlurComponent;
+
 GradualBlurMemo.displayName = 'GradualBlur';
-(GradualBlurMemo as any).PRESETS = PRESETS;
-(GradualBlurMemo as any).CURVE_FUNCTIONS = CURVE_FUNCTIONS;
 export default GradualBlurMemo;
 
 const injectStyles = () => {

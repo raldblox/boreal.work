@@ -45,6 +45,7 @@ export type SidebarIntentPreview = {
     externalId: string | null;
     handle: string | null;
     kind: string;
+    status: string;
   }>;
   provider: string;
   requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
@@ -235,6 +236,16 @@ export type MyProfileRecord = {
     handle: string | null;
   };
 } | null;
+
+export type WalletAccountRecord = Array<{
+  _id: string;
+  environment: "devnet" | "mainnet" | "testnet";
+  isDefaultBuyer: boolean;
+  isDefaultPayout: boolean;
+  roles: Array<"buyer" | "connected" | "payout">;
+  walletAddress: string;
+  walletProvider: "privy";
+}>;
 
 export type ProfileAnalytics = {
   activeCount: number;
@@ -600,6 +611,11 @@ export const convexFunctionRefs = {
     { ownerExternalId?: string },
     MyProfileRecord
   >("profiles:getMyProfile"),
+  getMyWalletAccounts: makeFunctionReference<
+    "query",
+    { ownerExternalId?: string },
+    WalletAccountRecord
+  >("wallets:getMyWalletAccounts"),
   getPublicProfile: makeFunctionReference<
     "query",
     { ownerExternalId?: string; profileId: string },
@@ -629,7 +645,10 @@ export const convexFunctionRefs = {
   approveProposal: makeFunctionReference<
     "mutation",
     { intentId: string; ownerExternalId?: string; proposalId: string },
-    { approved: boolean }
+    {
+      approved: boolean;
+      reason?: "missing_buyer_wallet" | "missing_payout_wallet";
+    }
   >("proposals:approveProposal"),
   rateRequest: makeFunctionReference<
     "mutation",
@@ -735,7 +754,11 @@ export const convexFunctionRefs = {
   checkoutCart: makeFunctionReference<
     "mutation",
     { ownerDisplayName?: string; ownerExternalId?: string; sourceIntentId?: string },
-    { checkoutId: string | null; placed: boolean }
+    {
+      checkoutId: string | null;
+      placed: boolean;
+      reason?: "missing_buyer_wallet";
+    }
   >("commerce:checkoutCart"),
   beginPaymentAttempt: makeFunctionReference<
     "mutation",
@@ -799,9 +822,30 @@ export const convexFunctionRefs = {
     },
     { profileId: string | null; saved: boolean }
   >("profiles:upsertMyProfile"),
+  syncWalletAccount: makeFunctionReference<
+    "mutation",
+    {
+      environment?: "devnet" | "mainnet" | "testnet";
+      ownerDisplayName?: string;
+      ownerExternalId?: string;
+      roles?: Array<"buyer" | "connected" | "payout">;
+      setAsDefaultBuyer?: boolean;
+      setAsDefaultPayout?: boolean;
+      walletAddress: string;
+    },
+    { synced: boolean; walletAccountId: string | null }
+  >("wallets:syncWalletAccount"),
+  setDefaultPayoutWalletAccount: makeFunctionReference<
+    "mutation",
+    { ownerExternalId?: string; walletAccountId: string },
+    { updated: boolean }
+  >("wallets:setDefaultPayoutWalletAccount"),
   createSupplyEntry: makeFunctionReference<
     "mutation",
     {
+      acpCheckoutUrl?: string;
+      a2aEndpoint?: string;
+      agentReady?: boolean;
       availabilityStatus?: "available" | "limited" | "unavailable";
       brand?: string;
       capabilityTags: string[];
@@ -820,17 +864,32 @@ export const convexFunctionRefs = {
       ownerDisplayName?: string;
       ownerExternalId?: string;
       ownerHandle?: string;
+      offerSlug?: string;
       outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
       priceAmount?: number;
       priceMax?: number;
       priceMin?: number;
       priceType: "fixed" | "hourly" | "scoped";
+      protocolDescriptorJson?: string;
       responseSlaMinutes?: number;
+      scenarioTypes?: Array<
+        | "chat_only_fulfillment"
+        | "consultation"
+        | "custom_scoped_work"
+        | "instant_digital_purchase"
+        | "milestone_project"
+        | "physical_service"
+        | "provider_handoff_service"
+        | "provider_paid_service"
+        | "supply_publish"
+      >;
       subtitle?: string;
       supplyType: "agent_tool" | "capability" | "collective" | "product";
       title: string;
+      ucpCatalogUrl?: string;
+      ucpCheckoutUrl?: string;
     },
-    { created: boolean; supplyId: string | null }
+    { created: boolean; reason?: string; supplyId: string | null }
   >("supplies:createSupplyEntry"),
   postThreadMessage: makeFunctionReference<
     "mutation",

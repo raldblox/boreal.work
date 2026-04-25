@@ -1,6 +1,6 @@
 "use client"
 
-import { BotIcon, PackageIcon, UserIcon } from "lucide-react"
+import { BotIcon, UserIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -31,6 +31,9 @@ export function RequestListCard({
   onOpen,
   selected = false,
 }: RequestListCardProps) {
+  const nonOwnerParticipants = intent.participants.filter(
+    (participant) => participant.status !== "owner"
+  )
   const counts = getPreviewRequestNotificationCounts(intent)
   const total = getRequestNotificationTotal(counts)
   const defaultView = getDefaultRequestNavigationView(counts)
@@ -38,30 +41,35 @@ export function RequestListCard({
   return (
     <div
       className={cn(
-        "space-y-3 rounded-xl border p-3 transition-colors",
+        "space-y-3 rounded-xl px-3 py-3 transition-colors",
         selected
-          ? "border-primary/20 bg-accent/40"
-          : "border-transparent hover:border-border hover:bg-foreground/5"
+          ? "border-foreground/20 bg-foreground/5"
+          : "border-border/80 hover:bg-background"
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background/80 text-muted-foreground">
-          <PackageIcon className="size-4" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span>{formatSidebarStatus(intent.status)}</span>
+            <span className="inline-block h-1 w-1 bg-border" />
+            <span>{formatRelativeUpdate(intent.updatedAt)}</span>
+          </div>
+          <button
+            className="mt-2 block w-full text-left"
+            onClick={() => onOpen(intent, defaultView)}
+            type="button"
+          >
+            <p className="line-clamp-1 text-sm font-medium">{intent.title}</p>
+            <p className="mt-1 line-clamp-1 text-xs leading-5 text-muted-foreground">
+              {intent.summary}
+            </p>
+          </button>
         </div>
-        <button
-          className="min-w-0 flex-1 text-left"
-          onClick={() => onOpen(intent, defaultView)}
-          type="button"
-        >
-          <p className="line-clamp-1 text-sm font-medium">{intent.title}</p>
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-            {intent.summary}
-          </p>
-        </button>
+
         {total > 0 ? (
           <button
             aria-label={`Open request updates for ${intent.title}`}
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-[11px] font-medium text-primary transition-colors hover:bg-primary/15"
+            className="inline-flex min-w-8 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/15"
             onClick={() => onOpen(intent, defaultView)}
             type="button"
           >
@@ -71,11 +79,14 @@ export function RequestListCard({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <ParticipantAvatarRow participants={intent.participants} />
+        <ParticipantAvatarRow
+          onOpenParticipants={() => onOpen(intent, "participants")}
+          participants={nonOwnerParticipants}
+        />
         <div className="flex flex-wrap items-center gap-1.5">
-          {counts.participants > 0 ? (
+          {nonOwnerParticipants.length > 0 ? (
             <Button
-              className="h-6 rounded-full px-2.5 text-[11px] tracking-[0.16em] uppercase"
+              className="h-6 px-2.5 text-[11px] tracking-[0.16em] uppercase"
               onClick={() => onOpen(intent, "participants")}
               size="sm"
               type="button"
@@ -84,10 +95,20 @@ export function RequestListCard({
               Participants
               {formatNotificationCount(counts.participants)}
             </Button>
-          ) : null}
+          ) : (
+            <Button
+              className="h-6 px-2.5 text-[11px] tracking-[0.16em] uppercase"
+              onClick={() => onOpen(intent, "participants")}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              No workers yet
+            </Button>
+          )}
           {counts.workspace > 0 ? (
             <Button
-              className="h-6 rounded-full px-2.5 text-[11px] tracking-[0.16em] uppercase"
+              className="h-6 px-2.5 text-[11px] tracking-[0.16em] uppercase"
               onClick={() => onOpen(intent, "workspace")}
               size="sm"
               type="button"
@@ -106,8 +127,10 @@ export function RequestListCard({
 }
 
 function ParticipantAvatarRow({
+  onOpenParticipants,
   participants,
 }: {
+  onOpenParticipants: () => void
   participants?: SidebarIntentPreview["participants"]
 }) {
   const safeParticipants = participants ?? []
@@ -118,7 +141,11 @@ function ParticipantAvatarRow({
 
   return (
     <TooltipProvider>
-      <div className="flex items-center">
+      <button
+        className="flex items-center"
+        onClick={onOpenParticipants}
+        type="button"
+      >
         {safeParticipants.slice(0, 4).map((participant, index) => {
           const Icon = participant.kind === "agent" ? BotIcon : UserIcon
 
@@ -139,7 +166,35 @@ function ParticipantAvatarRow({
             </Tooltip>
           )
         })}
-      </div>
+      </button>
     </TooltipProvider>
   )
+}
+
+function formatSidebarStatus(status: string) {
+  return status.replaceAll("_", " ")
+}
+
+function formatRelativeUpdate(updatedAt: number) {
+  const diff = Math.max(0, Date.now() - updatedAt)
+  const minute = 60_000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (diff < hour) {
+    return `${Math.max(1, Math.round(diff / minute))}m`
+  }
+
+  if (diff < day) {
+    return `${Math.max(1, Math.round(diff / hour))}h`
+  }
+
+  if (diff < 7 * day) {
+    return `${Math.max(1, Math.round(diff / day))}d`
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(updatedAt))
 }

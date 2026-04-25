@@ -2,7 +2,14 @@ import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 import { normalizedCapabilityToSupply } from "../lib/boreal/integrations/service-providers/normalization/to-supply";
+import {
+  ensureSettlementForTransaction,
+  getCommerceEnvironment,
+  updateTransactionById,
+} from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
+import { recordTransactionAuditEvent } from "./transactionScenarios";
+import { syncWalletAccountRecord } from "./wallets";
 
 import {
   capabilityRoutingTierValidator,
@@ -292,37 +299,47 @@ export const beginPaymentAttempt = mutation({
       approvalJson: undefined,
       checkoutItemId: item._id,
       createdAt: now,
+      environment: getCommerceEnvironment(),
       paymentAttemptId: item.paymentAttemptId,
       status: "approved",
+      transactionId: item.transactionId,
       updatedAt: now,
       walletAddress: args.walletAddress,
     });
 
     if (args.walletAddress) {
-      const existingWalletSession = await ctx.db
-        .query("walletSessions")
-        .withIndex("by_walletAddress", (queryBuilder) =>
-          queryBuilder.eq("walletAddress", args.walletAddress!),
-        )
-        .unique();
+      await syncWalletAccountRecord(ctx, {
+        environment: getCommerceEnvironment(),
+        ownerExternalId: args.ownerExternalId,
+        roles: ["connected", "buyer"],
+        setAsDefaultBuyer: true,
+        setAsDefaultPayout: false,
+        walletAddress: args.walletAddress,
+      });
+    }
 
-      if (existingWalletSession) {
-        await ctx.db.patch(existingWalletSession._id, {
-          actorExternalId: args.ownerExternalId,
-          lastUsedAt: now,
-          metadataJson: existingWalletSession.metadataJson,
-        });
-      } else {
-        await ctx.db.insert("walletSessions", {
-          actorExternalId: args.ownerExternalId,
-          chainId: undefined,
-          createdAt: now,
-          lastUsedAt: now,
-          metadataJson: undefined,
-          walletAddress: args.walletAddress,
-          walletProvider: "privy",
-        });
-      }
+    if (item.transactionId) {
+      await updateTransactionById(ctx, item.transactionId, {
+        paymentAttemptId: item.paymentAttemptId,
+        paymentStatus: "processing",
+        status: "awaiting_payment",
+      });
+
+      await recordTransactionAuditEvent(ctx, {
+        checkoutId: item.checkoutId,
+        checkoutItemId: item._id,
+        message: "Payment execution started for this provider-backed item.",
+        paymentAttemptId: item.paymentAttemptId,
+        scenarioType:
+          item.scenarioType === "provider_handoff_service"
+            ? "provider_handoff_service"
+            : "provider_paid_service",
+        source: "payment",
+        stage: "payment",
+        status: "info",
+        supplyId: item.supplyId,
+        transactionId: item.transactionId,
+      });
     }
 
     return { started: true };
@@ -351,6 +368,7 @@ export const completePaymentAttempt = mutation({
 
     if (item.paymentAttemptId) {
       await ctx.db.patch(item.paymentAttemptId, {
+        environment: getCommerceEnvironment(),
         errorMessage: args.status === "failed" ? args.errorMessage : undefined,
         receiptJson: args.paymentReceiptJson,
         status: args.status === "failed" ? "failed" : "paid",
@@ -361,6 +379,7 @@ export const completePaymentAttempt = mutation({
 
     if (item.serviceInvocationId) {
       await ctx.db.patch(item.serviceInvocationId, {
+        environment: getCommerceEnvironment(),
         responseJson: args.responseJson,
         resultUrl: args.accessUrl,
         status:
@@ -386,6 +405,97 @@ export const completePaymentAttempt = mutation({
             : "submitted",
       updatedAt: now,
     });
+
+    if (item.transactionId) {
+      await updateTransactionById(ctx, item.transactionId, {
+        paymentAttemptId: item.paymentAttemptId,
+        paymentStatus: args.status === "failed" ? "failed" : "paid",
+        serviceInvocationId: item.serviceInvocationId,
+        settlementStatus: "not_applicable",
+        status:
+          args.status === "failed"
+            ? "failed"
+            : args.status === "completed"
+              ? "fulfilled"
+              : "active",
+      });
+
+      const transaction = await ctx.db.get(item.transactionId);
+      const settlementId = await ensureSettlementForTransaction(ctx, {
+        amount: transaction?.amount,
+        currency: transaction?.currency,
+        environment: transaction?.environment,
+        protocol: transaction?.paymentProtocol,
+        status: "not_applicable",
+        transactionId: item.transactionId,
+        txHash: args.txHash,
+      });
+
+      await recordTransactionAuditEvent(ctx, {
+        checkoutId: item.checkoutId,
+        checkoutItemId: item._id,
+        message:
+          args.status === "failed"
+            ? args.errorMessage ?? "Provider payment failed."
+            : "Provider payment completed successfully.",
+        metadata: {
+          txHash: args.txHash,
+        },
+        paymentAttemptId: item.paymentAttemptId ?? undefined,
+        scenarioType:
+          item.scenarioType === "provider_handoff_service"
+            ? "provider_handoff_service"
+            : "provider_paid_service",
+        source: "payment",
+        stage: "payment",
+        status: args.status === "failed" ? "failed" : "passed",
+        supplyId: item.supplyId,
+        transactionId: item.transactionId,
+      });
+
+      await recordTransactionAuditEvent(ctx, {
+        checkoutId: item.checkoutId,
+        checkoutItemId: item._id,
+        message:
+          args.status === "completed"
+            ? "Provider execution returned a completed result."
+            : args.status === "submitted"
+              ? "Provider execution accepted the request and is now active."
+              : "Provider execution failed.",
+        metadata: {
+          accessUrl: args.accessUrl,
+        },
+        paymentAttemptId: item.paymentAttemptId ?? undefined,
+        scenarioType:
+          item.scenarioType === "provider_handoff_service"
+            ? "provider_handoff_service"
+            : "provider_paid_service",
+        source: "provider",
+        stage: "provider",
+        status: args.status === "failed" ? "failed" : "passed",
+        supplyId: item.supplyId,
+        transactionId: item.transactionId,
+      });
+
+      await recordTransactionAuditEvent(ctx, {
+        checkoutId: item.checkoutId,
+        checkoutItemId: item._id,
+        message: "Settlement remains not applicable for provider-backed execution.",
+        metadata: {
+          settlementStatus: "not_applicable",
+        },
+        scenarioType:
+          item.scenarioType === "provider_handoff_service"
+            ? "provider_handoff_service"
+            : "provider_paid_service",
+        settlementId,
+        source: "provider",
+        stage: "settlement",
+        status: "info",
+        supplyId: item.supplyId,
+        transactionId: item.transactionId,
+      });
+    }
 
     await updateCheckoutStatus(ctx, item.checkoutId);
 

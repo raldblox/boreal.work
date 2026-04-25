@@ -149,7 +149,43 @@
     @apply rounded-[1.75rem] border border-border/80 bg-card/85 shadow-[0_28px_70px_-44px_rgba(15,23,42,0.42)] backdrop-blur-xl;
   }
 
+  .boreal-roleplay-line {
+    animation: boreal-roleplay-line 7s ease-out infinite;
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+
+  .boreal-roleplay-cursor {
+    animation: boreal-roleplay-cursor 1s step-end infinite;
+  }
+
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@keyframes boreal-roleplay-line {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+
+  18%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes boreal-roleplay-cursor {
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  50.01%,
+  100% {
+    opacity: 0;
   }
 }

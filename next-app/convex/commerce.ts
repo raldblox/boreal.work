@@ -2,7 +2,30 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
+import {
+  deriveCheckoutScenario,
+  deriveCheckoutSettlementStatus,
+  deriveCheckoutTransactionStatus,
+  ensureSettlementForTransaction,
+  ensureTransactionForCheckoutItem,
+  getCommerceEnvironment,
+  getDefaultBuyerWalletAccountId,
+  getDefaultPayoutWalletAccountId,
+} from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
+import {
+  completeTransactionScenarioRun,
+  getScenarioDefinition,
+  getScenarioId,
+  listScenarioDefinitions,
+  recordTransactionAuditEvent,
+  scenarioNeedsBuyerWallet,
+  startTransactionScenarioRun,
+} from "./transactionScenarios";
+import {
+  transactionScenarioRunStatusValidator,
+  transactionScenarioValidator,
+} from "./validators";
 
 export const getActiveCart = query({
   args: {
@@ -51,6 +74,120 @@ export const listCheckoutHistory = query({
       .take(args.limit);
 
     return Promise.all(checkouts.map((checkout) => buildCheckoutDetail(ctx, checkout)));
+  },
+});
+
+export const listTransactionScenarioDefinitions = query({
+  args: {},
+  handler: async () => {
+    return listScenarioDefinitions();
+  },
+});
+
+export const listTransactionAudits = query({
+  args: {
+    intentId: v.optional(v.id("intents")),
+    limit: v.number(),
+    transactionId: v.optional(v.id("transactions")),
+  },
+  handler: async (ctx, args) => {
+    const rows = args.transactionId
+      ? await ctx.db
+          .query("transactionAuditEvents")
+          .withIndex("by_transactionId_and_createdAt", (queryBuilder) =>
+            queryBuilder.eq("transactionId", args.transactionId),
+          )
+          .order("desc")
+          .take(args.limit)
+      : args.intentId
+        ? await ctx.db
+            .query("transactionAuditEvents")
+            .withIndex("by_intentId_and_createdAt", (queryBuilder) =>
+              queryBuilder.eq("intentId", args.intentId),
+            )
+            .order("desc")
+            .take(args.limit)
+        : [];
+
+    return rows.map((row) => ({
+      ...row,
+      metadata: row.metadataJson ? JSON.parse(row.metadataJson) : null,
+      scenario: getScenarioDefinition(row.scenarioType),
+    }));
+  },
+});
+
+export const startScenarioVerificationRun = mutation({
+  args: {
+    intentId: v.optional(v.id("intents")),
+    notes: v.optional(v.string()),
+    runKey: v.string(),
+    scenarioType: transactionScenarioValidator,
+  },
+  handler: async (ctx, args) => {
+    const runId = await startTransactionScenarioRun(ctx, args);
+
+    await recordTransactionAuditEvent(ctx, {
+      intentId: args.intentId,
+      message: `Verification run started for ${args.runKey}.`,
+      metadata: {
+        runKey: args.runKey,
+      },
+      scenarioType: args.scenarioType,
+      source: "verification",
+      stage: "verification",
+      status: "info",
+      verificationRunId: runId,
+    });
+
+    return { runId, started: true };
+  },
+});
+
+export const finishScenarioVerificationRun = mutation({
+  args: {
+    errorMessage: v.optional(v.string()),
+    metadataJson: v.optional(v.string()),
+    runId: v.id("transactionScenarioRuns"),
+    status: transactionScenarioRunStatusValidator,
+    transactionId: v.optional(v.id("transactions")),
+  },
+  handler: async (ctx, args) => {
+    const run = await ctx.db.get(args.runId);
+
+    if (!run) {
+      return { finished: false };
+    }
+
+    const metadata = args.metadataJson ? JSON.parse(args.metadataJson) : undefined;
+
+    await completeTransactionScenarioRun(ctx, {
+      errorMessage: args.errorMessage,
+      metadata,
+      runId: args.runId,
+      status: args.status,
+      transactionId: args.transactionId,
+    });
+
+    await recordTransactionAuditEvent(ctx, {
+      intentId: run.intentId,
+      message:
+        args.status === "passed"
+          ? `Verification run ${run.runKey} passed.`
+          : args.errorMessage ?? `Verification run ${run.runKey} ended with status ${args.status}.`,
+      metadata: {
+        runKey: run.runKey,
+        ...(metadata ?? {}),
+      },
+      scenarioType: run.scenarioType,
+      source: "verification",
+      stage: "verification",
+      status: args.status === "passed" ? "passed" : "failed",
+      transactionId: args.transactionId,
+      verificationRunId: args.runId,
+    });
+
+    return { finished: true };
   },
 });
 
@@ -287,7 +424,63 @@ export const checkoutCart = mutation({
       return { checkoutId: null, placed: false };
     }
 
+    const sourceIntentId = args.sourceIntentId ?? cart.sourceIntentId;
+    const cartSupplies = await Promise.all(
+      cartItems.map((item) => ctx.db.get(item.supplyId)),
+    );
+    const payableScenarios = cartItems
+      .map((item, index) => {
+        const supply = cartSupplies[index];
+        const scenarioType = deriveCheckoutScenario({
+          deliveryType: item.deliveryType,
+          fulfillmentKind: item.fulfillmentKind,
+          sourceProviderKey: supply?.sourceProviderKey,
+          supportsDirectInvoke: supply?.supportsDirectInvoke,
+        });
+
+        return {
+          amount: item.unitPriceAmount ?? supply?.priceAmount ?? undefined,
+          scenarioType,
+          supplyId: item.supplyId,
+        };
+      })
+      .filter((entry) =>
+        scenarioNeedsBuyerWallet(entry.scenarioType, entry.amount),
+      );
+
+    const buyerWalletAccountId =
+      payableScenarios.length > 0
+        ? await getDefaultBuyerWalletAccountId(ctx, owner._id)
+        : undefined;
+
+    if (payableScenarios.length > 0 && !buyerWalletAccountId) {
+      if (sourceIntentId) {
+        await recordTransactionAuditEvent(ctx, {
+          intentId: sourceIntentId,
+          message:
+            "Buyer wallet is required before checking out paid listings.",
+          metadata: {
+            payableScenarioIds: payableScenarios.map((entry) =>
+              getScenarioId(entry.scenarioType),
+            ),
+            payableSupplyIds: payableScenarios.map((entry) => entry.supplyId),
+          },
+          scenarioType: payableScenarios[0]!.scenarioType,
+          source: "wallet",
+          stage: "wallet",
+          status: "blocked",
+        });
+      }
+
+      return {
+        checkoutId: null,
+        placed: false,
+        reason: "missing_buyer_wallet" as const,
+      };
+    }
+
     const now = Date.now();
+    const environment = getCommerceEnvironment();
     const currency = cartItems[0]?.currency ?? "USD";
     const subtotalAmount = cartItems.reduce(
       (sum, item) => sum + (item.unitPriceAmount ?? 0) * item.quantity,
@@ -297,9 +490,12 @@ export const checkoutCart = mutation({
       cartId: cart._id,
       createdAt: now,
       currency,
+      environment,
       itemCount: cartItems.reduce((sum, item) => sum + item.quantity, 0),
       ownerUserId: owner._id,
-      sourceIntentId: args.sourceIntentId ?? cart.sourceIntentId,
+      scenarioId: undefined,
+      scenarioType: undefined,
+      sourceIntentId,
       status: "submitted",
       subtotalAmount,
       updatedAt: now,
@@ -317,8 +513,8 @@ export const checkoutCart = mutation({
     }> = [];
     const checkoutItemStatuses: string[] = [];
 
-    for (const line of cartItems) {
-      const supply = await ctx.db.get(line.supplyId);
+    for (const [index, line] of cartItems.entries()) {
+      const supply = cartSupplies[index];
       const instantAccess = Boolean(
         supply &&
           !supply.sourceProviderKey &&
@@ -338,6 +534,13 @@ export const checkoutCart = mutation({
           supply.sourceProviderKey &&
           (!supply.supportsDirectInvoke || supply.paymentProtocol !== "x402"),
       );
+      const scenarioType = deriveCheckoutScenario({
+        deliveryType: line.deliveryType,
+        fulfillmentKind: line.fulfillmentKind,
+        sourceProviderKey: supply?.sourceProviderKey,
+        supportsDirectInvoke: supply?.supportsDirectInvoke,
+      });
+      const scenarioId = getScenarioId(scenarioType);
       const checkoutItemStatus = instantAccess
         ? "fulfilled"
         : directExternalInvoke
@@ -359,6 +562,7 @@ export const checkoutCart = mutation({
         createdAt: now,
         currency: line.currency,
         deliveryType: line.deliveryType,
+        environment,
         executionSurface: supply?.executionSurface,
         fulfillmentKind: line.fulfillmentKind,
         metadataJson: supply?.metadataJson,
@@ -369,7 +573,9 @@ export const checkoutCart = mutation({
         sellerDisplayName: line.sellerDisplayName,
         sellerProfileId: line.sellerProfileId,
         sellerUserId: line.sellerUserId,
+        scenarioId,
         serviceInvocationId: undefined,
+        scenarioType,
         sourceListingUrl: supply?.sourceListingUrl,
         sourceProviderKey: supply?.sourceProviderKey,
         status: checkoutItemStatus,
@@ -389,12 +595,14 @@ export const checkoutCart = mutation({
           checkoutItemId,
           createdAt: now,
           currency: supply.currency,
+          environment,
           errorMessage: undefined,
           network: derivePrimaryNetworkHint(supply.paymentNetworkHints),
           paymentProtocol: supply.paymentProtocol ?? "x402",
           providerKey: supply.sourceProviderKey!,
           receiptJson: undefined,
           status: supply.requiresHumanApproval ? "pending_approval" : "ready_to_pay",
+          transactionId: undefined,
           txHash: undefined,
           updatedAt: now,
           walletAddress: undefined,
@@ -407,6 +615,7 @@ export const checkoutCart = mutation({
           currency: supply.currency,
           endpointMethod: deriveEndpointMethod(supply),
           endpointUrl: supply.executorUrl,
+          environment,
           executionSurface: supply.executionSurface ?? "http",
           externalJobId: undefined,
           externalRequestId: undefined,
@@ -420,6 +629,7 @@ export const checkoutCart = mutation({
           sourceProviderKey: supply.sourceProviderKey!,
           status: "awaiting_payment",
           supplyId: supply._id,
+          transactionId: undefined,
           txHash: undefined,
           updatedAt: now,
         });
@@ -436,6 +646,7 @@ export const checkoutCart = mutation({
           currency: supply.currency,
           endpointMethod: deriveEndpointMethod(supply),
           endpointUrl: supply.executorUrl,
+          environment,
           executionSurface: supply.executionSurface ?? "handoff",
           externalJobId: undefined,
           externalRequestId: undefined,
@@ -449,6 +660,7 @@ export const checkoutCart = mutation({
           sourceProviderKey: supply.sourceProviderKey!,
           status: "handoff_required",
           supplyId: supply._id,
+          transactionId: undefined,
           txHash: undefined,
           updatedAt: now,
         });
@@ -456,6 +668,172 @@ export const checkoutCart = mutation({
           serviceInvocationId,
         });
       }
+
+      const transactionId = await ensureTransactionForCheckoutItem(ctx, {
+        amount: line.unitPriceAmount ?? supply?.priceAmount ?? undefined,
+        buyerUserId: owner._id,
+        buyerWalletAccountId,
+        checkoutId,
+        checkoutItemId,
+        currency: line.currency,
+        environment,
+        intentId: sourceIntentId ?? undefined,
+        intentKey: undefined,
+        paymentAttemptId,
+        paymentProtocol: supply?.paymentProtocol ?? null,
+        paymentStatus:
+          directExternalInvoke && supply?.requiresHumanApproval
+            ? "pending_approval"
+            : directExternalInvoke
+              ? "ready_to_pay"
+              : "paid",
+        scenarioType,
+        sellerProfileId: line.sellerProfileId ?? undefined,
+        sellerUserId: line.sellerUserId,
+        serviceInvocationId,
+        settlementStatus: deriveCheckoutSettlementStatus({
+          amount: line.unitPriceAmount ?? supply?.priceAmount,
+          itemStatus: checkoutItemStatus,
+          scenarioType,
+          sellerUserId: line.sellerUserId,
+          sourceProviderKey: supply?.sourceProviderKey,
+        }),
+        sourceProviderKey: supply?.sourceProviderKey ?? null,
+        status: deriveCheckoutTransactionStatus({
+          itemStatus: checkoutItemStatus,
+        }),
+        supplyId: line.supplyId,
+        titleSnapshot: line.titleSnapshot,
+      });
+
+      await ctx.db.patch(checkoutItemId, {
+        transactionId,
+      });
+
+      if (paymentAttemptId) {
+        await ctx.db.patch(paymentAttemptId, {
+          transactionId,
+        });
+      }
+
+      if (serviceInvocationId) {
+        await ctx.db.patch(serviceInvocationId, {
+          transactionId,
+        });
+      }
+
+      const settlementId = await ensureSettlementForTransaction(ctx, {
+        amount: line.unitPriceAmount ?? supply?.priceAmount ?? undefined,
+        buyerWalletAccountId,
+        currency: line.currency,
+        environment,
+        payoutWalletAccountId: await getDefaultPayoutWalletAccountId(
+          ctx,
+          line.sellerUserId,
+        ),
+        protocol: supply?.paymentProtocol ?? null,
+        status: deriveCheckoutSettlementStatus({
+          amount: line.unitPriceAmount ?? supply?.priceAmount,
+          itemStatus: checkoutItemStatus,
+          scenarioType,
+          sellerUserId: line.sellerUserId,
+          sourceProviderKey: supply?.sourceProviderKey,
+        }),
+        transactionId,
+      });
+
+      await recordTransactionAuditEvent(ctx, {
+        checkoutId,
+        checkoutItemId,
+        intentId: sourceIntentId ?? undefined,
+        message: `Checkout item created for ${line.titleSnapshot}.`,
+        metadata: {
+          checkoutItemStatus,
+          title: line.titleSnapshot,
+        },
+        scenarioType,
+        source: "checkout",
+        stage: "checkout",
+        status: "passed",
+        supplyId: line.supplyId,
+        transactionId,
+      });
+
+      if (paymentAttemptId) {
+        await recordTransactionAuditEvent(ctx, {
+          checkoutId,
+          checkoutItemId,
+          intentId: sourceIntentId ?? undefined,
+          message:
+            directExternalInvoke && supply?.requiresHumanApproval
+              ? "Payment approval created and awaiting buyer confirmation."
+              : "Payment attempt created and ready for buyer action.",
+          paymentAttemptId,
+          scenarioType,
+          source: "payment",
+          stage: "payment",
+          status: "info",
+          supplyId: line.supplyId,
+          transactionId,
+        });
+      }
+
+      if (serviceInvocationId) {
+        await recordTransactionAuditEvent(ctx, {
+          checkoutId,
+          checkoutItemId,
+          intentId: sourceIntentId ?? undefined,
+          message: handoffExternalInvoke
+            ? "Provider handoff was attached to this checkout item."
+            : "Provider invocation is linked to this checkout item.",
+          metadata: {
+            executionSurface: supply?.executionSurface,
+            supportsDirectInvoke: Boolean(supply?.supportsDirectInvoke),
+          },
+          scenarioType,
+          source: "provider",
+          stage: "provider",
+          status: "info",
+          supplyId: line.supplyId,
+          transactionId,
+        });
+      } else if (instantAccess) {
+        await recordTransactionAuditEvent(ctx, {
+          checkoutId,
+          checkoutItemId,
+          intentId: sourceIntentId ?? undefined,
+          message: "Instant digital access was attached immediately at checkout.",
+          scenarioType,
+          source: "checkout",
+          stage: "fulfillment",
+          status: "passed",
+          supplyId: line.supplyId,
+          transactionId,
+        });
+      }
+
+      await recordTransactionAuditEvent(ctx, {
+        checkoutId,
+        checkoutItemId,
+        intentId: sourceIntentId ?? undefined,
+        message: "Settlement state was synchronized for this checkout item.",
+        metadata: {
+          settlementStatus: deriveCheckoutSettlementStatus({
+            amount: line.unitPriceAmount ?? supply?.priceAmount,
+            itemStatus: checkoutItemStatus,
+            scenarioType,
+            sellerUserId: line.sellerUserId,
+            sourceProviderKey: supply?.sourceProviderKey,
+          }),
+        },
+        scenarioType,
+        settlementId,
+        source: "checkout",
+        stage: "settlement",
+        status: "info",
+        supplyId: line.supplyId,
+        transactionId,
+      });
 
       itemSnapshots.push({
         accessLabel: instantAccess
@@ -478,6 +856,26 @@ export const checkoutCart = mutation({
     const checkoutStatus = determineCheckoutStatus(checkoutItemStatuses);
 
     await ctx.db.patch(checkoutId, {
+      scenarioId:
+        itemSnapshots.length === 1
+          ? getScenarioId(
+              deriveCheckoutScenario({
+                deliveryType: cartItems[0]?.deliveryType,
+                fulfillmentKind: cartItems[0]?.fulfillmentKind,
+                sourceProviderKey: cartSupplies[0]?.sourceProviderKey,
+                supportsDirectInvoke: cartSupplies[0]?.supportsDirectInvoke,
+              }),
+            )
+          : undefined,
+      scenarioType:
+        itemSnapshots.length === 1
+          ? deriveCheckoutScenario({
+              deliveryType: cartItems[0]?.deliveryType,
+              fulfillmentKind: cartItems[0]?.fulfillmentKind,
+              sourceProviderKey: cartSupplies[0]?.sourceProviderKey,
+              supportsDirectInvoke: cartSupplies[0]?.supportsDirectInvoke,
+            })
+          : undefined,
       status: checkoutStatus,
       updatedAt: now,
     });
@@ -485,8 +883,6 @@ export const checkoutCart = mutation({
       status: "checked_out",
       updatedAt: now,
     });
-
-    const sourceIntentId = args.sourceIntentId ?? cart.sourceIntentId;
 
     if (sourceIntentId) {
       const intent = await ctx.db.get(sourceIntentId);

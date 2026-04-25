@@ -6,11 +6,13 @@ import {
   artifactKindValidator,
   artifactStatusValidator,
   capabilityRoutingTierValidator,
+  chainEnvironmentValidator,
   cartStatusValidator,
   checkoutItemStatusValidator,
   checkoutProtocolValidator,
   checkoutStatusValidator,
   deliveryTypeValidator,
+  disputeStatusValidator,
   executionSurfaceValidator,
   fulfillmentKindValidator,
   fulfillmentStatusValidator,
@@ -20,18 +22,29 @@ import {
   matchCandidateStageValidator,
   paymentAttemptStatusValidator,
   paymentProtocolValidator,
+  payoutStatusValidator,
   proposalStatusValidator,
   profileAvailabilityValidator,
   requestedOutputTypeValidator,
+  refundStatusValidator,
   resolutionTierValidator,
   routingValidator,
+  settlementStatusValidator,
   serviceInvocationStatusValidator,
   serviceProviderKeyValidator,
   serviceProviderSyncStatusValidator,
   supplyStatusValidator,
+  transactionAuditSourceValidator,
+  transactionAuditStageValidator,
+  transactionAuditStatusValidator,
+  transactionScenarioValidator,
   transactionApprovalStatusValidator,
+  transactionScenarioRunStatusValidator,
+  transactionStatusValidator,
   toolRouteValidator,
+  walletAccountRoleValidator,
   walletExecutionModeValidator,
+  walletSyncStatusValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -87,6 +100,7 @@ export default defineSchema({
     bio: v.optional(v.string()),
     capabilityTags: v.array(v.string()),
     createdAt: v.number(),
+    defaultPayoutWalletAccountId: v.optional(v.id("walletAccounts")),
     displayName: v.string(),
     externalId: v.optional(v.string()),
     handle: v.optional(v.string()),
@@ -97,6 +111,8 @@ export default defineSchema({
     skillTags: v.array(v.string()),
     updatedAt: v.number(),
     userId: v.optional(v.string()),
+    walletEnvironment: v.optional(chainEnvironmentValidator),
+    walletSyncStatus: v.optional(walletSyncStatusValidator),
   })
     .index("by_externalId", ["externalId"])
     .index("by_isPublic_and_updatedAt", ["isPublic", "updatedAt"])
@@ -105,6 +121,26 @@ export default defineSchema({
       searchField: "searchText",
       filterFields: ["availabilityStatus", "isPublic"],
     }),
+
+  walletAccounts: defineTable({
+    actorExternalId: v.optional(v.string()),
+    chainId: v.optional(v.string()),
+    createdAt: v.number(),
+    environment: chainEnvironmentValidator,
+    isDefaultBuyer: v.boolean(),
+    isDefaultPayout: v.boolean(),
+    lastSyncedAt: v.number(),
+    metadataJson: v.optional(v.string()),
+    profileId: v.optional(v.id("profiles")),
+    roles: v.array(walletAccountRoleValidator),
+    userId: v.optional(v.string()),
+    walletAddress: v.string(),
+    walletProvider: v.literal("privy"),
+  })
+    .index("by_actorExternalId_and_lastSyncedAt", ["actorExternalId", "lastSyncedAt"])
+    .index("by_profileId", ["profileId"])
+    .index("by_userId_and_lastSyncedAt", ["userId", "lastSyncedAt"])
+    .index("by_walletAddress", ["walletAddress"]),
 
   conversations: defineTable({
     conversationId: v.string(),
@@ -233,6 +269,9 @@ export default defineSchema({
     acceptanceRate: v.number(),
     activeReservations: v.optional(v.number()),
     actorKind: actorKindValidator,
+    agentReady: v.optional(v.boolean()),
+    a2aEndpoint: v.optional(v.string()),
+    acpCheckoutUrl: v.optional(v.string()),
     availabilityStatus: v.optional(profileAvailabilityValidator),
     brand: v.optional(v.string()),
     capabilityTags: v.array(v.string()),
@@ -265,10 +304,12 @@ export default defineSchema({
     priceMin: v.optional(v.number()),
     priceRawJson: v.optional(v.string()),
     priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    protocolDescriptorJson: v.optional(v.string()),
     responseSlaMinutes: v.optional(v.number()),
     requiresHumanApproval: v.optional(v.boolean()),
     routingTier: v.optional(capabilityRoutingTierValidator),
     schemaUrl: v.optional(v.string()),
+    scenarioTypes: v.optional(v.array(transactionScenarioValidator)),
     searchText: v.string(),
     sourceCapabilityId: v.optional(v.string()),
     sourceListingUrl: v.optional(v.string()),
@@ -282,6 +323,7 @@ export default defineSchema({
       v.literal("agent_tool"),
       v.literal("collective"),
     ),
+    offerSlug: v.optional(v.string()),
     maxConcurrentJobs: v.optional(v.number()),
     nextAvailableAt: v.optional(v.number()),
     outputTypes: v.optional(v.array(requestedOutputTypeValidator)),
@@ -290,6 +332,8 @@ export default defineSchema({
     supplierUserId: v.optional(v.string()),
     title: v.string(),
     trustScore: v.number(),
+    ucpCatalogUrl: v.optional(v.string()),
+    ucpCheckoutUrl: v.optional(v.string()),
     updatedAt: v.optional(v.number()),
   })
     .index("by_title", ["title"])
@@ -343,8 +387,11 @@ export default defineSchema({
     cartId: v.id("carts"),
     createdAt: v.number(),
     currency: v.string(),
+    environment: v.optional(chainEnvironmentValidator),
     itemCount: v.number(),
     ownerUserId: v.optional(v.string()),
+    scenarioId: v.optional(v.string()),
+    scenarioType: v.optional(transactionScenarioValidator),
     sourceIntentId: v.optional(v.id("intents")),
     status: checkoutStatusValidator,
     subtotalAmount: v.number(),
@@ -362,6 +409,7 @@ export default defineSchema({
     createdAt: v.number(),
     currency: v.string(),
     deliveryType: deliveryTypeValidator,
+    environment: v.optional(chainEnvironmentValidator),
     executionSurface: v.optional(executionSurfaceValidator),
     fulfillmentKind: fulfillmentKindValidator,
     metadataJson: v.optional(v.string()),
@@ -372,10 +420,13 @@ export default defineSchema({
     reviewComment: v.optional(v.string()),
     reviewRating: v.optional(v.number()),
     reviewedAt: v.optional(v.number()),
+    scenarioId: v.optional(v.string()),
     sellerDisplayName: v.optional(v.string()),
     sellerProfileId: v.optional(v.id("profiles")),
     sellerUserId: v.optional(v.string()),
     serviceInvocationId: v.optional(v.id("serviceInvocations")),
+    transactionId: v.optional(v.id("transactions")),
+    scenarioType: v.optional(transactionScenarioValidator),
     sourceListingUrl: v.optional(v.string()),
     sourceProviderKey: v.optional(serviceProviderKeyValidator),
     status: checkoutItemStatusValidator,
@@ -460,6 +511,7 @@ export default defineSchema({
     currency: v.optional(v.string()),
     endpointMethod: v.optional(v.string()),
     endpointUrl: v.optional(v.string()),
+    environment: v.optional(chainEnvironmentValidator),
     executionSurface: executionSurfaceValidator,
     externalJobId: v.optional(v.string()),
     externalRequestId: v.optional(v.string()),
@@ -473,6 +525,7 @@ export default defineSchema({
     sourceProviderKey: serviceProviderKeyValidator,
     status: serviceInvocationStatusValidator,
     supplyId: v.id("supplies"),
+    transactionId: v.optional(v.id("transactions")),
     txHash: v.optional(v.string()),
     updatedAt: v.number(),
   })
@@ -486,12 +539,14 @@ export default defineSchema({
     checkoutItemId: v.id("checkoutItems"),
     createdAt: v.number(),
     currency: v.string(),
+    environment: v.optional(chainEnvironmentValidator),
     errorMessage: v.optional(v.string()),
     network: v.optional(v.string()),
     paymentProtocol: paymentProtocolValidator,
     providerKey: serviceProviderKeyValidator,
     receiptJson: v.optional(v.string()),
     status: paymentAttemptStatusValidator,
+    transactionId: v.optional(v.id("transactions")),
     txHash: v.optional(v.string()),
     updatedAt: v.number(),
     walletAddress: v.optional(v.string()),
@@ -504,8 +559,10 @@ export default defineSchema({
     approvalJson: v.optional(v.string()),
     checkoutItemId: v.id("checkoutItems"),
     createdAt: v.number(),
+    environment: v.optional(chainEnvironmentValidator),
     paymentAttemptId: v.id("paymentAttempts"),
     status: transactionApprovalStatusValidator,
+    transactionId: v.optional(v.id("transactions")),
     updatedAt: v.number(),
     walletAddress: v.optional(v.string()),
   })
@@ -516,6 +573,7 @@ export default defineSchema({
     actorExternalId: v.optional(v.string()),
     chainId: v.optional(v.string()),
     createdAt: v.number(),
+    environment: v.optional(chainEnvironmentValidator),
     lastUsedAt: v.number(),
     metadataJson: v.optional(v.string()),
     walletAddress: v.string(),
@@ -523,6 +581,148 @@ export default defineSchema({
   })
     .index("by_actorExternalId_and_lastUsedAt", ["actorExternalId", "lastUsedAt"])
     .index("by_walletAddress", ["walletAddress"]),
+
+  transactions: defineTable({
+    amount: v.optional(v.number()),
+    buyerUserId: v.optional(v.string()),
+    buyerWalletAccountId: v.optional(v.id("walletAccounts")),
+    checkoutId: v.optional(v.id("checkouts")),
+    checkoutItemId: v.optional(v.id("checkoutItems")),
+    createdAt: v.number(),
+    currency: v.optional(v.string()),
+    environment: chainEnvironmentValidator,
+    fulfillmentId: v.optional(v.id("fulfillments")),
+    intentId: v.optional(v.id("intents")),
+    intentKey: v.optional(v.string()),
+    paymentAttemptId: v.optional(v.id("paymentAttempts")),
+    paymentProtocol: v.optional(paymentProtocolValidator),
+    paymentStatus: paymentAttemptStatusValidator,
+    proposalId: v.optional(v.id("proposals")),
+    scenarioId: v.string(),
+    scenarioType: transactionScenarioValidator,
+    sellerProfileId: v.optional(v.id("profiles")),
+    sellerUserId: v.optional(v.string()),
+    settlementStatus: settlementStatusValidator,
+    serviceInvocationId: v.optional(v.id("serviceInvocations")),
+    sourceProviderKey: v.optional(serviceProviderKeyValidator),
+    status: transactionStatusValidator,
+    supplyId: v.optional(v.id("supplies")),
+    titleSnapshot: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_buyerUserId_and_createdAt", ["buyerUserId", "createdAt"])
+    .index("by_checkoutItemId", ["checkoutItemId"])
+    .index("by_intentKey_and_createdAt", ["intentKey", "createdAt"])
+    .index("by_proposalId", ["proposalId"])
+    .index("by_scenarioType_and_createdAt", ["scenarioType", "createdAt"])
+    .index("by_sellerUserId_and_createdAt", ["sellerUserId", "createdAt"])
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
+
+  settlements: defineTable({
+    amount: v.optional(v.number()),
+    buyerWalletAccountId: v.optional(v.id("walletAccounts")),
+    createdAt: v.number(),
+    currency: v.optional(v.string()),
+    environment: chainEnvironmentValidator,
+    payoutWalletAccountId: v.optional(v.id("walletAccounts")),
+    settlementProtocol: v.optional(paymentProtocolValidator),
+    status: settlementStatusValidator,
+    transactionId: v.id("transactions"),
+    txHash: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_transactionId", ["transactionId"]),
+
+  payouts: defineTable({
+    amount: v.number(),
+    createdAt: v.number(),
+    currency: v.string(),
+    environment: chainEnvironmentValidator,
+    payeeProfileId: v.optional(v.id("profiles")),
+    payeeUserId: v.optional(v.string()),
+    status: payoutStatusValidator,
+    settlementId: v.optional(v.id("settlements")),
+    transactionId: v.id("transactions"),
+    txHash: v.optional(v.string()),
+    updatedAt: v.number(),
+    walletAccountId: v.optional(v.id("walletAccounts")),
+  })
+    .index("by_payeeUserId_and_createdAt", ["payeeUserId", "createdAt"])
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_transactionId", ["transactionId"]),
+
+  transactionAuditEvents: defineTable({
+    checkoutId: v.optional(v.id("checkouts")),
+    checkoutItemId: v.optional(v.id("checkoutItems")),
+    createdAt: v.number(),
+    fulfillmentId: v.optional(v.id("fulfillments")),
+    intentId: v.optional(v.id("intents")),
+    message: v.string(),
+    metadataJson: v.optional(v.string()),
+    paymentAttemptId: v.optional(v.id("paymentAttempts")),
+    proposalId: v.optional(v.id("proposals")),
+    scenarioId: v.string(),
+    scenarioType: transactionScenarioValidator,
+    settlementId: v.optional(v.id("settlements")),
+    source: transactionAuditSourceValidator,
+    stage: transactionAuditStageValidator,
+    status: transactionAuditStatusValidator,
+    supplyId: v.optional(v.id("supplies")),
+    transactionId: v.optional(v.id("transactions")),
+    verificationRunId: v.optional(v.id("transactionScenarioRuns")),
+  })
+    .index("by_intentId_and_createdAt", ["intentId", "createdAt"])
+    .index("by_scenarioType_and_createdAt", ["scenarioType", "createdAt"])
+    .index("by_transactionId_and_createdAt", ["transactionId", "createdAt"])
+    .index("by_verificationRunId_and_createdAt", ["verificationRunId", "createdAt"]),
+
+  transactionScenarioRuns: defineTable({
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    errorMessage: v.optional(v.string()),
+    intentId: v.optional(v.id("intents")),
+    metadataJson: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    runKey: v.string(),
+    scenarioId: v.string(),
+    scenarioType: transactionScenarioValidator,
+    status: transactionScenarioRunStatusValidator,
+    transactionId: v.optional(v.id("transactions")),
+    updatedAt: v.number(),
+  })
+    .index("by_runKey_and_createdAt", ["runKey", "createdAt"])
+    .index("by_scenarioType_and_createdAt", ["scenarioType", "createdAt"])
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
+
+  refunds: defineTable({
+    amount: v.number(),
+    checkoutId: v.optional(v.id("checkouts")),
+    createdAt: v.number(),
+    currency: v.string(),
+    environment: chainEnvironmentValidator,
+    reason: v.string(),
+    status: refundStatusValidator,
+    transactionId: v.id("transactions"),
+    updatedAt: v.number(),
+  })
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_transactionId", ["transactionId"]),
+
+  disputes: defineTable({
+    checkoutId: v.optional(v.id("checkouts")),
+    createdAt: v.number(),
+    environment: chainEnvironmentValidator,
+    openedByUserId: v.optional(v.string()),
+    reason: v.string(),
+    resolutionSummary: v.optional(v.string()),
+    status: disputeStatusValidator,
+    transactionId: v.id("transactions"),
+    updatedAt: v.number(),
+  })
+    .index("by_openedByUserId_and_createdAt", ["openedByUserId", "createdAt"])
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_transactionId", ["transactionId"]),
 
   artifacts: defineTable({
     artifactKind: artifactKindValidator,
@@ -548,12 +748,15 @@ export default defineSchema({
     currency: v.string(),
     deliverablesBody: v.string(),
     deliverablesType: v.union(v.literal("markdown"), v.literal("file"), v.literal("link")),
+    environment: v.optional(chainEnvironmentValidator),
     etaAt: v.number(),
     intentKey: v.string(),
     isCollective: v.boolean(),
     price: v.number(),
     proposerKind: actorKindValidator,
     proposerUserId: v.optional(v.string()),
+    scenarioId: v.optional(v.string()),
+    scenarioType: v.optional(transactionScenarioValidator),
     splitPlan: v.optional(v.array(v.object({ memberId: v.string(), percent: v.number() }))),
     status: proposalStatusValidator,
   })
@@ -567,10 +770,15 @@ export default defineSchema({
     completedSummary: v.optional(v.string()),
     escrowAddress: v.optional(v.string()),
     escrowAmount: v.optional(v.number()),
+    environment: v.optional(chainEnvironmentValidator),
     fulfillerUserId: v.optional(v.string()),
     intentKey: v.string(),
     ownerUserId: v.optional(v.string()),
+    scenarioId: v.optional(v.string()),
+    scenarioType: v.optional(transactionScenarioValidator),
+    settlementStatus: v.optional(settlementStatusValidator),
     status: fulfillmentStatusValidator,
+    transactionId: v.optional(v.id("transactions")),
   })
     .index("by_intentKey_and_status", ["intentKey", "status"])
     .index("by_fulfillerUserId", ["fulfillerUserId"])

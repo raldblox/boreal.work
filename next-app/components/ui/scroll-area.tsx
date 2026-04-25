@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 function ScrollArea({
   blur = true,
-  blurHeight = "4.5rem",
+  blurHeight = "3rem",
   className,
   children,
   ...props
@@ -17,6 +17,7 @@ function ScrollArea({
   blurHeight?: string
 }) {
   const viewportRef = React.useRef<HTMLDivElement>(null)
+  const [showTopBlur, setShowTopBlur] = React.useState(false)
   const [showBottomBlur, setShowBottomBlur] = React.useState(false)
 
   React.useEffect(() => {
@@ -32,9 +33,11 @@ function ScrollArea({
     const updateBlurVisibility = () => {
       const canScrollVertically =
         viewport.scrollHeight > viewport.clientHeight + 1
+      const atTop = viewport.scrollTop <= 1
       const atBottom =
         viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2
 
+      setShowTopBlur(canScrollVertically && !atTop)
       setShowBottomBlur(canScrollVertically && !atBottom)
     }
 
@@ -75,14 +78,25 @@ function ScrollArea({
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
+      {blur && showTopBlur ? (
+        <GradualBlur
+          className="rounded-t-[inherit]"
+          divCount={3}
+          height={blurHeight}
+          opacity={1}
+          position="top"
+          strength={2}
+          zIndex={2}
+        />
+      ) : null}
       {blur && showBottomBlur ? (
         <GradualBlur
           className="rounded-b-[inherit]"
-          divCount={6}
+          divCount={3}
           height={blurHeight}
-          opacity={0.92}
+          opacity={1}
           position="bottom"
-          strength={1.15}
+          strength={2}
           zIndex={2}
         />
       ) : null}

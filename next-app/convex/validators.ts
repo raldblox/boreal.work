@@ -111,6 +111,12 @@ export const paymentProtocolValidator = v.union(
   v.literal("none"),
 );
 
+export const chainEnvironmentValidator = v.union(
+  v.literal("devnet"),
+  v.literal("mainnet"),
+  v.literal("testnet"),
+);
+
 export const executionSurfaceValidator = v.union(
   v.literal("registry"),
   v.literal("http"),
@@ -126,6 +132,114 @@ export const walletExecutionModeValidator = v.union(
   v.literal("server-execute-with-user-authorization"),
   v.literal("external-wallet"),
   v.literal("provider-managed"),
+);
+
+export const walletAccountRoleValidator = v.union(
+  v.literal("connected"),
+  v.literal("buyer"),
+  v.literal("payout"),
+);
+
+export const walletSyncStatusValidator = v.union(
+  v.literal("missing"),
+  v.literal("connected"),
+  v.literal("ready"),
+);
+
+export const transactionScenarioValidator = v.union(
+  v.literal("instant_digital_purchase"),
+  v.literal("provider_paid_service"),
+  v.literal("provider_handoff_service"),
+  v.literal("custom_scoped_work"),
+  v.literal("chat_only_fulfillment"),
+  v.literal("consultation"),
+  v.literal("physical_service"),
+  v.literal("milestone_project"),
+  v.literal("supply_publish"),
+);
+
+export const transactionAuditSourceValidator = v.union(
+  v.literal("checkout"),
+  v.literal("fulfillment"),
+  v.literal("listing"),
+  v.literal("payment"),
+  v.literal("proposal"),
+  v.literal("provider"),
+  v.literal("verification"),
+  v.literal("wallet"),
+);
+
+export const transactionAuditStageValidator = v.union(
+  v.literal("approval"),
+  v.literal("checkout"),
+  v.literal("delivery"),
+  v.literal("fulfillment"),
+  v.literal("listing"),
+  v.literal("payment"),
+  v.literal("proposal"),
+  v.literal("provider"),
+  v.literal("review"),
+  v.literal("settlement"),
+  v.literal("verification"),
+  v.literal("wallet"),
+);
+
+export const transactionAuditStatusValidator = v.union(
+  v.literal("blocked"),
+  v.literal("failed"),
+  v.literal("info"),
+  v.literal("passed"),
+);
+
+export const transactionScenarioRunStatusValidator = v.union(
+  v.literal("started"),
+  v.literal("passed"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+export const transactionStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("awaiting_approval"),
+  v.literal("awaiting_payment"),
+  v.literal("active"),
+  v.literal("fulfilled"),
+  v.literal("cancelled"),
+  v.literal("failed"),
+  v.literal("disputed"),
+  v.literal("refunded"),
+);
+
+export const settlementStatusValidator = v.union(
+  v.literal("not_applicable"),
+  v.literal("pending"),
+  v.literal("held"),
+  v.literal("ready_for_payout"),
+  v.literal("paid_out"),
+  v.literal("failed"),
+  v.literal("refunded"),
+);
+
+export const payoutStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("processing"),
+  v.literal("paid"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+export const refundStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("processed"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+export const disputeStatusValidator = v.union(
+  v.literal("open"),
+  v.literal("under_review"),
+  v.literal("resolved"),
+  v.literal("rejected"),
 );
 
 export const capabilityRoutingTierValidator = v.union(

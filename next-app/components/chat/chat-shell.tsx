@@ -93,6 +93,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/ui/logo"
 import {
   Dialog,
   DialogContent,
@@ -163,7 +164,6 @@ import {
 import {
   formatOutputTypes,
   formatRequestDate,
-  RequestStageRail,
   RequestStatusBadge,
 } from "./request-ui"
 import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel"
@@ -212,7 +212,11 @@ const emptyWorkspace: WorkspaceState = {
 const REQUEST_SIDEBAR_WIDTH = "clamp(15.5rem, 18vw, 18rem)"
 const DISCOVERY_SIDEBAR_WIDTH = "clamp(21rem, 24vw, 25rem)"
 const COLLAPSED_SIDEBAR_WIDTH = "4.25rem"
-const DESKTOP_STAGE_GAP = "1rem"
+const CENTER_PANEL_CLASS = "mx-auto w-full max-w-4xl px-4"
+const CONTENT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 py-6`
+const CHAT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 pt-0 pb-6`
+const HOME_PANEL_CLASS = `${CENTER_PANEL_CLASS} flex h-full flex-col justify-center py-8`
+const CHAT_COMPOSER_CLASS = `${CENTER_PANEL_CLASS} flex flex-col gap-3`
 
 const emptyProposalDraft = (): ProposalDraft => ({
   currency: "USD",
@@ -348,8 +352,8 @@ export function ChatShell() {
   const activeCenterTab =
     activeIntentId && !requestedCenterTab
       ? normalizeCenterViewTab(
-          getDefaultRequestNavigationView(requestNotificationCounts)
-        )
+        getDefaultRequestNavigationView(requestNotificationCounts)
+      )
       : selectedCenterTab
   const activeCart = (activeCartResult ?? null) as ActiveCart
   const checkoutHistory = (checkoutHistoryResult ?? []) as CheckoutRecord[]
@@ -377,6 +381,11 @@ export function ChatShell() {
   const shouldShowAssignedBorealButton = Boolean(
     activeIntentId && isBorealAssignedToActiveRequest
   )
+  const shouldShowBorealToolbarButton =
+    shouldShowHomeBorealButton || shouldShowAssignedBorealButton
+  const isChatSurfaceActive = !activeIntentId || activeCenterTab === "chat"
+  const shouldShowChatComposer =
+    isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
   const effectiveBorealEnabled =
     !activeIntentId || isBorealAssignedToActiveRequest
   const isAnyMobileSidebarOpen =
@@ -389,30 +398,6 @@ export function ChatShell() {
     width: showIntentSidebar ? REQUEST_SIDEBAR_WIDTH : COLLAPSED_SIDEBAR_WIDTH,
     willChange: "width",
   } as CSSProperties
-  const desktopWorkspaceStyle = {
-    width: DISCOVERY_SIDEBAR_WIDTH,
-  } as CSSProperties
-  const desktopCenterShellStyle = {
-    maxWidth: showWorkspace
-      ? `calc(100% - ${DISCOVERY_SIDEBAR_WIDTH} - ${DESKTOP_STAGE_GAP})`
-      : "100%",
-    width: showWorkspace
-      ? `calc(100% - ${DISCOVERY_SIDEBAR_WIDTH} - ${DESKTOP_STAGE_GAP})`
-      : "100%",
-    willChange: "width",
-  } as CSSProperties
-  const desktopWorkspaceContentStyle = {
-    width: "100%",
-    willChange: "transform",
-  } as CSSProperties
-  const desktopWorkspacePanelStyle = {
-    width: "100%",
-    willChange: "transform",
-  } as CSSProperties
-  const desktopWorkspaceMotionStyle = {
-    transitionDelay: showWorkspace ? "0ms" : "0ms",
-  } as CSSProperties
-
   const deleteIntent = useMutation(deleteIntentMutation)
   const generateUploadUrl = useMutation(generateUploadUrlMutation)
   const refineRequestMatches = useMutation(
@@ -437,6 +422,7 @@ export function ChatShell() {
   )
   const upsertMyProfile = useMutation(convexFunctionRefs.upsertMyProfile)
   const createSupplyEntry = useMutation(convexFunctionRefs.createSupplyEntry)
+  const syncWalletAccount = useMutation(convexFunctionRefs.syncWalletAccount)
 
   const requestWorkspace = requestDetail?.intent
     ? buildWorkspaceFromRequestDetail(requestDetail)
@@ -464,10 +450,10 @@ export function ChatShell() {
     requestDetail?.review ??
     (optimisticReviewRating !== null
       ? {
-          comment: "",
-          rating: optimisticReviewRating,
-          reviewedAt: Date.now(),
-        }
+        comment: "",
+        rating: optimisticReviewRating,
+        reviewedAt: Date.now(),
+      }
       : null)
   const shouldPromptReview = Boolean(
     requestDetail?.intent?.reviewPending &&
@@ -561,6 +547,26 @@ export function ChatShell() {
       scroll: false,
     })
   }, [pathname, router, searchParams, seededPrompt])
+
+  useEffect(() => {
+    if (!ownerExternalId || !defaultWalletAddress || !isWalletReady) {
+      return
+    }
+
+    void syncWalletAccount({
+      ownerDisplayName: session?.user?.name ?? undefined,
+      ownerExternalId,
+      roles: ["connected", "buyer", "payout"],
+      setAsDefaultBuyer: true,
+      walletAddress: defaultWalletAddress,
+    })
+  }, [
+    defaultWalletAddress,
+    isWalletReady,
+    ownerExternalId,
+    session?.user?.name,
+    syncWalletAccount,
+  ])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)")
@@ -756,7 +762,11 @@ export function ChatShell() {
       })
 
       if (!result.placed) {
-        throw new Error("Could not place checkout.")
+        throw new Error(
+          result.reason === "missing_buyer_wallet"
+            ? "Connect a buyer wallet before placing paid checkout items."
+            : "Could not place checkout."
+        )
       }
 
       setCartNotice(
@@ -838,8 +848,8 @@ export function ChatShell() {
           checkoutItemId: item._id,
           errorMessage:
             responsePayload &&
-            typeof responsePayload === "object" &&
-            "rawText" in responsePayload
+              typeof responsePayload === "object" &&
+              "rawText" in responsePayload
               ? String(responsePayload.rawText)
               : `Invocation failed with ${response.status}.`,
           ownerExternalId,
@@ -987,13 +997,13 @@ export function ChatShell() {
       ...current,
       ...(!activeIntentId
         ? [
-            {
-              content: trimmed,
-              createdAt: now,
-              id: crypto.randomUUID(),
-              role: "user" as const,
-            },
-          ]
+          {
+            content: trimmed,
+            createdAt: now,
+            id: crypto.randomUUID(),
+            role: "user" as const,
+          },
+        ]
         : []),
       {
         content: "",
@@ -1081,10 +1091,10 @@ export function ChatShell() {
       })
       const payload = (await response.json()) as
         | {
-            assistantMessage: string
-            relatedCatalogItems: CatalogItem[]
-            workspace: WorkspaceState
-          }
+          assistantMessage: string
+          relatedCatalogItems: CatalogItem[]
+          workspace: WorkspaceState
+        }
         | { error?: string }
 
       if (!response.ok || !("workspace" in payload)) {
@@ -1269,10 +1279,10 @@ export function ChatShell() {
       })
       const payload = (await response.json()) as
         | {
-            assistantMessage: string
-            relatedCatalogItems: CatalogItem[]
-            workspace: WorkspaceState
-          }
+          assistantMessage: string
+          relatedCatalogItems: CatalogItem[]
+          workspace: WorkspaceState
+        }
         | { error?: string }
 
       if (!response.ok || !("workspace" in payload)) {
@@ -1548,11 +1558,11 @@ export function ChatShell() {
             attachments: current.attachments.map((attachment) =>
               attachment.id === draft.id
                 ? {
-                    ...attachment,
-                    progress: 100,
-                    status: "uploaded",
-                    storageId,
-                  }
+                  ...attachment,
+                  progress: 100,
+                  status: "uploaded",
+                  storageId,
+                }
                 : attachment
             ),
           }))
@@ -1562,11 +1572,11 @@ export function ChatShell() {
             attachments: current.attachments.map((attachment) =>
               attachment.id === draft.id
                 ? {
-                    ...attachment,
-                    progress: 0,
-                    status: "error",
-                    storageId: null,
-                  }
+                  ...attachment,
+                  progress: 0,
+                  status: "error",
+                  storageId: null,
+                }
                 : attachment
             ),
           }))
@@ -1739,7 +1749,11 @@ export function ChatShell() {
         const supplyResult = await createSupplyEntry(supplyInput)
 
         if (!supplyResult.created) {
-          throw new Error("Could not publish the listing.")
+          throw new Error(
+            supplyResult.reason === "missing_payout_wallet"
+              ? "Connect a wallet first before publishing monetized supply so Boreal knows where payouts should go."
+              : "Could not publish the listing."
+          )
         }
       }
 
@@ -1761,7 +1775,7 @@ export function ChatShell() {
         if (!response.ok || !payload.fulfilled) {
           throw new Error(
             payload.error ??
-              "Profile was saved, but the request could not be marked fulfilled."
+            "Profile was saved, but the request could not be marked fulfilled."
           )
         }
       } else {
@@ -1887,8 +1901,8 @@ export function ChatShell() {
 
   return (
     <>
-      <div className="mx-auto flex h-svh w-full max-w-450 flex-col overflow-hidden px-4 py-4 sm:px-4">
-        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+      <div className="flex h-svh w-full max-w-none flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col gap-0 lg:flex-row">
           <div
             className="relative hidden min-h-0 shrink-0 overflow-hidden transition-[width,min-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:block"
             style={desktopIntentSidebarStyle}
@@ -1907,6 +1921,7 @@ export function ChatShell() {
               <>
                 <IntentSidebar
                   intents={visibleSidebarIntents}
+                  onCollapse={() => setShowIntentSidebar(false)}
                   onDeselect={handleClearSelection}
                   onOpenPendingApprovals={() => {
                     const nextIntent = pendingApprovalIntents[0]
@@ -1918,16 +1933,6 @@ export function ChatShell() {
                   pendingApprovalCount={pendingApprovalIntents.length}
                   selectedIntentId={activeIntentId}
                 />
-                <Button
-                  aria-label="Minimize requests sidebar"
-                  className="absolute top-3 right-3 z-20 bg-background/90 backdrop-blur"
-                  onClick={() => setShowIntentSidebar(false)}
-                  size="icon-sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <PanelLeftCloseIcon />
-                </Button>
               </>
             </div>
             <div
@@ -1952,80 +1957,41 @@ export function ChatShell() {
           </div>
 
           <div className="relative flex min-h-0 min-w-0 flex-1">
-            <div
-              aria-hidden={!showWorkspace}
-              className={cn(
-                "absolute inset-y-0 right-0 hidden overflow-hidden lg:block",
-                showWorkspace ? "pointer-events-auto" : "pointer-events-none"
-              )}
-              inert={!showWorkspace}
-              style={desktopWorkspaceStyle}
-            >
-              <div
-                className={cn(
-                  "absolute inset-0 origin-right transform-gpu bg-background/98 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.24)] transition-transform duration-100 ease-[cubic-bezier(0.22,1,0.36,1)]",
-                  showWorkspace ? "scale-100" : "scale-[0.95]"
-                )}
-                style={{
-                  ...desktopWorkspacePanelStyle,
-                  ...desktopWorkspaceMotionStyle,
-                }}
-              >
-                <div className="h-full" style={desktopWorkspaceContentStyle}>
-                  <WorkspacePanel
-                    activeTab={workspaceTab}
-                    onAddToCart={handleAddToCart}
-                    onSelectRequest={handleMarketplaceSelect}
-                    onTabChange={(value) =>
-                      updateWorkspaceUrl({ browse: value })
-                    }
-                    ownerExternalId={ownerExternalId}
-                  />
-                </div>
-              </div>
-            </div>
-
             <section
-              className="relative z-10 flex h-full min-h-0 min-w-0 flex-col overflow-hidden border border-border bg-background shadow-[0_18px_40px_-34px_rgba(15,23,42,0.4)] transition-[width] duration-320 ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={desktopCenterShellStyle}
+              className={cn(
+                "relative z-10 flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background",
+                showWorkspace
+                  ? "border-l border-border"
+                  : "border-x border-border"
+              )}
             >
-              <div className="border-b border-border px-4 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2">
+              <div className="flex h-16 items-center border-b border-border px-4">
+                <div className="flex w-full items-center justify-between gap-4">
+                  <div className="min-w-0 flex flex-1 items-center gap-3 overflow-hidden">
                     {activeIntentId ? (
-                      <Button
-                        className="h-auto px-0 text-[11px] tracking-[0.2em] text-muted-foreground uppercase"
-                        onClick={handleClearSelection}
-                        size="sm"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <ArrowLeftIcon />
-                        Boreal chat
-                      </Button>
-                    ) : null}
-                    {/* <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                  {activeIntentId ? "Request thread" : "Boreal chat"}
-                </p> */}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-lg font-medium">
-                        {activeIntentId
-                          ? (requestDetail?.intent?.title ??
-                            selectedIntent?.title ??
-                            "Request")
-                          : "Helpful chat first. Tracked execution when work is approved."}
-                      </h1>
-                      {requestDetail?.intent ? (
-                        <RequestStatusBadge
-                          status={requestDetail.intent.status}
-                        />
-                      ) : null}
-                      {requestDetail?.intent ? (
-                        <InlineTierPill
-                          tier={requestDetail.intent.resolutionTier}
-                        />
-                      ) : null}
-                    </div>
+                      <>
+                        <button
+                          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                          onClick={handleClearSelection}
+                          type="button"
+                        >
+                          <ArrowLeftIcon className="size-4" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <h1 className="truncate text-base font-medium">
+                            {requestDetail?.intent?.title ??
+                              selectedIntent?.title ??
+                              "Request"}
+                          </h1>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="truncate text-sm font-medium">
+                          Boreal chat
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 lg:hidden">
@@ -2051,6 +2017,16 @@ export function ChatShell() {
                       </Button>
                     </div>
                     <div className="hidden items-center gap-2 lg:flex">
+                      {!activeIntentId ? (
+                        <Button
+                          asChild
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Link href="/about">About</Link>
+                        </Button>
+                      ) : null}
                       {showWorkspace ? (
                         <Button
                           aria-label="Hide market"
@@ -2064,7 +2040,6 @@ export function ChatShell() {
                       ) : (
                         <Button
                           aria-label="Open market"
-                          className="shadow-[0_0_0_1px_rgba(15,23,42,0.08)]"
                           onClick={() => setShowWorkspace(true)}
                           size="sm"
                           type="button"
@@ -2093,58 +2068,63 @@ export function ChatShell() {
                   value={activeCenterTab}
                 >
                   <div className="flex flex-col gap-0">
-                    <div className="border-b border-border px-1 pt-1">
-                      <TabsList
-                        className="w-full justify-start overflow-x-auto px-2"
-                        variant="line"
-                      >
-                        <RequestViewTabTrigger label="Chat" value="chat" />
-                        <RequestViewTabTrigger
-                          count={requestNotificationCounts.activity}
-                          label="Activity"
-                          value="activity"
-                        />
-                        <RequestViewTabTrigger
-                          count={requestNotificationCounts.participants}
-                          label="Participants"
-                          value="participants"
-                        />
-                        <RequestViewTabTrigger
-                          count={requestNotificationCounts.workspace}
-                          label="Workspace"
-                          value="workspace"
-                        />
-                      </TabsList>
-                    </div>
-
-                    {requestDetail?.intent ? (
-                      <div className="p-1">
-                        <div className="flex items-center justify-between rounded-md border border-border px-3 py-3">
-                          <RequestHeaderMeta
-                            onOpenParticipants={() =>
-                              updateWorkspaceUrl({ view: "participants" })
-                            }
-                            status={requestDetail.intent.status}
-                            participants={requestDetail.participants}
-                          />
-                          <RequestStageRail
-                            status={requestDetail.intent.status}
-                          />
+                    <div className="border-b border-border px-3 py-2">
+                      <div className="flex flex-wrap items-start justify-between gap-3 md:flex-nowrap md:items-center">
+                        <div className="min-w-0 flex-1 basis-full md:basis-auto">
+                          <TabsList
+                            className="h-auto w-max max-w-full justify-start overflow-x-auto"
+                            variant="button"
+                          >
+                            <RequestViewTabTrigger label="Chat" value="chat" />
+                            <RequestViewTabTrigger
+                              count={requestNotificationCounts.activity}
+                              label="Activity"
+                              value="activity"
+                            />
+                            <RequestViewTabTrigger
+                              count={requestNotificationCounts.participants}
+                              label="Participants"
+                              value="participants"
+                            />
+                            <RequestViewTabTrigger
+                              count={requestNotificationCounts.workspace}
+                              label="Workspace"
+                              value="workspace"
+                            />
+                          </TabsList>
                         </div>
+
+                        {requestDetail?.intent ? (
+                          <div className="w-full md:w-auto md:shrink-0">
+                            <RequestHeaderMeta
+                              status={requestDetail.intent.status}
+                            />
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
+                    </div>
                   </div>
 
                   <div className="min-h-0 flex-1 overflow-hidden">
                     {isRequestLoading ? (
-                      <ScrollArea className="h-full">
-                        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4 px-4 py-6">
+                      <div className="flex h-full items-center justify-center">
+                        <div
+                          className={cn(
+                            CONTENT_RAIL_CLASS,
+                            "items-center justify-center"
+                          )}
+                        >
                           <LoadingRequestPanel />
                         </div>
-                      </ScrollArea>
+                      </div>
                     ) : !requestDetail ? (
-                      <div className="mx-auto flex h-full w-full max-w-3xl items-center px-4 py-8">
-                        <div className="w-full border border-border p-6">
+                      <div
+                        className={cn(
+                          CONTENT_RAIL_CLASS,
+                          "h-full items-center py-8"
+                        )}
+                      >
+                        <div className="w-full rounded-xl border border-border p-6">
                           <p className="text-sm font-medium">
                             Request workspace unavailable
                           </p>
@@ -2162,7 +2142,7 @@ export function ChatShell() {
                           value="activity"
                         >
                           <ScrollArea className="h-full">
-                            <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
+                            <div className={CONTENT_RAIL_CLASS}>
                               <ActivityThreadPanel
                                 requestDetail={requestDetail}
                                 selectedIntent={selectedIntent}
@@ -2176,7 +2156,7 @@ export function ChatShell() {
                           value="participants"
                         >
                           <ScrollArea className="h-full">
-                            <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
+                            <div className={CONTENT_RAIL_CLASS}>
                               <RequestWorkersPanel
                                 onBrowseWorkers={() => {
                                   updateWorkspaceUrl({ browse: "workers" })
@@ -2195,7 +2175,7 @@ export function ChatShell() {
                           value="workspace"
                         >
                           <ScrollArea className="h-full">
-                            <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
+                            <div className={CONTENT_RAIL_CLASS}>
                               <ProposalViewerPanel
                                 approvingProposalId={approvingProposalId}
                                 canSubmitDelivery={canSubmitDelivery}
@@ -2243,8 +2223,13 @@ export function ChatShell() {
                           value="chat"
                         >
                           {!canViewRequestChat ? (
-                            <div className="mx-auto flex h-full w-full max-w-3xl items-center px-4 py-8">
-                              <div className="w-full border border-border p-6">
+                            <div
+                              className={cn(
+                                CONTENT_RAIL_CLASS,
+                                "h-full items-center py-8"
+                              )}
+                            >
+                              <div className="w-full rounded-xl border border-border p-6">
                                 <p className="text-sm font-medium">
                                   Chat opens after acceptance
                                 </p>
@@ -2257,7 +2242,7 @@ export function ChatShell() {
                             </div>
                           ) : (
                             <Conversation className="h-full min-h-0">
-                              <ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
+                              <ConversationContent className={CHAT_RAIL_CLASS}>
                                 <RequestChatTimeline
                                   approvingProposalId={approvingProposalId}
                                   isApprovingRequest={isApprovingRequest}
@@ -2331,25 +2316,72 @@ export function ChatShell() {
               ) : (
                 <div className="min-h-0 flex-1 overflow-hidden">
                   {isHomeView ? (
-                    <div className="mx-auto flex h-full w-full max-w-3xl flex-col justify-center px-4 py-8">
+                    <div className={HOME_PANEL_CLASS}>
                       <ConversationEmptyState
-                        description="Ask anything directly. If Boreal detects a request worth tracking, it drafts it first, asks for approval, then hands it to the right tools or workers."
-                        title="Start in chat"
+                        description="Boreal is a chat-native interface for request-native commerce. Start with the ask. Boreal drafts the request, searches supply first, and opens proposals only when the work is custom."
+                        title="Turn chat into a request that can actually run."
                       >
-                        <div className="space-y-4 text-left">
-                          <div className="space-y-2">
+                        <div className="space-y-6 text-left">
+                          <div className="space-y-3">
                             <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
-                              Request-aware assistant
+                              Chat-native interface / Request-native system
                             </p>
-                            <h2 className="text-3xl font-medium tracking-tight">
-                              Chat first. Approve work only when you want Boreal
-                              to act.
+                            <h2 className="max-w-3xl text-3xl font-medium tracking-tight">
+                              Start in chat. Promote only the work that should
+                              become supply, proposals, delivery, or checkout.
                             </h2>
+                            <p className="max-w-2xl text-sm/7 text-muted-foreground">
+                              Boreal should not trap demand in a prompt thread.
+                              It should turn the ask into a structured request,
+                              check live supply first, and keep execution
+                              attached once work begins.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <div className="border border-border bg-background px-4 py-4">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                                Input
+                              </p>
+                              <p className="mt-2 text-sm font-medium">
+                                Plain-language ask
+                              </p>
+                            </div>
+                            <div className="border border-border bg-background px-4 py-4">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                                Routing
+                              </p>
+                              <p className="mt-2 text-sm font-medium">
+                                Search supply first
+                              </p>
+                            </div>
+                            <div className="border border-border bg-background px-4 py-4">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                                Outcome
+                              </p>
+                              <p className="mt-2 text-sm font-medium">
+                                Keep execution attached
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`${pathname}?browse=workers`}>
+                                Browse supply
+                              </Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`${pathname}?browse=requests`}>
+                                Browse requests
+                              </Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                              <Link href="/about">About Boreal</Link>
+                            </Button>
                           </div>
                           <div className="grid gap-3 md:grid-cols-2">
                             {starterPrompts.map((prompt) => (
                               <button
-                                className="border border-border p-4 text-left text-sm"
+                                className="rounded-xl border border-border bg-background px-4 py-4 text-left text-sm transition-colors hover:bg-muted/30"
                                 key={prompt}
                                 onClick={() => {
                                   setComposerText(prompt)
@@ -2365,7 +2397,7 @@ export function ChatShell() {
                     </div>
                   ) : (
                     <Conversation className="h-full min-h-0">
-                      <ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6">
+                      <ConversationContent className={CHAT_RAIL_CLASS}>
                         {displayedMessages.map((message) => (
                           <Message from={message.role} key={message.id}>
                             <MessageContent>
@@ -2411,108 +2443,154 @@ export function ChatShell() {
                 </div>
               )}
 
-              <div className="border-t border-border p-4">
-                {isArchivedTranscript ? (
-                  <div className="border border-border px-4 py-3 text-xs text-muted-foreground">
-                    This request has been archived. The chat is now read-only.
-                  </div>
-                ) : (
-                  <PromptInput
-                    onSubmit={async (input) => {
-                      if (!input.text.trim()) {
-                        return
-                      }
-
-                      await submitMessage(input.text)
-                    }}
-                  >
-                    <PromptInputBody>
-                      <PromptInputTextarea
-                        onChange={(event) =>
-                          setComposerText(event.currentTarget.value)
-                        }
-                        placeholder="Ask a question, coordinate on a request, or ask Boreal for help."
-                        value={composerText}
-                      />
-                    </PromptInputBody>
-                    <PromptInputFooter>
-                      <PromptInputTools>
-                        {shouldShowHomeBorealButton ? (
-                          <Button
-                            className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                            onClick={() => setIsBorealProfileOpen(true)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <BotIcon />
-                            Boreal Agent
-                          </Button>
-                        ) : null}
-                        {shouldShowAssignedBorealButton ? (
-                          <Button
-                            className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                            onClick={() => setIsBorealProfileOpen(true)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <BotIcon className="size-4" />
-                            Boreal Agent
-                          </Button>
-                        ) : null}
-                        <Button
-                          onClick={openProfileBuilder}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <CircleUserRoundIcon />
-                          Profile update
-                        </Button>
-                        <Button
-                          onClick={() => setIsCartOpen(true)}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <ShoppingCartIcon />
-                          Cart
-                          {activeCart?.itemCount
-                            ? ` (${activeCart.itemCount})`
-                            : ""}
-                        </Button>
-                        <Button
-                          onClick={login}
-                          size="sm"
-                          type="button"
-                          variant={privyAuthenticated ? "secondary" : "ghost"}
-                        >
-                          <WalletIcon />
-                          {privyReady
-                            ? privyAuthenticated
-                              ? "Connected"
-                              : "Connect Wallet"
-                            : "Wallet"}
-                        </Button>
-                      </PromptInputTools>
-                      <PromptInputSubmit
-                        disabled={
-                          isSubmitting || composerText.trim().length === 0
-                        }
-                        status={isSubmitting ? "submitted" : undefined}
-                      />
-                    </PromptInputFooter>
-                  </PromptInput>
+              <div
+                aria-hidden={!shouldShowChatComposer}
+                className={cn(
+                  "overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out",
+                  shouldShowChatComposer
+                    ? "max-h-[40rem] opacity-100"
+                    : "pointer-events-none max-h-0 -translate-y-2 opacity-0"
                 )}
+                inert={!shouldShowChatComposer}
+              >
+                <div className="py-4">
+                  <div className={CHAT_COMPOSER_CLASS}>
+                    <PromptInputTools className="w-full flex-wrap justify-start gap-2">
+                      <Button
+                        onClick={openProfileBuilder}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <CircleUserRoundIcon />
+                        Profile update
+                      </Button>
+                      <Button
+                        onClick={() => setIsCartOpen(true)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <ShoppingCartIcon />
+                        Cart
+                        {activeCart?.itemCount ? ` (${activeCart.itemCount})` : ""}
+                      </Button>
+                      <Button
+                        onClick={login}
+                        size="sm"
+                        type="button"
+                        variant={privyAuthenticated ? "secondary" : "ghost"}
+                      >
+                        <WalletIcon />
+                        {privyReady
+                          ? privyAuthenticated
+                            ? "Connected"
+                            : "Connect Wallet"
+                          : "Wallet"}
+                      </Button>
+                    </PromptInputTools>
 
-                {errorMessage ? (
-                  <p className="mt-3 text-xs text-destructive">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                    {isArchivedTranscript ? (
+                      <div className="border border-border px-4 py-3 text-xs text-muted-foreground">
+                        This request has been archived. The chat is now
+                        read-only.
+                      </div>
+                    ) : (
+                      <PromptInput
+                        className="w-full"
+                        onSubmit={async (input) => {
+                          if (!input.text.trim()) {
+                            return
+                          }
+
+                          await submitMessage(input.text)
+                        }}
+                      >
+                        <PromptInputBody>
+                          <PromptInputTextarea
+                            onChange={(event) =>
+                              setComposerText(event.currentTarget.value)
+                            }
+                            placeholder="Ask a question, coordinate on a request, or ask Boreal for help."
+                            value={composerText}
+                          />
+                        </PromptInputBody>
+                        <PromptInputFooter
+                          className={cn(
+                            shouldShowBorealToolbarButton
+                              ? "justify-between gap-2"
+                              : "justify-end"
+                          )}
+                        >
+                          {shouldShowBorealToolbarButton ? (
+                            <PromptInputTools className="flex-wrap gap-2">
+                              <Button
+                                className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
+                                onClick={() => setIsBorealProfileOpen(true)}
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                              >
+                                <BotIcon className="size-4" />
+                                Boreal Agent
+                              </Button>
+                            </PromptInputTools>
+                          ) : null}
+                          <PromptInputSubmit
+                            disabled={
+                              isSubmitting || composerText.trim().length === 0
+                            }
+                            status={isSubmitting ? "submitted" : undefined}
+                          />
+                        </PromptInputFooter>
+                      </PromptInput>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {errorMessage ? (
+                <div className="pb-4">
+                  <div className={CENTER_PANEL_CLASS}>
+                    <p className="text-xs text-destructive">{errorMessage}</p>
+                  </div>
+                </div>
+              ) : null}
             </section>
+
+            <div
+              aria-hidden={!showWorkspace}
+              className={cn(
+                "hidden shrink-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:block",
+                showWorkspace ? "pointer-events-auto" : "pointer-events-none"
+              )}
+              inert={!showWorkspace}
+              style={{
+                width: showWorkspace ? DISCOVERY_SIDEBAR_WIDTH : "0px",
+                willChange: "width",
+              }}
+            >
+              <div
+                className={cn(
+                  "h-full origin-right transform-gpu border-l border-border bg-background transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  showWorkspace
+                    ? "translate-x-0 opacity-100"
+                    : "translate-x-6 opacity-0"
+                )}
+                style={{
+                  width: DISCOVERY_SIDEBAR_WIDTH,
+                  willChange: "transform,opacity",
+                }}
+              >
+                <WorkspacePanel
+                  activeTab={workspaceTab}
+                  onAddToCart={handleAddToCart}
+                  onSelectRequest={handleMarketplaceSelect}
+                  onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
+                  ownerExternalId={ownerExternalId}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2524,6 +2602,7 @@ export function ChatShell() {
       >
         <IntentSidebar
           intents={visibleSidebarIntents}
+          onCollapse={() => setIsMobileIntentSidebarOpen(false)}
           onDeselect={handleClearSelection}
           onOpenPendingApprovals={() => {
             const nextIntent = pendingApprovalIntents[0]
@@ -2609,23 +2688,25 @@ function CollapsedRequestsRail({
   const avatarInitial = accountName?.trim().charAt(0).toUpperCase() ?? "U"
 
   return (
-    <aside className="flex h-full w-full flex-col items-center border border-border bg-background px-3 py-3">
+    <aside className="flex h-full w-full flex-col items-center border-r border-border bg-foreground/[0.05] px-3 py-4">
       <button
         aria-label="Expand requests sidebar"
-        className="group relative flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background shadow-sm transition-[background-color,box-shadow] duration-200 hover:bg-foreground/5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+        className="group relative flex size-10 items-center justify-center rounded-xl border border-border bg-background p-2 transition-colors hover:bg-muted/40"
         onClick={onExpand}
         type="button"
       >
-        <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold tracking-[0.18em] text-foreground uppercase transition-all duration-200 group-hover:scale-90 group-hover:opacity-0">
-          B
+        <span className="flex size-full items-center justify-center rounded-lg bg-muted/30 transition-opacity duration-150 group-hover:opacity-0">
+          <Logo size={13} />
         </span>
-        <PanelLeftOpenIcon className="absolute size-4 scale-90 text-foreground opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100" />
+        <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          <PanelLeftOpenIcon className="size-4" />
+        </span>
       </button>
 
-      <div className="mt-5 flex flex-col items-center gap-3">
+      <div className="mt-4 flex flex-col items-center gap-2">
         <Button
           aria-label="Start new chat"
-          className="size-11 rounded-xl shadow-[0_10px_18px_rgba(15,23,42,0.18)]"
+          className="size-10"
           onClick={onNewChat}
           size="icon"
           type="button"
@@ -2635,7 +2716,7 @@ function CollapsedRequestsRail({
 
         <button
           aria-label={`Open requests sidebar with ${requestCount} tracked requests`}
-          className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background text-foreground shadow-sm transition-[background-color,box-shadow] duration-200 hover:bg-foreground/5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+          className="relative flex size-10 items-center justify-center rounded-xl border border-border bg-background text-foreground transition-colors hover:bg-muted/40"
           onClick={onExpand}
           type="button"
         >
@@ -2647,15 +2728,15 @@ function CollapsedRequestsRail({
       </div>
 
       <div className="mt-auto flex flex-col items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background shadow-sm">
-          <Avatar className="size-7">
+        <div className="flex size-10 items-center justify-center rounded-xl border border-border bg-background">
+          <Avatar className="size-7 rounded-lg">
             {accountImageUrl ? (
               <AvatarImage
                 alt={accountName ?? "Account"}
                 src={accountImageUrl}
               />
             ) : null}
-            <AvatarFallback>
+            <AvatarFallback className="rounded-lg">
               {accountName ? (
                 avatarInitial
               ) : (
@@ -2763,48 +2844,113 @@ function RequestViewTabTrigger({
   label: string
   value: CenterViewTab
 }) {
+  const hasCount = count > 0
+
   return (
-    <TabsTrigger value={value}>
+    <TabsTrigger className="flex-none" value={value}>
       <span>{label}</span>
-      {count > 0 ? (
-        <Badge
-          className="min-w-5 rounded-full bg-primary/10 px-1.5 text-[10px] font-medium text-primary"
-          variant="outline"
-        >
-          {formatNotificationCount(count)}
-        </Badge>
-      ) : null}
+      <Badge
+        aria-hidden={!hasCount}
+        className={cn(
+          "h-5 w-6 shrink-0 justify-center border-transparent px-0 text-[10px] font-medium tabular-nums",
+          hasCount
+            ? "bg-primary/10 text-primary"
+            : "bg-transparent text-transparent opacity-0"
+        )}
+        variant="outline"
+      >
+        {hasCount ? formatNotificationCount(count) : "0"}
+      </Badge>
     </TabsTrigger>
   )
 }
 
 function RequestHeaderMeta({
-  onOpenParticipants,
   status,
-  participants,
 }: {
-  onOpenParticipants: () => void
   status: NonNullable<RequestDetail["intent"]>["status"]
-  participants?: RequestDetail["participants"]
 }) {
-  const assignedWorkers = dedupeParticipantList(
-    (participants ?? []).filter((participant) => participant.status !== "owner")
-  )
+  const progressStage = getRequestHeaderStage(status)
+  const isWorking = status === "claimed" || status === "in_progress"
+  const progressItems = [
+    { icon: SearchIcon, label: "Scope" },
+    { icon: CheckIcon, label: "Approve" },
+    { icon: SparklesIcon, label: "Active" },
+    { icon: PackageIcon, label: "Deliver" },
+  ] as const
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      <Button
-        className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
-        onClick={onOpenParticipants}
-        size="sm"
-        type="button"
-        variant="ghost"
-      >
-        <span>Participants</span>
-        <AssignedWorkerPills participants={assignedWorkers} status={status} />
-      </Button>
+    <div className="w-full md:w-auto">
+      <TooltipProvider>
+        <div className="flex justify-end">
+          <div className="flex min-w-0 items-center py-1.5">
+            {progressItems.map((item, index) => {
+              const isComplete = index < progressStage
+              const isCurrent = index === progressStage
+              const shouldPulse = isCurrent && index === 2 && isWorking
+              const Icon = item.icon
+
+              return (
+                <div className="contents" key={item.label}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        aria-label={item.label}
+                        className={cn(
+                          "relative z-10 flex size-5 shrink-0 items-center justify-center rounded-full border bg-background transition-colors",
+                          isComplete || isCurrent
+                            ? "border-primary bg-primary/5 text-primary"
+                            : "border-foreground/20 text-muted-foreground",
+                          shouldPulse &&
+                            "animate-pulse shadow-[0_0_0_4px_rgba(20,184,166,0.14)]"
+                        )}
+                      >
+                        <Icon className="size-2.5" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={2}>
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                  {index < progressItems.length - 1 ? (
+                    <div
+                      className={cn(
+                        "h-px min-w-3 flex-1 sm:min-w-4",
+                        isComplete || isCurrent
+                          ? "bg-primary/75"
+                          : "bg-border"
+                      )}
+                    />
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </TooltipProvider>
     </div>
   )
+}
+
+function getRequestHeaderStage(status: string) {
+  if (status === "fulfilled") {
+    return 3
+  }
+
+  if (
+    status === "open" ||
+    status === "claimed" ||
+    status === "in_progress" ||
+    status === "blocked"
+  ) {
+    return 2
+  }
+
+  if (status === "proposed" || status === "closed") {
+    return 1
+  }
+
+  return 0
 }
 
 function InlineRequestActionEvent({
@@ -3276,30 +3422,30 @@ function InlineRequestActionEvent({
 
 type RequestTimelineItem =
   | {
-      item: RequestDetail["messages"][number]
-      key: string
-      kind: "message"
-      timestamp: number
-    }
+    item: RequestDetail["messages"][number]
+    key: string
+    kind: "message"
+    timestamp: number
+  }
   | { item: ChatMessage; key: string; kind: "live"; timestamp: number }
   | {
-      item: NonNullable<RequestDetail["artifact"]>
-      key: string
-      kind: "artifact"
-      timestamp: number
-    }
+    item: NonNullable<RequestDetail["artifact"]>
+    key: string
+    kind: "artifact"
+    timestamp: number
+  }
   | {
-      item: NonNullable<RequestDetail["fulfillment"]>
-      key: string
-      kind: "fulfillment"
-      timestamp: number
-    }
+    item: NonNullable<RequestDetail["fulfillment"]>
+    key: string
+    kind: "fulfillment"
+    timestamp: number
+  }
   | {
-      item: NonNullable<RequestDetail["review"]>
-      key: string
-      kind: "review"
-      timestamp: number
-    }
+    item: NonNullable<RequestDetail["review"]>
+    key: string
+    kind: "review"
+    timestamp: number
+  }
 
 function RequestChatTimeline({
   approvingProposalId,
@@ -3464,8 +3610,8 @@ function RequestChatTimeline({
       ) : null}
 
       {workspace.kind === "catalog" ||
-      workspace.kind === "profile_builder" ||
-      (timeline.length === 0 && hasRenderableInlineWorkspace(workspace)) ? (
+        workspace.kind === "profile_builder" ||
+        (timeline.length === 0 && hasRenderableInlineWorkspace(workspace)) ? (
         <InlineWorkspaceCard
           isRefreshingVideo={isRefreshingVideo}
           onAddToCart={onAddToCart}
@@ -3780,122 +3926,10 @@ function SenderIcon({ actorKind }: { actorKind: "agent" | "human" | "tool" }) {
   return <UserIcon className="size-3" />
 }
 
-function InlineTierPill({ tier }: { tier: string }) {
-  return (
-    <span className="inline-flex items-center border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-      Tier {tier.replaceAll("_", " ")}
-    </span>
-  )
-}
-
-function AssignedWorkerPills({
-  participants,
-  status,
-}: {
-  participants?: Array<{
-    displayName: string
-    externalId: string | null
-    handle: string | null
-    kind: string
-    profileId: string | null
-    status: string
-  }>
-  status: NonNullable<RequestDetail["intent"]>["status"]
-}) {
-  const workers = participants ?? []
-
-  return (
-    <div className="flex items-center gap-1">
-      {workers.length === 0 ? (
-        <span className="border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-          {status === "open" || status === "proposed" || status === "blocked"
-            ? "Waiting for workers"
-            : "Not assigned yet"}
-        </span>
-      ) : (
-        workers
-          .slice(0, 4)
-          .map((worker) => (
-            <WorkerPill
-              icon={worker.kind === "agent" ? BotIcon : UserIcon}
-              key={`${worker.displayName}-${worker.status}`}
-              label={worker.displayName}
-            />
-          ))
-      )}
-    </div>
-  )
-}
-
-function dedupeParticipantList<
-  T extends {
-    displayName: string
-    externalId?: string | null
-    handle?: string | null
-  },
->(participants: T[]) {
-  const deduped = new Map<string, T>()
-
-  for (const participant of participants) {
-    const externalId = participant.externalId?.trim().toLowerCase()
-    const handle = participant.handle?.trim().toLowerCase()
-    const name = participant.displayName.trim().toLowerCase()
-    const key = externalId
-      ? externalId.includes("boreal")
-        ? "agent:boreal"
-        : `external:${externalId}`
-      : handle
-        ? handle === "boreal"
-          ? "agent:boreal"
-          : `handle:${handle}`
-        : name.includes("boreal")
-          ? "agent:boreal"
-          : `name:${name}`
-
-    if (!deduped.has(key)) {
-      deduped.set(key, participant)
-    }
-  }
-
-  return Array.from(deduped.values())
-}
-
-function WorkerPill({
-  icon: Icon,
-  label,
-}: {
-  icon: typeof BotIcon
-  label: string
-}) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex items-center gap-2 border border-border px-2 py-1 text-muted-foreground">
-            <Icon className="size-3.5" />
-            <span className="text-[11px] tracking-[0.16em] uppercase">
-              {label}
-            </span>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{label}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
-
 function LoadingRequestPanel() {
   return (
-    <div className="space-y-4 border border-border p-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <LoaderIcon className="size-4 animate-spin" />
-        <span>Loading request workspace</span>
-      </div>
-      <div className="space-y-2">
-        <div className="h-10 animate-pulse bg-foreground/5" />
-        <div className="h-24 animate-pulse bg-foreground/5" />
-        <div className="h-16 animate-pulse bg-foreground/5" />
-      </div>
+    <div className="flex items-center justify-center">
+      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
     </div>
   )
 }
@@ -4816,7 +4850,7 @@ function CartDialog({
                                   <span>
                                     {formatMoney(
                                       (item.unitPriceAmount ?? 0) *
-                                        item.quantity,
+                                      item.quantity,
                                       checkout.currency
                                     )}
                                   </span>
@@ -4851,10 +4885,10 @@ function CartDialog({
 
                               <div className="flex flex-wrap gap-2">
                                 {item.payment &&
-                                (item.payment.status === "ready_to_pay" ||
-                                  item.payment.status === "pending_approval" ||
-                                  item.payment.status === "failed") &&
-                                item.serviceInvocation?.endpointUrl ? (
+                                  (item.payment.status === "ready_to_pay" ||
+                                    item.payment.status === "pending_approval" ||
+                                    item.payment.status === "failed") &&
+                                  item.serviceInvocation?.endpointUrl ? (
                                   <Button
                                     disabled={
                                       !isWalletReady ||
@@ -4933,6 +4967,7 @@ function CartDialog({
                   </div>
                 )}
               </section>
+
             </div>
           </div>
 
@@ -5094,10 +5129,10 @@ function mapDraftProposal(draft: Record<string, unknown>) {
     etaAt:
       Date.now() +
       (typeof draft.etaDays === "number" ? draft.etaDays : 7) *
-        24 *
-        60 *
-        60 *
-        1000,
+      24 *
+      60 *
+      60 *
+      1000,
     price: typeof draft.price === "number" ? draft.price : 0,
   }
 }
@@ -5418,9 +5453,9 @@ async function consumeChatStream(input: {
     current.map((message) =>
       message.id === input.assistantMessageId
         ? {
-            ...message,
-            content: message.content || finalPayload.assistantMessage,
-          }
+          ...message,
+          content: message.content || finalPayload.assistantMessage,
+        }
         : message
     )
   )
@@ -5976,7 +6011,7 @@ function buildWorkspaceFromRequestDetail(
         detail.intent.status === "fulfilled"
           ? "The profile onboarding request is complete. You can still reopen the builder and refine the record later."
           : detail.intent.status === "in_progress" ||
-              detail.intent.status === "claimed"
+            detail.intent.status === "claimed"
             ? "Boreal delivered an editable draft. Review it, then save the profile and publish the listing when ready."
             : "Open the builder form manually, or approve Boreal to draft a stronger profile and first listing from this brief.",
       title: "Profile and supply builder",
@@ -6141,9 +6176,9 @@ function extractProfileBuilderActivity(activity: RequestDetail["activity"]) {
   return {
     draft: isRecord(draft)
       ? mergeProfileBuilderDraft(
-          createEmptyProfileBuilderDraft(),
-          draft as Partial<ProfileBuilderDraft>
-        )
+        createEmptyProfileBuilderDraft(),
+        draft as Partial<ProfileBuilderDraft>
+      )
       : createEmptyProfileBuilderDraft(),
     sourceBrief: typeof sourceBrief === "string" ? sourceBrief : "",
   }

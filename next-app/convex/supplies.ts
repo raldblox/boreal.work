@@ -9,15 +9,22 @@ import {
   fulfillmentKindValidator,
   profileAvailabilityValidator,
   requestedOutputTypeValidator,
+  transactionScenarioValidator,
 } from "./validators";
 import {
   buildRankedSupplyMatches,
   getPersistedIntentMatches,
 } from "./matching";
+import { getDefaultPayoutWalletAccountId } from "./commerceCore";
 import {
   refreshBorealProfileAnalytics,
   refreshProfileAnalyticsForUser,
 } from "./profileAnalytics";
+import {
+  getScenarioId,
+  recordTransactionAuditEvent,
+  scenarioNeedsPayoutWallet,
+} from "./transactionScenarios";
 
 const defaultCatalog = [
   {
@@ -267,6 +274,9 @@ export const searchCatalog = query({
 
 export const createSupplyEntry = mutation({
   args: {
+    acpCheckoutUrl: v.optional(v.string()),
+    a2aEndpoint: v.optional(v.string()),
+    agentReady: v.optional(v.boolean()),
     availabilityStatus: v.optional(profileAvailabilityValidator),
     brand: v.optional(v.string()),
     capabilityTags: v.array(v.string()),
@@ -289,12 +299,15 @@ export const createSupplyEntry = mutation({
     ownerDisplayName: v.optional(v.string()),
     ownerExternalId: v.optional(v.string()),
     ownerHandle: v.optional(v.string()),
+    offerSlug: v.optional(v.string()),
     outputTypes: v.optional(v.array(requestedOutputTypeValidator)),
     priceAmount: v.optional(v.number()),
     priceMax: v.optional(v.number()),
     priceMin: v.optional(v.number()),
     priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    protocolDescriptorJson: v.optional(v.string()),
     responseSlaMinutes: v.optional(v.number()),
+    scenarioTypes: v.optional(v.array(transactionScenarioValidator)),
     subtitle: v.optional(v.string()),
     supplyType: v.union(
       v.literal("product"),
@@ -303,6 +316,8 @@ export const createSupplyEntry = mutation({
       v.literal("collective"),
     ),
     title: v.string(),
+    ucpCatalogUrl: v.optional(v.string()),
+    ucpCheckoutUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await upsertSupplierUser(ctx, {
@@ -332,6 +347,42 @@ export const createSupplyEntry = mutation({
       typeof args.isCartEnabled === "boolean"
         ? args.isCartEnabled
         : args.supplyType === "product" || args.supplyType === "capability";
+    const requiresPayoutWallet = Boolean(
+      scenarioNeedsPayoutWallet(
+        "supply_publish",
+        args.priceAmount ?? 0,
+      ) ||
+        (args.priceAmount ?? 0) > 0 ||
+        isCartEnabled,
+    );
+
+    if (requiresPayoutWallet) {
+      const payoutWalletAccountId = await getDefaultPayoutWalletAccountId(
+        ctx,
+        user._id,
+      );
+
+      if (!payoutWalletAccountId) {
+        await recordTransactionAuditEvent(ctx, {
+          message:
+            "A payout wallet is required before publishing monetized supply.",
+          metadata: {
+            isCartEnabled,
+            title: args.title.trim(),
+          },
+          scenarioType: "supply_publish",
+          source: "wallet",
+          stage: "wallet",
+          status: "blocked",
+        });
+        return {
+          created: false,
+          reason: "missing_payout_wallet",
+          supplyId: null,
+        };
+      }
+    }
+
     const fulfillmentKind =
       args.fulfillmentKind ??
       (args.supplyType === "product" || args.deliveryType === "instant"
@@ -350,6 +401,9 @@ export const createSupplyEntry = mutation({
       acceptanceRate: 0.8,
       activeReservations: matchingEntry?.activeReservations ?? 0,
       actorKind: user.actorKind ?? "human",
+      agentReady: args.agentReady ?? matchingEntry?.agentReady ?? false,
+      a2aEndpoint: sanitizeOptionalText(args.a2aEndpoint),
+      acpCheckoutUrl: sanitizeOptionalText(args.acpCheckoutUrl),
       availabilityStatus: args.availabilityStatus ?? matchingEntry?.availabilityStatus ?? "available",
       brand: sanitizeOptionalText(args.brand),
       capabilityTags: normalizeTagList(args.capabilityTags),
@@ -373,12 +427,18 @@ export const createSupplyEntry = mutation({
       matchCount: matchingEntry?.matchCount ?? 0,
       metadataJson: sanitizeOptionalText(args.metadataJson),
       nextAvailableAt: args.nextAvailableAt ?? matchingEntry?.nextAvailableAt,
+      offerSlug: sanitizeOptionalText(args.offerSlug),
       outputTypes: outputTypes.length > 0 ? outputTypes : matchingEntry?.outputTypes,
       priceAmount: args.priceAmount,
       priceMax: args.priceMax ?? matchingEntry?.priceMax,
       priceMin: args.priceMin ?? matchingEntry?.priceMin,
       priceType: args.priceType,
+      protocolDescriptorJson: sanitizeOptionalText(args.protocolDescriptorJson),
       responseSlaMinutes: args.responseSlaMinutes ?? matchingEntry?.responseSlaMinutes,
+      scenarioTypes:
+        args.scenarioTypes && args.scenarioTypes.length > 0
+          ? Array.from(new Set(args.scenarioTypes))
+          : matchingEntry?.scenarioTypes,
       searchText: buildSupplySearchText({
         actorKind: user.actorKind ?? "human",
         availabilityStatus:
@@ -421,16 +481,42 @@ export const createSupplyEntry = mutation({
       supplyType: args.supplyType,
       title: args.title.trim(),
       trustScore: user.trustScore,
+      ucpCatalogUrl: sanitizeOptionalText(args.ucpCatalogUrl),
+      ucpCheckoutUrl: sanitizeOptionalText(args.ucpCheckoutUrl),
       updatedAt: now,
     };
 
     if (matchingEntry) {
       await ctx.db.patch(matchingEntry._id, payload);
+      await recordTransactionAuditEvent(ctx, {
+        message: `Supply listing ${args.title.trim()} was updated.`,
+        metadata: {
+          supplyType: args.supplyType,
+        },
+        scenarioType: "supply_publish",
+        source: "listing",
+        stage: "listing",
+        status: "passed",
+        supplyId: matchingEntry._id,
+      });
       await refreshProfileAnalyticsForUser(ctx, user._id);
       return { created: true, supplyId: matchingEntry._id };
     }
 
     const supplyId = await ctx.db.insert("supplies", payload);
+
+    await recordTransactionAuditEvent(ctx, {
+      message: `Supply listing ${args.title.trim()} was published.`,
+      metadata: {
+        scenarioId: getScenarioId("supply_publish"),
+        supplyType: args.supplyType,
+      },
+      scenarioType: "supply_publish",
+      source: "listing",
+      stage: "listing",
+      status: "passed",
+      supplyId,
+    });
 
     await refreshProfileAnalyticsForUser(ctx, user._id);
 
