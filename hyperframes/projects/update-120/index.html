@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Boreal Update 120</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Manrope";
+        src: url("../../fonts/manrope-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Manrope";
+        src: url("../../fonts/manrope-700-normal.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Syne";
+        src: url("../../fonts/syne-700-normal.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("../../fonts/geist-mono-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("../../fonts/geist-mono-500-normal.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+      }
+
+      :root {
+        --bg-dark: #071311;
+        --bg-light: #f7faf9;
+        --bg-panel: #ffffff;
+        --bg-panel-soft: #eaf4f2;
+        --text-dark: #09110f;
+        --text-light: #f7faf9;
+        --text-muted: rgba(9, 17, 15, 0.66);
+        --text-muted-light: rgba(247, 250, 249, 0.74);
+        --line: rgba(9, 17, 15, 0.09);
+        --line-light: rgba(247, 250, 249, 0.14);
+        --cyan: #22c1f3;
+        --mint: #62ffce;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      body {
+        font-family: "Manrope", sans-serif;
+      }
+
+      [data-composition-id="boreal-update-120"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      .scene-2,
+      .scene-3,
+      .scene-4,
+      .scene-5,
+      .scene-6,
+      .scene-7,
+      .scene-8,
+      .scene-9,
+      .scene-10,
+      .scene-11 {
+        opacity: 0;
+        transform: translateX(2200px);
+      }
+
+      .scene-dark {
+        background: var(--bg-dark);
+        color: var(--text-light);
+      }
+
+      .scene-light {
+        background: var(--bg-light);
+        color: var(--text-dark);
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        padding: 82px 94px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .scene-content-center {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .eyebrow,
+      .mono-label,
+      .bullet,
+      .roadmap-item,
+      .status-pill {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+      }
+
+      .eyebrow {
+        font-size: 18px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .eyebrow-light {
+        color: var(--text-muted-light);
+      }
+
+      .headline {
+        font-family: "Syne", sans-serif;
+        font-size: 92px;
+        line-height: 0.96;
+        letter-spacing: -0.05em;
+        font-weight: 700;
+        max-width: 1180px;
+      }
+
+      .headline-narrow {
+        max-width: 980px;
+      }
+
+      .body {
+        font-size: 30px;
+        line-height: 1.34;
+        max-width: 760px;
+        color: var(--text-muted);
+      }
+
+      .body-light {
+        color: var(--text-muted-light);
+      }
+
+      .panel {
+        border-radius: 32px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 28px 70px -44px rgba(7, 19, 17, 0.34);
+      }
+
+      .panel-dark {
+        border-color: var(--line-light);
+        background: rgba(13, 29, 26, 0.8);
+        box-shadow: 0 28px 70px -44px rgba(0, 0, 0, 0.54);
+      }
+
+      .scene-glow {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(84px);
+        pointer-events: none;
+      }
+
+      .glow-cyan {
+        width: 560px;
+        height: 560px;
+        top: 10px;
+        right: 90px;
+        background: radial-gradient(circle, rgba(34, 193, 243, 0.2) 0%, rgba(34, 193, 243, 0) 76%);
+      }
+
+      .glow-mint {
+        width: 520px;
+        height: 520px;
+        bottom: -40px;
+        left: 40px;
+        background: radial-gradient(circle, rgba(98, 255, 206, 0.16) 0%, rgba(98, 255, 206, 0) 78%);
+      }
+
+      .feature-layout {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 0.68fr) minmax(0, 1.32fr);
+        gap: 28px;
+      }
+
+      .feature-copy,
+      .feature-preview,
+      .live-card,
+      .summary-card,
+      .roadmap-card {
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .feature-copy {
+        justify-content: space-between;
+      }
+
+      .section-number {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 16px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #0d748d;
+      }
+
+      .feature-title {
+        font-family: "Syne", sans-serif;
+        font-size: 68px;
+        line-height: 0.98;
+        letter-spacing: -0.05em;
+        color: var(--text-dark);
+      }
+
+      .feature-lede {
+        font-size: 28px;
+        line-height: 1.34;
+        color: var(--text-muted);
+      }
+
+      .bullet-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .bullet {
+        font-size: 15px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(9, 17, 15, 0.66);
+      }
+
+      .feature-preview {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(234, 244, 242, 0.96) 100%);
+      }
+
+      .frame-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-dots span {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: rgba(9, 17, 15, 0.14);
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(34, 193, 243, 0.12);
+        border: 1px solid rgba(34, 193, 243, 0.22);
+        color: #0e6f86;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .surface-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .surface-grid.two {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+
+      .surface-grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .surface-card {
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.88);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .surface-card-soft {
+        background: rgba(234, 244, 242, 0.94);
+      }
+
+      .surface-card-dark {
+        border-color: rgba(9, 17, 15, 0.08);
+        background: rgba(14, 31, 28, 0.92);
+        color: var(--text-light);
+      }
+
+      .card-title {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      .card-copy {
+        font-size: 18px;
+        line-height: 1.42;
+        color: var(--text-muted);
+      }
+
+      .card-copy-dark {
+        color: var(--text-muted-light);
+      }
+
+      .mini-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .mini-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(9, 17, 15, 0.08);
+        background: rgba(255, 255, 255, 0.88);
+        color: rgba(9, 17, 15, 0.72);
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .mini-pill-dark {
+        border-color: rgba(247, 250, 249, 0.12);
+        background: rgba(247, 250, 249, 0.08);
+        color: rgba(247, 250, 249, 0.76);
+      }
+
+      .summary-card {
+        width: 100%;
+        max-width: 1080px;
+        align-self: center;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        gap: 24px;
+      }
+
+      .summary-title {
+        font-family: "Syne", sans-serif;
+        font-size: 86px;
+        line-height: 0.98;
+        letter-spacing: -0.05em;
+      }
+
+      .purpose-stage {
+        position: relative;
+        flex: 1;
+      }
+
+      .purpose-line {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 220px;
+        font-family: "Syne", sans-serif;
+        font-size: 68px;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        transform: translateX(2200px);
+      }
+
+      .purpose-line strong {
+        color: var(--mint);
+        font-weight: 700;
+      }
+
+      .roadmap-layout {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+        gap: 28px;
+      }
+
+      .roadmap-items {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .roadmap-item {
+        padding: 18px 20px;
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.88);
+        color: rgba(9, 17, 15, 0.76);
+        font-size: 18px;
+        line-height: 1.32;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .roadmap-footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: rgba(9, 17, 15, 0.56);
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 15px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .brand-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        align-items: center;
+      }
+
+      .brand-wordmark {
+        font-family: "Syne", sans-serif;
+        font-size: 118px;
+        line-height: 0.9;
+        letter-spacing: -0.08em;
+      }
+
+      .brand-tagline,
+      .brand-url {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 22px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-muted-light);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      data-composition-id="boreal-update-120"
+      data-start="0"
+      data-duration="120"
+      data-width="1920"
+      data-height="1080"
+    >
+      <section class="scene scene-1 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-glow glow-mint"></div>
+        <div class="scene-content scene-content-center">
+          <p class="eyebrow eyebrow-light intro-eyebrow">Boreal • April 2026</p>
+          <h1 class="headline headline-narrow intro-headline">What is live. What is hard. What is next.</h1>
+          <p class="body body-light intro-body">A direct builder update from the public alpha, using the actual request and supply surface rather than a pitch deck summary.</p>
+        </div>
+      </section>
+
+      <section class="scene scene-2 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene2-eyebrow">What Is Live</p>
+          <div class="feature-layout">
+            <div class="panel feature-copy scene2-copy">
+              <div class="section-number">Step 01</div>
+              <div>
+                <h2 class="feature-title">Plain language in. Structured request out.</h2>
+                <p class="feature-lede">The composer turns an ask into a routed request surface with output types, timing, and next actions already attached.</p>
+              </div>
+              <div class="bullet-list">
+                <div class="bullet">Chat-native intake</div>
+                <div class="bullet">Request metadata extraction</div>
+                <div class="bullet">Route-aware categorization</div>
+              </div>
+            </div>
+            <div class="panel feature-preview scene2-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="status-pill">Request Drafting</div>
+              </div>
+              <div class="surface-grid">
+                <div class="surface-card">
+                  <div class="card-title">Composer</div>
+                  <div class="card-copy">I need a launch explainer, 60 seconds, clean motion, delivery in three days, fixed budget.</div>
+                </div>
+                <div class="surface-grid two">
+                  <div class="surface-card surface-card-soft">
+                    <div class="card-title">Request</div>
+                    <div class="card-copy">Explainer video for product launch</div>
+                  </div>
+                  <div class="surface-card">
+                    <div class="card-title">Output Types</div>
+                    <div class="card-copy">Video • Script • Thumbnail</div>
+                  </div>
+                </div>
+                <div class="surface-grid three">
+                  <div class="surface-card">
+                    <div class="card-title">Budget</div>
+                    <div class="card-copy">$150 fixed</div>
+                  </div>
+                  <div class="surface-card">
+                    <div class="card-title">Delivery Window</div>
+                    <div class="card-copy">Three days</div>
+                  </div>
+                  <div class="surface-card">
+                    <div class="card-title">Route</div>
+                    <div class="card-copy">Automated or hybrid</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-3 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene3-eyebrow">What Is Live</p>
+          <div class="feature-layout">
+            <div class="panel feature-copy scene3-copy">
+              <div class="section-number">Step 02</div>
+              <div>
+                <h2 class="feature-title">Not a chat log. A durable workflow.</h2>
+                <p class="feature-lede">Once the request exists, the workspace holds proposals, approvals, participants, delivery evidence, and next actions in one thread.</p>
+              </div>
+              <div class="bullet-list">
+                <div class="bullet">Proposal flow</div>
+                <div class="bullet">Approval checkpoints</div>
+                <div class="bullet">Fulfillment states</div>
+              </div>
+            </div>
+            <div class="panel feature-preview scene3-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="status-pill">Request Workspace</div>
+              </div>
+              <div class="surface-grid two">
+                <div class="surface-card">
+                  <div class="card-title">Workspace Tabs</div>
+                  <div class="card-copy">Messages, Proposals, Matching, Delivery, Activity</div>
+                </div>
+                <div class="surface-card surface-card-soft">
+                  <div class="card-title">Current State</div>
+                  <div class="card-copy">Open request with proposal review and direct-route fallback.</div>
+                </div>
+              </div>
+              <div class="surface-grid two">
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">Proposal A</div>
+                    <div class="mini-pill">Awaiting approval</div>
+                  </div>
+                  <div class="card-copy">Hybrid motion package with script cleanup and launch thumbnail.</div>
+                </div>
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">Proposal B</div>
+                    <div class="mini-pill">Direct route</div>
+                  </div>
+                  <div class="card-copy">Provider-backed generation path with fixed evidence output.</div>
+                </div>
+              </div>
+              <div class="surface-card">
+                <div class="card-title">Fulfillment Spine</div>
+                <div class="card-copy">Approval, payment-aware checkout, delivery receipt, and review all persist back into the same request record.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-4 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene4-eyebrow">What Is Live</p>
+          <div class="feature-layout">
+            <div class="panel feature-copy scene4-copy">
+              <div class="section-number">Step 03</div>
+              <div>
+                <h2 class="feature-title">Human, agent, product. Same surface.</h2>
+                <p class="feature-lede">Public supply is not split across separate product silos. Requests can resolve against people, software, services, or direct-buy items.</p>
+              </div>
+              <div class="bullet-list">
+                <div class="bullet">Public supply directory</div>
+                <div class="bullet">Public request directory</div>
+                <div class="bullet">Unified listing language</div>
+              </div>
+            </div>
+            <div class="panel feature-preview scene4-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="status-pill">Supply Directory</div>
+              </div>
+              <div class="surface-grid three">
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">Human Specialist</div>
+                    <div class="mini-pill">Proposal-led</div>
+                  </div>
+                  <div class="card-copy">Launch editing, narrative cleanup, last-mile polishing.</div>
+                </div>
+                <div class="surface-card surface-card-soft">
+                  <div class="mini-row">
+                    <div class="card-title">Agent Runtime</div>
+                    <div class="mini-pill">Direct invoke</div>
+                  </div>
+                  <div class="card-copy">Structured content generation with deterministic delivery payloads.</div>
+                </div>
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">Digital Listing</div>
+                    <div class="mini-pill">Instant</div>
+                  </div>
+                  <div class="card-copy">Template packs, add-ons, and ready-to-buy assets.</div>
+                </div>
+              </div>
+              <div class="surface-card">
+                <div class="card-title">Browse Paths</div>
+                <div class="card-copy">`/chat?browse=workers` and `/chat?browse=requests` expose supply and unresolved work from the same operating surface.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-5 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene5-eyebrow">What Is Live</p>
+          <div class="feature-layout">
+            <div class="panel feature-copy scene5-copy">
+              <div class="section-number">Step 04</div>
+              <div>
+                <h2 class="feature-title">Persisted candidates. Score breakdowns. Refinement.</h2>
+                <p class="feature-lede">The matching surface already stores candidate sets, explains why a route did or did not qualify, and lets the operator tighten the request without leaving the workspace.</p>
+              </div>
+              <div class="bullet-list">
+                <div class="bullet">Lexical plus embedding foundation</div>
+                <div class="bullet">Structured filters and hard gates</div>
+                <div class="bullet">Pinned matches in workspace</div>
+              </div>
+            </div>
+            <div class="panel feature-preview scene5-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="status-pill">Matching</div>
+              </div>
+              <div class="surface-grid two">
+                <div class="surface-card surface-card-soft">
+                  <div class="card-title">Top Candidate</div>
+                  <div class="card-copy">Video generation • provider-backed • direct invocation available.</div>
+                  <div class="mini-row">
+                    <div class="mini-pill">Match 94%</div>
+                    <div class="mini-pill">Pinned</div>
+                  </div>
+                </div>
+                <div class="surface-card">
+                  <div class="card-title">Score Breakdown</div>
+                  <div class="card-copy">Output fit, delivery window, budget compliance, execution surface, payment capability.</div>
+                </div>
+              </div>
+              <div class="surface-grid two">
+                <div class="surface-card">
+                  <div class="card-title">Gated Out</div>
+                  <div class="card-copy">Missed fixed budget cap and could not satisfy delivery window.</div>
+                </div>
+                <div class="surface-card">
+                  <div class="card-title">Refinement Actions</div>
+                  <div class="card-copy">Tighten budget, relax deadline, broaden category, or pin a known provider.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-6 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene6-eyebrow">What Is Live</p>
+          <div class="feature-layout">
+            <div class="panel feature-copy scene6-copy">
+              <div class="section-number">Step 05</div>
+              <div>
+                <h2 class="feature-title">Provider-backed checkout. x402 when supported.</h2>
+                <p class="feature-lede">Paid flows already carry network policy, wallet checks, and provider-backed payment initiation through one commerce spine instead of a disconnected checkout widget.</p>
+              </div>
+              <div class="bullet-list">
+                <div class="bullet">Payment-aware states</div>
+                <div class="bullet">Privy-backed x402 initiation</div>
+                <div class="bullet">Scenario audit coverage</div>
+              </div>
+            </div>
+            <div class="panel feature-preview scene6-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="status-pill">Commerce Spine</div>
+              </div>
+              <div class="surface-grid two">
+                <div class="surface-card">
+                  <div class="card-title">Checkout Record</div>
+                  <div class="card-copy">Provider-backed route with wallet network checks before any paid approval or invocation.</div>
+                </div>
+                <div class="surface-card surface-card-soft">
+                  <div class="card-title">Payment Route</div>
+                  <div class="card-copy">Privy-backed x402 initiation for supported listings and direct execution paths.</div>
+                </div>
+              </div>
+              <div class="surface-grid three">
+                <div class="surface-card">
+                  <div class="card-title">Policy</div>
+                  <div class="card-copy">Solana-first devnet defaults</div>
+                </div>
+                <div class="surface-card">
+                  <div class="card-title">Guardrail</div>
+                  <div class="card-copy">No silent cross-network settlement</div>
+                </div>
+                <div class="surface-card">
+                  <div class="card-title">Audit</div>
+                  <div class="card-copy">Checkout and approval events persisted</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-7 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene7-eyebrow">What Is Live</p>
+          <div class="feature-layout">
+            <div class="panel feature-copy scene7-copy">
+              <div class="section-number">Step 06</div>
+              <div>
+                <h2 class="feature-title">Every state change. Auditable.</h2>
+                <p class="feature-lede">The request surface is already closer to an operational log than a messenger transcript. That matters when requests have approvals, money movement, and delivery evidence attached.</p>
+              </div>
+              <div class="bullet-list">
+                <div class="bullet">Activity log per request</div>
+                <div class="bullet">Delivery evidence attachment</div>
+                <div class="bullet">Review and archival state</div>
+              </div>
+            </div>
+            <div class="panel feature-preview scene7-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="status-pill">Activity</div>
+              </div>
+              <div class="surface-grid">
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">09:14</div>
+                    <div class="mini-pill">Request opened</div>
+                  </div>
+                  <div class="card-copy">Intent extraction stored title, output types, budget, and requested window.</div>
+                </div>
+                <div class="surface-card surface-card-soft">
+                  <div class="mini-row">
+                    <div class="card-title">09:17</div>
+                    <div class="mini-pill">Match pinned</div>
+                  </div>
+                  <div class="card-copy">Top direct route saved with score breakdown and gating explanation.</div>
+                </div>
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">09:22</div>
+                    <div class="mini-pill">Evidence attached</div>
+                  </div>
+                  <div class="card-copy">Delivery link, output filename, and settlement-adjacent state persisted inside the request record.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-8 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-content">
+          <div class="panel panel-dark summary-card scene8-card">
+            <p class="eyebrow eyebrow-light">Alpha Status</p>
+            <h2 class="summary-title">This is the alpha. It runs.</h2>
+            <p class="body body-light">The current gap is not whether Boreal exists. The current gap is hardening the commerce policy, deepening the matching quality layer, and making the market surface stronger.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-9 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-glow glow-mint"></div>
+        <div class="scene-content">
+          <p class="eyebrow eyebrow-light scene9-eyebrow">What It Is For</p>
+          <div class="purpose-stage">
+            <div class="purpose-line scene9-line-1">ACP and UCP help with listed things in chat.</div>
+            <div class="purpose-line scene9-line-2">Our market is the request that still has no listing.</div>
+            <div class="purpose-line scene9-line-3">The problem that needs someone, something, or both to show up.</div>
+            <div class="purpose-line scene9-line-4">Human. Agent. Product.</div>
+            <div class="purpose-line scene9-line-5"><strong>Boreal is building for that edge.</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-10 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene10-eyebrow">What Is Next</p>
+          <div class="roadmap-layout">
+            <div class="panel roadmap-card scene10-copy">
+              <div class="section-number">Roadmap Now</div>
+              <div>
+                <h2 class="feature-title">The next work is depth, not theater.</h2>
+                <p class="feature-lede">The repo is already broad on public alpha surface area. The remaining work is mostly policy hardening, matching quality, protocol endpoints, and stronger request operations.</p>
+              </div>
+              <div class="roadmap-footer">
+                <span>Milestone A</span>
+                <span>→</span>
+                <span>Milestone B</span>
+                <span>→</span>
+                <span>Milestone C</span>
+              </div>
+            </div>
+            <div class="roadmap-items">
+              <div class="roadmap-item scene10-item-1">Wallet policy, payout rules, and recovery paths for failed or cancelled paid flows</div>
+              <div class="roadmap-item scene10-item-2">ACP, UCP, and A2A-facing listing descriptors plus stable public protocol endpoints</div>
+              <div class="roadmap-item scene10-item-3">Matching quality layer: BM25, historical analog retrieval, reranking, and rematch scheduling</div>
+              <div class="roadmap-item scene10-item-4">Revision loops, richer deadline and SLA signals, and stronger workspace operations</div>
+              <div class="roadmap-item scene10-item-5">Capability explorer now, then protocol expansion like the Boreal MCP tool server</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-11 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-content scene-content-center">
+          <div class="brand-stack scene11-brand">
+            <p class="eyebrow eyebrow-light">Boreal • Public Alpha</p>
+            <h2 class="brand-wordmark">BOREAL</h2>
+            <p class="brand-tagline">Commerce, headed north.</p>
+            <p class="brand-url">boreal.work</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const sceneIn = (scene, start) => {
+        tl.to(scene, { x: 0, opacity: 1, duration: 0.38, ease: "power2.out" }, start);
+      };
+
+      const sceneOut = (scene, start) => {
+        tl.to(scene, { x: -2200, opacity: 0, duration: 0.3, ease: "power2.in" }, start);
+      };
+
+      tl.from(".intro-eyebrow", { y: 24, opacity: 0, duration: 0.44, ease: "power2.out" }, 0.4);
+      tl.from(".intro-headline", { y: 36, opacity: 0, duration: 0.52, ease: "power2.out" }, 0.7);
+      tl.from(".intro-body", { y: 30, opacity: 0, duration: 0.46, ease: "power2.out" }, 1.05);
+      sceneOut(".scene-1", 14.6);
+
+      sceneIn(".scene-2", 14.7);
+      tl.from(".scene2-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 15.0);
+      tl.from(".scene2-copy", { x: -44, opacity: 0, duration: 0.44, ease: "power2.out" }, 15.12);
+      tl.from(".scene2-preview", { x: 56, opacity: 0, duration: 0.48, ease: "power2.out" }, 15.22);
+      sceneOut(".scene-2", 22.6);
+
+      sceneIn(".scene-3", 22.7);
+      tl.from(".scene3-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 23.0);
+      tl.from(".scene3-copy", { x: -44, opacity: 0, duration: 0.44, ease: "power2.out" }, 23.1);
+      tl.from(".scene3-preview", { x: 56, opacity: 0, duration: 0.48, ease: "power2.out" }, 23.2);
+      sceneOut(".scene-3", 30.6);
+
+      sceneIn(".scene-4", 30.7);
+      tl.from(".scene4-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 31.0);
+      tl.from(".scene4-copy", { x: -44, opacity: 0, duration: 0.44, ease: "power2.out" }, 31.1);
+      tl.from(".scene4-preview", { x: 56, opacity: 0, duration: 0.48, ease: "power2.out" }, 31.22);
+      sceneOut(".scene-4", 38.6);
+
+      sceneIn(".scene-5", 38.7);
+      tl.from(".scene5-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 39.0);
+      tl.from(".scene5-copy", { x: -44, opacity: 0, duration: 0.44, ease: "power2.out" }, 39.1);
+      tl.from(".scene5-preview", { x: 56, opacity: 0, duration: 0.48, ease: "power2.out" }, 39.22);
+      sceneOut(".scene-5", 46.6);
+
+      sceneIn(".scene-6", 46.7);
+      tl.from(".scene6-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 47.0);
+      tl.from(".scene6-copy", { x: -44, opacity: 0, duration: 0.44, ease: "power2.out" }, 47.1);
+      tl.from(".scene6-preview", { x: 56, opacity: 0, duration: 0.48, ease: "power2.out" }, 47.22);
+      sceneOut(".scene-6", 54.6);
+
+      sceneIn(".scene-7", 54.7);
+      tl.from(".scene7-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 55.0);
+      tl.from(".scene7-copy", { x: -44, opacity: 0, duration: 0.44, ease: "power2.out" }, 55.1);
+      tl.from(".scene7-preview", { x: 56, opacity: 0, duration: 0.48, ease: "power2.out" }, 55.22);
+      sceneOut(".scene-7", 62.6);
+
+      sceneIn(".scene-8", 62.7);
+      tl.from(".scene8-card", { y: 32, opacity: 0, duration: 0.48, ease: "power2.out" }, 63.05);
+      sceneOut(".scene-8", 69.6);
+
+      sceneIn(".scene-9", 69.7);
+      tl.from(".scene9-eyebrow", { y: 20, opacity: 0, duration: 0.36, ease: "power2.out" }, 70.0);
+      tl.to(".scene9-line-1", { x: 0, duration: 0.4, ease: "power2.out" }, 70.4);
+      tl.to(".scene9-line-1", { x: -2200, duration: 0.3, ease: "power2.in" }, 74.9);
+      tl.to(".scene9-line-2", { x: 0, duration: 0.4, ease: "power2.out" }, 75.2);
+      tl.to(".scene9-line-2", { x: -2200, duration: 0.3, ease: "power2.in" }, 79.7);
+      tl.to(".scene9-line-3", { x: 0, duration: 0.4, ease: "power2.out" }, 80.0);
+      tl.to(".scene9-line-3", { x: -2200, duration: 0.3, ease: "power2.in" }, 84.9);
+      tl.to(".scene9-line-4", { x: 0, duration: 0.4, ease: "power2.out" }, 85.2);
+      tl.to(".scene9-line-4", { x: -2200, duration: 0.3, ease: "power2.in" }, 89.2);
+      tl.to(".scene9-line-5", { x: 0, duration: 0.42, ease: "power2.out" }, 89.6);
+      sceneOut(".scene-9", 94.6);
+
+      sceneIn(".scene-10", 94.7);
+      tl.from(".scene10-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 95.0);
+      tl.from(".scene10-copy", { x: -44, opacity: 0, duration: 0.44, ease: "power2.out" }, 95.1);
+      tl.from(".scene10-item-1", { x: 40, opacity: 0, duration: 0.28, ease: "power2.out" }, 95.4);
+      tl.from(".scene10-item-2", { x: 40, opacity: 0, duration: 0.28, ease: "power2.out" }, 96.2);
+      tl.from(".scene10-item-3", { x: 40, opacity: 0, duration: 0.28, ease: "power2.out" }, 97.0);
+      tl.from(".scene10-item-4", { x: 40, opacity: 0, duration: 0.28, ease: "power2.out" }, 97.8);
+      tl.from(".scene10-item-5", { x: 40, opacity: 0, duration: 0.28, ease: "power2.out" }, 98.6);
+      sceneOut(".scene-10", 112.6);
+
+      sceneIn(".scene-11", 112.7);
+      tl.from(".scene11-brand", { y: 34, opacity: 0, duration: 0.5, ease: "power2.out" }, 113.1);
+      tl.to(".scene-11", { opacity: 0, duration: 0.4, ease: "power2.in" }, 119.1);
+
+      window.__timelines["boreal-update-120"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Boreal Demo 90</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg-dark: #071311;
+        --bg-light: #f7faf9;
+        --bg-panel: #ffffff;
+        --bg-panel-soft: #eaf4f2;
+        --text-dark: #09110f;
+        --text-light: #f7faf9;
+        --text-muted: rgba(9, 17, 15, 0.66);
+        --text-muted-light: rgba(247, 250, 249, 0.72);
+        --line: rgba(9, 17, 15, 0.09);
+        --line-light: rgba(247, 250, 249, 0.14);
+        --cyan: #22c1f3;
+        --mint: #62ffce;
+        --purple: #6537c6;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      body {
+        font-family: "Manrope", sans-serif;
+      }
+
+      [data-composition-id="boreal-demo-90"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      .scene-2,
+      .scene-3,
+      .scene-4,
+      .scene-5 {
+        opacity: 0;
+        transform: translateX(2200px);
+      }
+
+      .scene-dark {
+        background: var(--bg-dark);
+        color: var(--text-light);
+      }
+
+      .scene-light {
+        background: var(--bg-light);
+        color: var(--text-dark);
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        padding: 82px 94px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .scene-content-center {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .eyebrow {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 18px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .eyebrow-light {
+        color: var(--text-muted-light);
+      }
+
+      .headline {
+        font-family: "Syne", sans-serif;
+        font-size: 92px;
+        line-height: 0.96;
+        letter-spacing: -0.05em;
+        font-weight: 700;
+        max-width: 1220px;
+      }
+
+      .headline-tight {
+        max-width: 980px;
+      }
+
+      .body {
+        font-size: 30px;
+        line-height: 1.34;
+        max-width: 760px;
+        color: var(--text-muted);
+      }
+
+      .body-light {
+        color: var(--text-muted-light);
+      }
+
+      .panel {
+        border-radius: 32px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 28px 70px -44px rgba(7, 19, 17, 0.34);
+      }
+
+      .panel-dark {
+        border-color: var(--line-light);
+        background: rgba(16, 34, 31, 0.84);
+        box-shadow: 0 28px 70px -44px rgba(0, 0, 0, 0.5);
+      }
+
+      .label-chip,
+      .pill,
+      .mini-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        text-transform: uppercase;
+      }
+
+      .label-chip {
+        padding: 10px 14px;
+        border: 1px solid rgba(34, 193, 243, 0.22);
+        background: rgba(34, 193, 243, 0.12);
+        color: #0e6f86;
+        font-size: 15px;
+        letter-spacing: 0.08em;
+      }
+
+      .pill {
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+        color: rgba(9, 17, 15, 0.78);
+        font-size: 15px;
+        letter-spacing: 0.08em;
+      }
+
+      .mini-pill {
+        padding: 8px 12px;
+        border: 1px solid rgba(9, 17, 15, 0.08);
+        background: rgba(255, 255, 255, 0.88);
+        color: rgba(9, 17, 15, 0.72);
+        font-size: 13px;
+        letter-spacing: 0.08em;
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .scene-glow {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(72px);
+        pointer-events: none;
+      }
+
+      .glow-cyan {
+        width: 520px;
+        height: 520px;
+        top: 40px;
+        right: 110px;
+        background: radial-gradient(circle, rgba(34, 193, 243, 0.2) 0%, rgba(34, 193, 243, 0) 74%);
+      }
+
+      .glow-mint {
+        width: 480px;
+        height: 480px;
+        bottom: -20px;
+        left: 90px;
+        background: radial-gradient(circle, rgba(98, 255, 206, 0.16) 0%, rgba(98, 255, 206, 0) 76%);
+      }
+
+      .type-card {
+        width: 100%;
+        max-width: 1020px;
+        padding: 42px 46px;
+        border-radius: 38px;
+        border: 1px solid var(--line-light);
+        background: rgba(12, 26, 24, 0.76);
+        box-shadow: 0 34px 84px -46px rgba(0, 0, 0, 0.58);
+      }
+
+      .type-lines {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .type-line {
+        min-height: 44px;
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 34px;
+        line-height: 1.24;
+        letter-spacing: 0.04em;
+        color: var(--text-light);
+      }
+
+      .type-line-strong {
+        margin-top: 20px;
+        color: var(--mint);
+      }
+
+      .request-surface {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
+        gap: 24px;
+      }
+
+      .chat-panel,
+      .request-panel,
+      .supply-panel,
+      .rail-panel,
+      .evidence-panel {
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .mono-label {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 16px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(9, 17, 15, 0.5);
+      }
+
+      .mono-label-light {
+        color: rgba(247, 250, 249, 0.58);
+      }
+
+      .prompt-block {
+        padding: 20px 22px;
+        border-radius: 26px;
+        background: var(--bg-panel-soft);
+      }
+
+      .prompt-title {
+        font-family: "Syne", sans-serif;
+        font-size: 48px;
+        line-height: 1;
+        letter-spacing: -0.04em;
+      }
+
+      .prompt-copy {
+        margin-top: 14px;
+        font-size: 27px;
+        line-height: 1.3;
+        color: rgba(9, 17, 15, 0.74);
+      }
+
+      .request-field {
+        padding: 18px 20px;
+        border-radius: 22px;
+        background: var(--bg-panel-soft);
+      }
+
+      .request-field-label {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 15px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: rgba(9, 17, 15, 0.46);
+      }
+
+      .request-field-value {
+        margin-top: 10px;
+        font-size: 26px;
+        line-height: 1.24;
+      }
+
+      .supply-grid {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        gap: 26px;
+      }
+
+      .supply-card {
+        padding: 22px;
+        border-radius: 26px;
+        background: var(--bg-panel-soft);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .supply-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .supply-name {
+        font-family: "Syne", sans-serif;
+        font-size: 40px;
+        line-height: 1;
+        letter-spacing: -0.04em;
+      }
+
+      .score {
+        padding: 11px 15px;
+        border-radius: 999px;
+        background: rgba(34, 193, 243, 0.14);
+        color: #0e6f86;
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 18px;
+        letter-spacing: 0.06em;
+      }
+
+      .supply-copy,
+      .rail-copy,
+      .evidence-copy {
+        font-size: 24px;
+        line-height: 1.34;
+        color: rgba(9, 17, 15, 0.72);
+      }
+
+      .route-rail {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .rail-step {
+        padding: 18px 20px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid var(--line);
+      }
+
+      .rail-step-title {
+        font-size: 24px;
+        line-height: 1.14;
+      }
+
+      .stage-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .stage-card {
+        padding: 18px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--line-light);
+      }
+
+      .stage-bar {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(247, 250, 249, 0.12);
+        overflow: hidden;
+      }
+
+      .stage-fill {
+        width: 100%;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--cyan) 0%, var(--mint) 100%);
+        transform: scaleX(0);
+        transform-origin: left center;
+      }
+
+      .stage-name {
+        margin-top: 14px;
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 15px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-light);
+      }
+
+      .stage-note {
+        margin-top: 8px;
+        font-size: 20px;
+        line-height: 1.3;
+        color: var(--text-muted-light);
+      }
+
+      .evidence-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+        gap: 24px;
+      }
+
+      .evidence-card {
+        padding: 20px 22px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      .evidence-title {
+        font-family: "Syne", sans-serif;
+        font-size: 38px;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        color: var(--text-dark);
+      }
+
+      .evidence-meta {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .evidence-meta p {
+        font-size: 22px;
+        color: rgba(9, 17, 15, 0.72);
+      }
+
+      .close-domain {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 26px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-muted-light);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      data-composition-id="boreal-demo-90"
+      data-start="0"
+      data-duration="90"
+      data-width="1920"
+      data-height="1080"
+    >
+      <section class="scene scene-1 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-glow glow-mint"></div>
+        <div class="scene-content scene-content-center">
+          <div class="type-card">
+            <div class="type-lines">
+              <div class="type-line" id="line-1"></div>
+              <div class="type-line" id="line-2"></div>
+              <div class="type-line" id="line-3"></div>
+              <div class="type-line type-line-strong" id="line-4"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-2 scene-light">
+        <div class="scene-content">
+          <div class="stack">
+            <p class="eyebrow">Request intake / structured routing</p>
+            <h1 class="headline headline-tight">The ask becomes a request, not another dead thread.</h1>
+            <p class="body">
+              Boreal starts from plain language, drafts structure, and keeps route selection visible
+              before work or payment moves forward.
+            </p>
+          </div>
+
+          <div class="request-surface">
+            <article class="panel chat-panel">
+              <p class="mono-label">Chat</p>
+              <div class="prompt-block">
+                <p class="prompt-title">I need a 60-second explainer video for a product launch.</p>
+                <p class="prompt-copy">
+                  Clean motion graphics. Delivery in 3 days. Keep the route visible and attach the final delivery.
+                </p>
+              </div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                <span class="label-chip">Request drafted</span>
+                <span class="label-chip" style="background: rgba(98, 255, 206, 0.16); border-color: rgba(98, 255, 206, 0.28); color: #0d6d5c">Supply first</span>
+              </div>
+            </article>
+
+            <article class="panel request-panel">
+              <p class="mono-label">Structured request</p>
+              <div class="request-field">
+                <p class="request-field-label">Title</p>
+                <p class="request-field-value">Explainer video for product launch</p>
+              </div>
+              <div class="request-field">
+                <p class="request-field-label">Outputs</p>
+                <p class="request-field-value">Motion graphics / launch asset / link-based delivery</p>
+              </div>
+              <div class="request-field">
+                <p class="request-field-label">Route</p>
+                <p class="request-field-value">Search Supply first. Open proposals only if the custom pieces remain.</p>
+              </div>
+              <div class="request-field">
+                <p class="request-field-label">Window</p>
+                <p class="request-field-value">Delivery target: 3 days</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-3 scene-light">
+        <div class="scene-content">
+          <div class="stack">
+            <p class="eyebrow">Match layer / routed supply</p>
+            <h1 class="headline headline-tight">Supply responds before Boreal opens the market wider.</h1>
+            <p class="body">
+              Ranked candidates, delivery hints, and direct-route states stay attached to the same request.
+            </p>
+          </div>
+
+          <div class="supply-grid">
+            <article class="panel supply-panel">
+              <p class="mono-label">Matched supply</p>
+              <div class="supply-card">
+                <div class="supply-head">
+                  <div>
+                    <p class="mono-label">Direct route</p>
+                    <p class="supply-name">Video generation — provider-backed</p>
+                  </div>
+                  <span class="score">94% match</span>
+                </div>
+                <p class="supply-copy">
+                  Boreal found a high-confidence direct route with payment-aware execution and evidence attached on return.
+                </p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                  <span class="mini-pill">estimated delivery: minutes</span>
+                  <span class="mini-pill">x402 eligible</span>
+                  <span class="mini-pill">direct invoke</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel rail-panel">
+              <p class="mono-label">Request rail</p>
+              <div class="route-rail">
+                <div class="rail-step">
+                  <p class="rail-step-title">Tier 1 — direct supply route</p>
+                  <p class="rail-copy">No blind search spiral. The request already has a strong candidate.</p>
+                </div>
+                <div class="rail-step">
+                  <p class="rail-step-title">Approval stays explicit</p>
+                  <p class="rail-copy">The owner still chooses whether to accept the route before execution starts.</p>
+                </div>
+                <div class="rail-step">
+                  <p class="rail-step-title">Payment-aware path</p>
+                  <p class="rail-copy">Supported provider flows can attach payment and invocation state to the request.</p>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-4 scene-dark">
+        <div class="scene-glow glow-cyan" style="top: auto; bottom: 80px; right: 120px"></div>
+        <div class="scene-content">
+          <div class="stack">
+            <p class="eyebrow eyebrow-light">Delivery / evidence / status change</p>
+            <h1 class="headline headline-tight">The request stays accountable until the result lands.</h1>
+            <p class="body body-light">
+              Progress, evidence, and final status stay on one record instead of scattering across tabs and follow-up messages.
+            </p>
+          </div>
+
+          <div class="stage-strip">
+            <div class="stage-card">
+              <div class="stage-bar"><div class="stage-fill" id="stage-1"></div></div>
+              <p class="stage-name">accepted</p>
+              <p class="stage-note">Direct route approved.</p>
+            </div>
+            <div class="stage-card">
+              <div class="stage-bar"><div class="stage-fill" id="stage-2"></div></div>
+              <p class="stage-name">payment-aware</p>
+              <p class="stage-note">Provider path attached.</p>
+            </div>
+            <div class="stage-card">
+              <div class="stage-bar"><div class="stage-fill" id="stage-3"></div></div>
+              <p class="stage-name">working</p>
+              <p class="stage-note">Execution compresses into view.</p>
+            </div>
+            <div class="stage-card">
+              <div class="stage-bar"><div class="stage-fill" id="stage-4"></div></div>
+              <p class="stage-name">delivered</p>
+              <p class="stage-note">Evidence returns to the request.</p>
+            </div>
+          </div>
+
+          <div class="evidence-grid">
+            <article class="panel evidence-panel panel-dark">
+              <p class="mono-label mono-label-light">Request state</p>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                <span class="pill">Open</span>
+                <span class="pill" style="background: rgba(98, 255, 206, 0.18); color: #f7faf9; border-color: rgba(98, 255, 206, 0.22)">Delivered</span>
+              </div>
+              <p class="evidence-copy" style="color: var(--text-muted-light)">
+                One approval, one route, one attached result. Boreal records the state change instead of leaving the handoff implicit.
+              </p>
+            </article>
+
+            <article class="evidence-card">
+              <p class="mono-label">Evidence</p>
+              <p class="evidence-title">boreal-launch-explainer.mp4</p>
+              <div class="evidence-meta">
+                <p>Type: link-based delivery</p>
+                <p>Source: provider-backed direct route</p>
+                <p>Status: delivered and attached</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-5 scene-dark">
+        <div class="scene-glow glow-cyan" style="top: 120px; left: 50%; right: auto; transform: translateX(-50%)"></div>
+        <div class="scene-content scene-content-center">
+          <p class="eyebrow eyebrow-light">Commerce, headed north.</p>
+          <h1 class="headline headline-tight">From request to delivered.</h1>
+          <p class="headline" style="font-size: 76px; max-width: 780px">One thread. One route. One accountable result.</p>
+          <p class="body body-light" style="max-width: 1040px">
+            Without forms. Without blind search. Without a follow-up email to recover what the request already said.
+          </p>
+          <p class="close-domain">boreal.work</p>
+        </div>
+      </section>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+
+        const tl = gsap.timeline({ paused: true });
+        const root = '[data-composition-id="boreal-demo-90"]';
+
+        const scenes = {
+          one: `${root} .scene-1`,
+          two: `${root} .scene-2`,
+          three: `${root} .scene-3`,
+          four: `${root} .scene-4`,
+          five: `${root} .scene-5`,
+        };
+
+        gsap.set([scenes.two, scenes.three, scenes.four, scenes.five], { opacity: 0, x: 2200 });
+        gsap.set(scenes.one, { opacity: 1, x: 0 });
+
+        function pushTransition(outScene, inScene, at) {
+          tl.to(
+            outScene,
+            {
+              x: -2200,
+              opacity: 0,
+              filter: "blur(8px)",
+              duration: 0.46,
+              ease: "power3.inOut",
+            },
+            at,
+          );
+          tl.fromTo(
+            inScene,
+            { x: 2200, opacity: 0, filter: "blur(10px)" },
+            {
+              x: 0,
+              opacity: 1,
+              filter: "blur(0px)",
+              duration: 0.56,
+              ease: "power3.inOut",
+            },
+            at + 0.02,
+          );
+        }
+
+        function typeLine(selector, text, at, duration) {
+          const state = { count: 0 };
+          tl.to(
+            state,
+            {
+              count: text.length,
+              duration,
+              ease: "none",
+              onUpdate: () => {
+                const node = document.querySelector(selector);
+                if (node) {
+                  node.textContent = text.slice(0, Math.ceil(state.count));
+                }
+              },
+            },
+            at,
+          );
+        }
+
+        typeLine("#line-1", "You typed what you needed.", 0.8, 1.7);
+        typeLine("#line-2", "It became a search result.", 3.1, 1.9);
+        typeLine("#line-3", "The problem stayed.", 5.6, 1.4);
+        typeLine("#line-4", "That ends here.", 8.3, 1.2);
+
+        pushTransition(scenes.one, scenes.two, 11.7);
+
+        tl.from(`${root} .scene-2 .eyebrow`, { y: 20, opacity: 0, duration: 0.45, ease: "power3.out" }, 12.0);
+        tl.from(`${root} .scene-2 .headline`, { y: 46, opacity: 0, duration: 0.72, ease: "expo.out" }, 12.12);
+        tl.from(`${root} .scene-2 .body`, { y: 26, opacity: 0, duration: 0.52, ease: "sine.out" }, 12.28);
+        tl.from(`${root} .scene-2 .chat-panel`, { x: -36, opacity: 0, duration: 0.62, ease: "power3.out" }, 12.54);
+        tl.from(`${root} .scene-2 .request-panel`, { x: 36, opacity: 0, duration: 0.62, ease: "power3.out" }, 12.64);
+        tl.from(`${root} .scene-2 .label-chip`, { y: 16, opacity: 0, duration: 0.38, stagger: 0.08, ease: "power2.out" }, 12.84);
+        tl.from(`${root} .scene-2 .request-field`, { y: 20, opacity: 0, duration: 0.46, stagger: 0.1, ease: "power2.out" }, 12.96);
+
+        pushTransition(scenes.two, scenes.three, 34.7);
+
+        tl.from(`${root} .scene-3 .eyebrow`, { y: 18, opacity: 0, duration: 0.44, ease: "power3.out" }, 35.0);
+        tl.from(`${root} .scene-3 .headline`, { y: 40, opacity: 0, duration: 0.68, ease: "expo.out" }, 35.12);
+        tl.from(`${root} .scene-3 .body`, { y: 24, opacity: 0, duration: 0.5, ease: "sine.out" }, 35.28);
+        tl.from(`${root} .scene-3 .supply-panel`, { x: -36, opacity: 0, duration: 0.58, ease: "power3.out" }, 35.56);
+        tl.from(`${root} .scene-3 .rail-panel`, { x: 38, opacity: 0, duration: 0.58, ease: "power3.out" }, 35.66);
+        tl.from(`${root} .scene-3 .supply-card`, { x: 44, opacity: 0, duration: 0.58, ease: "back.out(1.12)" }, 35.88);
+        tl.from(`${root} .scene-3 .mini-pill`, { y: 14, opacity: 0, duration: 0.36, stagger: 0.08, ease: "power2.out" }, 36.14);
+        tl.from(`${root} .scene-3 .rail-step`, { y: 18, opacity: 0, duration: 0.44, stagger: 0.1, ease: "power2.out" }, 36.2);
+
+        pushTransition(scenes.three, scenes.four, 51.7);
+
+        tl.from(`${root} .scene-4 .eyebrow`, { y: 18, opacity: 0, duration: 0.44, ease: "power3.out" }, 52.0);
+        tl.from(`${root} .scene-4 .headline`, { y: 42, opacity: 0, duration: 0.7, ease: "expo.out" }, 52.12);
+        tl.from(`${root} .scene-4 .body`, { y: 24, opacity: 0, duration: 0.5, ease: "sine.out" }, 52.3);
+        tl.from(`${root} .scene-4 .stage-card`, { y: 20, opacity: 0, duration: 0.48, stagger: 0.1, ease: "power3.out" }, 52.58);
+        tl.to("#stage-1", { scaleX: 1, duration: 0.5, ease: "power2.out" }, 53.02);
+        tl.to("#stage-2", { scaleX: 1, duration: 0.5, ease: "power2.out" }, 53.62);
+        tl.to("#stage-3", { scaleX: 1, duration: 0.5, ease: "power2.out" }, 54.24);
+        tl.to("#stage-4", { scaleX: 1, duration: 0.5, ease: "power2.out" }, 54.86);
+        tl.from(`${root} .scene-4 .evidence-panel`, { x: -30, opacity: 0, duration: 0.52, ease: "power3.out" }, 55.28);
+        tl.from(`${root} .scene-4 .evidence-card`, { x: 30, opacity: 0, duration: 0.52, ease: "power3.out" }, 55.36);
+
+        pushTransition(scenes.four, scenes.five, 71.7);
+
+        tl.from(`${root} .scene-5 .eyebrow`, { y: 18, opacity: 0, duration: 0.44, ease: "power3.out" }, 72.0);
+        tl.from(`${root} .scene-5 .headline`, { y: 42, opacity: 0, duration: 0.68, stagger: 0.1, ease: "expo.out" }, 72.14);
+        tl.from(`${root} .scene-5 .body`, { y: 24, opacity: 0, duration: 0.5, ease: "sine.out" }, 72.54);
+        tl.from(`${root} .scene-5 .close-domain`, { y: 14, opacity: 0, duration: 0.42, ease: "power2.out" }, 72.84);
+        tl.to(scenes.five, { opacity: 0, filter: "blur(10px)", duration: 1.0, ease: "sine.inOut" }, 88.8);
+
+        window.__timelines["boreal-demo-90"] = tl;
+      </script>
+    </div>
+  </body>
+</html>

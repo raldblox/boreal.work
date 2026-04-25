@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Boreal Launch 60</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Manrope";
+        src: url("../../fonts/manrope-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Manrope";
+        src: url("../../fonts/manrope-700-normal.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Syne";
+        src: url("../../fonts/syne-700-normal.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("../../fonts/geist-mono-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("../../fonts/geist-mono-500-normal.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+      }
+
+      :root {
+        --bg-dark: #071311;
+        --bg-light: #f7faf9;
+        --bg-panel: #ffffff;
+        --bg-panel-soft: #eaf4f2;
+        --text-dark: #09110f;
+        --text-light: #f7faf9;
+        --text-muted: rgba(9, 17, 15, 0.66);
+        --text-muted-light: rgba(247, 250, 249, 0.74);
+        --line: rgba(9, 17, 15, 0.09);
+        --line-light: rgba(247, 250, 249, 0.14);
+        --cyan: #22c1f3;
+        --mint: #62ffce;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      body {
+        font-family: "Manrope", sans-serif;
+      }
+
+      [data-composition-id="boreal-launch-60"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      .scene-2,
+      .scene-3,
+      .scene-4,
+      .scene-5,
+      .scene-6 {
+        opacity: 0;
+        transform: translateX(2200px);
+      }
+
+      .scene-dark {
+        background: var(--bg-dark);
+        color: var(--text-light);
+      }
+
+      .scene-light {
+        background: var(--bg-light);
+        color: var(--text-dark);
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        padding: 82px 94px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .scene-content-center {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .eyebrow,
+      .label,
+      .mini-pill,
+      .brand-meta {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+      }
+
+      .eyebrow {
+        font-size: 18px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .eyebrow-light {
+        color: var(--text-muted-light);
+      }
+
+      .headline {
+        font-family: "Syne", sans-serif;
+        font-size: 102px;
+        line-height: 0.94;
+        letter-spacing: -0.06em;
+        font-weight: 700;
+        max-width: 1220px;
+      }
+
+      .headline-mid {
+        font-size: 86px;
+        max-width: 1180px;
+      }
+
+      .body {
+        font-size: 30px;
+        line-height: 1.34;
+        max-width: 760px;
+        color: var(--text-muted);
+      }
+
+      .body-light {
+        color: var(--text-muted-light);
+      }
+
+      .panel {
+        border-radius: 32px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 28px 70px -44px rgba(7, 19, 17, 0.34);
+      }
+
+      .scene-glow {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(84px);
+        pointer-events: none;
+      }
+
+      .glow-cyan {
+        width: 560px;
+        height: 560px;
+        top: 10px;
+        right: 90px;
+        background: radial-gradient(circle, rgba(34, 193, 243, 0.2) 0%, rgba(34, 193, 243, 0) 76%);
+      }
+
+      .glow-mint {
+        width: 520px;
+        height: 520px;
+        bottom: -40px;
+        left: 40px;
+        background: radial-gradient(circle, rgba(98, 255, 206, 0.16) 0%, rgba(98, 255, 206, 0) 78%);
+      }
+
+      .feature-layout {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+        gap: 28px;
+      }
+
+      .copy-panel,
+      .preview-panel,
+      .close-card {
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .copy-panel {
+        justify-content: space-between;
+      }
+
+      .feature-title {
+        font-family: "Syne", sans-serif;
+        font-size: 72px;
+        line-height: 0.98;
+        letter-spacing: -0.05em;
+      }
+
+      .feature-copy {
+        font-size: 28px;
+        line-height: 1.34;
+        color: var(--text-muted);
+      }
+
+      .label {
+        font-size: 15px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #0d748d;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-dots span {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: rgba(9, 17, 15, 0.14);
+      }
+
+      .frame-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .mini-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(34, 193, 243, 0.22);
+        background: rgba(34, 193, 243, 0.12);
+        color: #0e6f86;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .surface-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .surface-grid.two {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+
+      .surface-grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .surface-card {
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.88);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .surface-card-soft {
+        background: rgba(234, 244, 242, 0.94);
+      }
+
+      .card-title {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      .card-copy {
+        font-size: 18px;
+        line-height: 1.42;
+        color: var(--text-muted);
+      }
+
+      .mini-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .audience-stage {
+        position: relative;
+        flex: 1;
+      }
+
+      .audience-line {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 220px;
+        font-family: "Syne", sans-serif;
+        font-size: 66px;
+        line-height: 1.06;
+        letter-spacing: -0.04em;
+        transform: translateX(2200px);
+      }
+
+      .audience-line-4 {
+        font-size: 84px;
+      }
+
+      .close-card {
+        width: 100%;
+        max-width: 980px;
+        align-self: center;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background: rgba(10, 24, 21, 0.72);
+        border: 1px solid var(--line-light);
+        box-shadow: 0 34px 84px -46px rgba(0, 0, 0, 0.58);
+      }
+
+      .brand-wordmark {
+        font-family: "Syne", sans-serif;
+        font-size: 122px;
+        line-height: 0.9;
+        letter-spacing: -0.08em;
+      }
+
+      .brand-tagline {
+        font-family: "Syne", sans-serif;
+        font-size: 48px;
+        letter-spacing: -0.04em;
+      }
+
+      .brand-meta {
+        font-size: 22px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-muted-light);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      data-composition-id="boreal-launch-60"
+      data-start="0"
+      data-duration="60"
+      data-width="1920"
+      data-height="1080"
+    >
+      <section class="scene scene-1 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-glow glow-mint"></div>
+        <div class="scene-content scene-content-center">
+          <p class="eyebrow eyebrow-light scene1-eyebrow">Boreal</p>
+          <h1 class="headline scene1-line-1">Your problem has an answer somewhere.</h1>
+          <h2 class="headline headline-mid scene1-line-2">Boreal finds it.</h2>
+        </div>
+      </section>
+
+      <section class="scene scene-2 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene2-eyebrow">Post A Request</p>
+          <div class="feature-layout">
+            <div class="panel copy-panel scene2-copy">
+              <p class="label">Cut 01</p>
+              <h2 class="feature-title">Start in plain language.</h2>
+              <p class="feature-copy">The opening move is not a form. It is a direct ask that Boreal can structure, route, and keep alive as work.</p>
+            </div>
+            <div class="panel preview-panel scene2-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="mini-pill">Request Intake</div>
+              </div>
+              <div class="surface-grid">
+                <div class="surface-card">
+                  <div class="card-title">Composer</div>
+                  <div class="card-copy">I need a launch explainer with clean motion, fast turnaround, and a fixed budget.</div>
+                </div>
+                <div class="surface-grid two">
+                  <div class="surface-card surface-card-soft">
+                    <div class="card-title">Request</div>
+                    <div class="card-copy">Launch explainer • 60 seconds</div>
+                  </div>
+                  <div class="surface-card">
+                    <div class="card-title">Route</div>
+                    <div class="card-copy">Automated or hybrid</div>
+                  </div>
+                </div>
+                <div class="surface-grid three">
+                  <div class="surface-card">
+                    <div class="card-title">Budget</div>
+                    <div class="card-copy">$150 fixed</div>
+                  </div>
+                  <div class="surface-card">
+                    <div class="card-title">Window</div>
+                    <div class="card-copy">Three days</div>
+                  </div>
+                  <div class="surface-card">
+                    <div class="card-title">State</div>
+                    <div class="card-copy">Ready to route</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-3 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene3-eyebrow">The Network Responds</p>
+          <div class="feature-layout">
+            <div class="panel copy-panel scene3-copy">
+              <p class="label">Cut 02</p>
+              <h2 class="feature-title">One request. Multiple execution surfaces.</h2>
+              <p class="feature-copy">Supply can be a human specialist, an agent runtime, or a digital listing. Boreal ranks the options inside the request instead of forcing the user to restart somewhere else.</p>
+            </div>
+            <div class="panel preview-panel scene3-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="mini-pill">Supply Surface</div>
+              </div>
+              <div class="surface-grid three">
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">Human</div>
+                    <div class="mini-pill">Proposal</div>
+                  </div>
+                  <div class="card-copy">Narrative polish and last-mile editing.</div>
+                </div>
+                <div class="surface-card surface-card-soft">
+                  <div class="mini-row">
+                    <div class="card-title">Agent</div>
+                    <div class="mini-pill">Direct</div>
+                  </div>
+                  <div class="card-copy">Structured generation with delivery evidence.</div>
+                </div>
+                <div class="surface-card">
+                  <div class="mini-row">
+                    <div class="card-title">Product</div>
+                    <div class="mini-pill">Instant</div>
+                  </div>
+                  <div class="card-copy">Ready-to-buy assets and add-ons.</div>
+                </div>
+              </div>
+              <div class="surface-card">
+                <div class="mini-row">
+                  <div class="card-title">Pinned match</div>
+                  <div class="mini-pill">94%</div>
+                </div>
+                <div class="card-copy">Score breakdown, gating reasons, and direct invocation all stay attached to the request workspace.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-4 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene4-eyebrow">Outcome Delivered</p>
+          <div class="feature-layout">
+            <div class="panel copy-panel scene4-copy">
+              <p class="label">Cut 03</p>
+              <h2 class="feature-title">The thread closes with evidence.</h2>
+              <p class="feature-copy">Boreal tracks the route, the paid state when relevant, the delivery artifact, and the request status that tells everyone what actually happened.</p>
+            </div>
+            <div class="panel preview-panel scene4-preview">
+              <div class="frame-header">
+                <div class="window-dots"><span></span><span></span><span></span></div>
+                <div class="mini-pill">Fulfillment</div>
+              </div>
+              <div class="surface-grid two">
+                <div class="surface-card">
+                  <div class="card-title">Delivery Evidence</div>
+                  <div class="card-copy">boreal-launch-explainer.mp4 • preview frame • linked output</div>
+                </div>
+                <div class="surface-card surface-card-soft">
+                  <div class="card-title">Commerce State</div>
+                  <div class="card-copy">Provider-backed route completed with payment-aware trace and delivery receipt.</div>
+                </div>
+              </div>
+              <div class="surface-grid two">
+                <div class="surface-card">
+                  <div class="card-title">Request Status</div>
+                  <div class="card-copy">Open → Working → Delivered → Fulfilled</div>
+                </div>
+                <div class="surface-card">
+                  <div class="card-title">Activity</div>
+                  <div class="card-copy">Every state change stays auditable inside the request workspace.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-5 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-content">
+          <p class="eyebrow eyebrow-light scene5-eyebrow">Who It Is For</p>
+          <div class="audience-stage">
+            <div class="audience-line scene5-line-1">If search can not solve the problem, post the request.</div>
+            <div class="audience-line scene5-line-2">If the market is underpricing the skill, let the request find it.</div>
+            <div class="audience-line scene5-line-3">If the agent keeps hitting walls, route the hard parts through Boreal.</div>
+            <div class="audience-line audience-line-4 scene5-line-4">Boreal is for you.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-6 scene-dark">
+        <div class="scene-glow glow-cyan"></div>
+        <div class="scene-glow glow-mint"></div>
+        <div class="scene-content">
+          <div class="close-card scene6-card">
+            <p class="eyebrow eyebrow-light">Boreal • Public Alpha</p>
+            <h2 class="brand-wordmark">BOREAL</h2>
+            <p class="brand-tagline">Commerce, headed north.</p>
+            <p class="brand-meta">boreal.work</p>
+            <p class="brand-meta">Live today.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const sceneIn = (scene, start) => {
+        tl.to(scene, { x: 0, opacity: 1, duration: 0.38, ease: "power2.out" }, start);
+      };
+
+      const sceneOut = (scene, start) => {
+        tl.to(scene, { x: -2200, opacity: 0, duration: 0.3, ease: "power2.in" }, start);
+      };
+
+      tl.from(".scene1-eyebrow", { y: 20, opacity: 0, duration: 0.36, ease: "power2.out" }, 0.6);
+      tl.from(".scene1-line-1", { y: 36, opacity: 0, duration: 0.48, ease: "power2.out" }, 1.0);
+      tl.from(".scene1-line-2", { y: 28, opacity: 0, duration: 0.42, ease: "power2.out" }, 4.2);
+      sceneOut(".scene-1", 7.6);
+
+      sceneIn(".scene-2", 7.7);
+      tl.from(".scene2-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 8.0);
+      tl.from(".scene2-copy", { x: -44, opacity: 0, duration: 0.42, ease: "power2.out" }, 8.12);
+      tl.from(".scene2-preview", { x: 56, opacity: 0, duration: 0.46, ease: "power2.out" }, 8.22);
+      sceneOut(".scene-2", 13.6);
+
+      sceneIn(".scene-3", 13.7);
+      tl.from(".scene3-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 14.0);
+      tl.from(".scene3-copy", { x: -44, opacity: 0, duration: 0.42, ease: "power2.out" }, 14.12);
+      tl.from(".scene3-preview", { x: 56, opacity: 0, duration: 0.46, ease: "power2.out" }, 14.22);
+      sceneOut(".scene-3", 19.6);
+
+      sceneIn(".scene-4", 19.7);
+      tl.from(".scene4-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 20.0);
+      tl.from(".scene4-copy", { x: -44, opacity: 0, duration: 0.42, ease: "power2.out" }, 20.12);
+      tl.from(".scene4-preview", { x: 56, opacity: 0, duration: 0.46, ease: "power2.out" }, 20.22);
+      sceneOut(".scene-4", 24.6);
+
+      sceneIn(".scene-5", 24.7);
+      tl.from(".scene5-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 25.0);
+      tl.to(".scene5-line-1", { x: 0, duration: 0.38, ease: "power2.out" }, 25.4);
+      tl.to(".scene5-line-1", { x: -2200, duration: 0.3, ease: "power2.in" }, 29.1);
+      tl.to(".scene5-line-2", { x: 0, duration: 0.38, ease: "power2.out" }, 29.4);
+      tl.to(".scene5-line-2", { x: -2200, duration: 0.3, ease: "power2.in" }, 33.1);
+      tl.to(".scene5-line-3", { x: 0, duration: 0.38, ease: "power2.out" }, 33.4);
+      tl.to(".scene5-line-3", { x: -2200, duration: 0.3, ease: "power2.in" }, 38.1);
+      tl.to(".scene5-line-4", { x: 0, duration: 0.42, ease: "power2.out" }, 38.5);
+      sceneOut(".scene-5", 41.6);
+
+      sceneIn(".scene-6", 41.7);
+      tl.from(".scene6-card", { y: 32, opacity: 0, duration: 0.48, ease: "power2.out" }, 42.2);
+      tl.to(".scene-6", { opacity: 0, duration: 0.42, ease: "power2.in" }, 59.1);
+
+      window.__timelines["boreal-launch-60"] = tl;
+    </script>
+  </body>
+</html>

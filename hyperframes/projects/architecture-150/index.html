@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Boreal Architecture 150</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Manrope";
+        src: url("./fonts/manrope-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Manrope";
+        src: url("./fonts/manrope-700-normal.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Syne";
+        src: url("./fonts/syne-700-normal.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("./fonts/geist-mono-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("./fonts/geist-mono-500-normal.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+      }
+
+      :root {
+        --bg-dark: #071311;
+        --bg-dark-soft: #102522;
+        --bg-light: #f7faf9;
+        --bg-panel: rgba(255, 255, 255, 0.92);
+        --bg-panel-soft: #eaf4f2;
+        --bg-panel-dark: rgba(13, 30, 27, 0.82);
+        --text-dark: #09110f;
+        --text-light: #f7faf9;
+        --text-muted: rgba(9, 17, 15, 0.66);
+        --text-muted-light: rgba(247, 250, 249, 0.74);
+        --line: rgba(9, 17, 15, 0.1);
+        --line-strong: rgba(9, 17, 15, 0.18);
+        --line-light: rgba(247, 250, 249, 0.15);
+        --cyan: #22c1f3;
+        --cyan-soft: rgba(34, 193, 243, 0.14);
+        --mint: #62ffce;
+        --mint-soft: rgba(98, 255, 206, 0.14);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      body {
+        font-family: "Manrope", sans-serif;
+      }
+
+      [data-composition-id="boreal-architecture-150"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-dark);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      .scene-2,
+      .scene-3,
+      .scene-4,
+      .scene-5,
+      .scene-6,
+      .scene-7,
+      .scene-8,
+      .scene-9 {
+        opacity: 0;
+        transform: translateX(2200px);
+      }
+
+      .scene-dark {
+        background:
+          radial-gradient(circle at 82% 12%, rgba(34, 193, 243, 0.16), transparent 30%),
+          radial-gradient(circle at 12% 86%, rgba(98, 255, 206, 0.1), transparent 30%),
+          linear-gradient(180deg, #071311 0%, #0a1a18 100%);
+        color: var(--text-light);
+      }
+
+      .scene-light {
+        background:
+          radial-gradient(circle at 18% 18%, rgba(34, 193, 243, 0.08), transparent 28%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(239, 247, 245, 0.98) 100%);
+        color: var(--text-dark);
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        padding: 72px 92px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      .scene-content-center {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .eyebrow,
+      .machine-label,
+      .chip,
+      .badge,
+      .number-tag,
+      .tiny-meta {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+      }
+
+      .eyebrow {
+        font-size: 17px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .eyebrow-light {
+        color: var(--text-muted-light);
+      }
+
+      .headline {
+        font-family: "Syne", sans-serif;
+        font-size: 90px;
+        line-height: 0.96;
+        letter-spacing: -0.055em;
+        font-weight: 700;
+        max-width: 1260px;
+      }
+
+      .headline-mid {
+        font-size: 74px;
+      }
+
+      .headline-tight {
+        max-width: 1040px;
+      }
+
+      .body {
+        font-size: 28px;
+        line-height: 1.35;
+        max-width: 780px;
+        color: var(--text-muted);
+      }
+
+      .body-light {
+        color: var(--text-muted-light);
+      }
+
+      .panel {
+        border-radius: 30px;
+        border: 1px solid var(--line);
+        background: var(--bg-panel);
+        box-shadow: 0 28px 70px -44px rgba(7, 19, 17, 0.34);
+      }
+
+      .panel-soft {
+        background: rgba(234, 244, 242, 0.96);
+      }
+
+      .panel-dark {
+        border-color: var(--line-light);
+        background: var(--bg-panel-dark);
+        box-shadow: 0 28px 70px -44px rgba(0, 0, 0, 0.54);
+      }
+
+      .machine-label {
+        font-size: 14px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(9, 17, 15, 0.64);
+      }
+
+      .machine-label-light {
+        color: rgba(247, 250, 249, 0.72);
+      }
+
+      .chip,
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        text-transform: uppercase;
+      }
+
+      .chip {
+        padding: 8px 12px;
+        border: 1px solid rgba(9, 17, 15, 0.1);
+        background: rgba(255, 255, 255, 0.84);
+        color: rgba(9, 17, 15, 0.72);
+        font-size: 13px;
+        letter-spacing: 0.08em;
+      }
+
+      .chip-cyan {
+        border-color: rgba(34, 193, 243, 0.22);
+        background: rgba(34, 193, 243, 0.12);
+        color: #0e6f86;
+      }
+
+      .chip-mint {
+        border-color: rgba(98, 255, 206, 0.22);
+        background: rgba(98, 255, 206, 0.14);
+        color: #0b7f63;
+      }
+
+      .badge {
+        padding: 9px 14px;
+        font-size: 13px;
+        letter-spacing: 0.1em;
+        border: 1px solid rgba(247, 250, 249, 0.14);
+        background: rgba(247, 250, 249, 0.08);
+        color: rgba(247, 250, 249, 0.8);
+      }
+
+      .badge-dark {
+        border-color: rgba(34, 193, 243, 0.18);
+        background: rgba(34, 193, 243, 0.1);
+        color: #0d748d;
+      }
+
+      .number-tag {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        border: 1px solid rgba(34, 193, 243, 0.22);
+        background: rgba(34, 193, 243, 0.1);
+        color: #0d748d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+      }
+
+      .connector-h,
+      .connector-v {
+        background: linear-gradient(90deg, rgba(34, 193, 243, 0.2) 0%, rgba(34, 193, 243, 0.9) 50%, rgba(98, 255, 206, 0.8) 100%);
+        opacity: 0.9;
+      }
+
+      .connector-h {
+        height: 2px;
+        transform-origin: left center;
+      }
+
+      .connector-v {
+        width: 2px;
+        transform-origin: center top;
+      }
+
+      .section-shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .hero-strip {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) 150px minmax(0, 0.95fr);
+        gap: 18px;
+        align-items: center;
+        margin-top: 16px;
+      }
+
+      .prompt-bubble,
+      .request-card {
+        padding: 28px 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .bubble-text {
+        font-size: 32px;
+        line-height: 1.26;
+        color: var(--text-light);
+      }
+
+      .request-title {
+        font-family: "Syne", sans-serif;
+        font-size: 50px;
+        line-height: 0.98;
+        letter-spacing: -0.05em;
+        color: var(--text-dark);
+      }
+
+      .request-meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .layer-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .layer-card {
+        padding: 24px 28px;
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 22px;
+      }
+
+      .layer-title {
+        font-family: "Syne", sans-serif;
+        font-size: 40px;
+        line-height: 1;
+        letter-spacing: -0.04em;
+      }
+
+      .layer-copy {
+        font-size: 21px;
+        line-height: 1.36;
+        color: var(--text-muted);
+      }
+
+      .entry-stage {
+        position: relative;
+        flex: 1;
+        border-radius: 34px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .entry-hub,
+      .feedback-core {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 300px;
+        padding: 26px 28px;
+        border-radius: 30px;
+        border: 1px solid rgba(34, 193, 243, 0.22);
+        background: linear-gradient(180deg, rgba(34, 193, 243, 0.1) 0%, rgba(98, 255, 206, 0.12) 100%);
+        box-shadow: 0 24px 64px -40px rgba(34, 193, 243, 0.4);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+      }
+
+      .hub-title {
+        font-family: "Syne", sans-serif;
+        font-size: 44px;
+        line-height: 0.98;
+        letter-spacing: -0.05em;
+      }
+
+      .hub-copy {
+        font-size: 18px;
+        line-height: 1.38;
+        color: var(--text-muted);
+      }
+
+      .actor-node,
+      .feedback-node {
+        position: absolute;
+        width: 270px;
+        padding: 22px 24px;
+        border-radius: 26px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .actor-node h3,
+      .feedback-node h3,
+      .phase-title,
+      .source-title,
+      .tier-title,
+      .path-title,
+      .stack-title,
+      .column-title {
+        font-size: 28px;
+        line-height: 1.06;
+        letter-spacing: -0.03em;
+      }
+
+      .actor-copy,
+      .feedback-copy,
+      .phase-copy,
+      .source-copy,
+      .tier-copy,
+      .path-copy,
+      .stack-copy,
+      .column-copy,
+      .tiny-copy {
+        font-size: 17px;
+        line-height: 1.4;
+        color: var(--text-muted);
+      }
+
+      .entry-user {
+        left: 80px;
+        top: 110px;
+      }
+
+      .entry-agent {
+        left: 80px;
+        bottom: 110px;
+      }
+
+      .entry-merchant {
+        right: 80px;
+        top: 110px;
+      }
+
+      .entry-provider {
+        right: 80px;
+        bottom: 110px;
+      }
+
+      .entry-line-1,
+      .entry-line-2,
+      .entry-line-3,
+      .entry-line-4 {
+        position: absolute;
+        height: 2px;
+        width: 230px;
+      }
+
+      .entry-line-1 {
+        left: 350px;
+        top: 220px;
+      }
+
+      .entry-line-2 {
+        left: 350px;
+        bottom: 220px;
+      }
+
+      .entry-line-3 {
+        right: 350px;
+        top: 220px;
+      }
+
+      .entry-line-4 {
+        right: 350px;
+        bottom: 220px;
+      }
+
+      .pipeline-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .phase-card {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .phase-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .phase-ribbon {
+        padding: 26px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .ribbon-chips {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .supply-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) 120px minmax(0, 0.7fr) 120px minmax(0, 0.95fr);
+        gap: 16px;
+        align-items: center;
+        flex: 1;
+      }
+
+      .source-grid,
+      .output-grid,
+      .tier-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .source-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .output-grid,
+      .tier-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .source-card,
+      .output-card,
+      .tier-card,
+      .path-step,
+      .stack-card,
+      .column-card {
+        padding: 22px 24px;
+        border-radius: 26px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .hub-stack {
+        padding: 28px 26px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .stack-kicker {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 15px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #0d748d;
+      }
+
+      .stack-main {
+        font-family: "Syne", sans-serif;
+        font-size: 52px;
+        line-height: 0.96;
+        letter-spacing: -0.05em;
+      }
+
+      .cascade-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) 120px minmax(0, 0.58fr) 120px minmax(0, 1.02fr);
+        gap: 16px;
+        align-items: center;
+        flex: 1;
+      }
+
+      .retrieval-stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .retrieval-card,
+      .core-card {
+        padding: 22px 24px;
+        border-radius: 26px;
+        border: 1px solid var(--line-light);
+        background: rgba(247, 250, 249, 0.08);
+      }
+
+      .retrieval-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .retrieval-title,
+      .core-title {
+        font-size: 26px;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        color: var(--text-light);
+      }
+
+      .retrieval-copy,
+      .core-copy,
+      .tier-copy-dark,
+      .column-copy-light {
+        font-size: 16px;
+        line-height: 1.42;
+        color: var(--text-muted-light);
+      }
+
+      .core-card {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        text-align: center;
+        background: linear-gradient(180deg, rgba(34, 193, 243, 0.12) 0%, rgba(98, 255, 206, 0.1) 100%);
+      }
+
+      .score-chip-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .tier-card {
+        min-height: 190px;
+      }
+
+      .tier-card-dark {
+        border-color: rgba(247, 250, 249, 0.14);
+        background: rgba(247, 250, 249, 0.08);
+      }
+
+      .tier-title {
+        color: var(--text-light);
+      }
+
+      .split-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        flex: 1;
+      }
+
+      .shared-bar,
+      .converge-bar {
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .path-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        flex: 1;
+      }
+
+      .path-panel {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .path-flow {
+        flex: 1;
+        display: grid;
+        grid-template-rows: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .scene7-path-line {
+        width: 2px;
+        height: 22px;
+        margin: 0 auto;
+      }
+
+      .duo-layout {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        flex: 1;
+      }
+
+      .column-panel {
+        padding: 26px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .column-card {
+        background: rgba(247, 250, 249, 0.08);
+        border-color: rgba(247, 250, 249, 0.12);
+      }
+
+      .column-card-later {
+        border-style: dashed;
+        opacity: 0.88;
+      }
+
+      .column-title {
+        color: var(--text-light);
+      }
+
+      .feedback-stage {
+        position: relative;
+        flex: 1;
+        min-height: 420px;
+      }
+
+      .feedback-node {
+        width: 280px;
+      }
+
+      .feedback-top-left {
+        left: 220px;
+        top: 40px;
+      }
+
+      .feedback-top-right {
+        right: 220px;
+        top: 40px;
+      }
+
+      .feedback-bottom-left {
+        left: 220px;
+        bottom: 40px;
+      }
+
+      .feedback-bottom-right {
+        right: 220px;
+        bottom: 40px;
+      }
+
+      .feedback-line-1,
+      .feedback-line-2,
+      .feedback-line-3,
+      .feedback-line-4 {
+        position: absolute;
+        height: 2px;
+        width: 200px;
+      }
+
+      .feedback-line-1 {
+        left: 498px;
+        top: 156px;
+      }
+
+      .feedback-line-2 {
+        right: 498px;
+        top: 156px;
+      }
+
+      .feedback-line-3 {
+        left: 498px;
+        bottom: 156px;
+      }
+
+      .feedback-line-4 {
+        right: 498px;
+        bottom: 156px;
+      }
+
+      .scene9-close {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+        text-align: center;
+      }
+
+      .brand-meta {
+        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-size: 20px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-muted-light);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      data-composition-id="boreal-architecture-150"
+      data-start="0"
+      data-duration="150"
+      data-width="1920"
+      data-height="1080"
+    >
+      <section class="scene scene-1 scene-dark">
+        <div class="scene-content">
+          <p class="eyebrow eyebrow-light scene1-eyebrow">Architecture Explainer</p>
+          <div class="hero-strip">
+            <div class="panel panel-dark prompt-bubble scene1-bubble">
+              <p class="machine-label machine-label-light">Expression</p>
+              <p class="bubble-text">I need a launch explainer in three days, and I need the right route fast.</p>
+            </div>
+            <div class="connector-h scene1-connector"></div>
+            <div class="panel request-card scene1-request">
+              <p class="machine-label">Durable object</p>
+              <h2 class="request-title">Request</h2>
+              <div class="request-meta">
+                <span class="chip chip-cyan">video</span>
+                <span class="chip">3 days</span>
+                <span class="chip chip-mint">routed</span>
+              </div>
+            </div>
+          </div>
+          <h1 class="headline headline-tight scene1-headline">Boreal keeps the request alive after the prompt.</h1>
+          <p class="body body-light scene1-body">The system starts by turning chat into a request that matching, checkout, fulfillment, and audit can all attach to.</p>
+        </div>
+      </section>
+
+      <section class="scene scene-2 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene2-eyebrow">Three Layers</p>
+          <h2 class="headline headline-mid scene2-headline">One market surface. Three architectural jobs.</h2>
+          <div class="layer-stack">
+            <div class="panel layer-card scene2-card-1">
+              <div class="number-tag">01</div>
+              <div>
+                <div class="layer-title">Supply activation</div>
+                <div class="layer-copy">Humans, agents, products, services, and provider-backed capabilities become one searchable surface.</div>
+              </div>
+              <div class="badge badge-dark">alpha foundation</div>
+            </div>
+            <div class="panel panel-soft layer-card scene2-card-2">
+              <div class="number-tag">02</div>
+              <div>
+                <div class="layer-title">Demand routing</div>
+                <div class="layer-copy">Chat becomes a structured request, then moves through matching, proposals, checkout, or fulfillment without losing context.</div>
+              </div>
+              <div class="badge badge-dark">live center</div>
+            </div>
+            <div class="panel layer-card scene2-card-3">
+              <div class="number-tag">03</div>
+              <div>
+                <div class="layer-title">Network intelligence</div>
+                <div class="layer-copy">Outcomes feed back into ranking, trust, protocol reach, and deeper settlement behavior over time.</div>
+              </div>
+              <div class="badge badge-dark">compounds later</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-3 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene3-eyebrow">Entry Surfaces</p>
+          <h2 class="headline headline-mid scene3-headline">Different actors enter one core system.</h2>
+          <div class="entry-stage scene3-stage">
+            <div class="actor-node entry-user scene3-user">
+              <p class="machine-label">Demand</p>
+              <h3>Human buyer</h3>
+              <p class="actor-copy">Posts a request from chat and stays inside one workspace.</p>
+              <span class="chip chip-cyan">chat</span>
+            </div>
+            <div class="actor-node entry-agent scene3-agent">
+              <p class="machine-label">Demand</p>
+              <h3>External agent</h3>
+              <p class="actor-copy">Sends intent over an API when it can not resolve the work alone.</p>
+              <span class="chip chip-cyan">api</span>
+            </div>
+            <div class="actor-node entry-merchant scene3-merchant">
+              <p class="machine-label">Supply</p>
+              <h3>Merchant or operator</h3>
+              <p class="actor-copy">Publishes offers, capabilities, and payout-ready supply through profile tools.</p>
+              <span class="chip">profile builder</span>
+            </div>
+            <div class="actor-node entry-provider scene3-provider">
+              <p class="machine-label">Supply</p>
+              <h3>External provider</h3>
+              <p class="actor-copy">Syncs provider-backed capability listings through adapter routes.</p>
+              <span class="chip">provider sync</span>
+            </div>
+
+            <div class="entry-hub scene3-hub">
+              <p class="machine-label">Boreal core</p>
+              <div class="hub-title">Request-native market</div>
+              <div class="hub-copy">One runtime for requests, supply, proposals, checkout, fulfillment, and audit.</div>
+            </div>
+
+            <div class="connector-h entry-line-1 scene3-line-1"></div>
+            <div class="connector-h entry-line-2 scene3-line-2"></div>
+            <div class="connector-h entry-line-3 scene3-line-3"></div>
+            <div class="connector-h entry-line-4 scene3-line-4"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-4 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene4-eyebrow">Intake And Persistence</p>
+          <h2 class="headline headline-mid scene4-headline">The request becomes an operational object.</h2>
+          <div class="section-shell">
+            <div class="pipeline-grid">
+              <div class="panel phase-card scene4-phase-1">
+                <div class="phase-head">
+                  <div class="number-tag">01</div>
+                  <div class="phase-title">Expression</div>
+                </div>
+                <div class="phase-copy">Plain language enters from chat or API.</div>
+              </div>
+              <div class="panel phase-card scene4-phase-2">
+                <div class="phase-head">
+                  <div class="number-tag">02</div>
+                  <div class="phase-title">Extraction</div>
+                </div>
+                <div class="phase-copy">Fields, categories, keywords, and modalities are extracted.</div>
+              </div>
+              <div class="panel phase-card scene4-phase-3">
+                <div class="phase-head">
+                  <div class="number-tag">03</div>
+                  <div class="phase-title">Routing hints</div>
+                </div>
+                <div class="phase-copy">Embeddings, tags, and score features prepare later matching.</div>
+              </div>
+              <div class="panel phase-card scene4-phase-4">
+                <div class="phase-head">
+                  <div class="number-tag">04</div>
+                  <div class="phase-title">Workspace</div>
+                </div>
+                <div class="phase-copy">The request persists with next actions instead of disappearing into chat history.</div>
+              </div>
+            </div>
+            <div class="panel phase-ribbon scene4-ribbon">
+              <p class="machine-label">Persistence spine</p>
+              <div class="ribbon-chips">
+                <span class="chip chip-cyan">request</span>
+                <span class="chip">activity</span>
+                <span class="chip">match candidates</span>
+                <span class="chip">proposals</span>
+                <span class="chip">fulfillments</span>
+                <span class="chip">cart</span>
+                <span class="chip chip-mint">audit trail</span>
+              </div>
+              <p class="tiny-copy">This is the system boundary that later checkout, delivery, and reviews all write back into.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-5 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene5-eyebrow">Supply Activation</p>
+          <h2 class="headline headline-mid scene5-headline">Different supply types become one comparable registry.</h2>
+          <div class="supply-layout">
+            <div class="source-grid">
+              <div class="source-card scene5-source-1">
+                <p class="machine-label">Native supply</p>
+                <div class="source-title">Human specialists</div>
+                <div class="source-copy">Proposal-led work, services, and expert execution.</div>
+              </div>
+              <div class="source-card scene5-source-2">
+                <p class="machine-label">Native supply</p>
+                <div class="source-title">Agent operators</div>
+                <div class="source-copy">Runnable automation and agent-backed capability listings.</div>
+              </div>
+              <div class="source-card scene5-source-3">
+                <p class="machine-label">Native supply</p>
+                <div class="source-title">Digital listings</div>
+                <div class="source-copy">Buyable products, assets, and instant fulfillment items.</div>
+              </div>
+              <div class="source-card scene5-source-4">
+                <p class="machine-label">External supply</p>
+                <div class="source-title">Provider-backed capabilities</div>
+                <div class="source-copy">Synced x402-style services normalized through adapters.</div>
+              </div>
+            </div>
+            <div class="connector-h scene5-line-left"></div>
+            <div class="panel panel-soft hub-stack scene5-hub">
+              <p class="stack-kicker">Normalization</p>
+              <div class="stack-main">Supply</div>
+              <p class="stack-copy">One unified Boreal surface for matching, routing, comparison, and future protocol exposure.</p>
+            </div>
+            <div class="connector-h scene5-line-right"></div>
+            <div class="output-grid">
+              <div class="output-card scene5-output-1">
+                <p class="machine-label">Public surface</p>
+                <div class="source-title">Supply directory</div>
+                <div class="source-copy">Searchable human, agent, product, service, and provider-backed listings.</div>
+              </div>
+              <div class="output-card scene5-output-2">
+                <p class="machine-label">Request surface</p>
+                <div class="source-title">Workspace results</div>
+                <div class="source-copy">Matched supply attaches directly to the active request rather than a separate search tab.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-6 scene-dark">
+        <div class="scene-content">
+          <p class="eyebrow eyebrow-light scene6-eyebrow">Matching Cascade</p>
+          <h2 class="headline headline-mid scene6-headline">Routing policy decides where the request goes next.</h2>
+          <div class="cascade-layout">
+            <div class="retrieval-stack">
+              <div class="retrieval-card scene6-retrieval-1">
+                <div>
+                  <div class="retrieval-title">Lexical recall</div>
+                  <div class="retrieval-copy">Keywords, categories, explicit deliverables.</div>
+                </div>
+                <span class="badge">recall</span>
+              </div>
+              <div class="retrieval-card scene6-retrieval-2">
+                <div>
+                  <div class="retrieval-title">Embedding fit</div>
+                  <div class="retrieval-copy">Semantic similarity for broad or messy asks.</div>
+                </div>
+                <span class="badge">semantic</span>
+              </div>
+              <div class="retrieval-card scene6-retrieval-3">
+                <div>
+                  <div class="retrieval-title">Structured filters</div>
+                  <div class="retrieval-copy">Budget, deadline, category, capability gates.</div>
+                </div>
+                <span class="badge">hard gates</span>
+              </div>
+              <div class="retrieval-card scene6-retrieval-4">
+                <div>
+                  <div class="retrieval-title">History and evidence</div>
+                  <div class="retrieval-copy">Prior outcomes, reviews, and similar solved work.</div>
+                </div>
+                <span class="badge">outcomes</span>
+              </div>
+            </div>
+            <div class="connector-h scene6-line-left"></div>
+            <div class="core-card scene6-core">
+              <p class="machine-label machine-label-light">Score and policy</p>
+              <div class="core-title">Ranked candidates</div>
+              <div class="score-chip-row">
+                <span class="badge">fit</span>
+                <span class="badge">budget</span>
+                <span class="badge">deadline</span>
+                <span class="badge">trust</span>
+              </div>
+              <div class="core-copy">Matching is not one model.  It is retrieval, gating, scoring, and a route decision.</div>
+            </div>
+            <div class="connector-h scene6-line-right"></div>
+            <div class="tier-grid">
+              <div class="tier-card tier-card-dark scene6-tier-1">
+                <p class="machine-label machine-label-light">Tier 1</p>
+                <div class="tier-title">Direct delivery</div>
+                <div class="tier-copy tier-copy-dark">Instant, high-confidence path for buyable or executable supply.</div>
+              </div>
+              <div class="tier-card tier-card-dark scene6-tier-2">
+                <p class="machine-label machine-label-light">Tier 2</p>
+                <div class="tier-title">Fast-route</div>
+                <div class="tier-copy tier-copy-dark">Known solver notified before the open board.</div>
+              </div>
+              <div class="tier-card tier-card-dark scene6-tier-3">
+                <p class="machine-label machine-label-light">Tier 3</p>
+                <div class="tier-title">Open board</div>
+                <div class="tier-copy tier-copy-dark">Public request with proposals invited and top candidates nudged.</div>
+              </div>
+              <div class="tier-card tier-card-dark scene6-tier-4">
+                <p class="machine-label machine-label-light">Tier 4</p>
+                <div class="tier-title">Pending rematch</div>
+                <div class="tier-copy tier-copy-dark">No strong route yet, so the request stays indexed and can be promoted later.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-7 scene-light">
+        <div class="scene-content">
+          <p class="eyebrow scene7-eyebrow">Execution Paths</p>
+          <h2 class="headline headline-mid scene7-headline">Boreal can route to checkout or custom work without changing the object.</h2>
+          <div class="split-layout">
+            <div class="panel shared-bar scene7-shared">
+              <div>
+                <p class="machine-label">Shared anchor</p>
+                <div class="path-title">One request workspace</div>
+              </div>
+              <span class="chip chip-cyan">chat + activity + matches + next actions</span>
+            </div>
+            <div class="path-grid">
+              <div class="panel path-panel scene7-panel-left">
+                <p class="machine-label">Buyable path</p>
+                <div class="path-flow">
+                  <div class="path-step scene7-left-step-1">
+                    <div class="path-title">Matched listing</div>
+                    <div class="path-copy">A concrete offer is already priced and executable.</div>
+                  </div>
+                  <div class="connector-v scene7-path-line scene7-left-line-1"></div>
+                  <div class="path-step scene7-left-step-2">
+                    <div class="path-title">Cart and checkout</div>
+                    <div class="path-copy">Purchase intent becomes a payment-aware commerce flow.</div>
+                  </div>
+                  <div class="connector-v scene7-path-line scene7-left-line-2"></div>
+                  <div class="path-step scene7-left-step-3">
+                    <div class="path-title">Provider invocation</div>
+                    <div class="path-copy">Supported provider-backed flows can initiate x402 and execute.</div>
+                  </div>
+                  <div class="connector-v scene7-path-line scene7-left-line-3"></div>
+                  <div class="path-step scene7-left-step-4">
+                    <div class="path-title">Delivered asset</div>
+                    <div class="path-copy">Result and receipt attach back to the same request.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel path-panel scene7-panel-right">
+                <p class="machine-label">Custom work path</p>
+                <div class="path-flow">
+                  <div class="path-step scene7-right-step-1">
+                    <div class="path-title">Proposals</div>
+                    <div class="path-copy">Suppliers scope price, ETA, and deliverables against the request.</div>
+                  </div>
+                  <div class="connector-v scene7-path-line scene7-right-line-1"></div>
+                  <div class="path-step scene7-right-step-2">
+                    <div class="path-title">Owner acceptance</div>
+                    <div class="path-copy">The request owner chooses a solver and activates fulfillment.</div>
+                  </div>
+                  <div class="connector-v scene7-path-line scene7-right-line-2"></div>
+                  <div class="path-step scene7-right-step-3">
+                    <div class="path-title">Fulfillment</div>
+                    <div class="path-copy">Work happens inside the request rather than in side-channel DMs.</div>
+                  </div>
+                  <div class="connector-v scene7-path-line scene7-right-line-3"></div>
+                  <div class="path-step scene7-right-step-4">
+                    <div class="path-title">Evidence and review</div>
+                    <div class="path-copy">Delivery artifacts, approval, and review close the loop.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="panel panel-soft converge-bar scene7-converge">
+              <div>
+                <p class="machine-label">Convergence</p>
+                <div class="path-title">Both flows write back into the same request record.</div>
+              </div>
+              <span class="chip chip-mint">accountable outcome</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-8 scene-dark">
+        <div class="scene-content">
+          <p class="eyebrow eyebrow-light scene8-eyebrow">Commerce And Audit</p>
+          <h2 class="headline headline-mid scene8-headline">The alpha already has a transaction spine.  The later layers go further.</h2>
+          <div class="duo-layout">
+            <div class="panel panel-dark column-panel scene8-column-left">
+              <span class="badge">alpha today</span>
+              <div class="column-title">Live operational spine</div>
+              <div class="column-card scene8-left-card-1">
+                <div class="stack-title">Wallet readiness</div>
+                <div class="column-copy column-copy-light">Connected wallet and payout-wallet checks block broken paid flows early.</div>
+              </div>
+              <div class="column-card scene8-left-card-2">
+                <div class="stack-title">x402 initiation</div>
+                <div class="column-copy column-copy-light">Supported provider-backed routes can trigger Privy-backed payment initiation.</div>
+              </div>
+              <div class="column-card scene8-left-card-3">
+                <div class="stack-title">Transaction and invocation records</div>
+                <div class="column-copy column-copy-light">Checkout items, payment attempts, service invocations, and audit events persist through one commerce spine.</div>
+              </div>
+            </div>
+            <div class="panel panel-dark column-panel scene8-column-right">
+              <span class="badge">later architecture</span>
+              <div class="column-title">Deeper settlement and protocol reach</div>
+              <div class="column-card column-card-later scene8-right-card-1">
+                <div class="stack-title">Escrow and automatic settlement</div>
+                <div class="column-copy column-copy-light">Important target layer, but not a current alpha claim.</div>
+              </div>
+              <div class="column-card column-card-later scene8-right-card-2">
+                <div class="stack-title">Full ACP, UCP, and A2A exposure</div>
+                <div class="column-copy column-copy-light">Stable public protocol descriptors and execution endpoints per listing.</div>
+              </div>
+              <div class="column-card column-card-later scene8-right-card-3">
+                <div class="stack-title">Collective fulfillment</div>
+                <div class="column-copy column-copy-light">Multi-party proposals, split settlement, and larger coordinated work.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-9 scene-dark">
+        <div class="scene-content">
+          <p class="eyebrow eyebrow-light scene9-eyebrow">Feedback Loop</p>
+          <div class="feedback-stage">
+            <div class="feedback-node feedback-top-left scene9-node-1">
+              <p class="machine-label">Routing memory</p>
+              <h3>Match events</h3>
+              <p class="feedback-copy">Every decision keeps score breakdowns and outcomes.</p>
+            </div>
+            <div class="feedback-node feedback-top-right scene9-node-2">
+              <p class="machine-label">Outcome quality</p>
+              <h3>Reviews</h3>
+              <p class="feedback-copy">Completed work produces explicit approval and rating signals.</p>
+            </div>
+            <div class="feedback-node feedback-bottom-left scene9-node-3">
+              <p class="machine-label">Evidence layer</p>
+              <h3>Artifacts</h3>
+              <p class="feedback-copy">Uploads, links, and receipts make the result auditable.</p>
+            </div>
+            <div class="feedback-node feedback-bottom-right scene9-node-4">
+              <p class="machine-label">Compounding surface</p>
+              <h3>Analytics</h3>
+              <p class="feedback-copy">Profiles, rankings, and future routing quality improve from real outcomes.</p>
+            </div>
+            <div class="feedback-core scene9-core">
+              <p class="machine-label">Network intelligence</p>
+              <div class="hub-title">Routing compounds</div>
+              <div class="hub-copy">The system learns from fulfillment, not from chat output alone.</div>
+            </div>
+            <div class="connector-h feedback-line-1 scene9-line-1"></div>
+            <div class="connector-h feedback-line-2 scene9-line-2"></div>
+            <div class="connector-h feedback-line-3 scene9-line-3"></div>
+            <div class="connector-h feedback-line-4 scene9-line-4"></div>
+          </div>
+          <div class="scene9-close scene9-close-block">
+            <h2 class="headline headline-mid headline-tight">Chat-native in front. Request-native in the middle. Intent-to-fulfillment underneath.</h2>
+            <p class="brand-meta">boreal.work • commerce, headed north.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const sceneIn = (scene, start) => {
+        tl.to(scene, { x: 0, opacity: 1, duration: 0.38, ease: "power2.out" }, start);
+      };
+
+      const sceneOut = (scene, start) => {
+        tl.to(scene, { x: -2200, opacity: 0, duration: 0.32, ease: "power2.in" }, start);
+      };
+
+      tl.from(".scene1-eyebrow", { y: 18, opacity: 0, duration: 0.32, ease: "power2.out" }, 0.4);
+      tl.from(".scene1-bubble", { x: -46, opacity: 0, duration: 0.48, ease: "power2.out" }, 0.8);
+      tl.from(".scene1-connector", { scaleX: 0, duration: 0.36, ease: "power2.out" }, 1.16);
+      tl.from(".scene1-request", { x: 46, opacity: 0, duration: 0.46, ease: "power2.out" }, 1.38);
+      tl.from(".scene1-headline", { y: 28, opacity: 0, duration: 0.42, ease: "power2.out" }, 2.1);
+      tl.from(".scene1-body", { y: 22, opacity: 0, duration: 0.38, ease: "power2.out" }, 2.42);
+      sceneOut(".scene-1", 11.55);
+
+      sceneIn(".scene-2", 11.7);
+      tl.from(".scene2-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 12.0);
+      tl.from(".scene2-headline", { y: 26, opacity: 0, duration: 0.4, ease: "power2.out" }, 12.2);
+      tl.from(".scene2-card-1", { y: 28, opacity: 0, duration: 0.34, ease: "power2.out" }, 12.7);
+      tl.from(".scene2-card-2", { y: 28, opacity: 0, duration: 0.34, ease: "power2.out" }, 13.25);
+      tl.from(".scene2-card-3", { y: 28, opacity: 0, duration: 0.34, ease: "power2.out" }, 13.8);
+      sceneOut(".scene-2", 27.55);
+
+      sceneIn(".scene-3", 27.7);
+      tl.from(".scene3-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 28.0);
+      tl.from(".scene3-headline", { y: 26, opacity: 0, duration: 0.4, ease: "power2.out" }, 28.18);
+      tl.from(".scene3-hub", { scale: 0.9, opacity: 0, duration: 0.42, ease: "power2.out" }, 28.9);
+      tl.from(".scene3-user", { x: -34, opacity: 0, duration: 0.34, ease: "power2.out" }, 29.3);
+      tl.from(".scene3-agent", { x: -34, opacity: 0, duration: 0.34, ease: "power2.out" }, 29.55);
+      tl.from(".scene3-merchant", { x: 34, opacity: 0, duration: 0.34, ease: "power2.out" }, 29.8);
+      tl.from(".scene3-provider", { x: 34, opacity: 0, duration: 0.34, ease: "power2.out" }, 30.05);
+      tl.from(".scene3-line-1, .scene3-line-2, .scene3-line-3, .scene3-line-4", { scaleX: 0, duration: 0.34, stagger: 0.12, ease: "power2.out" }, 30.2);
+      sceneOut(".scene-3", 45.55);
+
+      sceneIn(".scene-4", 45.7);
+      tl.from(".scene4-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 46.0);
+      tl.from(".scene4-headline", { y: 26, opacity: 0, duration: 0.4, ease: "power2.out" }, 46.18);
+      tl.from(".scene4-phase-1", { y: 24, opacity: 0, duration: 0.3, ease: "power2.out" }, 46.7);
+      tl.from(".scene4-phase-2", { y: 24, opacity: 0, duration: 0.3, ease: "power2.out" }, 47.1);
+      tl.from(".scene4-phase-3", { y: 24, opacity: 0, duration: 0.3, ease: "power2.out" }, 47.5);
+      tl.from(".scene4-phase-4", { y: 24, opacity: 0, duration: 0.3, ease: "power2.out" }, 47.9);
+      tl.from(".scene4-ribbon", { y: 24, opacity: 0, duration: 0.34, ease: "power2.out" }, 48.45);
+      sceneOut(".scene-4", 65.55);
+
+      sceneIn(".scene-5", 65.7);
+      tl.from(".scene5-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 66.0);
+      tl.from(".scene5-headline", { y: 26, opacity: 0, duration: 0.4, ease: "power2.out" }, 66.18);
+      tl.from(".scene5-source-1, .scene5-source-2, .scene5-source-3, .scene5-source-4", { x: -28, opacity: 0, duration: 0.3, stagger: 0.14, ease: "power2.out" }, 66.8);
+      tl.from(".scene5-line-left", { scaleX: 0, duration: 0.34, ease: "power2.out" }, 67.5);
+      tl.from(".scene5-hub", { scale: 0.92, opacity: 0, duration: 0.38, ease: "power2.out" }, 67.72);
+      tl.from(".scene5-line-right", { scaleX: 0, duration: 0.34, ease: "power2.out" }, 68.1);
+      tl.from(".scene5-output-1, .scene5-output-2", { x: 28, opacity: 0, duration: 0.3, stagger: 0.16, ease: "power2.out" }, 68.35);
+      sceneOut(".scene-5", 85.55);
+
+      sceneIn(".scene-6", 85.7);
+      tl.from(".scene6-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 86.0);
+      tl.from(".scene6-headline", { y: 26, opacity: 0, duration: 0.4, ease: "power2.out" }, 86.18);
+      tl.from(".scene6-retrieval-1, .scene6-retrieval-2, .scene6-retrieval-3, .scene6-retrieval-4", { x: -28, opacity: 0, duration: 0.3, stagger: 0.18, ease: "power2.out" }, 86.8);
+      tl.from(".scene6-line-left", { scaleX: 0, duration: 0.32, ease: "power2.out" }, 87.65);
+      tl.from(".scene6-core", { scale: 0.9, opacity: 0, duration: 0.38, ease: "power2.out" }, 87.92);
+      tl.from(".scene6-line-right", { scaleX: 0, duration: 0.32, ease: "power2.out" }, 88.3);
+      tl.from(".scene6-tier-1", { x: 30, opacity: 0, duration: 0.28, ease: "power2.out" }, 88.55);
+      tl.from(".scene6-tier-2", { x: 30, opacity: 0, duration: 0.28, ease: "power2.out" }, 89.0);
+      tl.from(".scene6-tier-3", { x: 30, opacity: 0, duration: 0.28, ease: "power2.out" }, 89.45);
+      tl.from(".scene6-tier-4", { x: 30, opacity: 0, duration: 0.28, ease: "power2.out" }, 89.9);
+      sceneOut(".scene-6", 109.55);
+
+      sceneIn(".scene-7", 109.7);
+      tl.from(".scene7-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 110.0);
+      tl.from(".scene7-headline", { y: 26, opacity: 0, duration: 0.4, ease: "power2.out" }, 110.18);
+      tl.from(".scene7-shared", { y: 24, opacity: 0, duration: 0.32, ease: "power2.out" }, 110.75);
+      tl.from(".scene7-panel-left", { x: -30, opacity: 0, duration: 0.36, ease: "power2.out" }, 111.15);
+      tl.from(".scene7-panel-right", { x: 30, opacity: 0, duration: 0.36, ease: "power2.out" }, 111.4);
+      tl.from(".scene7-left-step-1, .scene7-left-step-2, .scene7-left-step-3, .scene7-left-step-4", { y: 16, opacity: 0, duration: 0.22, stagger: 0.12, ease: "power2.out" }, 111.9);
+      tl.from(".scene7-left-line-1, .scene7-left-line-2, .scene7-left-line-3", { scaleY: 0, duration: 0.18, stagger: 0.12, ease: "power2.out" }, 112.15);
+      tl.from(".scene7-right-step-1, .scene7-right-step-2, .scene7-right-step-3, .scene7-right-step-4", { y: 16, opacity: 0, duration: 0.22, stagger: 0.12, ease: "power2.out" }, 112.35);
+      tl.from(".scene7-right-line-1, .scene7-right-line-2, .scene7-right-line-3", { scaleY: 0, duration: 0.18, stagger: 0.12, ease: "power2.out" }, 112.6);
+      tl.from(".scene7-converge", { y: 20, opacity: 0, duration: 0.26, ease: "power2.out" }, 113.55);
+      sceneOut(".scene-7", 131.55);
+
+      sceneIn(".scene-8", 131.7);
+      tl.from(".scene8-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 132.0);
+      tl.from(".scene8-headline", { y: 24, opacity: 0, duration: 0.38, ease: "power2.out" }, 132.16);
+      tl.from(".scene8-column-left", { x: -28, opacity: 0, duration: 0.36, ease: "power2.out" }, 132.85);
+      tl.from(".scene8-left-card-1, .scene8-left-card-2, .scene8-left-card-3", { y: 18, opacity: 0, duration: 0.22, stagger: 0.12, ease: "power2.out" }, 133.2);
+      tl.from(".scene8-column-right", { x: 28, opacity: 0, duration: 0.36, ease: "power2.out" }, 133.35);
+      tl.from(".scene8-right-card-1, .scene8-right-card-2, .scene8-right-card-3", { y: 18, opacity: 0, duration: 0.22, stagger: 0.12, ease: "power2.out" }, 133.7);
+      sceneOut(".scene-8", 141.6);
+
+      sceneIn(".scene-9", 141.75);
+      tl.from(".scene9-eyebrow", { y: 16, opacity: 0, duration: 0.3, ease: "power2.out" }, 142.0);
+      tl.from(".scene9-core", { scale: 0.9, opacity: 0, duration: 0.38, ease: "power2.out" }, 142.45);
+      tl.from(".scene9-node-1, .scene9-node-2, .scene9-node-3, .scene9-node-4", { opacity: 0, scale: 0.94, duration: 0.28, stagger: 0.16, ease: "power2.out" }, 142.9);
+      tl.from(".scene9-line-1, .scene9-line-2, .scene9-line-3, .scene9-line-4", { scaleX: 0, duration: 0.2, stagger: 0.1, ease: "power2.out" }, 143.2);
+      tl.from(".scene9-close-block", { y: 24, opacity: 0, duration: 0.34, ease: "power2.out" }, 144.1);
+      tl.to(".scene-9", { opacity: 0, duration: 0.45, ease: "power2.in" }, 149.2);
+
+      window.__timelines["boreal-architecture-150"] = tl;
+    </script>
+  </body>
+</html>

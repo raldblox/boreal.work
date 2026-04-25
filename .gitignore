@@ -1,0 +1,6 @@
+/presentations/
+
+# Generated HyperFrames render outputs and scratch artifacts
+/hyperframes/renders/
+/hyperframes/projects/*/renders/
+/hyperframes/projects/*/scratch/
