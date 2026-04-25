@@ -1,7 +1,9 @@
 import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
 import { intentStatusValidator, persistedIntentValidator } from "./validators";
+import { persistIntentMatchCandidates } from "./matching";
 
 export const recordIntentPipeline = mutation({
   args: {
@@ -83,7 +85,7 @@ export const recordIntentPipeline = mutation({
       senderHandle: "boreal",
     });
 
-    const intentId: string = await ctx.db.insert("intents", {
+    const intentId = (await ctx.db.insert("intents", {
       acceptsProposals: true,
       actorKind: "human",
       approvalRequestedAt: status === "proposed" ? now : undefined,
@@ -125,7 +127,7 @@ export const recordIntentPipeline = mutation({
       urgencyScore: args.intent.persistence.isUnresolved ? 0.72 : 0.15,
       visibility: status === "proposed" || status === "open" ? "public" : "private",
       voice: args.intent.voice,
-    });
+    })) as Id<"intents">;
 
     await ctx.db.insert("intentRuns", {
       conversationId,
@@ -150,6 +152,38 @@ export const recordIntentPipeline = mutation({
       type: "request.detected",
     });
 
+    const matching = await persistIntentMatchCandidates(ctx, {
+      body: args.intent.body,
+      budgetMax: undefined,
+      budgetMin: undefined,
+      capabilityTags: args.intent.capabilityTags,
+      catalogQuery: args.intent.catalogQuery,
+      category: args.intent.category,
+      deadlineAt: undefined,
+      embedding: args.intent.embedding,
+      intentId,
+      intentKey,
+      keywords: args.intent.keywords,
+      limit: 24,
+      requestedOutputTypes: args.intent.requestedOutputTypes,
+      summary: args.intent.summary,
+      title: args.intent.title,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        candidateCount: matching.persistedCount,
+        topMatchScore: matching.topMatchScore,
+      }),
+      type:
+        matching.persistedCount > 0
+          ? "matching.completed"
+          : "matching.empty",
+    });
+
     if (status === "proposed") {
       await ctx.db.insert("activityEvents", {
         createdAt: now,
@@ -166,7 +200,7 @@ export const recordIntentPipeline = mutation({
     return {
       assistantMessageId: args.intent.assistantMessageId,
       conversationId,
-      intentId: intentId as string,
+      intentId,
       intentKey,
       userMessageId: args.intent.userMessageId,
     };

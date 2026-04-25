@@ -192,6 +192,14 @@ export const serviceProviderSyncStatusValidator = v.union(
   v.literal("failed"),
 );
 
+export const matchCandidateStageValidator = v.union(
+  v.literal("retrieved"),
+  v.literal("feasible"),
+  v.literal("ranked"),
+  v.literal("notified"),
+  v.literal("reserved"),
+);
+
 export const messageRoleValidator = v.union(
   v.literal("user"),
   v.literal("assistant"),

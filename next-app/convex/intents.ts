@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-import { searchCatalogListings } from "./supplies";
+import { listIntentCatalogMatches } from "./supplies";
 
 export const listSidebar = query({
   args: {
@@ -185,9 +185,24 @@ export const getRequestDetail = query({
     const fulfillment = await getRequestFulfillment(ctx, intent, acceptedProposal);
     const catalogItems =
       intent.shouldSearchCatalog || intent.routeTarget === "catalog_lookup"
-        ? await searchCatalogListings(
+        ? await listIntentCatalogMatches(
             ctx,
-            intent.catalogQuery?.trim() || intent.summary || intent.body,
+            {
+              _id: intent._id,
+              body: intent.body,
+              budgetMax: intent.budgetMax,
+              budgetMin: intent.budgetMin,
+              capabilityTags: intent.capabilityTags,
+              catalogQuery: intent.catalogQuery,
+              category: intent.category,
+              deadlineAt: intent.deadlineAt,
+              embedding: intent.embedding,
+              intentKey: intent.intentKey,
+              keywords: intent.keywords,
+              requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+              summary: intent.summary,
+              title: intent.title,
+            },
             8,
           )
         : [];
@@ -244,6 +259,7 @@ export const getRequestDetail = query({
         completedAt: intent.completedAt ?? null,
         confidence: intent.confidence,
         missingDetails: intent.missingDetails ?? [],
+        matchAttempts: intent.matchAttempts ?? 0,
         needsClarification: intent.needsClarification ?? false,
         provider: intent.provider,
         requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],

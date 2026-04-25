@@ -2,128 +2,229 @@ export const VIDEO_FPS = 30;
 export const VIDEO_WIDTH = 1920;
 export const VIDEO_HEIGHT = 1080;
 
+export type SceneId =
+  | "intent-disappears"
+  | "missing-layer"
+  | "chat-to-workspace"
+  | "real-supply"
+  | "proposal-delivery"
+  | "direct-fulfillment"
+  | "solana-fit"
+  | "missing-piece";
+
 export type SceneSpec = {
   durationInSeconds: number;
-  key: string;
+  id: SceneId;
   message: string;
   title: string;
 };
 
 export type VideoVariant = {
   accent: string;
+  compositionId: string;
+  folderName: "Boreal-Film" | "Boreal-Shorts";
   headline: string;
   kicker: string;
   label: string;
+  overlayMode: "detailed" | "minimal";
   scenes: SceneSpec[];
   subheadline: string;
 };
 
-const MASTER_SCENES: SceneSpec[] = [
+const SCENE_LIBRARY: Record<
+  SceneId,
   {
-    key: "intent-disappears",
+    message: string;
+    title: string;
+  }
+> = {
+  "intent-disappears": {
     title: "Intent Disappears",
-    durationInSeconds: 18,
     message:
       "Demand gets expressed everywhere, but most requests are answered, summarized, and forgotten instead of being routed to a real outcome.",
   },
-  {
-    key: "missing-layer",
+  "missing-layer": {
     title: "The Missing Layer",
-    durationInSeconds: 20,
     message:
-      "Boreal positions itself as the supply layer for the agent economy, where intent stays alive until fulfillment happens.",
+      "Boreal reframes the category around a single point: the next serious ask should not die inside a transcript or analytics log.",
   },
-  {
-    key: "chat-to-workspace",
-    title: "Chat To Workspace",
-    durationInSeconds: 30,
+  "chat-to-workspace": {
+    title: "Chat Becomes Structure",
     message:
-      "Natural language becomes a tracked request with structure, routing context, and a clear execution path instead of a dead-end transcript.",
+      "A messy natural-language prompt becomes a request draft, an execution path, and a reviewable workspace instead of a dead-end answer.",
   },
-  {
-    key: "real-supply",
-    title: "Real Supply",
-    durationInSeconds: 27,
+  "real-supply": {
+    title: "Demand Meets Real Supply",
     message:
-      "Humans, agents, and tools are packaged as searchable supply with discoverable capabilities, pricing, delivery type, and trust signals.",
+      "Humans, agents, products, and tools become searchable supply with metadata, trust signals, pricing, and routing context.",
   },
-  {
-    key: "proposal-delivery",
+  "proposal-delivery": {
     title: "Proposal To Delivery",
-    durationInSeconds: 25,
     message:
-      "The request thread persists through proposal review, assignment, activity, evidence, and final approval in one accountable workspace.",
+      "The request persists through assignment, approvals, activity, deliverables, and review. That accountability is the product.",
   },
-  {
-    key: "direct-fulfillment",
+  "direct-fulfillment": {
     title: "Direct Fulfillment",
-    durationInSeconds: 22,
     message:
-      "Known supply can resolve requests directly through inline artifacts and media outputs while harder work still routes to specialists.",
+      "Some work should route to specialists. Some should resolve instantly through known supply. Boreal handles both inside one operating surface.",
   },
-  {
-    key: "solana-fit",
+  "solana-fit": {
     title: "Why Solana",
-    durationInSeconds: 20,
     message:
-      "Solana gives Boreal the economic coordination layer it needs: fast settlement, programmable trust, and verifiable execution rails.",
+      "Boreal needs fast, low-friction economic coordination. Solana is the settlement and trust layer that fits the architecture.",
   },
-  {
-    key: "missing-piece",
+  "missing-piece": {
     title: "The Missing Piece",
-    durationInSeconds: 18,
     message:
-      "Boreal is framed as the missing operating layer between expressed demand and fulfilled outcomes for the human-and-agent economy.",
+      "Search finds information. Chat generates text. Boreal routes live demand into supply, work, commerce, and outcomes.",
   },
-];
+};
+
+const makeScene = (id: SceneId, durationInSeconds: number): SceneSpec => ({
+  durationInSeconds,
+  id,
+  message: SCENE_LIBRARY[id].message,
+  title: SCENE_LIBRARY[id].title,
+});
 
 export const HACKATHON_PITCH: VideoVariant = {
+  compositionId: "HackathonPitch3Min",
+  folderName: "Boreal-Film",
   label: "Hackathon pitch",
   kicker: "Boreal x Solana",
-  headline: "HackathonPitch3Min",
+  headline: "Intent to Fulfillment",
   subheadline:
-    "Full 3-minute startup pitch and product-demo structure aligned to functionality, impact, novelty, UX, composability, and business potential.",
+    "The full 3-minute submission cut: product proof first, architecture second, category thesis throughout.",
   accent: "#14b8a6",
-  scenes: MASTER_SCENES,
+  overlayMode: "detailed",
+  scenes: [
+    makeScene("intent-disappears", 18),
+    makeScene("missing-layer", 20),
+    makeScene("chat-to-workspace", 30),
+    makeScene("real-supply", 27),
+    makeScene("proposal-delivery", 25),
+    makeScene("direct-fulfillment", 22),
+    makeScene("solana-fit", 20),
+    makeScene("missing-piece", 18),
+  ],
 };
 
 export const LAUNCH_CUT: VideoVariant = {
+  compositionId: "LaunchCut90Sec",
+  folderName: "Boreal-Film",
   label: "Launch cut",
   kicker: "Boreal launch",
-  headline: "LaunchCut90Sec",
+  headline: "The Supply Layer",
   subheadline:
-    "Compressed narrative for launch distribution. Lead with category framing, show the product quickly, and end on the market thesis.",
+    "A tighter product film for launch: category framing, product reveal, direct fulfillment, and closing market thesis.",
   accent: "#22c55e",
+  overlayMode: "detailed",
   scenes: [
-    MASTER_SCENES[0],
-    MASTER_SCENES[1],
-    MASTER_SCENES[2],
-    MASTER_SCENES[5],
-    MASTER_SCENES[7],
-  ].map((scene, index) => ({
-    ...scene,
-    durationInSeconds: [12, 15, 24, 18, 21][index],
-  })),
+    makeScene("intent-disappears", 12),
+    makeScene("missing-layer", 15),
+    makeScene("chat-to-workspace", 24),
+    makeScene("direct-fulfillment", 18),
+    makeScene("missing-piece", 21),
+  ],
 };
 
 export const TECHNICAL_DEMO: VideoVariant = {
+  compositionId: "TechnicalDemo150Sec",
+  folderName: "Boreal-Film",
   label: "Technical demo",
   kicker: "Boreal implementation",
-  headline: "TechnicalDemo150Sec",
+  headline: "Request-Native Workflow",
   subheadline:
-    "Implementation-led variant that prioritizes request flow, supply routing, direct fulfillment, and the Solana architecture layer.",
+    "An implementation-led variant focused on request flow, market structure, direct fulfillment, and the Solana-aligned architecture.",
   accent: "#38bdf8",
+  overlayMode: "detailed",
   scenes: [
-    MASTER_SCENES[2],
-    MASTER_SCENES[3],
-    MASTER_SCENES[4],
-    MASTER_SCENES[5],
-    MASTER_SCENES[6],
-  ].map((scene, index) => ({
-    ...scene,
-    durationInSeconds: [34, 28, 30, 28, 30][index],
-  })),
+    makeScene("chat-to-workspace", 34),
+    makeScene("real-supply", 28),
+    makeScene("proposal-delivery", 30),
+    makeScene("direct-fulfillment", 28),
+    makeScene("solana-fit", 30),
+  ],
 };
+
+export const SHORT_INTENT_HOOK: VideoVariant = {
+  compositionId: "ShortIntentHook20Sec",
+  folderName: "Boreal-Shorts",
+  label: "Short hook",
+  kicker: "Intent disappears",
+  headline: "Intent Disappears",
+  subheadline:
+    "A standalone opener that frames Boreal around the core market problem and the missing category layer.",
+  accent: "#f97316",
+  overlayMode: "minimal",
+  scenes: [
+    makeScene("intent-disappears", 8),
+    makeScene("missing-layer", 12),
+  ],
+};
+
+export const SHORT_CHAT_TO_OUTCOME: VideoVariant = {
+  compositionId: "ShortChatToOutcome30Sec",
+  folderName: "Boreal-Shorts",
+  label: "Short request flow",
+  kicker: "Chat to outcome",
+  headline: "Chat to Outcome",
+  subheadline:
+    "A standalone demo of Boreal's request-native operating surface from intake through delivery.",
+  accent: "#14b8a6",
+  overlayMode: "minimal",
+  scenes: [
+    makeScene("chat-to-workspace", 15),
+    makeScene("proposal-delivery", 15),
+  ],
+};
+
+export const SHORT_SUPPLY_MARKET: VideoVariant = {
+  compositionId: "ShortSupplyMarket25Sec",
+  folderName: "Boreal-Shorts",
+  label: "Short supply market",
+  kicker: "Supply and execution",
+  headline: "Supply and Execution",
+  subheadline:
+    "A standalone cut for market discovery, packaged supply, and direct fulfillment moments.",
+  accent: "#22c55e",
+  overlayMode: "minimal",
+  scenes: [
+    makeScene("real-supply", 12),
+    makeScene("direct-fulfillment", 13),
+  ],
+};
+
+export const SHORT_SOLANA_CLOSE: VideoVariant = {
+  compositionId: "ShortSolanaClose20Sec",
+  folderName: "Boreal-Shorts",
+  label: "Short Solana close",
+  kicker: "Solana and category close",
+  headline: "Solana and Category Close",
+  subheadline:
+    "A standalone closing cut that ties Boreal's request-native market thesis to its Solana-aligned economic layer.",
+  accent: "#38bdf8",
+  overlayMode: "minimal",
+  scenes: [
+    makeScene("solana-fit", 10),
+    makeScene("missing-piece", 10),
+  ],
+};
+
+export const FEATURE_VARIANTS = [
+  HACKATHON_PITCH,
+  LAUNCH_CUT,
+  TECHNICAL_DEMO,
+] as const;
+
+export const SHORT_VARIANTS = [
+  SHORT_INTENT_HOOK,
+  SHORT_CHAT_TO_OUTCOME,
+  SHORT_SUPPLY_MARKET,
+  SHORT_SOLANA_CLOSE,
+] as const;
+
+export const ALL_VARIANTS = [...FEATURE_VARIANTS, ...SHORT_VARIANTS];
 
 export const getDurationInFrames = (variant: VideoVariant) => {
   return variant.scenes.reduce((sum, scene) => {

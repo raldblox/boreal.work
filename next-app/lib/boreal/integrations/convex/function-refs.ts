@@ -410,6 +410,7 @@ export type RequestDetail = {
     completedAt: number | null;
     confidence: number;
     missingDetails: string[];
+    matchAttempts: number;
     needsClarification: boolean;
     provider: string;
     requestedOutputTypes: PersistedIntent["requestedOutputTypes"];

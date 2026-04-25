@@ -161,15 +161,24 @@ export const syncCatalogCapabilities = mutation({
 
         const supplyDocument = {
           ...supplyPayload,
+          activeReservations: existingSupply?.activeReservations ?? supplyPayload.activeReservations,
+          availabilityStatus: existingSupply?.availabilityStatus ?? supplyPayload.availabilityStatus,
+          createdAt: existingSupply?.createdAt ?? now,
+          matchCount: existingSupply?.matchCount ?? 0,
           searchText: buildSupplySearchText({
             ...supplyPayload,
+            availabilityStatus:
+              existingSupply?.availabilityStatus ?? supplyPayload.availabilityStatus,
+            createdAt: existingSupply?.createdAt ?? now,
             matchCount: existingSupply?.matchCount ?? 0,
             metadataJson: supplyPayload.metadataJson,
             supplierUserId: existingSupply?.supplierUserId,
             trustScore: existingSupply?.trustScore ?? supplyPayload.trustScore,
+            updatedAt: now,
           }),
           supplierUserId: existingSupply?.supplierUserId,
           trustScore: existingSupply?.trustScore ?? supplyPayload.trustScore,
+          updatedAt: now,
         };
 
         let supplyId = existingSupply?._id;
@@ -180,7 +189,6 @@ export const syncCatalogCapabilities = mutation({
         } else {
           supplyId = await ctx.db.insert("supplies", {
             ...supplyDocument,
-            matchCount: 0,
           });
           insertedCount += 1;
         }
@@ -423,32 +431,43 @@ async function updateCheckoutStatus(
 }
 
 function buildSupplySearchText(input: {
+  activeReservations?: number;
   actorKind: "agent" | "human" | "tool";
+  availabilityStatus?: "available" | "limited" | "unavailable";
   brand?: string;
   capabilityTags: string[];
   category: string;
   checkoutProtocol?: "ucp" | "acp" | "custom";
   checkoutProvider?: string;
   currency: string;
+  createdAt?: number;
   deliveryType: "async" | "instant" | "scheduled";
   description: string;
   estimatedDeliveryLabel?: string;
   evidenceMode?: "none" | "receipt" | "response";
+  exampleIntents?: string[];
+  exclusions?: string[];
   executionSurface?: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
   executorUrl?: string;
   fulfillmentKind: "digital" | "hybrid" | "physical" | "service";
   fulfillmentRate: number;
   isCartEnabled: boolean;
   keywords: string[];
+  maxConcurrentJobs?: number;
   matchCount: number;
   mcpServerUrl?: string;
   metadataJson?: string;
+  nextAvailableAt?: number;
   openApiUrl?: string;
+  outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
   paymentNetworkHints?: string[];
   paymentProtocol?: "direct-solana" | "mpp" | "none" | "widget" | "x402";
   priceAmount?: number;
+  priceMax?: number;
+  priceMin?: number;
   priceRawJson?: string;
   priceType: "fixed" | "hourly" | "scoped";
+  responseSlaMinutes?: number;
   requiresHumanApproval?: boolean;
   routingTier?: "A-delegated" | "A-direct" | "B-ingest-handoff" | "C-manual";
   schemaUrl?: string;
@@ -464,6 +483,7 @@ function buildSupplySearchText(input: {
   supportsPrivyWallet?: boolean;
   title: string;
   trustScore: number;
+  updatedAt?: number;
 }) {
   return [
     input.title,
@@ -477,6 +497,7 @@ function buildSupplySearchText(input: {
     input.currency,
     input.checkoutProtocol,
     input.checkoutProvider,
+    input.availabilityStatus,
     input.estimatedDeliveryLabel,
     input.executorUrl,
     input.actorKind,
@@ -492,12 +513,23 @@ function buildSupplySearchText(input: {
     input.supportsPrivyWallet ? "privy wallet x402" : "manual payment",
     input.requiresHumanApproval ? "approval required" : "auto payable",
     String(input.priceAmount ?? ""),
+    String(input.priceMin ?? ""),
+    String(input.priceMax ?? ""),
+    String(input.responseSlaMinutes ?? ""),
+    String(input.maxConcurrentJobs ?? ""),
+    String(input.activeReservations ?? ""),
+    String(input.nextAvailableAt ?? ""),
+    String(input.createdAt ?? ""),
+    String(input.updatedAt ?? ""),
     String(input.trustScore),
     String(input.fulfillmentRate),
     String(input.matchCount),
     input.isCartEnabled ? "cart checkout buy purchase order payable" : "tool capability",
     ...(input.paymentNetworkHints ?? []),
+    ...(input.outputTypes ?? []),
     ...input.capabilityTags,
+    ...(input.exampleIntents ?? []),
+    ...(input.exclusions ?? []),
     ...input.keywords,
     input.metadataJson,
     input.priceRawJson,

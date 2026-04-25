@@ -1,4 +1,20 @@
-# Converting Unfulfilled User Intents to Microtasks: A Market and Design Analysis
+# Archive — Converting Unfulfilled User Intents to Microtasks: A Market and Design Analysis
+ 
+> Editor note
+>
+> This document is retained as precursor research, not as Boreal's current source of truth.
+>
+> The root thesis still matters: expressed demand often disappears into logs, chats, abandoned flows, and unresolved product friction before it becomes fulfilled work.
+>
+> That thesis directly informed Boreal's broader direction, but the product has since expanded beyond a pure microtask marketplace framing.  Boreal now centers on request-native commerce, routed supply, proposals, tracked fulfillment, provider-backed services, and Solana-aligned settlement architecture.
+>
+> For current product direction, use these documents first:
+>
+> - `WHITEPAPER.md`
+> - `ROADMAP.md`
+> - `MATCHING_ENGINE.md`
+> - `COMMERCE_STANDARDS.md`
+> - `SERVICE_PROVIDER.MD`
 
 **Executive Summary:** Modern AI and analytics capture vast user behavior data, yet many user **intents** remain unfulfilled, hidden in logs and session data. This report analyzes the need for a *new platform* that detects these latent intents (from logs, heatmaps, chat transcripts, etc.) and converts them into actionable microtasks for humans or AI agents. We examine market demand, task types, decomposition methods, human-vs-agent routing, pricing strategies, UI/UX design for an intent-to-task chat interface, data pipelines, quality controls, legal/privacy issues, system architecture, and go-to-market plans. Key insights include: (1) Many tasks (e.g. image labeling, content moderation, data lookup) are inherently human-intensive【24†L53-L60】; (2) Effective task allocation requires careful pricing and assignment mechanisms【24†L69-L77】【58†L70-L78】; (3) Proven “human-in-loop” workflows use confidence thresholds to route uncertain tasks to people【12†L46-L54】【18†L190-L199】; (4) Privacy and consent are critical since user data (even chat inputs) are often used by default for AI training【45†L126-L134】. We propose a hybrid system that bridges analytics with crowdsourcing, outline pilot metrics (e.g. completion vs escalation rates, time per task【14†L179-L187】), and suggest a 6–12 week pilot plan with milestones. Tables compare pricing models and task-matching methods, and mermaid diagrams illustrate the system architecture and user flows. 
 
@@ -263,4 +279,3 @@ Competitor analysis is light because existing crowdsourcing platforms (Mturk, Up
 Finally, **go-to-market** might involve a limited release with key partners (e.g. SaaS companies) and a clear messaging around “closing the loop” on analytics insights. Over time, adding monetization features and expanding to multiple domains can follow successful pilots.
 
 **Sources:** We drew on crowd-work research and AI documentation to support these conclusions. For example, Singer et al. discuss the fundamental challenges of pricing and allocating microtasks【24†L69-L77】, and Wu et al. emphasize detecting struggling user queries in logs【35†L199-L205】. Human-AI workflow guides from OpenAI and Anthropic offer patterns for integrating human review【18†L190-L199】【48†L118-L127】. Privacy studies warn about default data usage practices【45†L126-L134】. These references undergird our recommendations and metrics. 
-

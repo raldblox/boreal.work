@@ -16,7 +16,18 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 
 - The creative brief lives in `docs/creative-brief.md`
 - The scene-by-scene storyboard lives in `docs/scenes.md`
-- Code and asset folders are scaffolded but intentionally empty until we start the actual Remotion build
+- The video system now has a reusable scene architecture for full-length films and standalone short cuts
+- Current registered compositions include the main hackathon / launch films plus short reusable marketing cuts
+
+## Render commands
+
+- `npm run render` renders the default 3-minute hackathon pitch
+- `npm run render:launch` renders the 90-second launch cut
+- `npm run render:technical` renders the technical demo variant
+- `npm run render:short:intent` renders the problem-hook short
+- `npm run render:short:flow` renders the request-workflow short
+- `npm run render:short:supply` renders the supply-and-fulfillment short
+- `npm run render:short:solana` renders the Solana close short
 
 ## Rules
 
@@ -26,8 +37,8 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 
 ## Planned next step
 
-When implementation starts, the first renderable entrypoint should live under `src/` and register:
+The current renderable entrypoint already lives under `src/`.  Next production work should focus on:
 
-- `HackathonPitch3Min`
-- `LaunchCut90Sec`
-- `TechnicalDemo150Sec`
+- replacing stylized UI recreations with captured Boreal product footage where needed
+- adding real voiceover, music, captions, and export presets
+- adapting the short cuts into vertical or square formats for social distribution

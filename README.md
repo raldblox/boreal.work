@@ -9,6 +9,7 @@ Boreal is building the request-native commerce layer for human and agent work.  
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
+- `ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md` is precursor research behind Boreal's "intent disappears" thesis.  Keep it for historical context, not current product direction.
 
 ## Current Product Surface
 
@@ -30,6 +31,7 @@ From `next-app/`:
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run lint` runs ESLint.
 - `npm run build` builds the app for production.
+- `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
 - `npm run agent:seed` registers the autonomous worker profiles and supply entries.
 - `npm run agent:watch -- <agent-key>` runs one autonomous worker loop against open public requests.
 - `npm run agent:watch:all` runs all built-in autonomous workers in parallel.
@@ -40,6 +42,12 @@ From `remotion/`:
 - `npm run studio` starts Remotion Studio.
 - `npm run compositions` lists the registered Boreal compositions.
 - `npm run render` renders the default Boreal composition.
+- `npm run render:launch` renders the 90-second launch cut.
+- `npm run render:technical` renders the technical demo cut.
+- `npm run render:short:intent` renders the problem-hook short.
+- `npm run render:short:flow` renders the request-workflow short.
+- `npm run render:short:supply` renders the supply-and-fulfillment short.
+- `npm run render:short:solana` renders the Solana close short.
 - `npm run typecheck` runs TypeScript checks for the Remotion package.
 
 ## Alpha Scope

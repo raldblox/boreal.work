@@ -1,4 +1,5 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
 import {
@@ -6,7 +7,13 @@ import {
   checkoutProtocolValidator,
   deliveryTypeValidator,
   fulfillmentKindValidator,
+  profileAvailabilityValidator,
+  requestedOutputTypeValidator,
 } from "./validators";
+import {
+  buildRankedSupplyMatches,
+  getPersistedIntentMatches,
+} from "./matching";
 
 const defaultCatalog = [
   {
@@ -209,12 +216,27 @@ export const ensureDefaultCatalog = mutation({
       return { created: 0 };
     }
 
+    const now = Date.now();
+
     for (const item of defaultCatalog) {
+      const outputTypes = inferOutputTypesFromSupply({
+        capabilityTags: item.capabilityTags,
+        description: item.description,
+        title: item.title,
+      });
       await ctx.db.insert("supplies", {
         ...item,
+        availabilityStatus: "available",
+        createdAt: now,
         embedding: [],
-        searchText: buildSupplySearchText(item),
+        outputTypes,
+        searchText: buildSupplySearchText({
+          ...item,
+          availabilityStatus: "available",
+          outputTypes,
+        }),
         supplierUserId: undefined,
+        updatedAt: now,
       });
     }
 
@@ -239,6 +261,7 @@ export const searchCatalog = query({
 
 export const createSupplyEntry = mutation({
   args: {
+    availabilityStatus: v.optional(profileAvailabilityValidator),
     brand: v.optional(v.string()),
     capabilityTags: v.array(v.string()),
     category: v.string(),
@@ -248,16 +271,24 @@ export const createSupplyEntry = mutation({
     deliveryType: deliveryTypeValidator,
     description: v.string(),
     estimatedDeliveryLabel: v.optional(v.string()),
+    exampleIntents: v.optional(v.array(v.string())),
     executorUrl: v.optional(v.string()),
+    exclusions: v.optional(v.array(v.string())),
     fulfillmentKind: v.optional(fulfillmentKindValidator),
     isCartEnabled: v.optional(v.boolean()),
+    maxConcurrentJobs: v.optional(v.number()),
     metadataJson: v.optional(v.string()),
+    nextAvailableAt: v.optional(v.number()),
     ownerActorKind: v.optional(actorKindValidator),
     ownerDisplayName: v.optional(v.string()),
     ownerExternalId: v.optional(v.string()),
     ownerHandle: v.optional(v.string()),
+    outputTypes: v.optional(v.array(requestedOutputTypeValidator)),
     priceAmount: v.optional(v.number()),
+    priceMax: v.optional(v.number()),
+    priceMin: v.optional(v.number()),
     priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    responseSlaMinutes: v.optional(v.number()),
     subtitle: v.optional(v.string()),
     supplyType: v.union(
       v.literal("product"),
@@ -300,30 +331,52 @@ export const createSupplyEntry = mutation({
       (args.supplyType === "product" || args.deliveryType === "instant"
         ? "digital"
         : "service");
+    const outputTypes =
+      args.outputTypes && args.outputTypes.length > 0
+        ? Array.from(new Set(args.outputTypes))
+        : inferOutputTypesFromSupply({
+            capabilityTags: args.capabilityTags,
+            description: args.description,
+            title: args.title,
+          });
+    const now = Date.now();
     const payload = {
       acceptanceRate: 0.8,
+      activeReservations: matchingEntry?.activeReservations ?? 0,
       actorKind: user.actorKind ?? "human",
+      availabilityStatus: args.availabilityStatus ?? matchingEntry?.availabilityStatus ?? "available",
       brand: sanitizeOptionalText(args.brand),
       capabilityTags: normalizeTagList(args.capabilityTags),
       category: args.category.trim(),
       checkoutProtocol: args.checkoutProtocol,
       checkoutProvider: sanitizeOptionalText(args.checkoutProvider),
       currency: args.currency?.trim() || "USD",
+      createdAt: matchingEntry?.createdAt ?? now,
       deliveryType: args.deliveryType,
       description: args.description.trim(),
       embedding: [],
       estimatedDeliveryLabel: sanitizeOptionalText(args.estimatedDeliveryLabel),
+      exampleIntents: sanitizeStringArray(args.exampleIntents) ?? matchingEntry?.exampleIntents,
+      exclusions: sanitizeStringArray(args.exclusions) ?? matchingEntry?.exclusions,
       executorUrl: sanitizeOptionalText(args.executorUrl),
       fulfillmentKind,
       fulfillmentRate: 0.8,
       isCartEnabled,
       keywords,
-      matchCount: 0,
+      maxConcurrentJobs: args.maxConcurrentJobs ?? matchingEntry?.maxConcurrentJobs,
+      matchCount: matchingEntry?.matchCount ?? 0,
       metadataJson: sanitizeOptionalText(args.metadataJson),
+      nextAvailableAt: args.nextAvailableAt ?? matchingEntry?.nextAvailableAt,
+      outputTypes: outputTypes.length > 0 ? outputTypes : matchingEntry?.outputTypes,
       priceAmount: args.priceAmount,
+      priceMax: args.priceMax ?? matchingEntry?.priceMax,
+      priceMin: args.priceMin ?? matchingEntry?.priceMin,
       priceType: args.priceType,
+      responseSlaMinutes: args.responseSlaMinutes ?? matchingEntry?.responseSlaMinutes,
       searchText: buildSupplySearchText({
         actorKind: user.actorKind ?? "human",
+        availabilityStatus:
+          args.availabilityStatus ?? matchingEntry?.availabilityStatus ?? "available",
         brand: args.brand,
         capabilityTags: args.capabilityTags,
         category: args.category.trim(),
@@ -333,15 +386,23 @@ export const createSupplyEntry = mutation({
         deliveryType: args.deliveryType,
         description: args.description.trim(),
         estimatedDeliveryLabel: args.estimatedDeliveryLabel,
+        exampleIntents: args.exampleIntents ?? matchingEntry?.exampleIntents,
+        exclusions: args.exclusions ?? matchingEntry?.exclusions,
         executorUrl: args.executorUrl,
         fulfillmentKind,
         fulfillmentRate: 0.8,
         isCartEnabled,
         keywords,
-        matchCount: 0,
+        maxConcurrentJobs: args.maxConcurrentJobs ?? matchingEntry?.maxConcurrentJobs,
+        matchCount: matchingEntry?.matchCount ?? 0,
         metadataJson: args.metadataJson,
+        nextAvailableAt: args.nextAvailableAt ?? matchingEntry?.nextAvailableAt,
+        outputTypes: outputTypes.length > 0 ? outputTypes : matchingEntry?.outputTypes,
         priceAmount: args.priceAmount,
+        priceMax: args.priceMax ?? matchingEntry?.priceMax,
+        priceMin: args.priceMin ?? matchingEntry?.priceMin,
         priceType: args.priceType,
+        responseSlaMinutes: args.responseSlaMinutes ?? matchingEntry?.responseSlaMinutes,
         status: "active",
         subtitle: args.subtitle,
         supplyType: args.supplyType,
@@ -354,6 +415,7 @@ export const createSupplyEntry = mutation({
       supplyType: args.supplyType,
       title: args.title.trim(),
       trustScore: user.trustScore,
+      updatedAt: now,
     };
 
     if (matchingEntry) {
@@ -485,25 +547,22 @@ export async function searchCatalogListings(
     return [];
   }
 
-  const searchResults = await ctx.db
-    .query("supplies")
-    .withSearchIndex("search_market", (queryBuilder) =>
-      queryBuilder.search("searchText", trimmed).eq("status", "active"),
-    )
-    .take(Math.max(limit * 6, 36));
-  const fallback = await ctx.db
-    .query("supplies")
-    .withIndex("by_status_and_trustScore", (queryBuilder) =>
-      queryBuilder.eq("status", "active"),
-    )
-    .order("desc")
-    .take(36);
-  const candidates = dedupeSuppliesById([...searchResults, ...fallback]);
+  const ranked = await buildRankedSupplyMatches(ctx, {
+    body: trimmed,
+    catalogQuery: trimmed,
+    summary: trimmed,
+    title: trimmed,
+  });
   const scored = await Promise.all(
-    candidates.map(async (supply) => {
-      const ranking = rankSupplyMatch(trimmed, supply);
-      return mapSupplyListing(ctx, supply, ranking);
-    }),
+    ranked
+      .filter((candidate) => candidate.gatedOutReasons.length === 0)
+      .slice(0, limit * 2)
+      .map((candidate) =>
+        mapSupplyListing(ctx, candidate.supply, {
+          matchReasons: candidate.matchReasons,
+          matchScore: candidate.heuristicScore,
+        }),
+      ),
   );
 
   return scored
@@ -514,6 +573,65 @@ export async function searchCatalogListings(
         rankCatalogListing(right) - rankCatalogListing(left),
     )
     .slice(0, limit);
+}
+
+export async function listIntentCatalogMatches(
+  ctx: QueryCtx,
+  intent: {
+    _id: Id<"intents">;
+    body: string;
+    budgetMax?: number;
+    budgetMin?: number;
+    capabilityTags: string[];
+    catalogQuery?: string;
+    category: string;
+    deadlineAt?: number;
+    embedding: number[];
+    intentKey: string;
+    keywords: string[];
+    requestedOutputTypes: Array<
+      "image_generation" | "speech_generation" | "text" | "video_generation"
+    >;
+    summary: string;
+    title: string;
+  },
+  limit: number,
+) {
+  const persisted = await getPersistedIntentMatches(ctx, {
+    intentId: intent._id,
+    limit: Math.max(limit * 2, 16),
+  });
+  const ranked =
+    persisted.length > 0
+      ? persisted
+      : await buildRankedSupplyMatches(ctx, {
+          body: intent.body,
+          budgetMax: intent.budgetMax,
+          budgetMin: intent.budgetMin,
+          capabilityTags: intent.capabilityTags,
+          catalogQuery: intent.catalogQuery,
+          category: intent.category,
+          deadlineAt: intent.deadlineAt,
+          embedding: intent.embedding,
+          intentId: intent._id,
+          intentKey: intent.intentKey,
+          keywords: intent.keywords,
+          requestedOutputTypes: intent.requestedOutputTypes,
+          summary: intent.summary,
+          title: intent.title,
+        });
+
+  return Promise.all(
+    ranked
+      .filter((candidate) => candidate.gatedOutReasons.length === 0)
+      .slice(0, limit)
+      .map((candidate) =>
+        mapSupplyListing(ctx, candidate.supply, {
+          matchReasons: candidate.matchReasons,
+          matchScore: candidate.heuristicScore,
+        }),
+      ),
+  );
 }
 
 async function getSupplySeller(
@@ -570,104 +688,6 @@ async function getSupplyReviewSummary(
   };
 }
 
-function rankSupplyMatch(
-  query: string,
-  supply: {
-    capabilityTags: string[];
-    category: string;
-    deliveryType: "async" | "instant" | "scheduled";
-    description: string;
-    fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
-    keywords: string[];
-    priceAmount?: number;
-    subtitle?: string;
-    supplyType: "agent_tool" | "capability" | "collective" | "product";
-    title: string;
-    trustScore: number;
-  },
-) {
-  const tokens = extractKeywords(query);
-  let score = 0;
-  const reasons: string[] = [];
-  const haystacks = {
-    title: tokenize(supply.title),
-    subtitle: tokenize(supply.subtitle ?? ""),
-    description: tokenize(supply.description),
-    category: tokenize(supply.category),
-    capabilities: supply.capabilityTags.flatMap((value) => tokenize(value)),
-    keywords: supply.keywords.flatMap((value) => tokenize(value)),
-  };
-  const titleHits = countOverlap(tokens, haystacks.title);
-  const capabilityHits = countOverlap(tokens, haystacks.capabilities);
-  const keywordHits = countOverlap(tokens, haystacks.keywords);
-  const categoryHits = countOverlap(tokens, haystacks.category);
-  const descriptionHits = countOverlap(tokens, haystacks.description) + countOverlap(tokens, haystacks.subtitle);
-
-  if (titleHits > 0) {
-    score += titleHits * 18;
-    reasons.push("title match");
-  }
-
-  if (capabilityHits > 0) {
-    score += capabilityHits * 14;
-    reasons.push("capability fit");
-  }
-
-  if (keywordHits > 0) {
-    score += keywordHits * 10;
-    reasons.push("keyword overlap");
-  }
-
-  if (categoryHits > 0) {
-    score += categoryHits * 8;
-    reasons.push("category match");
-  }
-
-  if (descriptionHits > 0) {
-    score += Math.min(descriptionHits * 4, 16);
-    reasons.push("description fit");
-  }
-
-  if (tokens.some((token) => ["download", "digital", "template", "pack"].includes(token))) {
-    if (supply.fulfillmentKind === "digital") {
-      score += 8;
-      reasons.push("digital delivery");
-    }
-    if (supply.supplyType === "product") {
-      score += 6;
-      reasons.push("product listing");
-    }
-  }
-
-  if (tokens.some((token) => ["service", "audit", "help", "done-for-you"].includes(token))) {
-    if (supply.fulfillmentKind === "service") {
-      score += 8;
-      reasons.push("service fit");
-    }
-    if (supply.deliveryType === "async" || supply.deliveryType === "scheduled") {
-      score += 4;
-    }
-  }
-
-  if (tokens.some((token) => ["instant", "now", "immediate"].includes(token))) {
-    if (supply.deliveryType === "instant") {
-      score += 6;
-      reasons.push("instant delivery");
-    }
-  }
-
-  if (typeof supply.priceAmount === "number") {
-    score += Math.min(8, Math.round(Math.max(0, 120 - supply.priceAmount) / 20));
-  }
-
-  score += Math.round(supply.trustScore / 10);
-
-  return {
-    matchReasons: Array.from(new Set(reasons)).slice(0, 3),
-    matchScore: Math.max(0, Math.min(100, score)),
-  };
-}
-
 function rankCatalogListing(listing: {
   averageRating: number | null;
   isCartEnabled: boolean;
@@ -685,6 +705,7 @@ function rankCatalogListing(listing: {
 }
 
 function buildSupplySearchText(input: {
+  availabilityStatus?: "available" | "limited" | "unavailable";
   actorKind: "agent" | "human" | "tool";
   brand?: string;
   capabilityTags: string[];
@@ -696,18 +717,26 @@ function buildSupplySearchText(input: {
   description: string;
   evidenceMode?: "none" | "receipt" | "response";
   estimatedDeliveryLabel?: string;
+  exampleIntents?: string[];
+  exclusions?: string[];
   executionSurface?: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
   executorUrl?: string;
   fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
   fulfillmentRate: number;
   isCartEnabled: boolean;
   keywords: string[];
+  maxConcurrentJobs?: number;
   matchCount: number;
   metadataJson?: string;
+  nextAvailableAt?: number;
+  outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
   paymentNetworkHints?: string[];
   paymentProtocol?: "direct-solana" | "mpp" | "none" | "widget" | "x402";
   priceAmount?: number;
+  priceMax?: number;
+  priceMin?: number;
   priceType: "fixed" | "hourly" | "scoped";
+  responseSlaMinutes?: number;
   requiresHumanApproval?: boolean;
   sourceCapabilityId?: string;
   sourceListingUrl?: string;
@@ -732,6 +761,7 @@ function buildSupplySearchText(input: {
     input.currency,
     input.checkoutProtocol,
     input.checkoutProvider,
+    input.availabilityStatus,
     input.paymentProtocol,
     input.sourceProviderKey,
     input.sourceListingUrl,
@@ -746,12 +776,20 @@ function buildSupplySearchText(input: {
     input.requiresHumanApproval ? "approval required" : undefined,
     input.isCartEnabled ? "cart checkout buy purchase order" : "tool capability",
     String(input.priceAmount ?? ""),
+    String(input.priceMin ?? ""),
+    String(input.priceMax ?? ""),
+    String(input.responseSlaMinutes ?? ""),
+    String(input.maxConcurrentJobs ?? ""),
+    String(input.nextAvailableAt ?? ""),
     String(input.trustScore),
     String(input.fulfillmentRate),
     String(input.matchCount),
     input.sourceCapabilityId,
     ...(input.paymentNetworkHints ?? []),
+    ...(input.outputTypes ?? []),
     ...input.capabilityTags,
+    ...(input.exampleIntents ?? []),
+    ...(input.exclusions ?? []),
     ...input.keywords,
     input.metadataJson,
   ]
@@ -769,24 +807,6 @@ function normalizeTagList(values: string[]) {
   ).slice(0, 24);
 }
 
-function dedupeSuppliesById<
-  T extends { _id: string },
->(supplies: T[]) {
-  const seen = new Map<string, T>();
-
-  for (const supply of supplies) {
-    if (!seen.has(supply._id)) {
-      seen.set(supply._id, supply);
-    }
-  }
-
-  return Array.from(seen.values());
-}
-
-function tokenize(value: string) {
-  return extractKeywords(value);
-}
-
 function extractKeywords(value: string) {
   return Array.from(
     new Set(
@@ -798,14 +818,52 @@ function extractKeywords(value: string) {
   ).slice(0, 48);
 }
 
-function countOverlap(source: string[], target: string[]) {
-  const targetSet = new Set(target);
-  return source.filter((token) => targetSet.has(token)).length;
-}
-
 function sanitizeOptionalText(value?: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function sanitizeStringArray(values?: string[]) {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+
+  const normalized = Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 24);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function inferOutputTypesFromSupply(input: {
+  capabilityTags: string[];
+  description: string;
+  title: string;
+}) {
+  const haystack = `${input.title} ${input.description} ${input.capabilityTags.join(" ")}`.toLowerCase();
+  const outputTypes: Array<"image_generation" | "speech_generation" | "text" | "video_generation"> = [];
+
+  if (haystack.includes("image")) {
+    outputTypes.push("image_generation");
+  }
+
+  if (haystack.includes("audio") || haystack.includes("voice") || haystack.includes("speech")) {
+    outputTypes.push("speech_generation");
+  }
+
+  if (haystack.includes("video")) {
+    outputTypes.push("video_generation");
+  }
+
+  if (outputTypes.length === 0 || haystack.includes("text") || haystack.includes("markdown")) {
+    outputTypes.push("text");
+  }
+
+  return Array.from(new Set(outputTypes));
 }
 
 async function upsertSupplierUser(

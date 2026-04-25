@@ -10,6 +10,9 @@ Current alpha foundations already in the repo:
 - request-driven catalog rendering for product and service search
 - profiles, proposals, fulfillment records, reviews, and activity logs
 - cart and checkout-history surfaces tied back to supply and request workspaces
+- persistent `matchCandidates` records with feature breakdowns and ranked request-level matches
+- heuristic scoring over lexical fit, semantic fit, capability fit, price, deadline, availability, trust, evidence, freshness, and relationship signals
+- a deterministic Convex-backed lifecycle smoke script that verifies request -> proposal -> approval -> delivery -> review
 
 Not shipped yet:
 

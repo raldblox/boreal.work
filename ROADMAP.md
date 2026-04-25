@@ -60,7 +60,7 @@ Goal: make `boreal.work` functional and credible for public use without overclai
 - [ ] Rate limiting and abuse controls for public chat, public request creation, and public supply listing
 - [ ] Moderation/admin tooling for public requests, profiles, listings, and provider-backed supply
 - [ ] Robust multi-account QA for X auth session switching and ownership boundaries
-- [ ] End-to-end smoke test script for owner -> proposer -> approval -> delivery -> review
+- [x] End-to-end smoke test script for owner -> proposer -> approval -> delivery -> review
 - [ ] Proposal attachments and richer seller-side submission assets beyond the current delivery upload flow
 - [ ] Canonical external API documentation for third-party consumers
 - [ ] Privacy and access audit for private vs. public request visibility
@@ -83,7 +83,7 @@ Goal: close the gap between the current alpha and the whitepaper's full demand-r
 - [x] Request approval before fulfillment
 - [x] Product-search intents that open a request workspace and render matched supply
 - [x] Public proposal board behavior through public requests
-- [ ] Keyword generation stored and actively used in retrieval/routing
+- [x] Keyword generation stored and actively used in retrieval/routing
 - [ ] Full hybrid retrieval: BM25 + vector similarity + structured filters
 - [ ] Historical analog retrieval across prior fulfilled work
 - [ ] LLM reranking over top candidates

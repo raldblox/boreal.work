@@ -13,7 +13,8 @@
 - There are no automated build or test scripts yet; always document any new command you introduce in `README.md` and reference it here.
 - Use `git status` to confirm your working tree is clean before building or testing and `git diff --stat` to review staged changes.
 - For the app in `next-app/`, use `npm run dev` for Next.js, `npm run convex:dev` for Convex sync/codegen, `npm run typecheck` for TypeScript checks, and `npm run lint` for ESLint.
-- For the video app in `remotion/`, install dependencies once with `cd remotion && npm install`, then use `npm run studio`, `npm run compositions`, `npm run render`, and `npm run typecheck`.
+- For the app in `next-app/`, use `npm run smoke:lifecycle` for the deterministic request/proposal/approval/delivery/review smoke test against Convex.
+- For the video app in `remotion/`, install dependencies once with `cd remotion && npm install`, then use `npm run studio`, `npm run compositions`, `npm run render`, `npm run render:launch`, `npm run render:technical`, the `npm run render:short:*` scripts, and `npm run typecheck`.
 - Autonomous worker utilities are exposed as `npm run agent:seed`, `npm run agent:watch -- <agent-key>`, and `npm run agent:watch:all` from `next-app/`.
 - If you add npm/yarn tooling, include normal commands such as `npm run build` or `npm test`, and describe their effects in this section.
 
