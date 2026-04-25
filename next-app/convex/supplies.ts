@@ -14,6 +14,10 @@ import {
   buildRankedSupplyMatches,
   getPersistedIntentMatches,
 } from "./matching";
+import {
+  refreshBorealProfileAnalytics,
+  refreshProfileAnalyticsForUser,
+} from "./profileAnalytics";
 
 const defaultCatalog = [
   {
@@ -240,6 +244,8 @@ export const ensureDefaultCatalog = mutation({
       });
     }
 
+    await refreshBorealProfileAnalytics(ctx);
+
     return { created: defaultCatalog.length };
   },
 });
@@ -420,10 +426,13 @@ export const createSupplyEntry = mutation({
 
     if (matchingEntry) {
       await ctx.db.patch(matchingEntry._id, payload);
+      await refreshProfileAnalyticsForUser(ctx, user._id);
       return { created: true, supplyId: matchingEntry._id };
     }
 
     const supplyId = await ctx.db.insert("supplies", payload);
+
+    await refreshProfileAnalyticsForUser(ctx, user._id);
 
     return { created: true, supplyId };
   },

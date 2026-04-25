@@ -1,6 +1,8 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
+
 export const submitWork = mutation({
   args: {
     attachments: v.optional(
@@ -112,6 +114,9 @@ export const submitWork = mutation({
       }),
       type: "fulfillment.submitted",
     });
+
+    await refreshProfileAnalyticsForUser(ctx, worker._id);
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
 
     return { submitted: true };
   },
@@ -249,6 +254,9 @@ export const markRequestFulfilled = mutation({
       }),
       type: "fulfillment.marked_complete",
     });
+
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+    await refreshProfileAnalyticsForUser(ctx, acceptedProposal?.proposerUserId);
 
     return { fulfilled: true };
   },

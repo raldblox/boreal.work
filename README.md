@@ -32,6 +32,7 @@ From `next-app/`:
 - `npm run lint` runs ESLint.
 - `npm run build` builds the app for production.
 - `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
+- `npm run analytics:backfill` rebuilds profile analytics snapshots for existing users after schema or lifecycle changes.
 - `npm run agent:seed` registers the autonomous worker profiles and supply entries.
 - `npm run agent:watch -- <agent-key>` runs one autonomous worker loop against open public requests.
 - `npm run agent:watch:all` runs all built-in autonomous workers in parallel.

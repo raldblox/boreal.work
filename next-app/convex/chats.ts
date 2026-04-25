@@ -4,6 +4,10 @@ import { v } from "convex/values";
 
 import { intentStatusValidator, persistedIntentValidator } from "./validators";
 import { persistIntentMatchCandidates } from "./matching";
+import {
+  refreshBorealProfileAnalytics,
+  refreshProfileAnalyticsForUser,
+} from "./profileAnalytics";
 
 export const recordIntentPipeline = mutation({
   args: {
@@ -85,8 +89,9 @@ export const recordIntentPipeline = mutation({
       senderHandle: "boreal",
     });
 
+    const isProfileUpdate = args.intent.routeTarget === "profile_update";
     const intentId = (await ctx.db.insert("intents", {
-      acceptsProposals: true,
+      acceptsProposals: !isProfileUpdate,
       actorKind: "human",
       approvalRequestedAt: status === "proposed" ? now : undefined,
       assetPrompt: args.intent.assetPrompt,
@@ -125,7 +130,12 @@ export const recordIntentPipeline = mutation({
       title: args.intent.title,
       updatedAt: now,
       urgencyScore: args.intent.persistence.isUnresolved ? 0.72 : 0.15,
-      visibility: status === "proposed" || status === "open" ? "public" : "private",
+      visibility:
+        isProfileUpdate
+          ? "private"
+          : status === "proposed" || status === "open"
+            ? "public"
+            : "private",
       voice: args.intent.voice,
     })) as Id<"intents">;
 
@@ -196,6 +206,9 @@ export const recordIntentPipeline = mutation({
         type: "request.awaiting_approval",
       });
     }
+
+    await refreshProfileAnalyticsForUser(ctx, ownerUserId);
+    await refreshBorealProfileAnalytics(ctx);
 
     return {
       assistantMessageId: args.intent.assistantMessageId,
@@ -285,6 +298,11 @@ export const approveRequest = mutation({
       }),
       type: nextStatus === "open" ? "request.opened_for_workers" : "request.approved",
     });
+
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+    if (args.assignedAgent?.toLowerCase().includes("boreal")) {
+      await refreshBorealProfileAnalytics(ctx);
+    }
 
     return { approved: true };
   },
@@ -381,6 +399,21 @@ export const cancelRequest = mutation({
       type: "request.cancelled",
     });
 
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+    const acceptedProposal = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey).eq("status", "accepted"),
+      )
+      .unique();
+    await refreshProfileAnalyticsForUser(ctx, acceptedProposal?.proposerUserId);
+    if (
+      intent.assignedAgent?.toLowerCase().includes("boreal") ||
+      intent.provider === "boreal-agent"
+    ) {
+      await refreshBorealProfileAnalytics(ctx);
+    }
+
     return { cancelled: true };
   },
 });
@@ -427,6 +460,21 @@ export const archiveRequest = mutation({
       senderDisplayName: "Owner",
       senderExternalId: args.ownerExternalId,
     });
+
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+    const acceptedProposal = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey).eq("status", "accepted"),
+      )
+      .unique();
+    await refreshProfileAnalyticsForUser(ctx, acceptedProposal?.proposerUserId);
+    if (
+      intent.assignedAgent?.toLowerCase().includes("boreal") ||
+      intent.provider === "boreal-agent"
+    ) {
+      await refreshBorealProfileAnalytics(ctx);
+    }
 
     return { archived: true };
   },
@@ -492,6 +540,21 @@ export const appendRequestExecution = mutation({
       type: args.activityType,
     });
 
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+    const acceptedProposal = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey).eq("status", "accepted"),
+      )
+      .unique();
+    await refreshProfileAnalyticsForUser(ctx, acceptedProposal?.proposerUserId);
+    if (
+      (args.assignedAgent ?? intent.assignedAgent)?.toLowerCase().includes("boreal") ||
+      intent.provider === "boreal-agent"
+    ) {
+      await refreshBorealProfileAnalytics(ctx);
+    }
+
     return { appended: true };
   },
 });
@@ -529,6 +592,21 @@ export const rateRequest = mutation({
       }),
       type: "request.reviewed",
     });
+
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+    const acceptedProposal = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey).eq("status", "accepted"),
+      )
+      .unique();
+    await refreshProfileAnalyticsForUser(ctx, acceptedProposal?.proposerUserId);
+    if (
+      intent.assignedAgent?.toLowerCase().includes("boreal") ||
+      intent.provider === "boreal-agent"
+    ) {
+      await refreshBorealProfileAnalytics(ctx);
+    }
 
     return { rated: true };
   },

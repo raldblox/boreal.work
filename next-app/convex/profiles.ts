@@ -1,6 +1,12 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 
+import {
+  emptyProfileAnalyticsSnapshot,
+  readProfileAnalytics,
+  refreshBorealProfileAnalytics,
+  refreshProfileAnalyticsForUser,
+} from "./profileAnalytics";
 import { actorKindValidator, profileAvailabilityValidator } from "./validators";
 
 export const getMyProfile = query({
@@ -128,6 +134,7 @@ export const upsertMyProfile = mutation({
 
     if (existing) {
       await ctx.db.patch(existing._id, payload);
+      await refreshProfileAnalyticsForUser(ctx, user._id);
 
       return { profileId: existing._id, saved: true };
     }
@@ -137,6 +144,8 @@ export const upsertMyProfile = mutation({
       avatarUrl: undefined,
       createdAt: now,
     });
+
+    await refreshProfileAnalyticsForUser(ctx, user._id);
 
     return { profileId, saved: true };
   },
@@ -173,14 +182,7 @@ export const listPublicProfiles = query({
     return Promise.all(
       profiles.map(async (profile) => {
         const user = await getUserById(ctx, profile.userId);
-        const supplies = profile.userId
-          ? await ctx.db
-              .query("supplies")
-              .withIndex("by_supplierUserId", (queryBuilder) =>
-                queryBuilder.eq("supplierUserId", profile.userId),
-              )
-              .collect()
-          : [];
+        const analytics = readProfileAnalytics(profile);
 
         return {
           _id: profile._id,
@@ -194,7 +196,7 @@ export const listPublicProfiles = query({
           isMine: !!(ownerUser && profile.userId === ownerUser._id),
           productLabels: profile.productLabels,
           skillTags: profile.skillTags,
-          supplyCount: supplies.length,
+          supplyCount: analytics.supplyCount,
         };
       }),
     );
@@ -215,21 +217,23 @@ export const getPublicProfile = query({
     }
 
     const isMine = !!(ownerUser && profile.userId === ownerUser._id);
-    const user = await getUserById(ctx, profile.userId);
 
     if (!profile.isPublic && !isMine) {
       return null;
     }
 
-    const supplies = profile.userId
-      ? await ctx.db
-          .query("supplies")
-          .withIndex("by_supplierUserId", (queryBuilder) =>
-            queryBuilder.eq("supplierUserId", profile.userId),
-          )
-          .order("desc")
-          .take(24)
-      : [];
+    const [user, supplies] = await Promise.all([
+      getUserById(ctx, profile.userId),
+      profile.userId
+        ? ctx.db
+            .query("supplies")
+            .withIndex("by_supplierUserId", (queryBuilder) =>
+              queryBuilder.eq("supplierUserId", profile.userId),
+            )
+            .order("desc")
+            .take(24)
+        : Promise.resolve([]),
+    ]);
 
     return {
       profile: {
@@ -247,7 +251,7 @@ export const getPublicProfile = query({
         productLabels: profile.productLabels,
         skillTags: profile.skillTags,
       },
-      analytics: await buildWorkerProfileAnalytics(ctx, profile.userId),
+      analytics: readProfileAnalytics(profile),
       supplies: supplies.map((supply) => ({
         _id: supply._id,
         category: supply.category,
@@ -266,163 +270,33 @@ export const getPublicProfile = query({
 export const getBorealAgentStats = query({
   args: {},
   handler: async (ctx) => {
-    const intents = await ctx.db.query("intents").order("desc").take(512);
-    const handled = intents.filter((intent) => isBorealHandledIntent(intent));
-    const rated = handled.filter((intent) => typeof intent.reviewRating === "number");
-    const completedDurations = handled
-      .filter(
-        (intent) =>
-          typeof intent.startedAt === "number" && typeof intent.completedAt === "number",
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_externalId", (queryBuilder) =>
+        queryBuilder.eq("externalId", "agent:boreal"),
       )
-      .map((intent) => (intent.completedAt! - intent.startedAt!) / (1000 * 60 * 60));
-    const activityBuckets = buildActivityBuckets(handled.map((intent) => intent.updatedAt));
+      .unique();
 
-    return {
-      activeCount: handled.filter(
-        (intent) => intent.status === "claimed" || intent.status === "in_progress",
-      ).length,
-      activityBuckets,
-      averageCompletionHours:
-        completedDurations.length > 0
-          ? roundToOneDecimal(
-              completedDurations.reduce((total, value) => total + value, 0) /
-                completedDurations.length,
-            )
-          : null,
-      averageRating:
-        rated.length > 0
-          ? roundToOneDecimal(
-              rated.reduce((total, intent) => total + (intent.reviewRating ?? 0), 0) /
-                rated.length,
-            )
-          : null,
-      blockedCount: handled.filter((intent) => intent.status === "blocked").length,
-      fulfilledCount: handled.filter((intent) => intent.status === "fulfilled").length,
-      openCount: handled.filter(
-        (intent) => intent.status === "open" || intent.status === "proposed",
-      ).length,
-      recentRequests: handled.slice(0, 6).map((intent) => ({
-        _id: intent._id,
-        requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
-        status: intent.status,
-        summary: intent.summary,
-        title: intent.title,
-        updatedAt: intent.updatedAt,
-      })),
-      reviewCount: rated.length,
-      totalHandledCount: handled.length,
-    };
+    return profile ? readProfileAnalytics(profile) : emptyProfileAnalyticsSnapshot();
   },
 });
 
-async function buildWorkerProfileAnalytics(
-  ctx: QueryCtx,
-  userId?: string,
-) {
-  if (!userId) {
-    return emptyWorkerProfileAnalytics();
-  }
+export const rebuildAllAnalytics = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
 
-  const proposals = await ctx.db
-    .query("proposals")
-    .withIndex("by_proposerUserId_and_createdAt", (queryBuilder) =>
-      queryBuilder.eq("proposerUserId", userId),
-    )
-    .order("desc")
-    .take(96);
+    for (const user of users) {
+      await refreshProfileAnalyticsForUser(ctx, user._id);
+    }
 
-  const fulfillments = await ctx.db
-    .query("fulfillments")
-    .withIndex("by_fulfillerUserId", (queryBuilder) =>
-      queryBuilder.eq("fulfillerUserId", userId),
-    )
-    .collect();
+    await refreshBorealProfileAnalytics(ctx);
 
-  const proposalIntentKeys = proposals.map((proposal) => proposal.intentKey);
-  const fulfillmentIntentKeys = fulfillments.map((fulfillment) => fulfillment.intentKey);
-  const uniqueIntentKeys = Array.from(
-    new Set([...proposalIntentKeys, ...fulfillmentIntentKeys]),
-  );
-
-  if (uniqueIntentKeys.length === 0) {
-    return emptyWorkerProfileAnalytics();
-  }
-
-  const intents = (
-    await Promise.all(uniqueIntentKeys.map((intentKey) => getIntentByKey(ctx, intentKey)))
-  ).filter(isPresent);
-  const submittedProposalKeys = new Set(
-    proposals
-      .filter(
-        (proposal) =>
-          proposal.status === "submitted" || proposal.status === "revision_requested",
-      )
-      .map((proposal) => proposal.intentKey),
-  );
-  const acceptedProposalKeys = new Set(
-    proposals
-      .filter((proposal) => proposal.status === "accepted")
-      .map((proposal) => proposal.intentKey),
-  );
-  const fulfilledIntentKeys = new Set(
-    fulfillments
-      .filter((fulfillment) => fulfillment.status === "fulfilled")
-      .map((fulfillment) => fulfillment.intentKey),
-  );
-  const handledIntents = intents.filter(
-    (intent) =>
-      acceptedProposalKeys.has(intent.intentKey) || fulfilledIntentKeys.has(intent.intentKey),
-  );
-  const rated = handledIntents.filter((intent) => typeof intent.reviewRating === "number");
-  const completedDurations = handledIntents
-    .filter(
-      (intent) =>
-        typeof intent.startedAt === "number" && typeof intent.completedAt === "number",
-    )
-    .map((intent) => (intent.completedAt! - intent.startedAt!) / (1000 * 60 * 60));
-  const activityBuckets = buildActivityBuckets([
-    ...proposals.map((proposal) => proposal.createdAt),
-    ...handledIntents.map((intent) => intent.updatedAt),
-  ]);
-  const recentRequests = [...intents]
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, 6)
-    .map((intent) => ({
-      _id: intent._id,
-      requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
-      status: intent.status,
-      summary: intent.summary,
-      title: intent.title,
-      updatedAt: intent.updatedAt,
-    }));
-
-  return {
-    activeCount: handledIntents.filter(
-      (intent) => intent.status === "claimed" || intent.status === "in_progress",
-    ).length,
-    activityBuckets,
-    averageCompletionHours:
-      completedDurations.length > 0
-        ? roundToOneDecimal(
-            completedDurations.reduce((total, value) => total + value, 0) /
-              completedDurations.length,
-          )
-        : null,
-    averageRating:
-      rated.length > 0
-        ? roundToOneDecimal(
-            rated.reduce((total, intent) => total + (intent.reviewRating ?? 0), 0) /
-              rated.length,
-          )
-        : null,
-    blockedCount: handledIntents.filter((intent) => intent.status === "blocked").length,
-    fulfilledCount: handledIntents.filter((intent) => intent.status === "fulfilled").length,
-    openCount: submittedProposalKeys.size,
-    recentRequests,
-    reviewCount: rated.length,
-    totalHandledCount: uniqueIntentKeys.length,
-  };
-}
+    return {
+      rebuiltProfiles: users.length,
+    };
+  },
+});
 
 async function getUserByExternalId(
   ctx: MutationCtx | QueryCtx,
@@ -457,86 +331,6 @@ async function getUserById(
         handle?: string;
       }
     | null;
-}
-
-function isBorealHandledIntent(intent: {
-  assignedAgent?: string;
-  provider: string;
-}) {
-  return (
-    intent.assignedAgent?.toLowerCase().includes("boreal") ||
-    intent.provider === "boreal-agent"
-  );
-}
-
-function roundToOneDecimal(value: number) {
-  return Math.round(value * 10) / 10;
-}
-
-function emptyWorkerProfileAnalytics() {
-  return {
-    activeCount: 0,
-    activityBuckets: buildActivityBuckets([]),
-    averageCompletionHours: null,
-    averageRating: null,
-    blockedCount: 0,
-    fulfilledCount: 0,
-    openCount: 0,
-    recentRequests: [] as Array<{
-      _id: string;
-      requestedOutputTypes: string[];
-      status: string;
-      summary: string;
-      title: string;
-      updatedAt: number;
-    }>,
-    reviewCount: 0,
-    totalHandledCount: 0,
-  };
-}
-
-function startOfDay(timestamp: number) {
-  const date = new Date(timestamp);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
-}
-
-function formatBucketLabel(timestamp: number) {
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "numeric",
-  }).format(timestamp);
-}
-
-function buildActivityBuckets(timestamps: number[]) {
-  return Array.from({ length: 10 }).map((_, index) => {
-    const daysAgo = 9 - index;
-    const bucketStart = startOfDay(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-    const bucketEnd = bucketStart + 24 * 60 * 60 * 1000;
-
-    return {
-      count: timestamps.filter(
-        (timestamp) => timestamp >= bucketStart && timestamp < bucketEnd,
-      ).length,
-      label: formatBucketLabel(bucketStart),
-    };
-  });
-}
-
-async function getIntentByKey(
-  ctx: QueryCtx,
-  intentKey: string,
-) {
-  return ctx.db
-    .query("intents")
-    .withIndex("by_intentKey", (queryBuilder) =>
-      queryBuilder.eq("intentKey", intentKey),
-    )
-    .unique();
-}
-
-function isPresent<T>(value: T | null): value is T {
-  return value !== null;
 }
 
 async function getProfileByUser(

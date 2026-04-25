@@ -46,6 +46,42 @@ export default defineSchema({
   }).index("by_externalId", ["externalId"]),
 
   profiles: defineTable({
+    analytics: v.optional(v.object({
+      activeCount: v.number(),
+      activeSupplyCount: v.number(),
+      activityBuckets: v.array(
+        v.object({
+          count: v.number(),
+          label: v.string(),
+        }),
+      ),
+      averageCompletionHours: v.optional(v.number()),
+      averageRating: v.optional(v.number()),
+      blockedCount: v.number(),
+      buyerCheckoutCount: v.number(),
+      fulfilledCount: v.number(),
+      grossEarned: v.number(),
+      grossSpend: v.number(),
+      openCount: v.number(),
+      productSupplyCount: v.number(),
+      recentRequests: v.array(
+        v.object({
+          _id: v.string(),
+          requestedOutputTypes: v.array(requestedOutputTypeValidator),
+          status: v.string(),
+          summary: v.string(),
+          title: v.string(),
+          updatedAt: v.number(),
+        }),
+      ),
+      requestCount: v.number(),
+      reviewCount: v.number(),
+      sellerOrderCount: v.number(),
+      supplyCount: v.number(),
+      totalHandledCount: v.number(),
+      totalProposalCount: v.number(),
+      updatedAt: v.number(),
+    })),
     availabilityStatus: profileAvailabilityValidator,
     avatarUrl: v.optional(v.string()),
     bio: v.optional(v.string()),
@@ -165,6 +201,8 @@ export default defineSchema({
   })
     .index("by_intentKey", ["intentKey"])
     .index("by_conversationId", ["conversationId"])
+    .index("by_ownerUserId_and_updatedAt", ["ownerUserId", "updatedAt"])
+    .index("by_provider_and_updatedAt", ["provider", "updatedAt"])
     .index("by_status", ["status"])
     .index("by_category", ["category"])
     .index("by_resolutionTier", ["resolutionTier"])
@@ -349,6 +387,7 @@ export default defineSchema({
   })
     .index("by_checkoutId_and_createdAt", ["checkoutId", "createdAt"])
     .index("by_paymentAttemptId", ["paymentAttemptId"])
+    .index("by_sellerUserId_and_createdAt", ["sellerUserId", "createdAt"])
     .index("by_serviceInvocationId", ["serviceInvocationId"])
     .index("by_supplyId_and_createdAt", ["supplyId", "createdAt"])
     .index("by_supplyId_and_reviewedAt", ["supplyId", "reviewedAt"]),

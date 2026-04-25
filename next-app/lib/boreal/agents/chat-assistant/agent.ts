@@ -5,6 +5,7 @@ import {
   appendRequestExecution,
   approveRequestDraft,
   ensureCatalogSeeded,
+  getMyProfileRecord,
   getRequestExecutionContext,
   saveArtifactMetadata,
   saveIntentPipelineRecord,
@@ -23,6 +24,10 @@ import type {
   MediaArtifact,
   WorkspaceState,
 } from "@/lib/boreal/schemas/chat";
+import {
+  createEmptyProfileBuilderDraft,
+  type ProfileBuilderDraft,
+} from "@/lib/boreal/schemas/profile-builder";
 import type {
   IntentExtraction,
   PersistedIntent,
@@ -31,6 +36,7 @@ import type {
 import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent";
 import { searchCatalog } from "@/lib/boreal/tools/catalog/search-catalog";
 import { extractStructuredIntent } from "@/lib/boreal/tools/llm/extract-structured-intent";
+import { draftProfileBuilder } from "@/lib/boreal/tools/llm/draft-profile-builder";
 import { generateHelpfulAnswer } from "@/lib/boreal/tools/llm/generate-helpful-answer";
 import { generateImageAsset } from "@/lib/boreal/tools/media/generate-image-asset";
 import { generateSpeechAsset } from "@/lib/boreal/tools/media/generate-speech-asset";
@@ -85,6 +91,12 @@ export const chatAssistantAgent: ComposableAgent<
         "Extracts a routed intent schema without exposing internal artifacts to the user.",
       execute: extractStructuredIntent,
       name: "extract-structured-intent",
+    },
+    {
+      description:
+        "Drafts editable public profile and first-listing updates for supply onboarding requests.",
+      execute: draftProfileBuilder,
+      name: "draft-profile-builder",
     },
     {
       description: "Searches the Boreal catalog for relevant supplies and tools.",
@@ -156,6 +168,11 @@ export const chatAssistantAgent: ComposableAgent<
           { attempts: 2 },
         )
       : [];
+    const currentProfile = input.requester?.externalId
+      ? await getMyProfileRecord({
+          ownerExternalId: input.requester.externalId,
+        })
+      : null;
 
     const conversationId = input.conversationId ?? crypto.randomUUID();
     const userMessageId = crypto.randomUUID();
@@ -200,6 +217,7 @@ export const chatAssistantAgent: ComposableAgent<
     const resolved = await runExecutionWithRetry({
       assistantModelId: runtimeConfig.assistantModel,
       catalogItems: relatedCatalogItems,
+      currentProfile,
       imageModelId: runtimeConfig.imageModel,
       inputMessage: input.message,
       intent,
@@ -377,6 +395,7 @@ export async function retryPersistedRequest(input: {
 async function executeIntent(input: {
   assistantModelId: string;
   catalogItems: CatalogItem[];
+  currentProfile: Awaited<ReturnType<typeof getMyProfileRecord>>;
   imageModelId: string;
   inputMessage: string;
   intent: IntentExtraction;
@@ -396,6 +415,30 @@ async function executeIntent(input: {
         subtitle: "Reply in chat or use the workspace prompts to unblock the request.",
         suggestions: input.intent.suggestedReplies,
         title: "Missing details",
+      },
+    };
+  }
+
+  if (input.intent.routeTarget === "profile_update") {
+    const draft = await draftProfileBuilder({
+      currentProfile: input.currentProfile,
+      message: input.inputMessage,
+      modelId: input.assistantModelId,
+      provider: input.provider,
+    });
+
+    return {
+      assistantMessage:
+        "Boreal drafted your public profile update and first supply listing. Review the builder, edit anything you want, then save it when ready.",
+      relatedCatalogItems: [],
+      requestStatus: "in_progress",
+      workspace: {
+        draft,
+        kind: "profile_builder",
+        sourceBrief: input.inputMessage,
+        subtitle:
+          "This draft is editable. Save the profile only, or publish the first listing after you review it.",
+        title: "Profile and supply builder",
       },
     };
   }
@@ -517,7 +560,13 @@ async function runApprovedExecutionForRequest(input: {
   request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
   runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
 }) {
+  const currentProfile = input.input.ownerExternalId
+    ? await getMyProfileRecord({
+        ownerExternalId: input.input.ownerExternalId,
+      })
+    : null;
   const relatedCatalogItems =
+    input.request.routeTarget !== "profile_update" &&
     input.request.catalogQuery.trim().length > 0
       ? await withRetry(
           () =>
@@ -533,6 +582,7 @@ async function runApprovedExecutionForRequest(input: {
     const resolved = await runExecutionWithRetry({
       assistantModelId: input.runtimeConfig.assistantModel,
       catalogItems: relatedCatalogItems,
+      currentProfile,
       imageModelId: input.runtimeConfig.imageModel,
       inputMessage: input.request.body,
       intent: toExecutionIntent(input.request),
@@ -549,18 +599,28 @@ async function runApprovedExecutionForRequest(input: {
       },
       videoModelId: input.runtimeConfig.videoModel,
     });
-
-    await appendRequestExecution({
-      activityPayload: JSON.stringify({
-        assignedAgent: "boreal-agent",
-        routeTarget: input.request.routeTarget,
-      }),
-      activityType:
-        resolved.requestStatus === "fulfilled"
+    const activityPayload = {
+      assignedAgent: "boreal-agent",
+      routeTarget: input.request.routeTarget,
+      ...(resolved.workspace.kind === "profile_builder"
+        ? {
+            draft: resolved.workspace.draft,
+            sourceBrief: resolved.workspace.sourceBrief,
+          }
+        : {}),
+    };
+    const activityType =
+      resolved.workspace.kind === "profile_builder"
+        ? "profile.builder_drafted"
+        : resolved.requestStatus === "fulfilled"
           ? "request.delivered"
           : resolved.requestStatus === "blocked"
             ? "request.blocked"
-            : "request.started",
+            : "request.started";
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify(activityPayload),
+      activityType,
       assignedAgent: "boreal-agent",
       assignedToolNames: input.assignedToolNames,
       assistantMessage: resolved.assistantMessage,
@@ -633,6 +693,7 @@ async function runApprovedExecutionForRequest(input: {
 async function runExecutionWithRetry(input: {
   assistantModelId: string;
   catalogItems: CatalogItem[];
+  currentProfile: Awaited<ReturnType<typeof getMyProfileRecord>>;
   imageModelId: string;
   inputMessage: string;
   intent: IntentExtraction;
@@ -685,6 +746,17 @@ function toExecutionIntent(
 function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem[]): WorkspaceState {
   const handlingMode = getRequestHandlingMode(intent);
 
+  if (intent.routeTarget === "profile_update") {
+    return {
+      draft: buildProfileBuilderWorkspaceDraft(intent),
+      kind: "profile_builder",
+      sourceBrief: intent.body,
+      subtitle:
+        "Fill this manually now, or approve Boreal Agent to draft a stronger public profile and first listing from your brief.",
+      title: "Profile and supply builder",
+    };
+  }
+
   if (intent.needsClarification || intent.routeTarget === "clarification") {
     return {
       kind: "clarification",
@@ -727,6 +799,18 @@ function buildApprovalMessage(intent: IntentExtraction, catalogItems: CatalogIte
   const modeLabel = intent.requestedOutputTypes
     .map((value) => value.replaceAll("_", " "))
     .join(", ");
+
+  if (intent.routeTarget === "profile_update") {
+    return [
+      "I prepared this as a private profile and supply onboarding workspace.",
+      intent.summary,
+      "Approving Boreal Agent will draft:",
+      "- a stronger public profile headline and bio",
+      "- searchable skills and capability tags",
+      "- a first supply listing for your services, products, or offers",
+      "If you prefer, open the builder form and fill it manually without using Boreal drafting.",
+    ].join("\n\n");
+  }
 
   if (handlingMode === "clarify") {
     return [
@@ -784,6 +868,10 @@ function shouldPersistIntent(intent: PersistedIntent, artifact?: MediaArtifact) 
 function buildAssignedTools(routeTarget: ToolRoute) {
   const baseTools = ["classify-generation-intent", "extract-structured-intent"];
 
+  if (routeTarget === "profile_update") {
+    return [...baseTools, "draft-profile-builder"];
+  }
+
   if (routeTarget === "catalog_lookup") {
     return [...baseTools, "search-catalog", "generate-helpful-answer"];
   }
@@ -823,6 +911,22 @@ function buildApprovedWorkerWorkspace(
     subtitle: "Boreal approved the request and opened it for workers instead of auto-executing it.",
     title: "Waiting for workers",
   };
+}
+
+function buildProfileBuilderWorkspaceDraft(intent: IntentExtraction): ProfileBuilderDraft {
+  const draft = createEmptyProfileBuilderDraft();
+
+  draft.profile.headline = intent.title.slice(0, 120);
+  draft.profile.bio = intent.summary.slice(0, 320);
+  draft.profile.capabilityTags = intent.capabilityTags.slice(0, 8);
+  draft.profile.skillTags = intent.capabilityTags.slice(0, 8);
+  draft.profile.productLabels = intent.keywords.slice(0, 6);
+  draft.listing.capabilityTags = intent.capabilityTags.slice(0, 8);
+  draft.listing.description = intent.summary.slice(0, 320);
+  draft.listing.title = intent.title.slice(0, 120);
+  draft.listing.enabled = intent.intentType === "supply";
+
+  return draft;
 }
 
 function toArtifactKind(artifact: MediaArtifact) {

@@ -70,6 +70,7 @@ export function ProfileView({
     ...(analytics.activityBuckets.map((bucket) => bucket.count) ?? [0]),
     1,
   );
+  const requestFootprint = analytics.requestCount + analytics.totalProposalCount;
 
   return (
     <div
@@ -318,6 +319,38 @@ export function ProfileView({
                   icon={PackageIcon}
                   items={profile.productLabels}
                   title="Products"
+                />
+              </div>
+            </Panel>
+
+            <Panel
+              subtitle="Commercial activity and market participation already linked to this profile."
+              title="Commerce footprint"
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MetricCard
+                  accent="teal"
+                  icon={WorkflowIcon}
+                  label="Requests + proposals"
+                  value={String(requestFootprint)}
+                />
+                <MetricCard
+                  accent="emerald"
+                  icon={PackageIcon}
+                  label="Listings + sales"
+                  value={`${analytics.supplyCount} / ${analytics.sellerOrderCount}`}
+                />
+                <MetricCard
+                  accent="sky"
+                  icon={BriefcaseBusinessIcon}
+                  label="Buyer spend"
+                  value={formatMoney(analytics.grossSpend)}
+                />
+                <MetricCard
+                  accent="amber"
+                  icon={StarIcon}
+                  label="Seller earned"
+                  value={formatMoney(analytics.grossEarned)}
                 />
               </div>
             </Panel>
@@ -587,6 +620,14 @@ function formatPrice(amount: number | null, priceType: string) {
   }
 
   return `${amount} ${priceType.replaceAll("_", " ")}`;
+}
+
+function formatMoney(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(amount);
 }
 
 function formatProfileDate(timestamp: number) {

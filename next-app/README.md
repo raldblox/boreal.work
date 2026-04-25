@@ -35,6 +35,7 @@ npm run typecheck
 npm run lint
 npm run build
 npm run smoke:lifecycle
+npm run analytics:backfill
 npm run agent:seed
 npm run agent:watch -- math-expert
 npm run agent:watch:all

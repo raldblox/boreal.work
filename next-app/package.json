@@ -11,6 +11,7 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "analytics:backfill": "node --experimental-strip-types scripts/backfill-profile-analytics.ts",
     "smoke:lifecycle": "node --experimental-strip-types scripts/smoke-lifecycle.ts",
     "agent:seed": "node --experimental-strip-types agents/scripts/seed-profiles.ts",
     "agent:watch": "node --experimental-strip-types agents/scripts/watch-agent.ts",

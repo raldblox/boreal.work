@@ -7,6 +7,7 @@ export type RequestedOutputType =
 export type ToolRoute =
   | "general_assistance"
   | "catalog_lookup"
+  | "profile_update"
   | "image_generation"
   | "speech_generation"
   | "video_generation"
@@ -78,6 +79,7 @@ const requestedOutputTypeValues = [
 const routeValues = [
   "general_assistance",
   "catalog_lookup",
+  "profile_update",
   "image_generation",
   "speech_generation",
   "video_generation",

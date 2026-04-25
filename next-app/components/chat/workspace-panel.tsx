@@ -50,6 +50,7 @@ type WorkspacePanelProps = {
 const staticBorealProfile: NonNullable<WorkerProfileDetail> = {
   analytics: {
     activeCount: 0,
+    activeSupplyCount: 0,
     activityBuckets: Array.from({ length: 10 }).map((_, index) => ({
       count: 0,
       label: `${index + 1}`,
@@ -57,11 +58,20 @@ const staticBorealProfile: NonNullable<WorkerProfileDetail> = {
     averageCompletionHours: null,
     averageRating: null,
     blockedCount: 0,
+    buyerCheckoutCount: 0,
     fulfilledCount: 0,
+    grossEarned: 0,
+    grossSpend: 0,
     openCount: 0,
+    productSupplyCount: 0,
     recentRequests: [],
+    requestCount: 0,
     reviewCount: 0,
+    sellerOrderCount: 0,
+    supplyCount: 0,
     totalHandledCount: 0,
+    totalProposalCount: 0,
+    updatedAt: 0,
   },
   profile: {
     _id: "boreal-agent",
@@ -170,11 +180,11 @@ export function WorkspacePanel({
           <div className="space-y-4 p-3">
             <div className="space-y-1 px-1">
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Market
+                Discovery
               </p>
-              <h2 className="text-sm font-medium">Public supply and requests</h2>
+              <h2 className="text-sm font-medium">Search public supply and requests</h2>
               <p className="text-xs text-muted-foreground">
-                Discovery stays here. Execution stays in the center workspace.
+                Search public supply, compare offers, and jump into open requests from here.
               </p>
             </div>
 

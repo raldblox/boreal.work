@@ -1,6 +1,8 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
+
 export const submitProposal = mutation({
   args: {
     currency: v.string(),
@@ -85,6 +87,9 @@ export const submitProposal = mutation({
       type: "proposal.submitted",
     });
 
+    await refreshProfileAnalyticsForUser(ctx, proposerUserId);
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+
     return { proposalId, submitted: true };
   },
 });
@@ -165,6 +170,9 @@ export const approveProposal = mutation({
       }),
       type: "proposal.approved",
     });
+
+    await refreshProfileAnalyticsForUser(ctx, proposal.proposerUserId);
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
 
     return { approved: true };
   },

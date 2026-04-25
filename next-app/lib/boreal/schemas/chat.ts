@@ -1,4 +1,5 @@
 import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
+import type { ProfileBuilderDraft } from "@/lib/boreal/schemas/profile-builder";
 
 export type ChatUiContext = {
   browseTab?: "requests" | "workers" | null;
@@ -106,6 +107,13 @@ export type WorkspaceState =
       subtitle: string;
       questions: string[];
       suggestions: string[];
+    }
+  | {
+      kind: "profile_builder";
+      title: string;
+      subtitle: string;
+      draft: ProfileBuilderDraft;
+      sourceBrief: string;
     }
   | {
       kind: "empty";

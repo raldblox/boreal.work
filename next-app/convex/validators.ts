@@ -22,6 +22,7 @@ export const requestedOutputTypeValidator = v.union(
 export const toolRouteValidator = v.union(
   v.literal("general_assistance"),
   v.literal("catalog_lookup"),
+  v.literal("profile_update"),
   v.literal("image_generation"),
   v.literal("speech_generation"),
   v.literal("video_generation"),

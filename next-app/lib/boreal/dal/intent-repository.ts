@@ -5,6 +5,7 @@ import {
   convexFunctionRefs,
   type ArtifactMetadataArgs,
   type CatalogEntry,
+  type MyProfileRecord,
   type RecordIntentPipelineArgs,
   type SyncVideoArtifactArgs,
   type UpdateArtifactMetadataArgs,
@@ -141,6 +142,13 @@ export async function getRequestDetailRecord(args: {
 }) {
   const client = createConvexServerClient();
   return client.query(convexFunctionRefs.getRequestDetail, args);
+}
+
+export async function getMyProfileRecord(args: {
+  ownerExternalId?: string;
+}): Promise<MyProfileRecord> {
+  const client = createConvexServerClient();
+  return client.query(convexFunctionRefs.getMyProfile, args);
 }
 
 export async function ensureCatalogSeeded() {

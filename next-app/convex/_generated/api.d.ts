@@ -14,6 +14,7 @@ import type * as commerce from "../commerce.js";
 import type * as fulfillments from "../fulfillments.js";
 import type * as intents from "../intents.js";
 import type * as matching from "../matching.js";
+import type * as profileAnalytics from "../profileAnalytics.js";
 import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
 import type * as serviceProviders from "../serviceProviders.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   fulfillments: typeof fulfillments;
   intents: typeof intents;
   matching: typeof matching;
+  profileAnalytics: typeof profileAnalytics;
   profiles: typeof profiles;
   proposals: typeof proposals;
   serviceProviders: typeof serviceProviders;

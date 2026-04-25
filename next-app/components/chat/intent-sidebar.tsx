@@ -65,7 +65,7 @@ export function IntentSidebar({
   const connectedAddress = wallets[0]?.address ?? null;
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden border border-border">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden border border-border">
       <div className="space-y-4 border-b border-border px-4 py-4">
         <div className="space-y-2">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">

@@ -236,29 +236,41 @@ export type MyProfileRecord = {
   };
 } | null;
 
+export type ProfileAnalytics = {
+  activeCount: number;
+  activeSupplyCount: number;
+  activityBuckets: Array<{
+    count: number;
+    label: string;
+  }>;
+  averageCompletionHours: number | null;
+  averageRating: number | null;
+  blockedCount: number;
+  buyerCheckoutCount: number;
+  fulfilledCount: number;
+  grossEarned: number;
+  grossSpend: number;
+  openCount: number;
+  productSupplyCount: number;
+  recentRequests: Array<{
+    _id: string;
+    requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
+    status: string;
+    summary: string;
+    title: string;
+    updatedAt: number;
+  }>;
+  requestCount: number;
+  reviewCount: number;
+  sellerOrderCount: number;
+  supplyCount: number;
+  totalHandledCount: number;
+  totalProposalCount: number;
+  updatedAt: number;
+};
+
 export type WorkerProfileDetail = {
-  analytics: {
-    activeCount: number;
-    activityBuckets: Array<{
-      count: number;
-      label: string;
-    }>;
-    averageCompletionHours: number | null;
-    averageRating: number | null;
-    blockedCount: number;
-    fulfilledCount: number;
-    openCount: number;
-    recentRequests: Array<{
-      _id: string;
-      requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
-      status: string;
-      summary: string;
-      title: string;
-      updatedAt: number;
-    }>;
-    reviewCount: number;
-    totalHandledCount: number;
-  };
+  analytics: ProfileAnalytics;
   profile: {
     _id: string;
     actorKind: "agent" | "human" | "tool";
@@ -277,28 +289,7 @@ export type WorkerProfileDetail = {
   supplies: ProfileSupplyEntry[];
 } | null;
 
-export type BorealAgentStats = {
-  activeCount: number;
-  activityBuckets: Array<{
-    count: number;
-    label: string;
-  }>;
-  averageCompletionHours: number | null;
-  averageRating: number | null;
-  blockedCount: number;
-  fulfilledCount: number;
-  openCount: number;
-  recentRequests: Array<{
-    _id: string;
-    requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
-    status: string;
-    summary: string;
-    title: string;
-    updatedAt: number;
-  }>;
-  reviewCount: number;
-  totalHandledCount: number;
-};
+export type BorealAgentStats = ProfileAnalytics;
 
 export type ArtifactMetadataArgs = {
   artifactKind: "image" | "audio" | "video";
@@ -811,15 +802,31 @@ export const convexFunctionRefs = {
   createSupplyEntry: makeFunctionReference<
     "mutation",
     {
+      availabilityStatus?: "available" | "limited" | "unavailable";
+      brand?: string;
       capabilityTags: string[];
       category: string;
       deliveryType: "async" | "instant" | "scheduled";
       description: string;
+      estimatedDeliveryLabel?: string;
+      exampleIntents?: string[];
+      executorUrl?: string;
+      exclusions?: string[];
+      fulfillmentKind?: "digital" | "hybrid" | "physical" | "service";
+      isCartEnabled?: boolean;
+      maxConcurrentJobs?: number;
+      metadataJson?: string;
+      nextAvailableAt?: number;
       ownerDisplayName?: string;
       ownerExternalId?: string;
       ownerHandle?: string;
+      outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
       priceAmount?: number;
+      priceMax?: number;
+      priceMin?: number;
       priceType: "fixed" | "hourly" | "scoped";
+      responseSlaMinutes?: number;
+      subtitle?: string;
       supplyType: "agent_tool" | "capability" | "collective" | "product";
       title: string;
     },

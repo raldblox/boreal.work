@@ -215,6 +215,35 @@ export function BorealProfileView({
               </div>
             </Panel>
 
+            <Panel title="Profile footprint" subtitle="Built-in analytics linked directly to Boreal as an active system actor.">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MetricCard
+                  accent="teal"
+                  icon={WorkflowIcon}
+                  label="Requests touched"
+                  value={String(stats?.requestCount ?? 0)}
+                />
+                <MetricCard
+                  accent="emerald"
+                  icon={ShieldCheckIcon}
+                  label="Listings linked"
+                  value={String(stats?.supplyCount ?? 0)}
+                />
+                <MetricCard
+                  accent="amber"
+                  icon={Clock3Icon}
+                  label="Proposals seen"
+                  value={String(stats?.totalProposalCount ?? 0)}
+                />
+                <MetricCard
+                  accent="sky"
+                  icon={StarIcon}
+                  label="Recorded reviews"
+                  value={String(stats?.reviewCount ?? 0)}
+                />
+              </div>
+            </Panel>
+
             <Panel title="Operations notes" subtitle="Use Boreal where orchestration matters most.">
               <div className="space-y-3 text-sm text-muted-foreground">
                 <Insight

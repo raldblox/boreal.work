@@ -2,6 +2,7 @@ import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 import { normalizedCapabilityToSupply } from "../lib/boreal/integrations/service-providers/normalization/to-supply";
+import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 
 import {
   capabilityRoutingTierValidator,
@@ -387,6 +388,10 @@ export const completePaymentAttempt = mutation({
     });
 
     await updateCheckoutStatus(ctx, item.checkoutId);
+
+    const checkout = await ctx.db.get(item.checkoutId);
+    await refreshProfileAnalyticsForUser(ctx, checkout?.ownerUserId);
+    await refreshProfileAnalyticsForUser(ctx, item.sellerUserId);
 
     return { completed: true };
   },

@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { makeFunctionReference } from "convex/server";
@@ -12,20 +20,25 @@ import {
   ArrowLeftIcon,
   BotIcon,
   CheckIcon,
+  CircleUserRoundIcon,
   CopyIcon,
   ClapperboardIcon,
   DownloadIcon,
   ExternalLinkIcon,
   FileIcon,
   LoaderIcon,
+  MessageSquarePlusIcon,
+  MessagesSquareIcon,
   MicIcon,
   MinusIcon,
   PackageIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
   PanelRightCloseIcon,
-  PanelRightOpenIcon,
   PinIcon,
   PlusIcon,
   RefreshCwIcon,
+  SearchIcon,
   ShoppingCartIcon,
   SparklesIcon,
   StarIcon,
@@ -52,6 +65,10 @@ import {
   BorealProfileView,
 } from "@/components/profiles/boreal-profile-view";
 import {
+  ProfileBuilderDialog,
+  ProfileBuilderWorkspaceCard,
+} from "@/components/chat/profile-builder";
+import {
   Conversation,
   ConversationContent,
   ConversationEmptyState,
@@ -70,6 +87,11 @@ import {
   PromptInputTextarea,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -87,6 +109,7 @@ import type {
   ActiveCart,
   CatalogEntry,
   CheckoutRecord,
+  MyProfileRecord,
   RequestDetail,
   SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs";
@@ -101,6 +124,17 @@ import {
   getRequestHandlingLabel,
   getRequestHandlingMode,
 } from "@/lib/boreal/routing/request-handling";
+import {
+  buildProfileBuilderDraftFromRecord,
+  cloneProfileBuilderDraft,
+  createEmptyProfileBuilderDraft,
+  hasPublishableSupplyListing,
+  hasSavableProfileBuilderDraft,
+  mergeProfileBuilderDraft,
+  profileBuilderToProfileMutationInput,
+  profileBuilderToSupplyMutationInput,
+  type ProfileBuilderDraft,
+} from "@/lib/boreal/schemas/profile-builder";
 import {
   normalizeProposalDraft,
   type ProposalDraft,
@@ -161,6 +195,11 @@ const emptyWorkspace: WorkspaceState = {
     "When work is approved, Boreal renders assets, catalog cards, forms, or job tracking here.",
   title: "Workboard",
 };
+
+const REQUEST_SIDEBAR_WIDTH = "clamp(15.5rem, 18vw, 18rem)";
+const DISCOVERY_SIDEBAR_WIDTH = "clamp(21rem, 24vw, 25rem)";
+const COLLAPSED_SIDEBAR_WIDTH = "4.25rem";
+const DESKTOP_STAGE_GAP = "1rem";
 
 type ApprovalQueueItem = {
   agentLabel: string;
@@ -226,7 +265,10 @@ export function ChatShell() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [optimisticReviewRating, setOptimisticReviewRating] = useState<number | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceState>(emptyWorkspace);
-  const [showWorkspace, setShowWorkspace] = useState(true);
+  const [showIntentSidebar, setShowIntentSidebar] = useState(true);
+  const [showWorkspace, setShowWorkspace] = useState(false);
+  const [isMobileIntentSidebarOpen, setIsMobileIntentSidebarOpen] = useState(false);
+  const [isMobileWorkspaceOpen, setIsMobileWorkspaceOpen] = useState(false);
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false);
   const [composerText, setComposerText] = useState(() => seededPrompt ?? "");
   const [matchQueryDraft, setMatchQueryDraft] = useState<string | null>(null);
@@ -244,6 +286,13 @@ export function ChatShell() {
   const [isCheckingOutCart, setIsCheckingOutCart] = useState(false);
   const [cartNotice, setCartNotice] = useState<string | null>(null);
   const [activePaymentItemId, setActivePaymentItemId] = useState<string | null>(null);
+  const [isProfileBuilderOpen, setIsProfileBuilderOpen] = useState(false);
+  const [isDraftingProfileBuilder, setIsDraftingProfileBuilder] = useState(false);
+  const [isSavingProfileBuilder, setIsSavingProfileBuilder] = useState(false);
+  const [profileBuilderMessage, setProfileBuilderMessage] = useState("");
+  const [profileBuilderDraft, setProfileBuilderDraft] = useState<ProfileBuilderDraft>(
+    createEmptyProfileBuilderDraft(),
+  );
 
   const { data: session } = useSession();
   const ownerExternalId = session?.user?.id;
@@ -270,10 +319,15 @@ export function ChatShell() {
     convexFunctionRefs.listCheckoutHistory,
     ownerExternalId ? { limit: 12, ownerExternalId } : "skip",
   );
+  const myProfileResult = useQuery(
+    convexFunctionRefs.getMyProfile,
+    ownerExternalId ? { ownerExternalId } : "skip",
+  );
   const isRequestLoading = Boolean(activeIntentId) && requestDetailResult === undefined;
   const requestDetail = (requestDetailResult ?? null) as RequestDetail | null;
   const activeCart = (activeCartResult ?? null) as ActiveCart;
   const checkoutHistory = (checkoutHistoryResult ?? []) as CheckoutRecord[];
+  const myProfileRecord = (myProfileResult ?? null) as MyProfileRecord;
   const isArchivedTranscript = Boolean(
     requestDetail?.intent?.status === "closed" &&
       requestDetail.intent.closedReason === "archived_by_user",
@@ -292,6 +346,36 @@ export function ChatShell() {
   const shouldShowHomeBorealButton = !activeIntentId;
   const shouldShowAssignedBorealButton = Boolean(activeIntentId && isBorealAssignedToActiveRequest);
   const effectiveBorealEnabled = !activeIntentId || isBorealAssignedToActiveRequest;
+  const isAnyMobileSidebarOpen = isMobileIntentSidebarOpen || isMobileWorkspaceOpen;
+  const desktopIntentSidebarStyle = {
+    minWidth: showIntentSidebar ? REQUEST_SIDEBAR_WIDTH : COLLAPSED_SIDEBAR_WIDTH,
+    overflow: "hidden",
+    width: showIntentSidebar ? REQUEST_SIDEBAR_WIDTH : COLLAPSED_SIDEBAR_WIDTH,
+    willChange: "width",
+  } as CSSProperties;
+  const desktopWorkspaceStyle = {
+    width: DISCOVERY_SIDEBAR_WIDTH,
+  } as CSSProperties;
+  const desktopCenterShellStyle = {
+    maxWidth: showWorkspace
+      ? `calc(100% - ${DISCOVERY_SIDEBAR_WIDTH} - ${DESKTOP_STAGE_GAP})`
+      : "100%",
+    width: showWorkspace
+      ? `calc(100% - ${DISCOVERY_SIDEBAR_WIDTH} - ${DESKTOP_STAGE_GAP})`
+      : "100%",
+    willChange: "width",
+  } as CSSProperties;
+  const desktopWorkspaceContentStyle = {
+    width: "100%",
+    willChange: "transform",
+  } as CSSProperties;
+  const desktopWorkspacePanelStyle = {
+    width: "100%",
+    willChange: "transform",
+  } as CSSProperties;
+  const desktopWorkspaceMotionStyle = {
+    transitionDelay: showWorkspace ? "0ms" : "0ms",
+  } as CSSProperties;
 
   const deleteIntent = useMutation(deleteIntentMutation);
   const generateUploadUrl = useMutation(generateUploadUrlMutation);
@@ -305,6 +389,8 @@ export function ChatShell() {
   const checkoutCart = useMutation(convexFunctionRefs.checkoutCart);
   const beginPaymentAttempt = useMutation(convexFunctionRefs.beginPaymentAttempt);
   const completePaymentAttempt = useMutation(convexFunctionRefs.completePaymentAttempt);
+  const upsertMyProfile = useMutation(convexFunctionRefs.upsertMyProfile);
+  const createSupplyEntry = useMutation(convexFunctionRefs.createSupplyEntry);
 
   const requestWorkspace = requestDetail?.intent
     ? buildWorkspaceFromRequestDetail(requestDetail)
@@ -367,6 +453,28 @@ export function ChatShell() {
     requestDetail?.intent?.summary ??
     requestDetail?.intent?.title ??
     "";
+  const activeProfileBuilderWorkspace =
+    effectiveWorkspace.kind === "profile_builder" ? effectiveWorkspace : null;
+
+  function buildInitialProfileBuilderDraft() {
+    const base = myProfileRecord
+      ? buildProfileBuilderDraftFromRecord(myProfileRecord)
+      : createEmptyProfileBuilderDraft(session?.user?.name ?? "");
+
+    if (!activeProfileBuilderWorkspace) {
+      return base;
+    }
+
+    return mergeProfileBuilderDraft(base, activeProfileBuilderWorkspace.draft);
+  }
+
+  function openProfileBuilder() {
+    setProfileBuilderDraft(buildInitialProfileBuilderDraft());
+    setProfileBuilderMessage(
+      activeProfileBuilderWorkspace?.sourceBrief ?? composerText.trim(),
+    );
+    setIsProfileBuilderOpen(true);
+  }
 
   function updateWorkspaceUrl(next: {
     browse?: WorkspaceTab | null;
@@ -412,6 +520,37 @@ export function ChatShell() {
       scroll: false,
     });
   }, [pathname, router, searchParams, seededPrompt]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+
+    const handleViewportChange = (event: MediaQueryList | MediaQueryListEvent) => {
+      if (event.matches) {
+        setIsMobileIntentSidebarOpen(false);
+        setIsMobileWorkspaceOpen(false);
+      }
+    };
+
+    handleViewportChange(mediaQuery);
+    mediaQuery.addEventListener("change", handleViewportChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleViewportChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAnyMobileSidebarOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isAnyMobileSidebarOpen]);
 
   useEffect(() => {
     const artifact = requestDetail?.artifact;
@@ -1355,6 +1494,130 @@ export function ChatShell() {
     }
   }
 
+  async function handleDraftProfileBuilder() {
+    if (!profileBuilderMessage.trim() || isDraftingProfileBuilder) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsDraftingProfileBuilder(true);
+
+    try {
+      const response = await fetch("/api/profile-builder/draft", {
+        body: JSON.stringify({
+          message: profileBuilderMessage,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        draft?: ProfileBuilderDraft;
+        error?: string;
+      };
+
+      const draftedProfile = payload.draft;
+
+      if (!response.ok || !draftedProfile) {
+        throw new Error(payload.error ?? "Could not draft the profile builder.");
+      }
+
+      setProfileBuilderDraft((current) => mergeProfileBuilderDraft(current, draftedProfile));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not draft the profile builder.",
+      );
+    } finally {
+      setIsDraftingProfileBuilder(false);
+    }
+  }
+
+  async function saveProfileBuilder(includeListing: boolean) {
+    if (!ownerExternalId || isSavingProfileBuilder) {
+      if (!ownerExternalId) {
+        setErrorMessage("Sign in with X first before saving your profile.");
+      }
+      return;
+    }
+
+    if (!hasSavableProfileBuilderDraft(profileBuilderDraft)) {
+      setErrorMessage("Add at least a headline or bio before saving the profile.");
+      return;
+    }
+
+    if (includeListing && !hasPublishableSupplyListing(profileBuilderDraft)) {
+      setErrorMessage("Complete the listing title, category, and description before publishing.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSavingProfileBuilder(true);
+
+    try {
+      const profileResult = await upsertMyProfile(
+        profileBuilderToProfileMutationInput(profileBuilderDraft, {
+          displayName:
+            (profileBuilderDraft.profile.displayName || session?.user?.name) ?? undefined,
+          externalId: ownerExternalId,
+          handle: undefined,
+        }),
+      );
+
+      if (!profileResult.saved) {
+        throw new Error("Could not save the profile.");
+      }
+
+      if (includeListing) {
+        const supplyInput = profileBuilderToSupplyMutationInput(profileBuilderDraft, {
+          displayName:
+            (profileBuilderDraft.profile.displayName || session?.user?.name) ?? undefined,
+          externalId: ownerExternalId,
+          handle: undefined,
+        });
+
+        if (!supplyInput) {
+          throw new Error("Could not publish the listing.");
+        }
+
+        const supplyResult = await createSupplyEntry(supplyInput);
+
+        if (!supplyResult.created) {
+          throw new Error("Could not publish the listing.");
+        }
+      }
+
+      if (activeIntentId && requestDetail?.intent?.routeTarget === "profile_update") {
+        const response = await fetch(`/api/requests/${activeIntentId}/fulfill`, {
+          method: "POST",
+        });
+        const payload = (await response.json()) as { error?: string; fulfilled?: boolean };
+
+        if (!response.ok || !payload.fulfilled) {
+          throw new Error(payload.error ?? "Profile was saved, but the request could not be marked fulfilled.");
+        }
+      } else {
+        setWorkspace({
+          draft: cloneProfileBuilderDraft(profileBuilderDraft),
+          kind: "profile_builder",
+          sourceBrief: profileBuilderMessage,
+          subtitle: includeListing
+            ? "Your public profile was saved and the first listing is now published."
+            : "Your public profile was saved. Publish a listing whenever you are ready.",
+          title: "Profile and supply builder",
+        });
+      }
+
+      setIsProfileBuilderOpen(false);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not save the profile builder.",
+      );
+    } finally {
+      setIsSavingProfileBuilder(false);
+    }
+  }
+
   function handleSidebarSelect(intent: SidebarIntentPreview) {
     updateWorkspaceUrl({
       browse: "workers",
@@ -1366,6 +1629,8 @@ export function ChatShell() {
     setProposalMessage("");
     setDeliveryDraft(emptyDeliveryDraft());
     setOptimisticReviewRating(null);
+    setIsMobileIntentSidebarOpen(false);
+    setIsMobileWorkspaceOpen(false);
     setShowWorkspace(true);
     setMessages([]);
   }
@@ -1381,6 +1646,8 @@ export function ChatShell() {
     setProposalMessage("");
     setDeliveryDraft(emptyDeliveryDraft());
     setOptimisticReviewRating(null);
+    setIsMobileIntentSidebarOpen(false);
+    setIsMobileWorkspaceOpen(false);
     setShowWorkspace(true);
     setMessages([]);
   }
@@ -1397,6 +1664,8 @@ export function ChatShell() {
     setOptimisticReviewRating(null);
     setMessages([]);
     setConversationId(undefined);
+    setIsMobileIntentSidebarOpen(false);
+    setIsMobileWorkspaceOpen(false);
     setWorkspace(emptyWorkspace);
   }
 
@@ -1408,26 +1677,118 @@ export function ChatShell() {
     );
   }
 
+  function openMobileIntentSidebar() {
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      return;
+    }
+
+    setIsMobileWorkspaceOpen(false);
+    setIsMobileIntentSidebarOpen(true);
+  }
+
+  function openMobileDiscovery() {
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      return;
+    }
+
+    setIsMobileIntentSidebarOpen(false);
+    setIsMobileWorkspaceOpen(true);
+  }
+
   const isHomeView = !activeIntentId && displayedMessages.length === 0;
 
   return (
     <>
       <div className="mx-auto flex h-svh w-full max-w-450 flex-col overflow-hidden px-4 py-4 sm:px-4">
-        <div
-          className={
-            showWorkspace
-              ? "grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_25rem]"
-              : "grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]"
-          }
-        >
-        <IntentSidebar
-          intents={sidebarIntents}
-          onDeselect={handleClearSelection}
-          onSelect={handleSidebarSelect}
-          selectedIntentId={activeIntentId}
-        />
+        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+          <div
+            className="relative hidden min-h-0 shrink-0 overflow-hidden transition-[width,min-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:block"
+            style={desktopIntentSidebarStyle}
+          >
+            <div
+              aria-hidden={!showIntentSidebar}
+              className={cn(
+                "absolute inset-y-0 left-0 transition-opacity duration-200 ease-out",
+                showIntentSidebar
+                  ? "opacity-100"
+                  : "pointer-events-none opacity-0",
+              )}
+              inert={!showIntentSidebar}
+              style={{ width: REQUEST_SIDEBAR_WIDTH }}
+            >
+              <>
+                <IntentSidebar
+                  intents={sidebarIntents}
+                  onDeselect={handleClearSelection}
+                  onSelect={handleSidebarSelect}
+                  selectedIntentId={activeIntentId}
+                />
+                <Button
+                  aria-label="Minimize requests sidebar"
+                  className="absolute top-3 right-3 z-20 bg-background/90 backdrop-blur"
+                  onClick={() => setShowIntentSidebar(false)}
+                  size="icon-sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <PanelLeftCloseIcon />
+                </Button>
+              </>
+            </div>
+            <div
+              aria-hidden={showIntentSidebar}
+              className={cn(
+                "absolute inset-y-0 left-0 transition-opacity duration-200 ease-out",
+                showIntentSidebar
+                  ? "pointer-events-none opacity-0"
+                  : "opacity-100",
+              )}
+              inert={showIntentSidebar}
+              style={{ width: COLLAPSED_SIDEBAR_WIDTH }}
+            >
+              <CollapsedRequestsRail
+                accountImageUrl={session?.user?.image ?? null}
+                accountName={session?.user?.name ?? null}
+                onExpand={() => setShowIntentSidebar(true)}
+                onNewChat={handleClearSelection}
+                requestCount={sidebarIntents.length}
+              />
+            </div>
+          </div>
 
-        <section className="flex min-h-0 flex-col overflow-hidden border border-border">
+          <div className="relative flex min-h-0 min-w-0 flex-1">
+            <div
+              aria-hidden={!showWorkspace}
+              className={cn(
+                "absolute inset-y-0 right-0 hidden overflow-hidden lg:block",
+                showWorkspace ? "pointer-events-auto" : "pointer-events-none",
+              )}
+              inert={!showWorkspace}
+              style={desktopWorkspaceStyle}
+            >
+              <div
+                className={cn(
+                  "absolute inset-0 origin-right transform-gpu bg-background/98 transition-transform duration-100 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-[0_18px_40px_-34px_rgba(15,23,42,0.24)]",
+                  showWorkspace ? "scale-100" : "scale-[0.95]",
+                )}
+                style={{ ...desktopWorkspacePanelStyle, ...desktopWorkspaceMotionStyle }}
+              >
+                <div className="h-full" style={desktopWorkspaceContentStyle}>
+                  <WorkspacePanel
+                    activeTab={workspaceTab}
+                    onAddToCart={handleAddToCart}
+                    onSelectRequest={handleMarketplaceSelect}
+                    onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
+                    ownerExternalId={ownerExternalId}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <section
+              className="relative z-10 flex h-full min-h-0 min-w-0 flex-col overflow-hidden border border-border bg-background transition-[width] duration-320 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-[0_18px_40px_-34px_rgba(15,23,42,0.4)]"
+              style={desktopCenterShellStyle}
+            >
           <div className="border-b border-border px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
@@ -1462,20 +1823,56 @@ export function ChatShell() {
 
               </div>
               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 lg:hidden">
+                  <Button
+                    aria-label="Open requests menu"
+                    onClick={openMobileIntentSidebar}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <PanelLeftOpenIcon />
+                    Menu
+                  </Button>
+                  <Button
+                    aria-label="Open discovery drawer"
+                    onClick={openMobileDiscovery}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <SearchIcon />
+                    Discovery
+                  </Button>
+                </div>
+                <div className="hidden items-center gap-2 lg:flex">
+                  {showWorkspace ? (
+                    <Button
+                      aria-label="Hide market"
+                      onClick={() => setShowWorkspace(false)}
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <PanelRightCloseIcon />
+                    </Button>
+                  ) : (
+                    <Button
+                      aria-label="Open market"
+                      className="shadow-[0_0_0_1px_rgba(15,23,42,0.08)]"
+                      onClick={() => setShowWorkspace(true)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <PackageIcon />
+                      Market
+                    </Button>
+                  )}
+                </div>
                 {isSubmitting ? (
                   <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <BotIcon className="size-4 text-muted-foreground" />
-                )}
-                <Button
-                  aria-label={showWorkspace ? "Hide workspace" : "Show workspace"}
-                  onClick={() => setShowWorkspace((current) => !current)}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  {showWorkspace ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
-                </Button>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1628,6 +2025,7 @@ export function ChatShell() {
                         onBrowseWorkers={() => {
                           updateWorkspaceUrl({ browse: "workers" });
                           setShowWorkspace(true);
+                          openMobileDiscovery();
                         }}
                         requestDetail={requestDetail}
                         shareUrl={selectedRequestShareUrl}
@@ -1654,6 +2052,7 @@ export function ChatShell() {
                         onApproveProposal={handleApproveProposal}
                         onDeliveryFilesSelected={handleDeliveryFilesSelected}
                         onDraftProposal={handleDraftProposal}
+                        onOpenProfileBuilder={openProfileBuilder}
                         onRefineMatches={handleRefineMatches}
                         onRemoveDeliveryAttachment={handleRemoveDeliveryAttachment}
                         onSubmitDelivery={handleSubmitDelivery}
@@ -1720,21 +2119,42 @@ export function ChatShell() {
                           onSubmitReview={handleSubmitReview}
                           onArchiveRequest={handleArchiveRequest}
                           onDeleteIntent={() => handleDeleteIntent(activeIntentId)}
+                          onOpenProfileBuilder={openProfileBuilder}
                           requestDetail={requestDetail}
                           review={effectiveReview}
                           shouldPromptReview={shouldPromptReview}
                           workspace={effectiveWorkspace}
                         />
                       ) : (
-                        displayedMessages.map((message) => (
-                          <Message from={message.role} key={message.id}>
-                            <MessageContent>
-                              <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
-                                {message.content}
-                              </MessageResponse>
-                            </MessageContent>
-                          </Message>
-                        ))
+                        <>
+                          {displayedMessages.map((message) => (
+                            <Message from={message.role} key={message.id}>
+                              <MessageContent>
+                                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:uppercase [&_a]:tracking-[0.16em]">
+                                  {message.content}
+                                </MessageResponse>
+                              </MessageContent>
+                            </Message>
+                          ))}
+                          {hasRenderableInlineWorkspace(effectiveWorkspace) ? (
+                            <InlineWorkspaceCard
+                              isRefreshingVideo={isRefreshingVideo}
+                              onAddToCart={handleAddToCart}
+                              onAskCatalogItem={(item) => {
+                                void submitMessage(
+                                  `Tell me more about ${item.title}. Include best use cases, what it delivers, and whether it fits my request.`,
+                                );
+                              }}
+                              onDownloadVideo={handleDownloadVideo}
+                              onOpenProfileBuilder={openProfileBuilder}
+                              onQuickReply={(value) => {
+                                setComposerText(value);
+                              }}
+                              onRefreshVideo={() => undefined}
+                              workspace={effectiveWorkspace}
+                            />
+                          ) : null}
+                        </>
                       )}
 
                       {isSubmitting ? (
@@ -1803,6 +2223,10 @@ export function ChatShell() {
                         Boreal Agent
                       </Button>
                     ) : null}
+                    <Button onClick={openProfileBuilder} size="sm" type="button" variant="outline">
+                      <CircleUserRoundIcon />
+                      Profile update
+                    </Button>
                     <Button
                       onClick={() => setIsCartOpen(true)}
                       size="sm"
@@ -1839,21 +2263,37 @@ export function ChatShell() {
               <p className="mt-3 text-xs text-destructive">{errorMessage}</p>
             ) : null}
           </div>
-        </section>
-
-        {showWorkspace ? (
-          <div className="min-h-0 lg:col-span-2 xl:col-span-1">
-            <WorkspacePanel
-              activeTab={workspaceTab}
-              onAddToCart={handleAddToCart}
-              onSelectRequest={handleMarketplaceSelect}
-              onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
-              ownerExternalId={ownerExternalId}
-            />
+            </section>
           </div>
-        ) : null}
         </div>
       </div>
+      <MobileSidebarDrawer
+        label="Requests"
+        onOpenChange={setIsMobileIntentSidebarOpen}
+        open={isMobileIntentSidebarOpen}
+        side="left"
+      >
+        <IntentSidebar
+          intents={sidebarIntents}
+          onDeselect={handleClearSelection}
+          onSelect={handleSidebarSelect}
+          selectedIntentId={activeIntentId}
+        />
+      </MobileSidebarDrawer>
+      <MobileSidebarDrawer
+        label="Discovery"
+        onOpenChange={setIsMobileWorkspaceOpen}
+        open={isMobileWorkspaceOpen}
+        side="right"
+      >
+        <WorkspacePanel
+          activeTab={workspaceTab}
+          onAddToCart={handleAddToCart}
+          onSelectRequest={handleMarketplaceSelect}
+          onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
+          ownerExternalId={ownerExternalId}
+        />
+      </MobileSidebarDrawer>
       <Dialog onOpenChange={setIsBorealProfileOpen} open={isBorealProfileOpen}>
         <DialogContent className="h-[min(88svh,54rem)] max-w-[min(72rem,calc(100vw-2rem))] gap-0 overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(72rem,calc(100vw-2rem))]">
           <DialogHeader className="sr-only">
@@ -1864,6 +2304,19 @@ export function ChatShell() {
           </div>
         </DialogContent>
       </Dialog>
+      <ProfileBuilderDialog
+        draft={profileBuilderDraft}
+        isDrafting={isDraftingProfileBuilder}
+        isOpen={isProfileBuilderOpen}
+        isSaving={isSavingProfileBuilder}
+        onDraftWithBoreal={handleDraftProfileBuilder}
+        onOpenChange={setIsProfileBuilderOpen}
+        onSaveProfile={() => saveProfileBuilder(false)}
+        onSaveProfileAndListing={() => saveProfileBuilder(true)}
+        setDraft={setProfileBuilderDraft}
+        setSourceMessage={setProfileBuilderMessage}
+        sourceMessage={profileBuilderMessage}
+      />
       <CartDialog
         activeCart={activeCart}
         activePaymentItemId={activePaymentItemId}
@@ -1880,6 +2333,159 @@ export function ChatShell() {
         onUpdateQuantity={handleUpdateCartQuantity}
       />
     </>
+  );
+}
+
+function CollapsedRequestsRail({
+  accountImageUrl,
+  accountName,
+  onNewChat,
+  onExpand,
+  requestCount,
+}: {
+  accountImageUrl: string | null;
+  accountName: string | null;
+  onNewChat: () => void;
+  onExpand: () => void;
+  requestCount: number;
+}) {
+  const requestBadge = requestCount > 99 ? "99+" : String(requestCount);
+  const avatarInitial = accountName?.trim().charAt(0).toUpperCase() ?? "U";
+
+  return (
+    <aside className="flex h-full w-full flex-col items-center border border-border bg-[linear-gradient(180deg,rgba(15,23,42,0.02),transparent_18%,rgba(15,23,42,0.04)_100%)] px-3 py-3">
+      <button
+        aria-label="Expand requests sidebar"
+        className="group relative flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background shadow-sm transition-[background-color,box-shadow] duration-200 hover:bg-foreground/5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+        onClick={onExpand}
+        type="button"
+      >
+        <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold uppercase tracking-[0.18em] text-foreground transition-all duration-200 group-hover:scale-90 group-hover:opacity-0">
+          B
+        </span>
+        <PanelLeftOpenIcon className="absolute size-4 scale-90 opacity-0 text-foreground transition-all duration-200 group-hover:scale-100 group-hover:opacity-100" />
+      </button>
+
+      <div className="mt-5 flex flex-col items-center gap-3">
+        <Button
+          aria-label="Start new chat"
+          className="size-11 rounded-xl shadow-[0_10px_18px_rgba(15,23,42,0.18)]"
+          onClick={onNewChat}
+          size="icon"
+          type="button"
+        >
+          <MessageSquarePlusIcon className="size-4" />
+        </Button>
+
+        <button
+          aria-label={`Open requests sidebar with ${requestCount} tracked requests`}
+          className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background text-foreground shadow-sm transition-[background-color,box-shadow] duration-200 hover:bg-foreground/5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+          onClick={onExpand}
+          type="button"
+        >
+          <MessagesSquareIcon className="size-4" />
+          <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[0.55rem] font-semibold leading-none text-primary-foreground">
+            {requestBadge}
+          </span>
+        </button>
+      </div>
+
+      <div className="mt-auto flex flex-col items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background shadow-sm">
+          <Avatar className="size-7">
+            {accountImageUrl ? (
+              <AvatarImage alt={accountName ?? "Account"} src={accountImageUrl} />
+            ) : null}
+            <AvatarFallback>
+              {accountName ? avatarInitial : <CircleUserRoundIcon className="size-4" />}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function MobileSidebarDrawer({
+  children,
+  label,
+  onOpenChange,
+  open,
+  side,
+}: {
+  children: ReactNode;
+  label: string;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  side: "left" | "right";
+}) {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onOpenChange(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onOpenChange, open]);
+
+  return (
+    <div className="lg:hidden">
+      <button
+        aria-hidden={!open}
+        aria-label={`Close ${label.toLowerCase()}`}
+        className={cn(
+          "fixed inset-0 z-40 bg-background/72 backdrop-blur-[2px] transition-opacity duration-300 ease-out",
+          open ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        onClick={() => onOpenChange(false)}
+        type="button"
+      />
+      <div
+        aria-hidden={!open}
+        aria-label={label}
+        aria-modal="true"
+        className={cn(
+          "fixed inset-y-0 z-50 w-[min(24rem,calc(100vw-1rem))] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          side === "left" ? "left-0" : "right-0",
+          open
+            ? "translate-x-0"
+            : side === "left"
+              ? "-translate-x-full"
+              : "translate-x-full",
+          open ? "pointer-events-auto" : "pointer-events-none",
+        )}
+        inert={!open}
+        role="dialog"
+      >
+        <div
+          className={cn(
+            "relative h-full bg-background shadow-2xl",
+            side === "left" ? "border-r border-border" : "border-l border-border",
+          )}
+        >
+          <Button
+            aria-label={`Close ${label.toLowerCase()}`}
+            className="absolute top-3 right-3 z-10 bg-background/90 backdrop-blur"
+            onClick={() => onOpenChange(false)}
+            size="icon-sm"
+            type="button"
+            variant="outline"
+          >
+            {side === "left" ? <PanelLeftCloseIcon /> : <PanelRightCloseIcon />}
+          </Button>
+          <div className="h-full">{children}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1997,6 +2603,7 @@ function InlineRequestActionEvent({
   onCancelRequest,
   onDeleteIntent,
   onMarkRequestFulfilled,
+  onOpenProfileBuilder,
   onRefreshRequest,
   onRetryRequest,
   onSubmitReview,
@@ -2019,6 +2626,7 @@ function InlineRequestActionEvent({
   onCancelRequest: () => void;
   onDeleteIntent: () => void;
   onMarkRequestFulfilled: () => Promise<void>;
+  onOpenProfileBuilder: () => void;
   onRefreshRequest: () => Promise<void>;
   onRetryRequest: () => Promise<void>;
   onSubmitReview: (rating: number) => void;
@@ -2031,6 +2639,7 @@ function InlineRequestActionEvent({
   const acceptedProposal = (proposals ?? []).find((proposal) => proposal.status === "accepted") ?? null;
   const workingParticipants = (participants ?? []).filter((participant) => participant.status !== "owner");
   const handlingMode = getRequestHandlingMode(intent);
+  const isProfileUpdate = intent.routeTarget === "profile_update";
 
   if (actionState.kind === "none" || actionState.kind === "review") {
     return null;
@@ -2128,14 +2737,18 @@ function InlineRequestActionEvent({
                   ? "No executor should start yet"
                   : handlingMode === "workers"
                     ? "Approval target: worker market"
-                    : "Approval target: Boreal Agent"}
+                    : isProfileUpdate
+                      ? "Approval target: Boreal profile drafting"
+                      : "Approval target: Boreal Agent"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {handlingMode === "clarify"
                   ? "Boreal is waiting for a clearer brief before anyone gets approved."
                   : handlingMode === "workers"
                     ? "Approving this will publish the request for proposals and matching."
-                    : "Approving this will let Boreal Agent take the first execution pass."}
+                    : isProfileUpdate
+                      ? "Approving this will let Boreal draft your editable public profile and first listing. You can also open the builder form and fill it manually."
+                      : "Approving this will let Boreal Agent take the first execution pass."}
               </p>
             </div>
           </div>
@@ -2193,10 +2806,20 @@ function InlineRequestActionEvent({
       <div className="flex flex-wrap gap-2">
         {actionState.kind === "approval" ? (
           <>
+            {isProfileUpdate ? (
+              <Button onClick={onOpenProfileBuilder} size="sm" type="button" variant="outline">
+                <CircleUserRoundIcon />
+                Open builder form
+              </Button>
+            ) : null}
             {handlingMode !== "clarify" ? (
               <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
                 {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
-                {handlingMode === "workers" ? "Open for proposals" : "Approve Boreal Agent"}
+                {handlingMode === "workers"
+                  ? "Open for proposals"
+                  : isProfileUpdate
+                    ? "Approve Boreal draft"
+                    : "Approve Boreal Agent"}
               </Button>
             ) : null}
             <Button
@@ -2237,6 +2860,12 @@ function InlineRequestActionEvent({
         ) : null}
         {actionState.kind === "in_flight" ? (
           <>
+            {isProfileUpdate ? (
+              <Button onClick={onOpenProfileBuilder} size="sm" type="button">
+                <CircleUserRoundIcon />
+                Open builder form
+              </Button>
+            ) : null}
             <Button
               disabled={isRefreshingRequest}
               onClick={() => void onRefreshRequest()}
@@ -2260,6 +2889,12 @@ function InlineRequestActionEvent({
         ) : null}
         {actionState.kind === "blocked" ? (
           <>
+            {isProfileUpdate ? (
+              <Button onClick={onOpenProfileBuilder} size="sm" type="button" variant="outline">
+                <CircleUserRoundIcon />
+                Open builder form
+              </Button>
+            ) : null}
             <Button
               disabled={isApprovingRequest || isCancellingRequest}
               onClick={() => void onRetryRequest()}
@@ -2346,6 +2981,7 @@ function RequestChatTimeline({
   onDeleteIntent,
   onDownloadVideo,
   onMarkRequestFulfilled,
+  onOpenProfileBuilder,
   onQuickReply,
   onRefreshRequest,
   onRefreshVideo,
@@ -2374,6 +3010,7 @@ function RequestChatTimeline({
   onDeleteIntent: () => void;
   onDownloadVideo: (videoId: string) => void;
   onMarkRequestFulfilled: () => Promise<void>;
+  onOpenProfileBuilder: () => void;
   onQuickReply: (value: string) => void;
   onRefreshRequest: () => Promise<void>;
   onRefreshVideo: () => void;
@@ -2431,15 +3068,16 @@ function RequestChatTimeline({
 
         if (entry.kind === "artifact") {
           return (
-            <InlineArtifactEvent
-              artifact={entry.item}
-              isRefreshingVideo={isRefreshingVideo}
-              onAddToCart={onAddToCart}
-              onDownloadVideo={onDownloadVideo}
-              onRefreshVideo={onRefreshVideo}
-              workspace={workspace}
-              key={entry.key}
-            />
+          <InlineArtifactEvent
+            artifact={entry.item}
+            isRefreshingVideo={isRefreshingVideo}
+            onAddToCart={onAddToCart}
+            onDownloadVideo={onDownloadVideo}
+            onOpenProfileBuilder={onOpenProfileBuilder}
+            onRefreshVideo={onRefreshVideo}
+            workspace={workspace}
+            key={entry.key}
+          />
           );
         }
 
@@ -2479,6 +3117,7 @@ function RequestChatTimeline({
           onCancelRequest={() => onCancelRequest(requestDetail.intent?._id)}
           onDeleteIntent={onDeleteIntent}
           onMarkRequestFulfilled={onMarkRequestFulfilled}
+          onOpenProfileBuilder={onOpenProfileBuilder}
           onRefreshRequest={onRefreshRequest}
           onRetryRequest={onRetryRequest}
           participants={requestDetail.participants}
@@ -2488,12 +3127,15 @@ function RequestChatTimeline({
         />
       ) : null}
 
-      {workspace.kind === "catalog" || (timeline.length === 0 && hasRenderableInlineWorkspace(workspace)) ? (
+      {workspace.kind === "catalog" ||
+      workspace.kind === "profile_builder" ||
+      (timeline.length === 0 && hasRenderableInlineWorkspace(workspace)) ? (
         <InlineWorkspaceCard
           isRefreshingVideo={isRefreshingVideo}
           onAddToCart={onAddToCart}
           onAskCatalogItem={onAskCatalogItem}
           onDownloadVideo={onDownloadVideo}
+          onOpenProfileBuilder={onOpenProfileBuilder}
           onQuickReply={onQuickReply}
           onRefreshVideo={onRefreshVideo}
           workspace={workspace}
@@ -2571,6 +3213,7 @@ function InlineArtifactEvent({
   isRefreshingVideo,
   onAddToCart,
   onDownloadVideo,
+  onOpenProfileBuilder,
   onRefreshVideo,
   workspace,
 }: {
@@ -2578,6 +3221,7 @@ function InlineArtifactEvent({
   isRefreshingVideo: boolean;
   onAddToCart: (supplyId: string) => Promise<void>;
   onDownloadVideo: (videoId: string) => void;
+  onOpenProfileBuilder: () => void;
   onRefreshVideo: () => void;
   workspace: WorkspaceState;
 }) {
@@ -2595,6 +3239,7 @@ function InlineArtifactEvent({
         onAddToCart={onAddToCart}
         onAskCatalogItem={() => undefined}
         onDownloadVideo={onDownloadVideo}
+        onOpenProfileBuilder={onOpenProfileBuilder}
         onQuickReply={() => undefined}
         onRefreshVideo={onRefreshVideo}
         workspace={workspace}
@@ -3008,6 +3653,7 @@ function ProposalViewerPanel({
   onApproveProposal,
   onDeliveryFilesSelected,
   onDraftProposal,
+  onOpenProfileBuilder,
   onRefineMatches,
   onRemoveDeliveryAttachment,
   onSubmitDelivery,
@@ -3036,6 +3682,7 @@ function ProposalViewerPanel({
   onApproveProposal: (proposalId: string) => Promise<void>;
   onDeliveryFilesSelected: (files: File[]) => Promise<void>;
   onDraftProposal: () => Promise<void>;
+  onOpenProfileBuilder: () => void;
   onRefineMatches: () => Promise<void>;
   onRemoveDeliveryAttachment: (attachmentId: string) => void;
   onSubmitDelivery: () => Promise<void>;
@@ -3058,6 +3705,7 @@ function ProposalViewerPanel({
   const proposalDialogOpen = isProposalDialogOpen && !hasSubmittedProposal;
   const deliveryDialogOpen = isDeliveryDialogOpen && !deliverySubmitted;
   const matchCandidates = requestDetail?.matchCandidates.map(mapCatalogEntryToItem) ?? [];
+  const isProfileUpdateRequest = requestDetail?.intent?.routeTarget === "profile_update";
   const hasMatchingWorkspace = Boolean(
     matchCandidates.length > 0 ||
       requestDetail?.intent?.matchAttempts ||
@@ -3082,7 +3730,23 @@ function ProposalViewerPanel({
         />
       ) : null}
 
-      {isOwner ? (
+      {isProfileUpdateRequest ? (
+        <div className="space-y-4 border border-border p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Profile onboarding workspace</p>
+            <p className="text-xs text-muted-foreground">
+              Use the builder to save your public profile and publish the first listing. Boreal drafting is optional and only runs when you ask for it.
+            </p>
+          </div>
+          <ProfileBuilderWorkspaceCard
+            draft={buildWorkspaceProfileBuilderDraft(requestDetail)}
+            onOpen={onOpenProfileBuilder}
+            sourceBrief={requestDetail?.intent?.body ?? ""}
+          />
+        </div>
+      ) : null}
+
+      {!isProfileUpdateRequest && isOwner ? (
         <div className="space-y-3 border border-border p-4">
           <p className="text-sm font-medium">Proposal approvals</p>
           <p className="text-xs text-muted-foreground">
@@ -3090,7 +3754,7 @@ function ProposalViewerPanel({
             price before approving.
           </p>
         </div>
-      ) : canSubmitDelivery ? (
+      ) : !isProfileUpdateRequest && canSubmitDelivery ? (
         <div className="space-y-4 border border-border p-4">
           <div className="space-y-1">
             <p className="text-sm font-medium">Delivery workspace</p>
@@ -3126,7 +3790,7 @@ function ProposalViewerPanel({
             setDeliveryDraft={setDeliveryDraft}
           />
         </div>
-      ) : requestDetail?.access?.canSubmitProposal && !hasSubmittedProposal ? (
+      ) : !isProfileUpdateRequest && requestDetail?.access?.canSubmitProposal && !hasSubmittedProposal ? (
         <div className="space-y-4 border border-border p-4">
           <div className="space-y-1">
             <p className="text-sm font-medium">Proposal workspace</p>
@@ -3157,7 +3821,7 @@ function ProposalViewerPanel({
             setProposalMessage={setProposalMessage}
           />
         </div>
-      ) : requestDetail?.access?.canSubmitProposal && hasSubmittedProposal ? (
+      ) : !isProfileUpdateRequest && requestDetail?.access?.canSubmitProposal && hasSubmittedProposal ? (
         <div className="space-y-4 border border-border p-4">
           <div className="space-y-1">
             <p className="text-sm font-medium">Proposal submitted</p>
@@ -3167,16 +3831,17 @@ function ProposalViewerPanel({
             </p>
           </div>
         </div>
-      ) : (
+      ) : !isProfileUpdateRequest ? (
         <div className="space-y-3 border border-border p-4">
           <p className="text-sm font-medium">Proposal submission unavailable</p>
           <p className="text-xs text-muted-foreground">
             This workspace is not accepting proposals right now.
           </p>
         </div>
-      )}
+      ) : null}
 
-      <div className="space-y-3 border border-border p-4">
+      {!isProfileUpdateRequest ? (
+        <div className="space-y-3 border border-border p-4">
         <p className="text-sm font-medium">{isOwner ? "Received proposals" : "My proposals"}</p>
         {visibleProposals.length === 0 ? (
           <p className="text-xs text-muted-foreground">
@@ -3243,6 +3908,7 @@ function ProposalViewerPanel({
           </div>
         )}
       </div>
+      ) : null}
     </div>
   );
 }
@@ -4630,6 +5296,7 @@ function InlineWorkspaceCard({
   onAddToCart,
   onAskCatalogItem,
   onDownloadVideo,
+  onOpenProfileBuilder,
   onQuickReply,
   onRefreshVideo,
   workspace,
@@ -4638,6 +5305,7 @@ function InlineWorkspaceCard({
   onAddToCart: (supplyId: string) => Promise<void>;
   onAskCatalogItem: (item: CatalogItem) => void;
   onDownloadVideo: (videoId: string) => void;
+  onOpenProfileBuilder: () => void;
   onQuickReply: (value: string) => void;
   onRefreshVideo: () => void;
   workspace: WorkspaceState;
@@ -4760,6 +5428,16 @@ function InlineWorkspaceCard({
           </div>
         ) : null}
       </div>
+    );
+  }
+
+  if (workspace.kind === "profile_builder") {
+    return (
+      <ProfileBuilderWorkspaceCard
+        draft={workspace.draft}
+        onOpen={onOpenProfileBuilder}
+        sourceBrief={workspace.sourceBrief}
+      />
     );
   }
 
@@ -5062,6 +5740,25 @@ function buildWorkspaceFromRequestDetail(detail: RequestDetail | null): Workspac
     return emptyWorkspace;
   }
 
+  if (detail.intent.routeTarget === "profile_update") {
+    const draftActivity = extractProfileBuilderActivity(detail.activity);
+
+    return {
+      draft:
+        draftActivity?.draft ??
+        buildProfileBuilderSeedFromIntent(detail.intent),
+      kind: "profile_builder",
+      sourceBrief: draftActivity?.sourceBrief ?? detail.intent.body,
+      subtitle:
+        detail.intent.status === "fulfilled"
+          ? "The profile onboarding request is complete. You can still reopen the builder and refine the record later."
+          : detail.intent.status === "in_progress" || detail.intent.status === "claimed"
+            ? "Boreal delivered an editable draft. Review it, then save the profile and publish the listing when ready."
+            : "Open the builder form manually, or approve Boreal to draft a stronger profile and first listing from this brief.",
+      title: "Profile and supply builder",
+    };
+  }
+
   if (detail.artifact?.artifactKind === "image" && detail.artifact.metadata) {
     const metadata = detail.artifact.metadata;
     const base64 = typeof metadata.base64 === "string" ? metadata.base64 : null;
@@ -5165,6 +5862,54 @@ function buildWorkspaceFromRequestDetail(detail: RequestDetail | null): Workspac
   }
 
   return emptyWorkspace;
+}
+
+function buildWorkspaceProfileBuilderDraft(requestDetail: RequestDetail | null) {
+  if (!requestDetail?.intent) {
+    return createEmptyProfileBuilderDraft();
+  }
+
+  const activityDraft = extractProfileBuilderActivity(requestDetail.activity);
+  return activityDraft?.draft ?? buildProfileBuilderSeedFromIntent(requestDetail.intent);
+}
+
+function extractProfileBuilderActivity(activity: RequestDetail["activity"]) {
+  const latest = [...activity]
+    .reverse()
+    .find((entry) => entry.type === "profile.builder_drafted");
+
+  if (!latest?.payload) {
+    return null;
+  }
+
+  const draft = latest.payload.draft;
+  const sourceBrief = latest.payload.sourceBrief;
+
+  return {
+    draft: isRecord(draft)
+      ? mergeProfileBuilderDraft(
+          createEmptyProfileBuilderDraft(),
+          draft as Partial<ProfileBuilderDraft>,
+        )
+      : createEmptyProfileBuilderDraft(),
+    sourceBrief: typeof sourceBrief === "string" ? sourceBrief : "",
+  };
+}
+
+function buildProfileBuilderSeedFromIntent(intent: NonNullable<RequestDetail["intent"]>): ProfileBuilderDraft {
+  const draft = createEmptyProfileBuilderDraft();
+
+  draft.profile.headline = intent.title.slice(0, 120);
+  draft.profile.bio = intent.summary.slice(0, 320);
+  draft.listing.title = intent.title.slice(0, 120);
+  draft.listing.description = intent.summary.slice(0, 320);
+  draft.listing.enabled = true;
+
+  return draft;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 function mapCatalogEntryToItem(entry: CatalogEntry): CatalogItem {

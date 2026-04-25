@@ -37,15 +37,52 @@ const scopePattern =
 
 const formatPattern =
   /\b(tutorial|guide|article|lesson|script|outline|deck|presentation|slides|blog post|thread|video script|email|prompt)\b/i;
+const supplyOnboardingPattern =
+  /\b(publish my skills|publish.*(skills|services|products)|supply listing|list my (skills|services|products)|public worker profile|worker profile|profile update|package my capabilities|package my skills|match me to relevant requests|set up a strong supply listing|help me set up.*listing|help me publish.*(services|products|skills))\b/i;
 
 export function refineIntentForRequestLifecycle(
   intent: IntentExtraction,
   message: string,
 ): IntentExtraction {
   const text = buildIntentText(intent, message);
+  const supplyOnboarding = isLikelySupplyOnboardingRequest(text);
   const likelyDeliverable = isLikelyDeliverableRequest(text);
   const workerLed = isLikelyWorkerLedRequest(text);
   const textOnly = isTextOnlyIntent(intent.requestedOutputTypes);
+
+  if (supplyOnboarding && textOnly) {
+    return {
+      ...intent,
+      intentType: "supply",
+      missingDetails: [],
+      needsClarification: false,
+      persistence: {
+        ...intent.persistence,
+        isUnresolved: true,
+        reason: "Tracked as a profile and supply onboarding request.",
+        shouldPersist: true,
+      },
+      responseInstructions:
+        "Do not answer inline as a generic request. Prepare an editable profile and supply builder. Let the user fill it manually or approve Boreal to draft it from their brief.",
+      routeTarget: "profile_update",
+      routing: {
+        ...intent.routing,
+        resolutionTier: "auto",
+        shouldCreateFulfillmentRequest: true,
+        shouldPersistToBoard: true,
+      },
+      shouldSearchCatalog: false,
+      suggestedReplies: Array.from(
+        new Set([
+          ...intent.suggestedReplies,
+          "Draft my profile and first listing",
+          "Open the builder form",
+          "I offer services",
+          "I sell digital products",
+        ]),
+      ).slice(0, 4),
+    };
+  }
 
   if (!likelyDeliverable || !textOnly) {
     return intent;
@@ -91,6 +128,7 @@ export function getRequestHandlingMode(intent: RequestHandlingIntent): RequestHa
   }
 
   if (
+    intent.routeTarget === "profile_update" ||
     intent.routeTarget === "catalog_lookup" ||
     intent.routeTarget === "image_generation" ||
     intent.routeTarget === "speech_generation" ||
@@ -141,6 +179,10 @@ function isLikelyDeliverableRequest(text: string) {
 
 function isLikelyWorkerLedRequest(text: string) {
   return workerLedPattern.test(text);
+}
+
+function isLikelySupplyOnboardingRequest(text: string) {
+  return supplyOnboardingPattern.test(text);
 }
 
 function isTextOnlyIntent(values: RequestedOutputType[]) {

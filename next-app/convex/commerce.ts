@@ -2,6 +2,8 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
+import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
+
 export const getActiveCart = query({
   args: {
     ownerExternalId: v.optional(v.string()),
@@ -518,6 +520,15 @@ export const checkoutCart = mutation({
           });
         }
       }
+    }
+
+    const sellerUserIds = Array.from(
+      new Set(cartItems.map((item) => item.sellerUserId).filter(Boolean)),
+    );
+
+    await refreshProfileAnalyticsForUser(ctx, owner._id);
+    for (const sellerUserId of sellerUserIds) {
+      await refreshProfileAnalyticsForUser(ctx, sellerUserId);
     }
 
     return { checkoutId, placed: true };
