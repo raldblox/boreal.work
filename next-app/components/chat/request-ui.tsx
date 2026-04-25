@@ -17,11 +17,16 @@ export function getRequestStage(status: string) {
     return 3;
   }
 
-  if (status === "claimed" || status === "in_progress" || status === "blocked") {
+  if (
+    status === "open" ||
+    status === "claimed" ||
+    status === "in_progress" ||
+    status === "blocked"
+  ) {
     return 2;
   }
 
-  if (status === "proposed" || status === "open" || status === "closed") {
+  if (status === "proposed" || status === "closed") {
     return 1;
   }
 
@@ -29,12 +34,12 @@ export function getRequestStage(status: string) {
 }
 
 export function getRequestStatusLabel(status: string) {
-  if (status === "open") {
+  if (status === "proposed") {
     return "Waiting for approval";
   }
 
-  if (status === "proposed") {
-    return "Awaiting approval";
+  if (status === "open") {
+    return "Waiting for workers";
   }
 
   if (status === "claimed") {
@@ -90,9 +95,9 @@ export function RequestStageRail({
 }) {
   const stage = getRequestStage(status);
   const stages = [
-    { icon: SearchIcon, label: "Detect" },
+    { icon: SearchIcon, label: "Scope" },
     { icon: CheckIcon, label: "Approve" },
-    { icon: SparklesIcon, label: "Work" },
+    { icon: SparklesIcon, label: "Active" },
     { icon: PackageIcon, label: "Deliver" },
   ] as const;
   const isWorking = status === "claimed" || status === "in_progress";
@@ -100,42 +105,42 @@ export function RequestStageRail({
   return (
     <TooltipProvider>
       <div className="w-full max-w-xs">
-        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-x-0.5">
+        <div className="grid w-full grid-cols-[1fr_1fr_1fr_1fr] items-center">
           {stages.map((stageItem, index) => {
-            const isComplete = index <= stage;
+            const isComplete = index < stage;
             const isCurrent = index === stage;
             const shouldPulse = isCurrent && index === 2 && isWorking;
             const Icon = stageItem.icon;
 
             return (
-              <div className="contents" key={stageItem.label}>
+              <div className="relative flex items-center" key={stageItem.label}>
+                {index < stages.length - 1 ? (
+                  <div
+                    className={cn(
+                      "absolute left-1/2 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-border",
+                      (isComplete || isCurrent) && "bg-emerald-600/70",
+                    )}
+                  />
+                ) : null}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
                       aria-label={stageItem.label}
                       className={cn(
-                        "flex size-4 items-center justify-center rounded-full",
-                        isComplete
-                          ? "border-foreground bg-teal-700 text-foreground"
-                          : "border-foreground/50 bg-foreground/10 text-muted-foreground",
-                        shouldPulse && "animate-pulse",
+                        "relative z-10 mx-auto flex size-5 items-center justify-center rounded-full border-2 bg-background transition-colors",
+                        isComplete || isCurrent
+                          ? "border-emerald-600 text-emerald-600"
+                          : "border-foreground/20 text-muted-foreground",
+                        shouldPulse && "animate-pulse shadow-[0_0_0_6px_rgba(16,185,129,0.10)]",
                       )}
                     >
-                      <Icon className="size-2" />
+                      <Icon className="size-2.5" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="top" sideOffset={1}>
                     {stageItem.label}
                   </TooltipContent>
                 </Tooltip>
-                {index < stages.length - 1 ? (
-                  <div
-                    className={cn(
-                      "h-px w-full bg-border",
-                      index < stage && "bg-teal-700",
-                    )}
-                  />
-                ) : null}
               </div>
             );
           })}

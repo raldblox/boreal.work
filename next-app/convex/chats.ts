@@ -209,10 +209,12 @@ export const recordIntentPipeline = mutation({
 
 export const approveRequest = mutation({
   args: {
-    assignedAgent: v.string(),
-    assignedToolNames: v.array(v.string()),
+    assignedAgent: v.optional(v.string()),
+    assignedToolNames: v.optional(v.array(v.string())),
+    assistantMessage: v.optional(v.string()),
     intentId: v.id("intents"),
     ownerExternalId: v.optional(v.string()),
+    status: v.optional(intentStatusValidator),
   },
   handler: async (ctx, args) => {
     const intent = await ctx.db.get(args.intentId);
@@ -222,28 +224,54 @@ export const approveRequest = mutation({
     }
 
     const now = Date.now();
+    const nextStatus = args.status ?? "claimed";
+
+    await persistIntentMatchCandidates(ctx, {
+      body: intent.body,
+      budgetMax: intent.budgetMax,
+      budgetMin: intent.budgetMin,
+      capabilityTags: intent.capabilityTags,
+      catalogQuery: intent.catalogQuery,
+      category: intent.category,
+      deadlineAt: intent.deadlineAt,
+      embedding: intent.embedding,
+      intentId: intent._id,
+      intentKey: intent.intentKey,
+      keywords: intent.keywords,
+      limit: 24,
+      requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+      summary: intent.summary,
+      title: intent.title,
+    });
 
     await ctx.db.patch(args.intentId, {
       approvedAt: now,
       assignedAgent: args.assignedAgent,
       assignedToolNames: args.assignedToolNames,
-      startedAt: intent.startedAt ?? now,
-      status: "claimed",
+      startedAt:
+        nextStatus === "claimed" || nextStatus === "in_progress"
+          ? intent.startedAt ?? now
+          : intent.startedAt,
+      status: nextStatus,
       updatedAt: now,
     });
 
     await ctx.db.insert("chatMessages", {
-      body: "Request approved. Boreal assigned the work and started execution.",
+      body:
+        args.assistantMessage ??
+        (args.assignedAgent
+          ? "Request approved. Boreal assigned the work and started execution."
+          : "Request approved. It is now open for proposals and matched workers."),
       conversationId: intent.conversationId ?? crypto.randomUUID(),
       createdAt: now,
       intentKey: intent.intentKey,
       messageId: crypto.randomUUID(),
       provider: intent.provider,
       role: "system",
-      senderActorKind: "agent",
-      senderDisplayName: "Boreal Agent",
-      senderExternalId: "agent:boreal",
-      senderHandle: "boreal",
+      senderActorKind: args.assignedAgent ? "agent" : "human",
+      senderDisplayName: args.assignedAgent ? "Boreal Agent" : "Owner",
+      senderExternalId: args.assignedAgent ? "agent:boreal" : args.ownerExternalId,
+      senderHandle: args.assignedAgent ? "boreal" : undefined,
     });
 
     await ctx.db.insert("activityEvents", {
@@ -253,8 +281,9 @@ export const approveRequest = mutation({
       payload: JSON.stringify({
         assignedAgent: args.assignedAgent,
         assignedToolNames: args.assignedToolNames,
+        status: nextStatus,
       }),
-      type: "request.approved",
+      type: nextStatus === "open" ? "request.opened_for_workers" : "request.approved",
     });
 
     return { approved: true };

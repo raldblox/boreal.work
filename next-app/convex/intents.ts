@@ -1,7 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-import { listIntentCatalogMatches } from "./supplies";
+import { persistIntentMatchCandidates } from "./matching";
+import { listIntentMatchCandidates } from "./supplies";
 
 export const listSidebar = query({
   args: {
@@ -104,6 +105,7 @@ export const getRequestDetail = query({
         catalogItems: [],
         conversationId: null,
         intent: null,
+        matchCandidates: [],
         messages: [],
         participants: [],
         fulfillment: null,
@@ -183,9 +185,9 @@ export const getRequestDetail = query({
     const artifact = artifacts[0];
     const participants = await getRequestParticipants(ctx, intent, acceptedProposal);
     const fulfillment = await getRequestFulfillment(ctx, intent, acceptedProposal);
-    const catalogItems =
+    const matchCandidates =
       intent.shouldSearchCatalog || intent.routeTarget === "catalog_lookup"
-        ? await listIntentCatalogMatches(
+        ? await listIntentMatchCandidates(
             ctx,
             {
               _id: intent._id,
@@ -199,13 +201,17 @@ export const getRequestDetail = query({
               embedding: intent.embedding,
               intentKey: intent.intentKey,
               keywords: intent.keywords,
+              pinnedSupplyIds: intent.pinnedSupplyIds ?? [],
               requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
               summary: intent.summary,
               title: intent.title,
             },
-            8,
+            16,
           )
         : [];
+    const catalogItems = matchCandidates
+      .filter((candidate) => candidate.gatedOutReasons.length === 0)
+      .slice(0, 8);
 
     return {
       access: {
@@ -261,6 +267,7 @@ export const getRequestDetail = query({
         missingDetails: intent.missingDetails ?? [],
         matchAttempts: intent.matchAttempts ?? 0,
         needsClarification: intent.needsClarification ?? false,
+        pinnedSupplyIds: (intent.pinnedSupplyIds ?? []).map(String),
         provider: intent.provider,
         requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
         responseInstructions: intent.responseInstructions ?? "",
@@ -275,6 +282,7 @@ export const getRequestDetail = query({
         summary: intent.summary,
         title: intent.title,
       },
+      matchCandidates,
       messages: requestMessages,
       participants,
       proposals: await Promise.all(
@@ -429,9 +437,134 @@ export const deleteIntent = mutation({
       await ctx.db.delete(event._id);
     }
 
+    const matchCandidates = await ctx.db
+      .query("matchCandidates")
+      .withIndex("by_intentId_and_createdAt", (queryBuilder) =>
+        queryBuilder.eq("intentId", args.intentId),
+      )
+      .take(64);
+
+    for (const candidate of matchCandidates) {
+      await ctx.db.delete(candidate._id);
+    }
+
     await ctx.db.delete(args.intentId);
 
     return { deleted: true };
+  },
+});
+
+export const refineRequestMatches = mutation({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+    query: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+    const query = args.query.trim();
+
+    if (
+      !intent ||
+      !query ||
+      !(await hasRequestOwnerAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
+      return { query, refined: false };
+    }
+
+    const now = Date.now();
+
+    await ctx.db.patch(args.intentId, {
+      catalogQuery: query,
+      shouldSearchCatalog: true,
+      updatedAt: now,
+    });
+
+    const result = await persistIntentMatchCandidates(ctx, {
+      body: intent.body,
+      budgetMax: intent.budgetMax,
+      budgetMin: intent.budgetMin,
+      capabilityTags: intent.capabilityTags,
+      catalogQuery: query,
+      category: intent.category,
+      deadlineAt: intent.deadlineAt,
+      embedding: intent.embedding,
+      intentId: intent._id,
+      intentKey: intent.intentKey,
+      keywords: intent.keywords,
+      requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+      summary: intent.summary,
+      title: intent.title,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        persistedCount: result.persistedCount,
+        query,
+        topMatchScore: result.topMatchScore,
+      }),
+      type: "matching.refined",
+    });
+
+    return { query, refined: true };
+  },
+});
+
+export const togglePinnedSupplyMatch = mutation({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+    supplyId: v.id("supplies"),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (
+      !intent ||
+      !(await hasRequestOwnerAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
+      return { isPinned: false, pinnedSupplyIds: [] as string[], updated: false };
+    }
+
+    const currentPinned = new Map(
+      (intent.pinnedSupplyIds ?? []).map((supplyId) => [String(supplyId), supplyId] as const),
+    );
+    const supplyKey = String(args.supplyId);
+    const isPinned = !currentPinned.has(supplyKey);
+
+    if (isPinned) {
+      currentPinned.set(supplyKey, args.supplyId);
+    } else {
+      currentPinned.delete(supplyKey);
+    }
+
+    const pinnedSupplyIds = Array.from(currentPinned.values());
+    const now = Date.now();
+
+    await ctx.db.patch(args.intentId, {
+      pinnedSupplyIds,
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        isPinned,
+        supplyId: supplyKey,
+      }),
+      type: isPinned ? "matching.pinned" : "matching.unpinned",
+    });
+
+    return {
+      isPinned,
+      pinnedSupplyIds: pinnedSupplyIds.map(String),
+      updated: true,
+    };
   },
 });
 

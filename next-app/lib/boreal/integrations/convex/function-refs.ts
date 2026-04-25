@@ -72,9 +72,12 @@ export type CatalogEntry = {
   executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   fulfillmentKind: string;
+  gatedOutReasons: string[];
   isCartEnabled: boolean;
+  isPinned: boolean;
   matchReasons: string[];
   matchScore: number | null;
+  matchStage: "feasible" | "notified" | "ranked" | "reserved" | "retrieved" | null;
   paymentNetworkHints: string[];
   paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
   priceAmount: number | null;
@@ -93,6 +96,7 @@ export type CatalogEntry = {
   supplyType: string;
   supportsDirectInvoke: boolean;
   supportsPrivyWallet: boolean;
+  successProbability: number | null;
   title: string;
   trustScore: number;
 };
@@ -412,6 +416,7 @@ export type RequestDetail = {
     missingDetails: string[];
     matchAttempts: number;
     needsClarification: boolean;
+    pinnedSupplyIds: string[];
     provider: string;
     requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
     responseInstructions: string;
@@ -425,6 +430,7 @@ export type RequestDetail = {
     summary: string;
     title: string;
   } | null;
+  matchCandidates: CatalogEntry[];
   messages: RequestMessage[];
   participants: Array<{
     displayName: string;
@@ -516,10 +522,12 @@ export const convexFunctionRefs = {
   approveRequest: makeFunctionReference<
     "mutation",
     {
-      assignedAgent: string;
-      assignedToolNames: string[];
+      assignedAgent?: string;
+      assignedToolNames?: string[];
+      assistantMessage?: string;
       intentId: string;
       ownerExternalId?: string;
+      status?: "blocked" | "claimed" | "closed" | "fulfilled" | "in_progress" | "open" | "proposed";
     },
     { approved: boolean }
   >("chats:approveRequest"),
@@ -536,6 +544,16 @@ export const convexFunctionRefs = {
     { intentId: string; ownerExternalId?: string },
     { deleted: boolean }
   >("intents:deleteIntent"),
+  refineRequestMatches: makeFunctionReference<
+    "mutation",
+    { intentId: string; ownerExternalId?: string; query: string },
+    { query: string; refined: boolean }
+  >("intents:refineRequestMatches"),
+  togglePinnedSupplyMatch: makeFunctionReference<
+    "mutation",
+    { intentId: string; ownerExternalId?: string; supplyId: string },
+    { isPinned: boolean; pinnedSupplyIds: string[]; updated: boolean }
+  >("intents:togglePinnedSupplyMatch"),
   ensureDefaultCatalog: makeFunctionReference<
     "mutation",
     Record<string, never>,

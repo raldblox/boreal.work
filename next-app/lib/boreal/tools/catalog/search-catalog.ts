@@ -39,10 +39,13 @@ function mapCatalogEntry(entry: CatalogEntry): CatalogItem {
     executionSurface: entry.executionSurface,
     executorUrl: entry.executorUrl,
     fulfillmentKind: entry.fulfillmentKind,
+    gatedOutReasons: entry.gatedOutReasons,
     id: entry._id,
     isCartEnabled: entry.isCartEnabled,
+    isPinned: entry.isPinned,
     matchReasons: entry.matchReasons,
     matchScore: entry.matchScore,
+    matchStage: entry.matchStage,
     paymentNetworkHints: entry.paymentNetworkHints,
     paymentProtocol: entry.paymentProtocol,
     priceAmount: entry.priceAmount,
@@ -61,6 +64,7 @@ function mapCatalogEntry(entry: CatalogEntry): CatalogItem {
     supplyType: entry.supplyType,
     supportsDirectInvoke: entry.supportsDirectInvoke,
     supportsPrivyWallet: entry.supportsPrivyWallet,
+    successProbability: entry.successProbability,
     title: entry.title,
   };
 }

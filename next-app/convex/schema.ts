@@ -136,6 +136,7 @@ export default defineSchema({
     missingDetails: v.optional(v.array(v.string())),
     needsClarification: v.optional(v.boolean()),
     ownerUserId: v.optional(v.string()),
+    pinnedSupplyIds: v.optional(v.array(v.id("supplies"))),
     persistence: v.optional(v.object({
       isUnresolved: v.boolean(),
       reason: v.string(),

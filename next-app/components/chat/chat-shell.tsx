@@ -23,6 +23,7 @@ import {
   PackageIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
+  PinIcon,
   PlusIcon,
   RefreshCwIcon,
   ShoppingCartIcon,
@@ -78,6 +79,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -95,6 +97,10 @@ import type {
   ChatUiContext,
   WorkspaceState,
 } from "@/lib/boreal/schemas/chat";
+import {
+  getRequestHandlingLabel,
+  getRequestHandlingMode,
+} from "@/lib/boreal/routing/request-handling";
 import {
   normalizeProposalDraft,
   type ProposalDraft,
@@ -215,6 +221,7 @@ export function ChatShell() {
   const [isCancellingRequest, setIsCancellingRequest] = useState(false);
   const [isRetryingRequest, setIsRetryingRequest] = useState(false);
   const [isRefreshingRequest, setIsRefreshingRequest] = useState(false);
+  const [isRefiningMatches, setIsRefiningMatches] = useState(false);
   const [isMarkingRequestFulfilled, setIsMarkingRequestFulfilled] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [optimisticReviewRating, setOptimisticReviewRating] = useState<number | null>(null);
@@ -222,6 +229,8 @@ export function ChatShell() {
   const [showWorkspace, setShowWorkspace] = useState(true);
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false);
   const [composerText, setComposerText] = useState(() => seededPrompt ?? "");
+  const [matchQueryDraft, setMatchQueryDraft] = useState<string | null>(null);
+  const [pinningSupplyId, setPinningSupplyId] = useState<string | null>(null);
   const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false);
   const [proposalMessage, setProposalMessage] = useState("");
   const [proposalDraft, setProposalDraft] = useState<ProposalDraft>(emptyProposalDraft);
@@ -286,6 +295,8 @@ export function ChatShell() {
 
   const deleteIntent = useMutation(deleteIntentMutation);
   const generateUploadUrl = useMutation(generateUploadUrlMutation);
+  const refineRequestMatches = useMutation(convexFunctionRefs.refineRequestMatches);
+  const togglePinnedSupplyMatch = useMutation(convexFunctionRefs.togglePinnedSupplyMatch);
   const borealAgentStats = useQuery(convexFunctionRefs.getBorealAgentStats, {});
   const addToCart = useMutation(convexFunctionRefs.addToCart);
   const updateCartLineQuantity = useMutation(convexFunctionRefs.updateCartLineQuantity);
@@ -350,6 +361,12 @@ export function ChatShell() {
 
     return `${window.location.origin}${pathname}?${params.toString()}`;
   }, [activeIntentId, pathname, searchParams]);
+  const resolvedMatchQueryDraft =
+    matchQueryDraft ??
+    requestDetail?.intent?.catalogQuery ??
+    requestDetail?.intent?.summary ??
+    requestDetail?.intent?.title ??
+    "";
 
   function updateWorkspaceUrl(next: {
     browse?: WorkspaceTab | null;
@@ -946,6 +963,60 @@ export function ChatShell() {
     }
   }
 
+  async function handleRefineMatches() {
+    if (!activeIntentId || !resolvedMatchQueryDraft.trim() || isRefiningMatches) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsRefiningMatches(true);
+
+    try {
+      const result = await refineRequestMatches({
+        intentId: activeIntentId,
+        ownerExternalId,
+        query: resolvedMatchQueryDraft.trim(),
+      });
+
+      if (!result.refined) {
+        throw new Error("Could not refresh request matches.");
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not refresh request matches.",
+      );
+    } finally {
+      setIsRefiningMatches(false);
+    }
+  }
+
+  async function handleTogglePinnedMatch(supplyId: string) {
+    if (!activeIntentId || pinningSupplyId) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setPinningSupplyId(supplyId);
+
+    try {
+      const result = await togglePinnedSupplyMatch({
+        intentId: activeIntentId,
+        ownerExternalId,
+        supplyId,
+      });
+
+      if (!result.updated) {
+        throw new Error("Could not update pinned match.");
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not update pinned match.",
+      );
+    } finally {
+      setPinningSupplyId(null);
+    }
+  }
+
   async function handleRetryRequest() {
     if (!activeIntentId || isRetryingRequest) {
       return;
@@ -1290,6 +1361,7 @@ export function ChatShell() {
       request: intent._id,
       view: "chat",
     });
+    setMatchQueryDraft(null);
     setProposalDraft(emptyProposalDraft());
     setProposalMessage("");
     setDeliveryDraft(emptyDeliveryDraft());
@@ -1304,6 +1376,7 @@ export function ChatShell() {
       request: intent._id,
       view: intent.isOwner ? "chat" : "workspace",
     });
+    setMatchQueryDraft(null);
     setProposalDraft(emptyProposalDraft());
     setProposalMessage("");
     setDeliveryDraft(emptyDeliveryDraft());
@@ -1317,6 +1390,7 @@ export function ChatShell() {
       request: null,
       view: null,
     });
+    setMatchQueryDraft(null);
     setProposalDraft(emptyProposalDraft());
     setProposalMessage("");
     setDeliveryDraft(emptyDeliveryDraft());
@@ -1570,18 +1644,24 @@ export function ChatShell() {
                         deliverySubmitted={requestDetail?.fulfillment?.status === "fulfilled"}
                         hasSubmittedProposal={hasSubmittedProposal}
                         isDraftingProposal={isDraftingProposal}
+                        isRefiningMatches={isRefiningMatches}
                         isSubmittingDelivery={isSubmittingDelivery}
                         isSubmittingProposal={isSubmittingProposal}
+                        matchQueryDraft={resolvedMatchQueryDraft}
                         onAddToCart={handleAddToCart}
                         proposalDraft={proposalDraft}
                         proposalMessage={proposalMessage}
                         onApproveProposal={handleApproveProposal}
                         onDeliveryFilesSelected={handleDeliveryFilesSelected}
                         onDraftProposal={handleDraftProposal}
+                        onRefineMatches={handleRefineMatches}
                         onRemoveDeliveryAttachment={handleRemoveDeliveryAttachment}
                         onSubmitDelivery={handleSubmitDelivery}
                         onSubmitProposal={handleSubmitProposal}
+                        onTogglePinnedMatch={handleTogglePinnedMatch}
+                        pinningSupplyId={pinningSupplyId}
                         setDeliveryDraft={setDeliveryDraft}
+                        setMatchQueryDraft={setMatchQueryDraft}
                         setProposalDraft={setProposalDraft}
                         setProposalMessage={setProposalMessage}
                         key={activeIntentId}
@@ -1950,12 +2030,13 @@ function InlineRequestActionEvent({
   const submittedProposals = (proposals ?? []).filter((proposal) => proposal.status === "submitted");
   const acceptedProposal = (proposals ?? []).find((proposal) => proposal.status === "accepted") ?? null;
   const workingParticipants = (participants ?? []).filter((participant) => participant.status !== "owner");
+  const handlingMode = getRequestHandlingMode(intent);
 
   if (actionState.kind === "none" || actionState.kind === "review") {
     return null;
   }
 
-  if (actionState.kind === "approval" && access?.canApproveProposals && submittedProposals.length > 0) {
+  if (access?.canApproveProposals && submittedProposals.length > 0) {
     return (
       <div className="space-y-4 border border-border p-4">
         <div className="space-y-1">
@@ -2031,6 +2112,46 @@ function InlineRequestActionEvent({
     <div className="space-y-3 border border-border p-4">
       <p className="text-sm font-medium">{actionState.title}</p>
       <p className="text-xs text-muted-foreground">{actionState.description}</p>
+      {actionState.kind === "approval" ? (
+        <div className="space-y-3 border border-border p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex size-9 items-center justify-center border border-border">
+              {handlingMode === "workers" ? (
+                <UserIcon className="size-4 text-muted-foreground" />
+              ) : (
+                <BotIcon className="size-4 text-muted-foreground" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">
+                {handlingMode === "clarify"
+                  ? "No executor should start yet"
+                  : handlingMode === "workers"
+                    ? "Approval target: worker market"
+                    : "Approval target: Boreal Agent"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {handlingMode === "clarify"
+                  ? "Boreal is waiting for a clearer brief before anyone gets approved."
+                  : handlingMode === "workers"
+                    ? "Approving this will publish the request for proposals and matching."
+                    : "Approving this will let Boreal Agent take the first execution pass."}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="border border-border px-2 py-1">
+              {getRequestHandlingLabel(handlingMode)}
+            </span>
+            <span className="border border-border px-2 py-1">
+              {intent.requestedOutputTypes.map((type) => type.replaceAll("_", " ")).join(" / ")}
+            </span>
+            <span className="border border-border px-2 py-1">
+              {intent.routeTarget.replaceAll("_", " ")}
+            </span>
+          </div>
+        </div>
+      ) : null}
       {actionState.kind === "in_flight" ? (
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
           {acceptedProposal?.etaAt ? (
@@ -2046,16 +2167,61 @@ function InlineRequestActionEvent({
         </div>
       ) : null}
       {intent.missingDetails.length > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Missing details: {intent.missingDetails.join(" / ")}
-        </p>
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+            Missing details
+          </p>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {intent.missingDetails.map((detail) => (
+              <p key={detail}>- {detail}</p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {actionState.kind === "approval" && intent.suggestedReplies.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {intent.suggestedReplies.map((reply) => (
+            <span
+              className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+              key={reply}
+            >
+              {reply}
+            </span>
+          ))}
+        </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {actionState.kind === "approval" ? (
           <>
-            <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
-              {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
-              Approve
+            {handlingMode !== "clarify" ? (
+              <Button disabled={isApprovingRequest} onClick={onApproveRequest} size="sm" type="button">
+                {isApprovingRequest ? <LoaderIcon className="animate-spin" /> : <CheckIcon />}
+                {handlingMode === "workers" ? "Open for proposals" : "Approve Boreal Agent"}
+              </Button>
+            ) : null}
+            <Button
+              disabled={isCancellingRequest}
+              onClick={onCancelRequest}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isCancellingRequest ? <LoaderIcon className="animate-spin" /> : <XCircleIcon />}
+              Cancel
+            </Button>
+          </>
+        ) : null}
+        {actionState.kind === "waiting_workers" ? (
+          <>
+            <Button
+              disabled={isRefreshingRequest}
+              onClick={() => void onRefreshRequest()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isRefreshingRequest ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+              Refresh
             </Button>
             <Button
               disabled={isCancellingRequest}
@@ -2834,19 +3000,25 @@ function ProposalViewerPanel({
   deliverySubmitted,
   hasSubmittedProposal,
   isDraftingProposal,
+  isRefiningMatches,
   isSubmittingDelivery,
   isSubmittingProposal,
+  matchQueryDraft,
   onAddToCart,
   onApproveProposal,
   onDeliveryFilesSelected,
   onDraftProposal,
+  onRefineMatches,
   onRemoveDeliveryAttachment,
   onSubmitDelivery,
   onSubmitProposal,
+  onTogglePinnedMatch,
+  pinningSupplyId,
   proposalDraft,
   proposalMessage,
   requestDetail,
   setDeliveryDraft,
+  setMatchQueryDraft,
   setProposalDraft,
   setProposalMessage,
 }: {
@@ -2856,19 +3028,25 @@ function ProposalViewerPanel({
   deliverySubmitted: boolean;
   hasSubmittedProposal: boolean;
   isDraftingProposal: boolean;
+  isRefiningMatches: boolean;
   isSubmittingDelivery: boolean;
   isSubmittingProposal: boolean;
+  matchQueryDraft: string;
   onAddToCart: (supplyId: string) => Promise<void>;
   onApproveProposal: (proposalId: string) => Promise<void>;
   onDeliveryFilesSelected: (files: File[]) => Promise<void>;
   onDraftProposal: () => Promise<void>;
+  onRefineMatches: () => Promise<void>;
   onRemoveDeliveryAttachment: (attachmentId: string) => void;
   onSubmitDelivery: () => Promise<void>;
   onSubmitProposal: () => Promise<void>;
+  onTogglePinnedMatch: (supplyId: string) => Promise<void>;
+  pinningSupplyId: string | null;
   proposalDraft: ProposalDraft;
   proposalMessage: string;
   requestDetail: RequestDetail | null;
   setDeliveryDraft: Dispatch<SetStateAction<DeliveryDraft>>;
+  setMatchQueryDraft: Dispatch<SetStateAction<string | null>>;
   setProposalDraft: Dispatch<SetStateAction<ProposalDraft>>;
   setProposalMessage: Dispatch<SetStateAction<string>>;
 }) {
@@ -2879,38 +3057,29 @@ function ProposalViewerPanel({
   const [isDeliveryDialogOpen, setIsDeliveryDialogOpen] = useState(false);
   const proposalDialogOpen = isProposalDialogOpen && !hasSubmittedProposal;
   const deliveryDialogOpen = isDeliveryDialogOpen && !deliverySubmitted;
-  const requestCatalogWorkspace =
-    requestDetail && requestDetail.catalogItems.length > 0
-      ? ({
-          highlightedId: requestDetail.catalogItems[0]?._id,
-          items: requestDetail.catalogItems.map(mapCatalogEntryToItem),
-          kind: "catalog" as const,
-          subtitle:
-            "Matched supply stays attached to this request so you can compare listings, add items to cart, and check out without losing context.",
-          title: "Matched supply",
-        })
-      : null;
+  const matchCandidates = requestDetail?.matchCandidates.map(mapCatalogEntryToItem) ?? [];
+  const hasMatchingWorkspace = Boolean(
+    matchCandidates.length > 0 ||
+      requestDetail?.intent?.matchAttempts ||
+      requestDetail?.intent?.shouldSearchCatalog ||
+      requestDetail?.intent?.routeTarget === "catalog_lookup",
+  );
 
   return (
     <div className="space-y-4">
-      {requestCatalogWorkspace ? (
-        <div className="space-y-4 border border-border p-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Matched supply</p>
-            <p className="text-xs text-muted-foreground">
-              These listings were matched against this request and are ready for cart or checkout.
-            </p>
-          </div>
-          <InlineWorkspaceCard
-            isRefreshingVideo={false}
-            onAddToCart={onAddToCart}
-            onAskCatalogItem={() => undefined}
-            onDownloadVideo={() => undefined}
-            onQuickReply={() => undefined}
-            onRefreshVideo={() => undefined}
-            workspace={requestCatalogWorkspace}
-          />
-        </div>
+      {hasMatchingWorkspace ? (
+        <RequestMatchingPanel
+          isOwner={isOwner}
+          isRefiningMatches={isRefiningMatches}
+          matchAttempts={requestDetail?.intent?.matchAttempts ?? 0}
+          matchCandidates={matchCandidates}
+          matchQueryDraft={matchQueryDraft}
+          onAddToCart={onAddToCart}
+          onRefineMatches={onRefineMatches}
+          onTogglePinnedMatch={onTogglePinnedMatch}
+          pinningSupplyId={pinningSupplyId}
+          setMatchQueryDraft={setMatchQueryDraft}
+        />
       ) : null}
 
       {isOwner ? (
@@ -3073,6 +3242,291 @@ function ProposalViewerPanel({
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function RequestMatchingPanel({
+  isOwner,
+  isRefiningMatches,
+  matchAttempts,
+  matchCandidates,
+  matchQueryDraft,
+  onAddToCart,
+  onRefineMatches,
+  onTogglePinnedMatch,
+  pinningSupplyId,
+  setMatchQueryDraft,
+}: {
+  isOwner: boolean;
+  isRefiningMatches: boolean;
+  matchAttempts: number;
+  matchCandidates: CatalogItem[];
+  matchQueryDraft: string;
+  onAddToCart: (supplyId: string) => Promise<void>;
+  onRefineMatches: () => Promise<void>;
+  onTogglePinnedMatch: (supplyId: string) => Promise<void>;
+  pinningSupplyId: string | null;
+  setMatchQueryDraft: Dispatch<SetStateAction<string | null>>;
+}) {
+  const feasibleMatches = matchCandidates.filter((candidate) => candidate.gatedOutReasons.length === 0);
+  const blockedMatches = matchCandidates.filter((candidate) => candidate.gatedOutReasons.length > 0);
+  const pinnedCount = feasibleMatches.filter((candidate) => candidate.isPinned).length;
+
+  return (
+    <div className="space-y-4 border border-border p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Matching workspace</p>
+          <p className="text-xs text-muted-foreground">
+            Ranked supply stays attached to this request so discovery, pinning, and checkout remain
+            auditable in one place.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="inline-flex items-center border border-border px-2 py-1">
+            {feasibleMatches.length} ready
+          </span>
+          <span className="inline-flex items-center border border-border px-2 py-1">
+            {blockedMatches.length} gated
+          </span>
+          <span className="inline-flex items-center border border-border px-2 py-1">
+            {pinnedCount} pinned
+          </span>
+          <span className="inline-flex items-center border border-border px-2 py-1">
+            {matchAttempts} runs
+          </span>
+        </div>
+      </div>
+
+      {isOwner ? (
+        <div className="space-y-3 border border-border p-4">
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Refine request search
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Tighten the catalog query when the first pass is too broad or too weak.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <Input
+              className="h-10"
+              onChange={(event) => setMatchQueryDraft(event.currentTarget.value)}
+              placeholder="Refine the request with product, capability, or service keywords"
+              value={matchQueryDraft}
+            />
+            <Button
+              disabled={isRefiningMatches || matchQueryDraft.trim().length === 0}
+              onClick={() => void onRefineMatches()}
+              type="button"
+            >
+              {isRefiningMatches ? <LoaderIcon className="animate-spin" /> : <RefreshCwIcon />}
+              Refresh matches
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {feasibleMatches.length > 0 ? (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Ready matches</p>
+            <p className="text-xs text-muted-foreground">
+              These listings passed the current gates and can move into cart or checkout now.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {feasibleMatches.map((item) => (
+              <RequestMatchCard
+                isOwner={isOwner}
+                item={item}
+                key={item.id}
+                onAddToCart={onAddToCart}
+                onTogglePinnedMatch={onTogglePinnedMatch}
+                pinningSupplyId={pinningSupplyId}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
+          No ready matches yet. Refine the query or wait for new supply to appear.
+        </div>
+      )}
+
+      {blockedMatches.length > 0 ? (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Needs refinement</p>
+            <p className="text-xs text-muted-foreground">
+              These candidates were retrieved but gated out by pricing, availability, exclusions, or
+              deadline fit.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {blockedMatches.map((item) => (
+              <RequestMatchCard
+                isOwner={false}
+                item={item}
+                key={item.id}
+                onAddToCart={onAddToCart}
+                onTogglePinnedMatch={onTogglePinnedMatch}
+                pinningSupplyId={pinningSupplyId}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RequestMatchCard({
+  isOwner,
+  item,
+  onAddToCart,
+  onTogglePinnedMatch,
+  pinningSupplyId,
+}: {
+  isOwner: boolean;
+  item: CatalogItem;
+  onAddToCart: (supplyId: string) => Promise<void>;
+  onTogglePinnedMatch: (supplyId: string) => Promise<void>;
+  pinningSupplyId: string | null;
+}) {
+  const isBlocked = item.gatedOutReasons.length > 0;
+  const confidence = item.successProbability ?? item.matchScore ?? 0;
+
+  return (
+    <div
+      className={cn(
+        "space-y-4 border p-4",
+        item.isPinned && "border-teal-500/40 bg-teal-500/5",
+        isBlocked && "border-amber-500/30 bg-amber-500/5",
+      )}
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{item.title}</p>
+            {item.isPinned ? (
+              <span className="inline-flex items-center border border-teal-500/30 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+                pinned
+              </span>
+            ) : null}
+            {item.matchScore !== null ? (
+              <span
+                className={cn(
+                  "inline-flex items-center border px-2 py-1 text-[11px] uppercase tracking-[0.16em]",
+                  getMatchScoreTone(item.matchScore),
+                )}
+              >
+                {item.matchScore}% match
+              </span>
+            ) : null}
+            {item.matchStage ? (
+              <span className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                {item.matchStage}
+              </span>
+            ) : null}
+          </div>
+          {item.subtitle ? <p className="text-sm">{item.subtitle}</p> : null}
+          <p className="text-sm text-muted-foreground">{item.description}</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span>{item.category}</span>
+            <span>{item.deliveryType}</span>
+            <span>{item.priceLabel}</span>
+            {item.estimatedDeliveryLabel ? <span>{item.estimatedDeliveryLabel}</span> : null}
+            {item.seller?.displayName ? <span>By {item.seller.displayName}</span> : null}
+          </div>
+        </div>
+        {isOwner && !isBlocked ? (
+          <Button
+            disabled={pinningSupplyId === item.id}
+            onClick={() => void onTogglePinnedMatch(item.id)}
+            size="sm"
+            type="button"
+            variant={item.isPinned ? "default" : "outline"}
+          >
+            {pinningSupplyId === item.id ? (
+              <LoaderIcon className="animate-spin" />
+            ) : (
+              <PinIcon />
+            )}
+            {item.isPinned ? "Pinned" : "Pin match"}
+          </Button>
+        ) : null}
+      </div>
+
+      {!isBlocked ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span>Why it matched</span>
+            <span>{confidence}% confidence</span>
+          </div>
+          <Progress value={confidence} />
+          {item.matchReasons.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {item.matchReasons.map((reason) => (
+                <span
+                  className="inline-flex items-center border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
+                  key={`${item.id}-${reason}`}
+                >
+                  {reason}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span>Blocked by</span>
+            <span>{confidence}% confidence</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {item.gatedOutReasons.map((reason) => (
+              <span
+                className="inline-flex items-center border border-amber-500/30 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300"
+                key={`${item.id}-${reason}`}
+              >
+                {reason}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {!isBlocked && item.isCartEnabled ? (
+          <Button onClick={() => void onAddToCart(item.id)} size="sm" type="button">
+            <ShoppingCartIcon />
+            Add to cart
+          </Button>
+        ) : null}
+        {item.executorUrl ? (
+          <Button asChild size="sm" type="button" variant="outline">
+            <a href={item.executorUrl} rel="noreferrer" target="_blank">
+              <DownloadIcon />
+              {item.supportsDirectInvoke ? "Open endpoint" : "Preview"}
+            </a>
+          </Button>
+        ) : null}
+        {item.sourceListingUrl ? (
+          <Button asChild size="sm" type="button" variant="outline">
+            <a href={item.sourceListingUrl} rel="noreferrer" target="_blank">
+              <ExternalLinkIcon />
+              Provider page
+            </a>
+          </Button>
+        ) : null}
+        {item.seller?.profileId ? (
+          <Button asChild size="sm" type="button" variant="outline">
+            <Link href={`/p/${item.seller.profileId}`}>View seller</Link>
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -3922,6 +4376,7 @@ function getRequestActionState(
   reviewPending: boolean,
 ) {
   const status = intent.status;
+  const handlingMode = getRequestHandlingMode(intent);
 
   if (reviewPending) {
     return {
@@ -3931,12 +4386,30 @@ function getRequestActionState(
     };
   }
 
-  if ((status === "proposed" || status === "open") && access?.canApproveProposals) {
+  if (status === "proposed" && access?.canApproveProposals) {
     return {
       description:
-        "Boreal has identified the request but has not started any worker or generator yet.",
+        handlingMode === "clarify"
+          ? "The request is drafted, but the scope is still too vague to approve safely."
+          : handlingMode === "workers"
+            ? "Approve to publish this request for workers and proposals. No one is assigned yet."
+            : "Approve to let Boreal Agent take the first pass on this request.",
       kind: "approval" as const,
-      title: status === "open" ? "Waiting for approval" : "Approve to start",
+      title:
+        handlingMode === "clarify"
+          ? "Clarify before approval"
+          : handlingMode === "workers"
+            ? "Open for workers"
+            : "Approve Boreal Agent",
+    };
+  }
+
+  if (status === "open" && access?.isOwner) {
+    return {
+      description:
+        "This request is approved and waiting for proposals or matches. Share it, browse supply, or keep refining the scope.",
+      kind: "waiting_workers" as const,
+      title: "Waiting for workers",
     };
   }
 
@@ -3987,6 +4460,26 @@ function getRequestActionState(
 
 function humanizeToolLabel(value: string) {
   return value.replaceAll("-", " ").replaceAll("_", " ");
+}
+
+function getMatchScoreTone(score: number | null) {
+  if (score === null) {
+    return "border-border text-muted-foreground";
+  }
+
+  if (score >= 80) {
+    return "border-emerald-500/30 text-emerald-700 dark:text-emerald-300";
+  }
+
+  if (score >= 65) {
+    return "border-amber-500/30 text-amber-700 dark:text-amber-300";
+  }
+
+  if (score >= 50) {
+    return "border-orange-500/30 text-orange-700 dark:text-orange-300";
+  }
+
+  return "border-rose-500/30 text-rose-700 dark:text-rose-300";
 }
 
 function normalizeCenterViewTab(value: string | null): CenterViewTab {
@@ -4289,7 +4782,12 @@ function CatalogWorkspaceCard({
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium">{item.title}</p>
             {item.matchScore !== null ? (
-              <span className="inline-flex items-center border border-teal-500/30 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+              <span
+                className={cn(
+                  "inline-flex items-center border px-2 py-1 text-[11px] uppercase tracking-[0.16em]",
+                  getMatchScoreTone(item.matchScore),
+                )}
+              >
                 {item.matchScore}% match
               </span>
             ) : null}
@@ -4684,10 +5182,13 @@ function mapCatalogEntryToItem(entry: CatalogEntry): CatalogItem {
     executionSurface: entry.executionSurface,
     executorUrl: entry.executorUrl,
     fulfillmentKind: entry.fulfillmentKind,
+    gatedOutReasons: entry.gatedOutReasons,
     id: entry._id,
     isCartEnabled: entry.isCartEnabled,
+    isPinned: entry.isPinned,
     matchReasons: entry.matchReasons,
     matchScore: entry.matchScore,
+    matchStage: entry.matchStage,
     paymentNetworkHints: entry.paymentNetworkHints,
     paymentProtocol: entry.paymentProtocol,
     priceAmount: entry.priceAmount,
@@ -4706,6 +5207,7 @@ function mapCatalogEntryToItem(entry: CatalogEntry): CatalogItem {
     supplyType: entry.supplyType,
     supportsDirectInvoke: entry.supportsDirectInvoke,
     supportsPrivyWallet: entry.supportsPrivyWallet,
+    successProbability: entry.successProbability,
     title: entry.title,
   };
 }

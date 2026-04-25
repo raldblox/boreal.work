@@ -429,7 +429,7 @@ export const createSupplyEntry = mutation({
   },
 });
 
-async function mapSupplyListing(
+export async function mapSupplyListing(
   ctx: QueryCtx,
   supply: {
     _id: string;
@@ -464,8 +464,12 @@ async function mapSupplyListing(
     trustScore: number;
   },
   ranking: {
+    gatedOutReasons?: string[];
+    isPinned?: boolean;
     matchReasons: string[];
     matchScore: number | null;
+    matchStage?: "feasible" | "notified" | "ranked" | "reserved" | "retrieved" | null;
+    successProbability?: number | null;
   },
 ) {
   const seller = await getSupplySeller(ctx, supply.supplierUserId);
@@ -486,9 +490,12 @@ async function mapSupplyListing(
     executionSurface: supply.executionSurface ?? null,
     executorUrl: supply.executorUrl ?? null,
     fulfillmentKind: supply.fulfillmentKind,
+    gatedOutReasons: ranking.gatedOutReasons ?? [],
     isCartEnabled: supply.isCartEnabled,
+    isPinned: ranking.isPinned ?? false,
     matchReasons: ranking.matchReasons,
     matchScore: ranking.matchScore,
+    matchStage: ranking.matchStage ?? null,
     paymentNetworkHints: supply.paymentNetworkHints ?? [],
     paymentProtocol: supply.paymentProtocol ?? null,
     priceAmount: supply.priceAmount ?? null,
@@ -511,6 +518,7 @@ async function mapSupplyListing(
     supplyType: supply.supplyType,
     supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
     supportsPrivyWallet: supply.supportsPrivyWallet ?? false,
+    successProbability: ranking.successProbability ?? null,
     title: supply.title,
     trustScore: supply.trustScore,
   };
@@ -597,6 +605,36 @@ export async function listIntentCatalogMatches(
   },
   limit: number,
 ) {
+  const candidates = await listIntentMatchCandidates(ctx, intent, Math.max(limit * 2, 16));
+
+  return candidates
+    .filter((candidate) => candidate.gatedOutReasons.length === 0)
+    .slice(0, limit);
+}
+
+export async function listIntentMatchCandidates(
+  ctx: QueryCtx,
+  intent: {
+    _id: Id<"intents">;
+    body: string;
+    budgetMax?: number;
+    budgetMin?: number;
+    capabilityTags: string[];
+    catalogQuery?: string;
+    category: string;
+    deadlineAt?: number;
+    embedding: number[];
+    intentKey: string;
+    keywords: string[];
+    pinnedSupplyIds?: Id<"supplies">[];
+    requestedOutputTypes: Array<
+      "image_generation" | "speech_generation" | "text" | "video_generation"
+    >;
+    summary: string;
+    title: string;
+  },
+  limit: number,
+) {
   const persisted = await getPersistedIntentMatches(ctx, {
     intentId: intent._id,
     limit: Math.max(limit * 2, 16),
@@ -621,17 +659,31 @@ export async function listIntentCatalogMatches(
           title: intent.title,
         });
 
-  return Promise.all(
-    ranked
-      .filter((candidate) => candidate.gatedOutReasons.length === 0)
-      .slice(0, limit)
-      .map((candidate) =>
-        mapSupplyListing(ctx, candidate.supply, {
-          matchReasons: candidate.matchReasons,
-          matchScore: candidate.heuristicScore,
-        }),
-      ),
+  const pinnedSupplyIds = new Set((intent.pinnedSupplyIds ?? []).map(String));
+  const mapped = await Promise.all(
+    ranked.slice(0, limit).map((candidate) =>
+      mapSupplyListing(ctx, candidate.supply, {
+        gatedOutReasons: candidate.gatedOutReasons,
+        isPinned: pinnedSupplyIds.has(String(candidate.supply._id)),
+        matchReasons: candidate.matchReasons,
+        matchScore: candidate.heuristicScore,
+        matchStage: candidate.stage,
+        successProbability: Math.round(candidate.calibratedSuccessProb * 100),
+      }),
+    ),
   );
+
+  return mapped.sort((left, right) => {
+    if (left.isPinned !== right.isPinned) {
+      return left.isPinned ? -1 : 1;
+    }
+
+    if ((left.gatedOutReasons.length === 0) !== (right.gatedOutReasons.length === 0)) {
+      return left.gatedOutReasons.length === 0 ? -1 : 1;
+    }
+
+    return (right.matchScore ?? 0) - (left.matchScore ?? 0);
+  });
 }
 
 async function getSupplySeller(

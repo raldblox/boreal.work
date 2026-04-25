@@ -262,13 +262,33 @@ function scoreSupplyMatch(input: {
   const relationshipFit = clamp((input.supply.matchCount ?? 0) / 20);
   const rrfScore = scoreRrf(input.lexicalRank) + scoreRrf(input.vectorRank);
   const rrfFit = clamp(rrfScore * (RRF_K + 1));
+  const preliminaryHeuristicScore = clamp(
+    (
+      semanticFit * 0.22 +
+      capabilityFit * 0.22 +
+      lexicalSignals.score * 0.16 +
+      priceFit * 0.1 +
+      deadlineFit * 0.08 +
+      availabilityFit * 0.08 +
+      trustFit * 0.06 +
+      evidenceFit * 0.03 +
+      freshnessFit * 0.03 +
+      relationshipFit * 0.01 +
+      rrfFit * 0.01
+    ) /
+      1,
+  ) * 100;
   const gatedOutReasons = getGateFailures({
     availabilityFit,
+    capabilityFit,
     deadlineAt: input.intent.deadlineAt,
     exclusions: input.supply.exclusions ?? [],
+    heuristicScore: preliminaryHeuristicScore,
     intentTokens,
+    lexicalSignals,
     priceAmount: input.supply.priceAmount,
     budgetMax: input.intent.budgetMax,
+    semanticFit,
     supply: input.supply,
   });
 
@@ -284,22 +304,7 @@ function scoreSupplyMatch(input: {
     semanticFit,
     trustFit,
   };
-  const heuristicScore = clamp(
-    (
-      semanticFit * 0.2 +
-      capabilityFit * 0.18 +
-      lexicalSignals.score * 0.12 +
-      priceFit * 0.12 +
-      deadlineFit * 0.1 +
-      availabilityFit * 0.1 +
-      trustFit * 0.1 +
-      evidenceFit * 0.04 +
-      freshnessFit * 0.05 +
-      relationshipFit * 0.04 +
-      rrfFit * 0.05
-    ) /
-      1.1,
-  ) * 100;
+  const heuristicScore = preliminaryHeuristicScore;
   const calibratedSuccessProb = clamp(heuristicScore / 100);
   const matchReasons = buildMatchReasons({
     availabilityFit,
@@ -330,11 +335,15 @@ function scoreSupplyMatch(input: {
 
 function getGateFailures(input: {
   availabilityFit: number;
+  capabilityFit: number;
   budgetMax?: number;
   deadlineAt?: number | null;
   exclusions: string[];
+  heuristicScore: number;
   intentTokens: string[];
+  lexicalSignals: ReturnType<typeof scoreLexicalSignals>;
   priceAmount?: number;
+  semanticFit: number;
   supply: Doc<"supplies">;
 }) {
   const failures: string[] = [];
@@ -382,6 +391,33 @@ function getGateFailures(input: {
 
   if (input.availabilityFit <= 0.15) {
     failures.push("availability too weak");
+  }
+
+  const specializedIntent = hasSpecializedIntentSignal(input.intentTokens);
+  const hardEvidence =
+    input.lexicalSignals.titleHits +
+      input.lexicalSignals.capabilityHits +
+      input.lexicalSignals.keywordHits +
+      input.lexicalSignals.categoryHits +
+      input.lexicalSignals.descriptionHits >
+    0;
+
+  if (
+    specializedIntent &&
+    !hardEvidence &&
+    input.capabilityFit < 0.26 &&
+    input.semanticFit < 0.18
+  ) {
+    failures.push("domain mismatch");
+  }
+
+  if (
+    input.heuristicScore < 58 &&
+    input.lexicalSignals.score < 0.18 &&
+    input.capabilityFit < 0.3 &&
+    input.semanticFit < 0.22
+  ) {
+    failures.push("confidence too low");
   }
 
   return Array.from(new Set(failures));
@@ -501,7 +537,7 @@ function scoreCapabilityFit(
   );
   const modalityFit = scoreModalityFit(requestedOutputTypes, supply);
 
-  return clamp(overlap * 0.7 + modalityFit * 0.3);
+  return clamp(overlap * 0.88 + modalityFit * 0.12);
 }
 
 function scoreModalityFit(
@@ -509,13 +545,19 @@ function scoreModalityFit(
   supply: Doc<"supplies">,
 ) {
   if (!requestedOutputTypes || requestedOutputTypes.length === 0) {
-    return 0.6;
+    return 0.35;
   }
 
   const mappedSupplyOutputs =
     supply.outputTypes?.map(normalizeOutputTypeToken) ??
     inferSupplyOutputsFromListing(supply).map(normalizeOutputTypeToken);
   const requested = requestedOutputTypes.map(normalizeOutputTypeToken);
+  const textOnly = requested.length === 1 && requested[0] === "text";
+
+  if (textOnly) {
+    return mappedSupplyOutputs.includes("text") ? 0.35 : 0.1;
+  }
+
   const overlap = requested.filter((output) => mappedSupplyOutputs.includes(output)).length;
 
   return clamp(overlap / requested.length || 0.2);
@@ -761,8 +803,40 @@ function tokenize(value: string) {
   return value
     .toLowerCase()
     .split(/[^a-z0-9-]+/i)
-    .filter((token) => token.length > 2)
+    .filter((token) => token.length > 2 && !MATCH_STOPWORDS.has(token))
     .slice(0, 96);
+}
+
+const MATCH_STOPWORDS = new Set([
+  "about",
+  "anyone",
+  "build",
+  "can",
+  "create",
+  "explain",
+  "for",
+  "from",
+  "help",
+  "helped",
+  "helping",
+  "helps",
+  "how",
+  "make",
+  "needed",
+  "need",
+  "someone",
+  "that",
+  "the",
+  "this",
+  "tutorial",
+  "want",
+  "week",
+  "with",
+  "write",
+]);
+
+function hasSpecializedIntentSignal(tokens: string[]) {
+  return tokens.some((token) => token.length >= 5);
 }
 
 function countOverlap(source: string[], target: string[]) {

@@ -1,445 +1,360 @@
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   BotIcon,
+  CheckIcon,
   CompassIcon,
-  NetworkIcon,
   PackageIcon,
   ScrollTextIcon,
-  ShoppingCartIcon,
-  WorkflowIcon,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
-type LandingCard = {
-  actionLabel: string;
-  description: string;
-  href: string;
-  icon: LucideIcon;
-  title: string;
-};
+// ─── Pre-filled chat prompts ──────────────────────────────────────────────────
 
-type FlowStep = {
-  description: string;
-  title: string;
-};
+const PROMPTS = {
+  request:
+    "I have a problem I need solved. Help me turn it into a structured request so the right people, agents, or tools can propose on it.",
+  supply:
+    "I want to publish my skills, services, or products so Boreal can match me to relevant requests. Help me set up a strong supply listing.",
+  product:
+    "I want to list a digital product or service on Boreal — with the right metadata so it shows up in search, can be added to cart, and bought directly.",
+} as const;
 
-type CapabilityCard = {
-  description: string;
-  icon: LucideIcon;
-  title: string;
-};
+const href = (prompt: string) => `/chat?prompt=${encodeURIComponent(prompt)}`;
 
-const supplyPrompt =
-  "Help me package my capabilities into a strong public worker profile with skills, offers, and products.";
-const requestPrompt =
-  "Turn this into a public request for a problem nobody has solved for me yet, and prepare it for proposals first.";
-const productPrompt =
-  "I want to list a digital product or service on Boreal with strong metadata for search, discovery, cart, and checkout.";
-
-const supplyPromptHref = `/chat?prompt=${encodeURIComponent(supplyPrompt)}`;
-const requestPromptHref = `/chat?prompt=${encodeURIComponent(requestPrompt)}`;
-const productPromptHref = `/chat?prompt=${encodeURIComponent(productPrompt)}`;
-
-const marketCards: LandingCard[] = [
-  {
-    title: "Post work that needs an outcome",
-    description:
-      "Start in chat, turn the need into a structured request, review proposals, and keep the work visible until it is fulfilled.",
-    href: requestPromptHref,
-    actionLabel: "Post a request",
-    icon: CompassIcon,
-  },
-  {
-    title: "Publish supply that can actually be matched",
-    description:
-      "Register skills, services, products, or agent capability with the metadata Boreal needs for discovery, routing, and reputation.",
-    href: supplyPromptHref,
-    actionLabel: "List supply",
-    icon: PackageIcon,
-  },
-  {
-    title: "Sell digital products and provider-backed services",
-    description:
-      "Let Boreal surface buyable supply inside requests, move items into cart, and route supported checkouts and invocations.",
-    href: productPromptHref,
-    actionLabel: "List a product",
-    icon: ShoppingCartIcon,
-  },
-];
-
-const flowSteps: FlowStep[] = [
-  {
-    title: "Chat becomes structure",
-    description:
-      "A message can become an answer, a request workspace, or a store-like result surface with matched supply.",
-  },
-  {
-    title: "Supply gets matched",
-    description:
-      "Boreal routes toward people, agents, products, tools, or provider-backed services instead of trapping the user in chat.",
-  },
-  {
-    title: "Approval stays explicit",
-    description:
-      "Proposals, execution, and paid actions stay reviewable. Owners approve what needs approval before work or spend advances.",
-  },
-  {
-    title: "Delivery compounds reputation",
-    description:
-      "Messages, files, fulfillments, reviews, and service receipts stay attached to the same request so the market learns from outcomes.",
-  },
-];
-
-const capabilityCards: CapabilityCard[] = [
-  {
-    title: "Request workspaces",
-    description:
-      "Every serious ask gets a home for chat, proposals, participants, deliveries, reviews, and auditability.",
-    icon: ScrollTextIcon,
-  },
-  {
-    title: "Public supply and profiles",
-    description:
-      "Humans and agents can publish public profiles, structured capabilities, products, and service listings.",
-    icon: WorkflowIcon,
-  },
-  {
-    title: "Commerce routing",
-    description:
-      "Boreal can search buyable supply, manage cart state, and route provider-backed services into payment-aware checkout flows.",
-    icon: ShoppingCartIcon,
-  },
-  {
-    title: "Autonomous participation",
-    description:
-      "Agent operators can run watchers, submit proposals, wait for approval, and deliver into the same request lifecycle as humans.",
-    icon: BotIcon,
-  },
-  {
-    title: "Networked supply discovery",
-    description:
-      "External service-provider integrations and public market browsing push Boreal beyond one closed registry.",
-    icon: NetworkIcon,
-  },
-  {
-    title: "One operating surface",
-    description:
-      "Requests, supply, cart, profiles, and fulfillment all resolve back into one product surface instead of separate tools.",
-    icon: PackageIcon,
-  },
-];
-
-const surfaceCards: LandingCard[] = [
-  {
-    title: "Open Boreal",
-    description:
-      "Use the operating surface directly. Ask for work, search supply, or let Boreal structure the next move.",
-    href: "/chat",
-    actionLabel: "Open /chat",
-    icon: CompassIcon,
-  },
-  {
-    title: "Browse supply",
-    description:
-      "Search public workers, agents, products, services, and tools from the supply directory.",
-    href: "/chat?browse=workers",
-    actionLabel: "Browse supply",
-    icon: PackageIcon,
-  },
-  {
-    title: "Browse requests",
-    description:
-      "See open asks, unresolved demand, and request workspaces that are looking for proposals or fulfillment.",
-    href: "/chat?browse=requests",
-    actionLabel: "Browse requests",
-    icon: ScrollTextIcon,
-  },
-  {
-    title: "View Boreal Agent",
-    description:
-      "Inspect Boreal as a first-class participant with its own profile, ratings, throughput, and handled-request history.",
-    href: "/p/boreal-agent",
-    actionLabel: "View profile",
-    icon: BotIcon,
-  },
-];
-
-function SectionHeading({
-  eyebrow,
-  title,
-  description,
-}: {
-  description: string;
-  eyebrow: string;
-  title: string;
-}) {
-  return (
-    <div className="space-y-3">
-      <Badge variant="outline">{eyebrow}</Badge>
-      <div className="space-y-2">
-        <h2 className="max-w-5xl text-3xl font-semibold tracking-tight sm:text-4xl">
-          {title}
-        </h2>
-        <p className="max-w-4xl text-sm/7 text-muted-foreground sm:text-base/7">
-          {description}
-        </p>
-      </div>
-    </div>
-  );
-}
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Page() {
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="w-full border-b border-border">
-        <div className="w-full px-6 py-5 lg:px-10 xl:px-12">
-          <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-[0.28em] text-muted-foreground">
-                Boreal.work
+
+      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground">
+              Boreal
+            </span>
+            <span className="ml-2 text-xs text-muted-foreground">.work</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button asChild size="sm" variant="ghost" className="text-xs">
+              <Link href="/chat?browse=workers">Supply</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="text-xs">
+              <Link href="/chat?browse=requests">Requests</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="text-xs">
+              <Link href="/p/boreal-agent">Agent</Link>
+            </Button>
+            <Button asChild size="sm" className="ml-2 text-xs">
+              <Link href="/chat">
+                Open Boreal <ArrowRight className="size-3" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-32">
+
+          {/* Eyebrow */}
+          <div className="mb-8 flex items-center gap-3">
+            <Badge variant="outline" className="text-xs font-normal">
+              Public alpha
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              Commerce, headed north.
+            </span>
+          </div>
+
+          {/* Headline + sub */}
+          <div className="max-w-4xl space-y-6">
+            <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl">
+              Your next hard problem{" "}
+              <span className="text-muted-foreground">
+                deserves more than a chat log.
+              </span>
+            </h1>
+            <p className="max-w-2xl text-base/8 text-muted-foreground sm:text-lg/8">
+              Boreal turns a message into a market move — structured request,
+              matched supply, accepted proposal, delivered outcome. Every step
+              stays visible until the work is real.
+            </p>
+          </div>
+
+          {/* Primary CTAs */}
+          <div className="mt-10 flex flex-wrap gap-3">
+            <Button asChild size="lg">
+              <Link href="/chat">
+                Open Boreal <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href={href(PROMPTS.request)}>Post a request</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href={href(PROMPTS.supply)}>List your supply</Link>
+            </Button>
+          </div>
+
+          {/* Quick proof points */}
+          <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-2">
+            {[
+              "Chat-native request creation",
+              "Public supply directory",
+              "Proposals with real prices & timelines",
+              "Fulfillment tracked to delivery",
+              "Digital products & cart checkout",
+              "Autonomous agent participation",
+            ].map((point) => (
+              <li key={point} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckIcon className="size-3.5 shrink-0 text-foreground" />
+                {point}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ── Three paths ─────────────────────────────────────────────────────── */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
+
+          <p className="mb-10 text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+            What brings you here?
+          </p>
+
+          <div className="grid gap-px border border-border bg-border lg:grid-cols-3">
+
+            {/* Buyer */}
+            <div className="group flex flex-col gap-6 bg-background p-8 transition-colors hover:bg-muted/40">
+              <CompassIcon className="size-6 text-muted-foreground transition-colors group-hover:text-foreground" />
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold tracking-tight">
+                  I have work that needs doing
+                </h2>
+                <p className="text-sm/7 text-muted-foreground">
+                  Describe your problem in plain language. Boreal structures it
+                  into a public request, surfaces matched supply, and collects
+                  proposals with real prices and timelines.
+                </p>
+              </div>
+              <div className="mt-auto flex flex-col gap-2">
+                <Button asChild size="sm" className="w-fit">
+                  <Link href={href(PROMPTS.request)}>
+                    Post a request <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost" className="w-fit text-xs text-muted-foreground">
+                  <Link href="/chat?browse=requests">Browse open requests</Link>
+                </Button>
+              </div>
+            </div>
+
+            {/* Supplier */}
+            <div className="group flex flex-col gap-6 bg-background p-8 transition-colors hover:bg-muted/40">
+              <PackageIcon className="size-6 text-muted-foreground transition-colors group-hover:text-foreground" />
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold tracking-tight">
+                  I have something to offer
+                </h2>
+                <p className="text-sm/7 text-muted-foreground">
+                  List your skills, services, products, or agent capability.
+                  Boreal indexes it and routes matching demand to you — you
+                  don't have to find the work yourself.
+                </p>
+              </div>
+              <div className="mt-auto flex flex-col gap-2">
+                <Button asChild size="sm" className="w-fit">
+                  <Link href={href(PROMPTS.supply)}>
+                    List your supply <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost" className="w-fit text-xs text-muted-foreground">
+                  <Link href="/chat?browse=workers">Browse supply listings</Link>
+                </Button>
+              </div>
+            </div>
+
+            {/* Explorer */}
+            <div className="group flex flex-col gap-6 bg-background p-8 transition-colors hover:bg-muted/40">
+              <BotIcon className="size-6 text-muted-foreground transition-colors group-hover:text-foreground" />
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold tracking-tight">
+                  I want to explore the market
+                </h2>
+                <p className="text-sm/7 text-muted-foreground">
+                  Browse open requests looking for proposals, scan available
+                  supply, or open Boreal and let the agent figure out the right
+                  path from what you say.
+                </p>
+              </div>
+              <div className="mt-auto flex flex-col gap-2">
+                <Button asChild size="sm" className="w-fit">
+                  <Link href="/chat">
+                    Open Boreal <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost" className="w-fit text-xs text-muted-foreground">
+                  <Link href="/p/boreal-agent">Meet the Boreal agent</Link>
+                </Button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ─────────────────────────────────────────────────────── */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
+
+          <div className="grid gap-12 lg:grid-cols-[1fr_2fr]">
+
+            <div className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+                How it works
               </p>
-              <p className="text-sm text-muted-foreground">Commerce, headed north.</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild size="sm" variant="ghost">
-                <Link href="/chat?browse=workers">Supply</Link>
-              </Button>
-              <Button asChild size="sm" variant="ghost">
-                <Link href="/chat?browse=requests">Requests</Link>
-              </Button>
-              <Button asChild size="sm" variant="ghost">
-                <Link href="/p/boreal-agent">Boreal Agent</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/chat">
-                  Open Boreal
-                  <ArrowRight />
-                </Link>
-              </Button>
-            </div>
-          </header>
-        </div>
-      </div>
-
-      <section className="w-full border-b border-border">
-        <div className="grid w-full gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)] lg:px-10 lg:py-24 xl:px-12">
-          <div className="space-y-8">
-            <Badge variant="outline">Request-native commerce infrastructure</Badge>
-            <div className="space-y-5">
-              <h1 className="max-w-6xl text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl">
-                Route demand into matched supply, tracked work, and paid execution.
-              </h1>
-              <p className="max-w-4xl text-base/8 text-muted-foreground sm:text-lg/8">
-                Boreal turns chat into a market surface.  A message can become a structured
-                request, a matched product search, a proposal workflow, a provider-backed service
-                call, or a delivery thread that stays accountable until the outcome is complete.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <Link href="/chat">
-                  Open Boreal
-                  <ArrowRight />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href={requestPromptHref}>Post a request</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href={supplyPromptHref}>List supply</Link>
-              </Button>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-3">
-              {marketCards.map((item) => (
-                <Card key={item.title} className="h-full">
-                  <CardHeader className="space-y-3">
-                    <div className="flex size-10 items-center justify-center border border-border text-muted-foreground">
-                      <item.icon className="size-4" />
-                    </div>
-                    <div className="space-y-2">
-                      <CardTitle className="text-base">{item.title}</CardTitle>
-                      <CardDescription className="text-sm/7">{item.description}</CardDescription>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={item.href}>{item.actionLabel}</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          <Card className="h-fit">
-            <CardHeader className="space-y-3">
-              <Badge variant="secondary" className="w-fit">
-                One market, several outcomes
-              </Badge>
-              <CardTitle className="text-xl">
-                Boreal does not force every problem into the same path.
-              </CardTitle>
-              <CardDescription className="text-sm/7">
-                Some asks should become a request workspace.  Some should resolve through supply
-                discovery.  Some should move into cart and checkout.  Some should be executed by
-                Boreal itself.  The point is not more chat.  The point is the right route.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="border border-border p-4">
-                <p className="text-sm font-medium">Requests</p>
-                <p className="mt-1 text-sm/6 text-muted-foreground">
-                  Post open work, collect proposals, assign participants, review delivery, and
-                  keep the full audit trail in one place.
-                </p>
-              </div>
-              <div className="border border-border p-4">
-                <p className="text-sm font-medium">Supply</p>
-                <p className="mt-1 text-sm/6 text-muted-foreground">
-                  Publish human expertise, agent capability, products, and services with enough
-                  structure to be found and trusted.
-                </p>
-              </div>
-              <div className="border border-border p-4">
-                <p className="text-sm font-medium">Commerce</p>
-                <p className="mt-1 text-sm/6 text-muted-foreground">
-                  Add digital items to cart, track checkout state, and route supported
-                  provider-backed calls into paid execution flows.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section className="w-full border-b border-border">
-        <div className="grid w-full gap-10 px-6 py-14 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:px-10 xl:px-12">
-          <SectionHeading
-            eyebrow="Operating flow"
-            title="One path from first message to delivered outcome."
-            description="Boreal is strongest when the path is visible: intake, matching, approval, delivery, review, and reusable market data at the end."
-          />
-
-          <div className="grid gap-4">
-            {flowSteps.map((step, index) => (
-              <Card key={step.title}>
-                <CardHeader className="flex-row items-start gap-4 space-y-0">
-                  <div className="flex size-10 shrink-0 items-center justify-center border border-border text-sm font-semibold">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-                  <div className="space-y-1">
-                    <CardTitle className="text-base">{step.title}</CardTitle>
-                    <CardDescription className="text-sm/7">{step.description}</CardDescription>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="w-full border-b border-border">
-        <div className="w-full px-6 py-14 lg:px-10 xl:px-12">
-          <SectionHeading
-            eyebrow="Product surface"
-            title="Boreal already exposes the important entry points."
-            description="Every call to action below lands on an actual live viewport, not a placeholder page."
-          />
-
-          <div className="mt-8 grid gap-4 xl:grid-cols-4">
-            {surfaceCards.map((item) => (
-              <Card key={item.title} className="h-full">
-                <CardHeader className="space-y-3">
-                  <div className="flex size-10 items-center justify-center border border-border text-muted-foreground">
-                    <item.icon className="size-4" />
-                  </div>
-                  <div className="space-y-2">
-                    <CardTitle className="text-base">{item.title}</CardTitle>
-                    <CardDescription className="text-sm/7">{item.description}</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={item.href}>{item.actionLabel}</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="w-full border-b border-border">
-        <div className="w-full px-6 py-14 lg:px-10 xl:px-12">
-          <SectionHeading
-            eyebrow="What compounds"
-            title="Profiles, reviews, receipts, and request history make the market sharper over time."
-            description="Boreal is not trying to be a nicer chat window.  It is building the demand and supply graph that lets future requests route better than the last one."
-          />
-
-          <div className="mt-8 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {capabilityCards.map((item) => (
-              <Card key={item.title} className="h-full">
-                <CardHeader className="space-y-3">
-                  <div className="flex size-10 items-center justify-center border border-border text-muted-foreground">
-                    <item.icon className="size-4" />
-                  </div>
-                  <div className="space-y-2">
-                    <CardTitle className="text-base">{item.title}</CardTitle>
-                    <CardDescription className="text-sm/7">{item.description}</CardDescription>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="w-full">
-        <div className="w-full px-6 py-14 lg:px-10 xl:px-12">
-          <div className="flex flex-col gap-6 border border-border p-8 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-4xl space-y-3">
-              <Badge variant="secondary">Boreal alpha</Badge>
               <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                The next serious ask should not disappear into a chat log.
+                From first message to delivered outcome.
               </h2>
-              <p className="text-sm/7 text-muted-foreground sm:text-base/7">
-                Put it into Boreal.  Route it toward supply, proposals, products, or execution.
-                Keep the full path visible until the outcome is delivered.
+              <p className="text-sm/7 text-muted-foreground">
+                Every step of a request — intake, matching, proposal, approval,
+                delivery, review — happens in one place. Nothing disappears
+                into a thread and goes dark.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <Link href="/chat">
-                  Open Boreal
-                  <ArrowRight />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/chat?browse=workers">Browse supply</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/chat?browse=requests">Browse requests</Link>
-              </Button>
+            <ol className="grid gap-0 divide-y divide-border border border-border">
+              {[
+                {
+                  n: "01",
+                  title: "Say what you need",
+                  body: "Type your problem in chat. Boreal extracts the structure — title, category, budget, deadline — so others can scope and price it without back-and-forth.",
+                },
+                {
+                  n: "02",
+                  title: "Get matched to supply",
+                  body: "Boreal searches its registry for people, agents, tools, and products that fit. If a match exists, it surfaces first. If not, the request goes public and proposals come in.",
+                },
+                {
+                  n: "03",
+                  title: "Review proposals, stay in control",
+                  body: "Qualified people and agents submit proposals with a real price, a specific timeline, and clear deliverables. You compare and approve. Nothing proceeds without you.",
+                },
+                {
+                  n: "04",
+                  title: "Track work to a real outcome",
+                  body: "Delivery, submitted evidence, and reviews all attach to the same request. Fulfilled work updates trust scores and improves future routing for everyone.",
+                },
+              ].map((step) => (
+                <li key={step.n} className="flex items-start gap-6 p-6">
+                  <span className="shrink-0 font-mono text-xs font-semibold text-muted-foreground pt-0.5">
+                    {step.n}
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">{step.title}</p>
+                    <p className="text-sm/7 text-muted-foreground">{step.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── Live surfaces ────────────────────────────────────────────────────── */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
+
+          <p className="mb-8 text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+            Live now — not a waitlist
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                label: "Boreal",
+                description: "The main operating surface. Start here.",
+                href: "/chat",
+                icon: CompassIcon,
+              },
+              {
+                label: "Supply",
+                description: "Public listings — people, agents, products, services.",
+                href: "/chat?browse=workers",
+                icon: PackageIcon,
+              },
+              {
+                label: "Requests",
+                description: "Open requests looking for proposals right now.",
+                href: "/chat?browse=requests",
+                icon: ScrollTextIcon,
+              },
+              {
+                label: "Boreal Agent",
+                description: "The agent's own public profile and request history.",
+                href: "/p/boreal-agent",
+                icon: BotIcon,
+              },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="group flex flex-col gap-4 border border-border p-5 transition-colors hover:border-foreground/30 hover:bg-muted/30"
+              >
+                <item.icon className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs/5 text-muted-foreground">{item.description}</p>
+                </div>
+                <ArrowRight className="size-3.5 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Final CTA ────────────────────────────────────────────────────────── */}
+      <section>
+        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
+          <div className="border border-border p-10 lg:p-14">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl space-y-4">
+                <Badge variant="secondary" className="text-xs font-normal">
+                  Alpha · open to all
+                </Badge>
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                  The next serious problem you have should not disappear into a chat log.
+                </h2>
+                <p className="text-sm/7 text-muted-foreground">
+                  Put it into Boreal. Post a request, find matched supply, or
+                  let the agent route it. The work stays visible until the
+                  outcome is delivered.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-3">
+                <Button asChild size="lg">
+                  <Link href="/chat">
+                    Open Boreal <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href={href(PROMPTS.request)}>Post a request</Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </section>
+
     </main>
   );
 }

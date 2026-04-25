@@ -11,6 +11,11 @@ import {
 } from "@/lib/boreal/dal/intent-repository";
 import type { ComposableAgent } from "@/lib/boreal/agents/base";
 import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
+import {
+  getRequestHandlingLabel,
+  getRequestHandlingMode,
+  refineIntentForRequestLifecycle,
+} from "@/lib/boreal/routing/request-handling";
 import type {
   ChatAssistantResponse,
   CatalogItem,
@@ -128,7 +133,7 @@ export const chatAssistantAgent: ComposableAgent<
       { attempts: 3 },
     );
 
-    const intent = await withRetry(
+    const extractedIntent = await withRetry(
       () =>
         extractStructuredIntent({
           intentModelId: runtimeConfig.intentModel,
@@ -139,6 +144,7 @@ export const chatAssistantAgent: ComposableAgent<
         }),
       { attempts: 3 },
     );
+    const intent = refineIntentForRequestLifecycle(extractedIntent, input.message);
 
     const relatedCatalogItems = intent.shouldSearchCatalog
       ? await withRetry(
@@ -273,12 +279,46 @@ export async function approvePersistedRequest(input: {
     throw new Error("Request not found.");
   }
 
+  const handlingMode = getRequestHandlingMode(toExecutionIntent(request));
   const assignedToolNames = buildAssignedTools(request.routeTarget);
+  if (handlingMode === "clarify") {
+    throw new Error("This request still needs clarification before approval.");
+  }
+
+  if (handlingMode === "workers") {
+    await approveRequestDraft({
+      assistantMessage:
+        "Request approved. Boreal opened it for proposals instead of auto-executing it.",
+      intentId: input.intentId,
+      ownerExternalId: input.ownerExternalId,
+      status: "open",
+    });
+
+    return {
+      assistantMessage:
+        "This request is now open for workers. Boreal will keep tracking proposals and matched supply here.",
+      intentId: input.intentId,
+      relatedCatalogItems:
+        request.catalogQuery.trim().length > 0
+          ? await withRetry(
+              () =>
+                searchCatalog({
+                  limit: 6,
+                  query: request.catalogQuery,
+                }),
+              { attempts: 2 },
+            )
+          : [],
+      workspace: buildApprovedWorkerWorkspace(request),
+    };
+  }
+
   await approveRequestDraft({
     assignedAgent: "boreal-agent",
     assignedToolNames,
     intentId: input.intentId,
     ownerExternalId: input.ownerExternalId,
+    status: "claimed",
   });
 
   return runApprovedExecutionForRequest({
@@ -643,13 +683,18 @@ function toExecutionIntent(
 }
 
 function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem[]): WorkspaceState {
+  const handlingMode = getRequestHandlingMode(intent);
+
   if (intent.needsClarification || intent.routeTarget === "clarification") {
     return {
       kind: "clarification",
       questions: intent.missingDetails,
-      subtitle: "Approve the request when the scope looks right, or keep refining it in chat.",
+      subtitle:
+        handlingMode === "workers"
+          ? "Clarify the scope first, then open it for workers or proposals."
+          : "Clarify the outcome first, then approve Boreal Agent to draft the final deliverable.",
       suggestions: intent.suggestedReplies,
-      title: "Draft request",
+      title: "Clarify before approval",
     };
   }
 
@@ -658,30 +703,52 @@ function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem
       highlightedId: catalogItems[0]?.id,
       items: catalogItems,
       kind: "catalog",
-      subtitle: "Relevant catalog items are ready if you approve the request.",
+      subtitle:
+        handlingMode === "workers"
+          ? "These matches can support worker discovery once the request is approved."
+          : "Relevant matches are ready if you want Boreal or the market to handle this request.",
       title: "Preflight matches",
     };
   }
 
   return {
     kind: "empty",
-    subtitle: "Approve to start work, or cancel to discard this draft request.",
-    title: "Awaiting approval",
+    subtitle:
+      handlingMode === "workers"
+        ? "Approve to publish this request for workers and proposals."
+        : "Approve to let Boreal Agent handle it, or cancel to discard the draft.",
+    title:
+      handlingMode === "workers" ? "Open for workers" : "Approve Boreal Agent",
   };
 }
 
 function buildApprovalMessage(intent: IntentExtraction, catalogItems: CatalogItem[]) {
+  const handlingMode = getRequestHandlingMode(intent);
   const modeLabel = intent.requestedOutputTypes
     .map((value) => value.replaceAll("_", " "))
     .join(", ");
 
+  if (handlingMode === "clarify") {
+    return [
+      `I drafted this as a ${modeLabel} request, but it still needs a bit more scope before anyone should start.`,
+      intent.summary,
+      intent.missingDetails.length > 0
+        ? `Still needed:\n${intent.missingDetails.map((detail) => `- ${detail}`).join("\n")}`
+        : "Reply with the missing scope details in chat.",
+      "Once that is clear, you can approve Boreal Agent or open it for proposals.",
+    ].join("\n\n");
+  }
+
   return [
     `I drafted a request for ${modeLabel}.`,
     intent.summary,
+    `Recommended next handler: ${getRequestHandlingLabel(handlingMode)}.`,
     catalogItems.length > 0
       ? `I also found ${catalogItems.length} related catalog match${catalogItems.length === 1 ? "" : "es"}.`
       : "No extra artifacts were started yet.",
-    "Approve to start work, or cancel if you want to revise the ask first.",
+    handlingMode === "workers"
+      ? "Approve to open it for workers and proposals, or cancel if you want to revise the ask first."
+      : "Approve to let Boreal Agent start, or cancel if you want to revise the ask first.",
   ].join("\n\n");
 }
 
@@ -700,7 +767,8 @@ function requestNeedsApproval(intent: PersistedIntent) {
   return (
     intent.routeTarget !== "general_assistance" ||
     intent.needsClarification ||
-    intent.requestedOutputTypes.some((type) => type !== "text")
+    intent.requestedOutputTypes.some((type) => type !== "text") ||
+    intent.routing.shouldCreateFulfillmentRequest
   );
 }
 
@@ -737,6 +805,24 @@ function buildAssignedTools(routeTarget: ToolRoute) {
   }
 
   return [...baseTools, "generate-helpful-answer"];
+}
+
+function buildApprovedWorkerWorkspace(
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>,
+): WorkspaceState {
+  if (request.catalogQuery.trim().length > 0) {
+    return {
+      kind: "empty",
+      subtitle: "This request is approved and waiting for proposals or matched workers to claim it.",
+      title: "Waiting for workers",
+    };
+  }
+
+  return {
+    kind: "empty",
+    subtitle: "Boreal approved the request and opened it for workers instead of auto-executing it.",
+    title: "Waiting for workers",
+  };
 }
 
 function toArtifactKind(artifact: MediaArtifact) {

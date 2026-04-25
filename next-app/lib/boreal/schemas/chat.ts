@@ -25,10 +25,13 @@ export type CatalogItem = {
   executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   fulfillmentKind: string;
+  gatedOutReasons: string[];
   id: string;
   isCartEnabled: boolean;
+  isPinned: boolean;
   matchReasons: string[];
   matchScore: number | null;
+  matchStage: "feasible" | "notified" | "ranked" | "reserved" | "retrieved" | null;
   paymentNetworkHints: string[];
   paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
   priceAmount: number | null;
@@ -47,6 +50,7 @@ export type CatalogItem = {
   supplyType: string;
   supportsDirectInvoke: boolean;
   supportsPrivyWallet: boolean;
+  successProbability: number | null;
   title: string;
 };
 

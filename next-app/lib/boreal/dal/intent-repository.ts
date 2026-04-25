@@ -16,10 +16,12 @@ export async function saveIntentPipelineRecord(args: RecordIntentPipelineArgs) {
 }
 
 export async function approveRequestDraft(args: {
-  assignedAgent: string;
-  assignedToolNames: string[];
+  assignedAgent?: string;
+  assignedToolNames?: string[];
+  assistantMessage?: string;
   intentId: string;
   ownerExternalId?: string;
+  status?: "blocked" | "claimed" | "closed" | "fulfilled" | "in_progress" | "open" | "proposed";
 }) {
   const client = createConvexServerClient();
   return client.mutation(convexFunctionRefs.approveRequest, args);

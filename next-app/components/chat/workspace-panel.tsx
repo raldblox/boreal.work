@@ -35,6 +35,7 @@ import {
   type SidebarIntentPreview,
   type WorkerProfileDetail,
 } from "@/lib/boreal/integrations/convex/function-refs";
+import { cn } from "@/lib/utils";
 
 export type WorkspaceTab = "requests" | "workers";
 
@@ -278,6 +279,26 @@ export function WorkspacePanel({
   );
 }
 
+function getMatchScoreTone(score: number | null) {
+  if (score === null) {
+    return "text-muted-foreground";
+  }
+
+  if (score >= 80) {
+    return "text-emerald-700 dark:text-emerald-300";
+  }
+
+  if (score >= 65) {
+    return "text-amber-700 dark:text-amber-300";
+  }
+
+  if (score >= 50) {
+    return "text-orange-700 dark:text-orange-300";
+  }
+
+  return "text-rose-700 dark:text-rose-300";
+}
+
 function SupplyCard({
   listing,
   onAddToCart,
@@ -299,7 +320,12 @@ function SupplyCard({
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium">{listing.title}</p>
             {listing.matchScore !== null ? (
-              <span className="text-[11px] uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+              <span
+                className={cn(
+                  "text-[11px] uppercase tracking-[0.16em]",
+                  getMatchScoreTone(listing.matchScore),
+                )}
+              >
                 {listing.matchScore}% match
               </span>
             ) : null}
