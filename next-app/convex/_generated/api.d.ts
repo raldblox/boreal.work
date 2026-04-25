@@ -15,6 +15,7 @@ import type * as fulfillments from "../fulfillments.js";
 import type * as intents from "../intents.js";
 import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
+import type * as serviceProviders from "../serviceProviders.js";
 import type * as supplies from "../supplies.js";
 import type * as validators from "../validators.js";
 
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   intents: typeof intents;
   profiles: typeof profiles;
   proposals: typeof proposals;
+  serviceProviders: typeof serviceProviders;
   supplies: typeof supplies;
   validators: typeof validators;
 }>;

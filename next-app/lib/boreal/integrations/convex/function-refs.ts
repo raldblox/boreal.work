@@ -69,13 +69,17 @@ export type CatalogEntry = {
   deliveryType: string;
   description: string;
   estimatedDeliveryLabel: string | null;
+  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   fulfillmentKind: string;
   isCartEnabled: boolean;
   matchReasons: string[];
   matchScore: number | null;
+  paymentNetworkHints: string[];
+  paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
   priceAmount: number | null;
   priceType: string;
+  requiresHumanApproval: boolean;
   reviewCount: number;
   seller: {
     actorKind: "agent" | "human" | "tool";
@@ -83,8 +87,12 @@ export type CatalogEntry = {
     handle: string | null;
     profileId: string | null;
   } | null;
+  sourceListingUrl: string | null;
+  sourceProviderKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit" | null;
   subtitle: string | null;
   supplyType: string;
+  supportsDirectInvoke: boolean;
+  supportsPrivyWallet: boolean;
   title: string;
   trustScore: number;
 };
@@ -101,12 +109,16 @@ export type ActiveCart = {
     deliveryType: string;
     fulfillmentKind: string;
     lineTotalAmount: number;
+    paymentNetworkHints: string[];
+    paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
     priceType: string;
     quantity: number;
     sellerDisplayName: string | null;
     sellerProfileId: string | null;
+    sourceProviderKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit" | null;
     subtitle: string | null;
     supplyId: string;
+    supportsDirectInvoke: boolean;
     title: string;
     unitPriceAmount: number | null;
     updatedAt: number;
@@ -129,11 +141,36 @@ export type CheckoutRecord = {
     category: string;
     deliveryType: string;
     fulfillmentKind: string;
+    payment: {
+      amount: number | null;
+      attemptId: string;
+      currency: string;
+      errorMessage: string | null;
+      network: string | null;
+      protocol: "direct-solana" | "mpp" | "none" | "widget" | "x402";
+      providerKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
+      receiptJson: string | null;
+      status: "cancelled" | "failed" | "paid" | "pending_approval" | "processing" | "ready_to_pay";
+      txHash: string | null;
+      walletAddress: string | null;
+    } | null;
     priceType: string;
     quantity: number;
     reviewRating: number | null;
     sellerDisplayName: string | null;
     sellerProfileId: string | null;
+    serviceInvocation: {
+      endpointMethod: string | null;
+      endpointUrl: string | null;
+      executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
+      providerKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
+      responseJson: string | null;
+      resultUrl: string | null;
+      status: "awaiting_payment" | "cancelled" | "completed" | "failed" | "handoff_required" | "in_progress" | "submitted";
+      updatedAt: number;
+    } | null;
+    sourceListingUrl: string | null;
+    sourceProviderKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit" | null;
     status: string;
     subtitle: string | null;
     supplyId: string;
@@ -604,6 +641,62 @@ export const convexFunctionRefs = {
     { limit: number; query: string },
     CatalogEntry[]
   >("supplies:searchCatalog"),
+  syncCatalogCapabilities: makeFunctionReference<
+    "mutation",
+    {
+      capabilities: Array<{
+        acceptedCurrencies: string[];
+        capabilityTags: string[];
+        category: string;
+        description: string;
+        endpoint?: {
+          bodyType?: "json" | "none";
+          jsonRpcMethod?: string;
+          mcpServerUrl?: string;
+          method?: string;
+          toolName?: string;
+          url?: string;
+        };
+        evidence: {
+          returnsReceipt: boolean;
+          returnsTxHash: boolean;
+          supportsSchemaMetadata: boolean;
+        };
+        executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
+        keywords: string[];
+        paymentNetworkHints: string[];
+        paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402";
+        pricing: {
+          amount?: number;
+          currency?: string;
+          rawJson?: string;
+          type: "fixed" | "free" | "metered" | "quote-required";
+        };
+        rawJson?: string;
+        requiresHumanApproval: boolean;
+        routingTier: "A-delegated" | "A-direct" | "B-ingest-handoff" | "C-manual";
+        sourceCapabilityId: string;
+        sourceId: string;
+        sourceProvider: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
+        sourceProviderUrl?: string;
+        sourceUrl?: string;
+        subtitle?: string;
+        supportsDirectInvoke: boolean;
+        supportsPrivyWallet: boolean;
+        title: string;
+        walletModes: Array<
+          "client-sign" | "external-wallet" | "provider-managed" | "server-execute-with-user-authorization"
+        >;
+      }>;
+      provider: {
+        description?: string;
+        displayName: string;
+        key: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
+        providerUrl?: string;
+      };
+    },
+    { insertedCount: number; synced: boolean; updatedCount: number }
+  >("serviceProviders:syncCatalogCapabilities"),
   addToCart: makeFunctionReference<
     "mutation",
     {
@@ -634,6 +727,26 @@ export const convexFunctionRefs = {
     { ownerDisplayName?: string; ownerExternalId?: string; sourceIntentId?: string },
     { checkoutId: string | null; placed: boolean }
   >("commerce:checkoutCart"),
+  beginPaymentAttempt: makeFunctionReference<
+    "mutation",
+    { checkoutItemId: string; ownerExternalId?: string; walletAddress?: string },
+    { started: boolean }
+  >("serviceProviders:beginPaymentAttempt"),
+  completePaymentAttempt: makeFunctionReference<
+    "mutation",
+    {
+      accessLabel?: string;
+      accessUrl?: string;
+      checkoutItemId: string;
+      errorMessage?: string;
+      ownerExternalId?: string;
+      paymentReceiptJson?: string;
+      responseJson?: string;
+      status: "completed" | "failed" | "submitted";
+      txHash?: string;
+    },
+    { completed: boolean }
+  >("serviceProviders:completePaymentAttempt"),
   submitWork: makeFunctionReference<
     "mutation",
     {

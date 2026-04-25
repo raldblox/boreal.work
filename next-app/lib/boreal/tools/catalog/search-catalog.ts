@@ -36,12 +36,15 @@ function mapCatalogEntry(entry: CatalogEntry): CatalogItem {
     deliveryType: entry.deliveryType,
     description: entry.description,
     estimatedDeliveryLabel: entry.estimatedDeliveryLabel,
+    executionSurface: entry.executionSurface,
     executorUrl: entry.executorUrl,
     fulfillmentKind: entry.fulfillmentKind,
     id: entry._id,
     isCartEnabled: entry.isCartEnabled,
     matchReasons: entry.matchReasons,
     matchScore: entry.matchScore,
+    paymentNetworkHints: entry.paymentNetworkHints,
+    paymentProtocol: entry.paymentProtocol,
     priceAmount: entry.priceAmount,
     priceLabel:
       entry.priceAmount === null
@@ -49,10 +52,15 @@ function mapCatalogEntry(entry: CatalogEntry): CatalogItem {
         : entry.priceAmount === 0
           ? "Included"
           : `${entry.currency} ${entry.priceAmount}/${entry.priceType}`,
+    requiresHumanApproval: entry.requiresHumanApproval,
     reviewCount: entry.reviewCount,
     seller: entry.seller,
+    sourceListingUrl: entry.sourceListingUrl,
+    sourceProviderKey: entry.sourceProviderKey,
     subtitle: entry.subtitle,
     supplyType: entry.supplyType,
+    supportsDirectInvoke: entry.supportsDirectInvoke,
+    supportsPrivyWallet: entry.supportsPrivyWallet,
     title: entry.title,
   };
 }

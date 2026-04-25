@@ -4,64 +4,76 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 
 ## Current Readout
 
-- Boreal has a real Layer 2 MVP: chat-native intent extraction, request workspaces, proposals, fulfillment submission, public discovery, profiles, supplies, and autonomous worker roleplay.
-- Boreal is not yet at whitepaper parity on protocol depth, presence, settlement, trust scoring, or network intelligence.
-- Public release should be framed as an alpha marketplace and fulfillment workspace, not yet as full ACP/UCP/A2A/MCP or on-chain commerce infrastructure.
+- Boreal is already a real public alpha for request-native commerce: chat intake, request workspaces, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
+- Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Privy-backed x402 payment initiation, and Agentic Market discovery sync.
+- Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
+- Public release should position Boreal as an alpha market and operating surface for requests, supply, and paid execution, not yet as full protocol-native settlement infrastructure.
 
 ## Phase 0 - Foundation Built
 
 - [x] `/chat` route with a chat-first Boreal UX
 - [x] Structured intent extraction from chat
-- [x] Embedding-based intent/modality scoring
-- [x] Convex persistence for intents, messages, proposals, fulfillments, artifacts, profiles, supplies, and activity events
+- [x] Embedding-based intent and modality scoring
+- [x] Convex persistence for intents, messages, proposals, fulfillments, artifacts, profiles, supplies, carts, checkout records, service providers, and service invocations
 - [x] Dynamic model-provider abstraction with OpenAI as the first provider
-- [x] Intent/request lifecycle: proposed, open, claimed, in progress, blocked, fulfilled, closed
+- [x] Dedicated service-provider integration layer separate from model providers
+- [x] Intent/request lifecycle: proposed, open, claimed, in progress, blocked, fulfilled, closed, archived
 - [x] Proposal drafting and approval flow
-- [x] Work submission flow
+- [x] Work submission flow with Convex-backed file uploads
 - [x] Inline media handling for image, audio, and video requests
 - [x] Video polling and webhook update path
 - [x] Public request directory
-- [x] Public worker/profile directory
-- [x] Worker profile registration with capabilities and supply-side entry
+- [x] Public supply/profile directory
+- [x] Human and agent profile pages at `/p/[id]`
+- [x] Worker/profile registration with capabilities and supply-side entry
+- [x] Digital product and service listings inside the supply model
+- [x] Request-driven catalog rendering and add-to-cart flow
+- [x] Payment-aware cart and checkout records
+- [x] Agentic Market sync route and normalization into Boreal supply
+- [x] Privy-backed x402 payment initiation for supported provider-backed items
 - [x] Autonomous worker scripts for seeded Boreal agents
 - [x] Build, typecheck, and lint workflows
 
 ## Phase 1 - Public Alpha Release
 
-Goal: make `boreal.work` functional and credible for public use without overclaiming protocol or settlement features.
+Goal: make `boreal.work` functional and credible for public use without overclaiming settlement or protocol completeness.
 
 ### Product Surface
 
 - [x] Signed-in owner request tracking in the left sidebar
-- [x] Public browsing of workers and public requests in the right rail
+- [x] Public browsing of supply and public requests in the right rail
 - [x] Request workspace with `Chat`, `Activity`, `Participants`, and `Workspace`
 - [x] Public profile pages at `/p/[id]`
 - [x] Proposal submission flow with explicit `Improve proposal` and `Send now`
-- [x] Work submission flow with explicit submission form
+- [x] Work submission flow with explicit submission form and file uploads
 - [x] Archive, cancel, continue, delete, and review flows for requests
 - [x] Streaming Boreal responses in chat
-- [x] Boreal on/off mode so request chat can work without always invoking the LLM
+- [x] Boreal profile surface and public `boreal-agent` route
+- [x] Request-driven catalog/store results with add-to-cart actions
+- [x] Cart dialog with checkout history and fulfilled download access
+- [x] Provider-backed payment-aware checkout states for supported listings
 
 ### Release Blockers
 
 - [ ] Production deployment checklist and environment template for all required secrets
-- [ ] Error monitoring and alerting for API, chat, and Convex failures
-- [ ] Rate limiting and abuse controls for public chat and public request creation
-- [ ] Moderation/admin tooling for public requests, profiles, and supply entries
-- [ ] Robust multi-account QA for X auth session switching
+- [ ] Error monitoring and alerting for API, chat, Convex, and payment failures
+- [ ] Rate limiting and abuse controls for public chat, public request creation, and public supply listing
+- [ ] Moderation/admin tooling for public requests, profiles, listings, and provider-backed supply
+- [ ] Robust multi-account QA for X auth session switching and ownership boundaries
 - [ ] End-to-end smoke test script for owner -> proposer -> approval -> delivery -> review
-- [ ] File upload support for proposal and work submissions beyond text/link payloads
+- [ ] Proposal attachments and richer seller-side submission assets beyond the current delivery upload flow
 - [ ] Canonical external API documentation for third-party consumers
 - [ ] Privacy and access audit for private vs. public request visibility
+- [ ] Payment recovery, refund, and dispute handling for provider-backed checkout failures
 
 ### Release Messaging Guardrails
 
-- [x] Can claim: chat-native request creation, proposals, workspaces, profiles, supply registration, public request discovery
-- [ ] Cannot claim yet: on-chain escrow, libp2p presence, ACP/UCP/A2A/MCP depth, collective fulfillment, trust-score routing
+- [x] Can claim: chat-native requests, proposals, workspaces, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
+- [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, collective fulfillment, trust-score routing, or generalized autonomous settlement
 
 ## Phase 2 - Whitepaper Layer 2 Parity
 
-Goal: close the gap between the current MVP and the whitepaper's full demand-routing system.
+Goal: close the gap between the current alpha and the whitepaper's full demand-routing system.
 
 ### Intent Extraction and Routing
 
@@ -69,9 +81,11 @@ Goal: close the gap between the current MVP and the whitepaper's full demand-rou
 - [x] Structured intent persistence
 - [x] Text, image, audio, and video intent detection
 - [x] Request approval before fulfillment
+- [x] Product-search intents that open a request workspace and render matched supply
 - [x] Public proposal board behavior through public requests
 - [ ] Keyword generation stored and actively used in retrieval/routing
 - [ ] Full hybrid retrieval: BM25 + vector similarity + structured filters
+- [ ] Historical analog retrieval across prior fulfilled work
 - [ ] LLM reranking over top candidates
 - [ ] Tier 2 fast-route to known solvers based on empirical score thresholds
 - [ ] Tier 4 pending/rematch scheduler
@@ -81,9 +95,11 @@ Goal: close the gap between the current MVP and the whitepaper's full demand-rou
 
 - [x] Owner and participant role differentiation
 - [x] Activity timeline and request transcript
-- [x] Fulfillment evidence via stored submission text and artifacts
+- [x] Fulfillment evidence via stored submission text, uploads, and artifacts
+- [x] Reviews and ratings attached to the completed lifecycle
 - [ ] Revision-request loop between owner and fulfiller
 - [ ] Stronger request-to-supply recommendation UX
+- [ ] Request-side deadline, SLA, and marketplace health signals fed back into routing
 
 ## Phase 3 - Supply Registry and Marketplace Depth
 
@@ -93,18 +109,21 @@ Goal: make Boreal a real supply aggregation and matching surface, not just a req
 
 - [x] Profile registration with capabilities and skills
 - [x] Supply entry registration in Convex
-- [x] Public worker directory
+- [x] Public supply directory
 - [x] Built-in seeded worker agents
-- [ ] Rich public product/catalog pages with deeper structured metadata
-- [ ] Strong matching based on capabilities, trust, availability, price, and delivery type
+- [x] Digital product and service listings within the unified supply model
+- [x] Cart and checkout records connected to supply listings
+- [ ] Rich public product/catalog pages with deeper structured metadata and merchant-grade presentation
+- [ ] Strong matching based on capabilities, trust, availability, price, delivery type, and execution surface
 
 ### External Aggregation
 
-- [ ] Tier B ingestion for `agentic.market`
+- [x] Agentic Market discovery sync route and normalized ingestion foundation
+- [x] External service-provider adapters with normalized schema mapping
+- [x] Upgrade path for supported direct x402 invocation on concrete endpoints
 - [ ] Tier B ingestion for `agentcash`
-- [ ] Tier B ingestion for `frames.gg`
-- [ ] External source adapters with normalized schema mapping
-- [ ] Upgrade path from Tier B to Tier A execution adapters
+- [ ] Tier B ingestion for `frames`
+- [ ] MoonPay funding and bridge adapters
 - [ ] Routing attribution and partner reporting
 
 ### Agent-as-Supply
@@ -116,10 +135,12 @@ Goal: make Boreal a real supply aggregation and matching surface, not just a req
 
 ## Phase 4 - Settlement, Trust, and Evidence
 
-Goal: turn Boreal from coordination software into commerce infrastructure.
+Goal: turn Boreal from coordination software into stronger commerce infrastructure.
 
 ### Settlement
 
+- [x] Payment attempts persisted for provider-backed services
+- [x] Service invocations and checkout records persisted with status
 - [ ] Solana escrow on proposal acceptance
 - [ ] Automatic settlement on approval
 - [ ] Partial and split settlement support
@@ -130,6 +151,7 @@ Goal: turn Boreal from coordination software into commerce infrastructure.
 - [x] Activity event log per request
 - [x] Proposal and fulfillment records persisted
 - [x] Review/rating capture
+- [x] Service invocation and payment-attempt records persisted
 - [ ] Computed trust score from fulfillment outcomes
 - [ ] Evidence quality scoring
 - [ ] Dispute workflow
@@ -157,7 +179,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Supply ranking updates from acceptance and fulfillment rate
 - [ ] Urgency scoring with deadline decay
 - [ ] Automatic promotion of repeated fulfillment patterns into routable supply
-- [ ] Recommendation engine for open requests
+- [ ] Recommendation engine for open requests and product-search workspaces
 
 ### Collective Fulfillment
 
@@ -172,7 +194,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 ### Milestone A - Public Alpha
 
 - Finish all unchecked Phase 1 release blockers.
-- Keep public messaging constrained to Boreal as an alpha request/proposal/fulfillment marketplace.
+- Keep public messaging constrained to Boreal as an alpha market and operating surface for requests, supply, and paid execution.
 
 ### Milestone B - Demand Routing Beta
 
@@ -182,7 +204,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 ### Milestone C - Commerce Beta
 
 - Finish Phase 3 and Phase 4.
-- Only after this point should Boreal be positioned as commerce infrastructure rather than workflow infrastructure.
+- Only after this point should Boreal be positioned as deeper commerce infrastructure rather than mostly workflow infrastructure.
 
 ### Milestone D - Whitepaper Protocol Expansion
 
@@ -192,6 +214,6 @@ Goal: make the system compound from usage and support larger, multi-party work.
 
 - [ ] Close the Phase 1 public-alpha blockers
 - [ ] Add end-to-end smoke tests for the request lifecycle
-- [ ] Implement file attachments for proposals and deliveries
-- [ ] Add monitoring, rate limiting, and moderation
+- [ ] Implement proposal attachments and richer seller-side submission assets
+- [ ] Add monitoring, rate limiting, moderation, and refund handling
 - [ ] Start the real matching engine work for Phase 2

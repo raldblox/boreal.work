@@ -1,4 +1,4 @@
-# Service Provider Research
+# Service Provider Research and Implementation Status
 
 Last updated: April 25, 2026
 
@@ -13,6 +13,25 @@ The target outcome is a universal adapter layer that lets:
 - Boreal store receipts, evidence, and execution metadata
 
 This note is based on the current repo shape plus current public documentation from primary sources.
+
+## Implementation Progress
+
+The first real service-provider layer is now in the repo.
+
+### Shipped foundation
+
+- A dedicated `next-app/lib/boreal/integrations/service-providers/` layer now exists, separate from LLM and media providers.
+- Convex now tracks `serviceProviders`, `serviceCapabilities`, `serviceProviderSyncs`, `serviceInvocations`, `paymentAttempts`, `transactionApprovals`, and `walletSessions`.
+- `supplies` now carries external execution and payment metadata for provider-backed listings.
+- Boreal can sync external listings from Agentic Market through `POST /api/service-providers/agentic-market/sync`.
+- Boreal can place supported provider-backed listings into cart and move them through payment-aware checkout state.
+- Boreal uses Privy-backed x402 payment initiation for supported direct-invoke endpoints.
+
+### Current boundary
+
+- Boreal only invokes concrete x402 HTTP endpoints it can call safely right now.
+- Parameterized, ambiguous, or insufficiently normalized external listings are still discovery and handoff surfaces, not fully automatic execution.
+- MoonPay, MPP, Frames, and AgentCash remain architecture targets or limited-ingestion targets, not end-to-end shipped paths in the current alpha.
 
 ## Executive Summary
 
@@ -55,10 +74,9 @@ Current seams that matter:
 
 Important current state:
 
-- Boreal already has a dynamic provider registry, but it is for LLM/media providers, not for external paid services.
-- Boreal already exposes `Privy` in the UI.
-- `x402` is present in `next-app/pnpm-lock.yaml`, but not as an explicit direct dependency in `next-app/package.json`.
-- `supplies` already works as the normalized catalog surface, but it does not yet carry enough external-service metadata to safely execute third-party capabilities.
+- Boreal already has a dynamic provider registry for LLM and media providers, and now also has a dedicated service-provider layer for external paid services.
+- Boreal already exposes `Privy` in the UI and uses it in the payment path for supported provider-backed items.
+- `supplies` remains the normalized user-facing catalog surface and now carries external-service metadata needed for discovery and controlled invocation.
 
 ## Core Design Decision
 
@@ -851,36 +869,36 @@ This should be one of the first two direct integrations Boreal ships.
 
 ### Phase 1: foundation
 
-- add `service-provider` adapters
-- add `payment` adapters
-- add `wallet` broker for Privy
-- add Convex tables for invocations and receipts
-- add CAIP-2 network normalization everywhere
-- add explicit direct `x402` dependency to `package.json`
+- [x] add `service-provider` adapters
+- [x] add `payment` adapters
+- [x] add `wallet` broker for Privy
+- [x] add Convex tables for invocations and receipts
+- [x] add CAIP-2-aware payment and invocation metadata
+- [x] add explicit direct `x402` dependency to the app workspace
 
 ### Phase 2: first direct integrations
 
-- `x402` direct HTTP execution
-- `agentic.market` discovery ingestion
-- `Solana Agent Kit` execution with Privy
+- [x] `x402` direct HTTP execution for supported concrete endpoints
+- [x] `agentic.market` discovery ingestion
+- [ ] `Solana Agent Kit` execution with Privy
 
 This is the first credible Solana-first stack.
 
 ### Phase 3: liquidity and funding
 
-- `MoonPay` on-ramp
-- `MoonPay` bridge and swap
-- automatic "fund before invoke" flow
+- [ ] `MoonPay` on-ramp
+- [ ] `MoonPay` bridge and swap
+- [ ] automatic "fund before invoke" flow
 
 ### Phase 4: second-wave providers
 
-- `Frames` ingest and handoff
-- `AgentCash` delegated gateway and MCP integration
+- [ ] `Frames` ingest and handoff
+- [ ] `AgentCash` delegated gateway and MCP integration
 
 ### Phase 5: second payment rail
 
-- `MPP` support for payable MCP / JSON-RPC
-- sessionized or Stripe-linked provider support
+- [ ] `MPP` support for payable MCP / JSON-RPC
+- [ ] sessionized or Stripe-linked provider support
 
 ## Transaction Flow Recommendations
 

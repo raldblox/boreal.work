@@ -380,13 +380,22 @@ async function mapSupplyListing(
     currency: string;
     deliveryType: "async" | "instant" | "scheduled";
     description: string;
+    evidenceMode?: "none" | "receipt" | "response";
     estimatedDeliveryLabel?: string;
+    executionSurface?: "registry" | "http" | "mcp" | "jsonrpc" | "sdk" | "widget" | "handoff";
     executorUrl?: string;
     fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
     isCartEnabled: boolean;
+    paymentNetworkHints?: string[];
+    paymentProtocol?: "x402" | "mpp" | "direct-solana" | "widget" | "none";
     priceAmount?: number;
     priceType: "fixed" | "hourly" | "scoped";
+    requiresHumanApproval?: boolean;
+    sourceListingUrl?: string;
+    sourceProviderKey?: "agentic-market" | "agentcash" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
     subtitle?: string;
+    supportsDirectInvoke?: boolean;
+    supportsPrivyWallet?: boolean;
     supplierUserId?: string;
     supplyType: "agent_tool" | "capability" | "collective" | "product";
     title: string;
@@ -412,13 +421,17 @@ async function mapSupplyListing(
     deliveryType: supply.deliveryType,
     description: supply.description,
     estimatedDeliveryLabel: supply.estimatedDeliveryLabel ?? null,
+    executionSurface: supply.executionSurface ?? null,
     executorUrl: supply.executorUrl ?? null,
     fulfillmentKind: supply.fulfillmentKind,
     isCartEnabled: supply.isCartEnabled,
     matchReasons: ranking.matchReasons,
     matchScore: ranking.matchScore,
+    paymentNetworkHints: supply.paymentNetworkHints ?? [],
+    paymentProtocol: supply.paymentProtocol ?? null,
     priceAmount: supply.priceAmount ?? null,
     priceType: supply.priceType,
+    requiresHumanApproval: supply.requiresHumanApproval ?? false,
     reviewCount: reviews.reviewCount,
     seller:
       seller ??
@@ -430,8 +443,12 @@ async function mapSupplyListing(
             profileId: "boreal-agent",
           }
         : null),
+    sourceListingUrl: supply.sourceListingUrl ?? null,
+    sourceProviderKey: supply.sourceProviderKey ?? null,
     subtitle: supply.subtitle ?? null,
     supplyType: supply.supplyType,
+    supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
+    supportsPrivyWallet: supply.supportsPrivyWallet ?? false,
     title: supply.title,
     trustScore: supply.trustScore,
   };
@@ -677,7 +694,9 @@ function buildSupplySearchText(input: {
   currency: string;
   deliveryType: "async" | "instant" | "scheduled";
   description: string;
+  evidenceMode?: "none" | "receipt" | "response";
   estimatedDeliveryLabel?: string;
+  executionSurface?: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
   executorUrl?: string;
   fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
   fulfillmentRate: number;
@@ -685,11 +704,19 @@ function buildSupplySearchText(input: {
   keywords: string[];
   matchCount: number;
   metadataJson?: string;
+  paymentNetworkHints?: string[];
+  paymentProtocol?: "direct-solana" | "mpp" | "none" | "widget" | "x402";
   priceAmount?: number;
   priceType: "fixed" | "hourly" | "scoped";
+  requiresHumanApproval?: boolean;
+  sourceCapabilityId?: string;
+  sourceListingUrl?: string;
+  sourceProviderKey?: "agentic-market" | "agentcash" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
   status: "active";
   subtitle?: string;
   supplyType: "agent_tool" | "capability" | "collective" | "product";
+  supportsDirectInvoke?: boolean;
+  supportsPrivyWallet?: boolean;
   title: string;
   trustScore: number;
 }) {
@@ -705,15 +732,25 @@ function buildSupplySearchText(input: {
     input.currency,
     input.checkoutProtocol,
     input.checkoutProvider,
+    input.paymentProtocol,
+    input.sourceProviderKey,
+    input.sourceListingUrl,
     input.estimatedDeliveryLabel,
     input.executorUrl,
     input.actorKind,
     input.priceType,
+    input.executionSurface,
+    input.evidenceMode,
+    input.supportsDirectInvoke ? "direct invoke" : undefined,
+    input.supportsPrivyWallet ? "privy wallet" : undefined,
+    input.requiresHumanApproval ? "approval required" : undefined,
     input.isCartEnabled ? "cart checkout buy purchase order" : "tool capability",
     String(input.priceAmount ?? ""),
     String(input.trustScore),
     String(input.fulfillmentRate),
     String(input.matchCount),
+    input.sourceCapabilityId,
+    ...(input.paymentNetworkHints ?? []),
     ...input.capabilityTags,
     ...input.keywords,
     input.metadataJson,

@@ -22,14 +22,18 @@ export type CatalogItem = {
   deliveryType: string;
   description: string;
   estimatedDeliveryLabel: string | null;
+  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   fulfillmentKind: string;
   id: string;
   isCartEnabled: boolean;
   matchReasons: string[];
   matchScore: number | null;
+  paymentNetworkHints: string[];
+  paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
   priceAmount: number | null;
   priceLabel: string;
+  requiresHumanApproval: boolean;
   reviewCount: number;
   seller: {
     actorKind: "agent" | "human" | "tool";
@@ -37,8 +41,12 @@ export type CatalogItem = {
     handle: string | null;
     profileId: string | null;
   } | null;
+  sourceListingUrl: string | null;
+  sourceProviderKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit" | null;
   subtitle: string | null;
   supplyType: string;
+  supportsDirectInvoke: boolean;
+  supportsPrivyWallet: boolean;
   title: string;
 };
 

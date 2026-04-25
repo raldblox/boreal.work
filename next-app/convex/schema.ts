@@ -5,23 +5,32 @@ import {
   actorKindValidator,
   artifactKindValidator,
   artifactStatusValidator,
+  capabilityRoutingTierValidator,
   cartStatusValidator,
   checkoutItemStatusValidator,
   checkoutProtocolValidator,
   checkoutStatusValidator,
   deliveryTypeValidator,
+  executionSurfaceValidator,
   fulfillmentKindValidator,
   fulfillmentStatusValidator,
   generationSignalsValidator,
   intentStatusValidator,
   intentTypeValidator,
+  paymentAttemptStatusValidator,
+  paymentProtocolValidator,
   proposalStatusValidator,
   profileAvailabilityValidator,
   requestedOutputTypeValidator,
   resolutionTierValidator,
   routingValidator,
+  serviceInvocationStatusValidator,
+  serviceProviderKeyValidator,
+  serviceProviderSyncStatusValidator,
   supplyStatusValidator,
+  transactionApprovalStatusValidator,
   toolRouteValidator,
+  walletExecutionModeValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -192,17 +201,31 @@ export default defineSchema({
     deliveryType: deliveryTypeValidator,
     description: v.string(),
     embedding: v.array(v.number()),
+    evidenceMode: v.optional(v.union(v.literal("none"), v.literal("receipt"), v.literal("response"))),
     estimatedDeliveryLabel: v.optional(v.string()),
+    executionSurface: v.optional(executionSurfaceValidator),
     executorUrl: v.optional(v.string()),
     fulfillmentKind: fulfillmentKindValidator,
     fulfillmentRate: v.number(),
     isCartEnabled: v.boolean(),
     keywords: v.array(v.string()),
     metadataJson: v.optional(v.string()),
+    mcpServerUrl: v.optional(v.string()),
     matchCount: v.number(),
+    openApiUrl: v.optional(v.string()),
+    paymentNetworkHints: v.optional(v.array(v.string())),
+    paymentProtocol: v.optional(paymentProtocolValidator),
     priceAmount: v.optional(v.number()),
+    priceRawJson: v.optional(v.string()),
     priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
+    requiresHumanApproval: v.optional(v.boolean()),
+    routingTier: v.optional(capabilityRoutingTierValidator),
+    schemaUrl: v.optional(v.string()),
     searchText: v.string(),
+    sourceCapabilityId: v.optional(v.string()),
+    sourceListingUrl: v.optional(v.string()),
+    sourceProviderKey: v.optional(serviceProviderKeyValidator),
+    sourceProviderUrl: v.optional(v.string()),
     status: supplyStatusValidator,
     subtitle: v.optional(v.string()),
     supplyType: v.union(
@@ -211,6 +234,8 @@ export default defineSchema({
       v.literal("agent_tool"),
       v.literal("collective"),
     ),
+    supportsDirectInvoke: v.optional(v.boolean()),
+    supportsPrivyWallet: v.optional(v.boolean()),
     supplierUserId: v.optional(v.string()),
     title: v.string(),
     trustScore: v.number(),
@@ -219,6 +244,10 @@ export default defineSchema({
     .index("by_category", ["category"])
     .index("by_supplierUserId", ["supplierUserId"])
     .index("by_supplierUserId_and_status", ["supplierUserId", "status"])
+    .index("by_sourceProviderKey_and_sourceCapabilityId", [
+      "sourceProviderKey",
+      "sourceCapabilityId",
+    ])
     .index("by_status_and_trustScore", ["status", "trustScore"])
     .index("by_status_and_supplyType", ["status", "supplyType"])
     .searchIndex("search_market", {
@@ -281,8 +310,11 @@ export default defineSchema({
     createdAt: v.number(),
     currency: v.string(),
     deliveryType: deliveryTypeValidator,
+    executionSurface: v.optional(executionSurfaceValidator),
     fulfillmentKind: fulfillmentKindValidator,
     metadataJson: v.optional(v.string()),
+    paymentAttemptId: v.optional(v.id("paymentAttempts")),
+    paymentProtocol: v.optional(paymentProtocolValidator),
     priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
     quantity: v.number(),
     reviewComment: v.optional(v.string()),
@@ -291,6 +323,9 @@ export default defineSchema({
     sellerDisplayName: v.optional(v.string()),
     sellerProfileId: v.optional(v.id("profiles")),
     sellerUserId: v.optional(v.string()),
+    serviceInvocationId: v.optional(v.id("serviceInvocations")),
+    sourceListingUrl: v.optional(v.string()),
+    sourceProviderKey: v.optional(serviceProviderKeyValidator),
     status: checkoutItemStatusValidator,
     subtitleSnapshot: v.optional(v.string()),
     supplyId: v.id("supplies"),
@@ -299,8 +334,142 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_checkoutId_and_createdAt", ["checkoutId", "createdAt"])
+    .index("by_paymentAttemptId", ["paymentAttemptId"])
+    .index("by_serviceInvocationId", ["serviceInvocationId"])
     .index("by_supplyId_and_createdAt", ["supplyId", "createdAt"])
     .index("by_supplyId_and_reviewedAt", ["supplyId", "reviewedAt"]),
+
+  serviceProviders: defineTable({
+    capabilitiesCount: v.number(),
+    createdAt: v.number(),
+    description: v.optional(v.string()),
+    displayName: v.string(),
+    isEnabled: v.boolean(),
+    key: serviceProviderKeyValidator,
+    providerUrl: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  serviceCapabilities: defineTable({
+    acceptedCurrencies: v.array(v.string()),
+    capabilityTags: v.array(v.string()),
+    category: v.string(),
+    createdAt: v.number(),
+    description: v.string(),
+    endpointJson: v.optional(v.string()),
+    executionSurface: executionSurfaceValidator,
+    isActive: v.boolean(),
+    keywords: v.array(v.string()),
+    paymentNetworkHints: v.array(v.string()),
+    paymentProtocol: paymentProtocolValidator,
+    pricingAmount: v.optional(v.number()),
+    pricingCurrency: v.optional(v.string()),
+    pricingRawJson: v.optional(v.string()),
+    pricingType: v.union(
+      v.literal("fixed"),
+      v.literal("metered"),
+      v.literal("quote-required"),
+      v.literal("free"),
+    ),
+    providerKey: serviceProviderKeyValidator,
+    rawJson: v.optional(v.string()),
+    requiresHumanApproval: v.boolean(),
+    routingTier: capabilityRoutingTierValidator,
+    sourceCapabilityId: v.string(),
+    sourceUrl: v.optional(v.string()),
+    subtitle: v.optional(v.string()),
+    supplyId: v.optional(v.id("supplies")),
+    supportsDirectInvoke: v.boolean(),
+    supportsPrivyWallet: v.boolean(),
+    title: v.string(),
+    updatedAt: v.number(),
+    walletModes: v.array(walletExecutionModeValidator),
+  })
+    .index("by_providerKey_and_sourceCapabilityId", ["providerKey", "sourceCapabilityId"])
+    .index("by_supplyId", ["supplyId"]),
+
+  serviceProviderSyncs: defineTable({
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    errorMessage: v.optional(v.string()),
+    insertedCount: v.number(),
+    providerKey: serviceProviderKeyValidator,
+    startedAt: v.number(),
+    status: serviceProviderSyncStatusValidator,
+    updatedCount: v.number(),
+  }).index("by_providerKey_and_createdAt", ["providerKey", "createdAt"]),
+
+  serviceInvocations: defineTable({
+    amount: v.optional(v.number()),
+    checkoutId: v.id("checkouts"),
+    checkoutItemId: v.id("checkoutItems"),
+    createdAt: v.number(),
+    currency: v.optional(v.string()),
+    endpointMethod: v.optional(v.string()),
+    endpointUrl: v.optional(v.string()),
+    executionSurface: executionSurfaceValidator,
+    externalJobId: v.optional(v.string()),
+    externalRequestId: v.optional(v.string()),
+    network: v.optional(v.string()),
+    paymentAttemptId: v.optional(v.id("paymentAttempts")),
+    paymentProtocol: paymentProtocolValidator,
+    requestJson: v.optional(v.string()),
+    responseJson: v.optional(v.string()),
+    resultUrl: v.optional(v.string()),
+    sourceCapabilityId: v.optional(v.string()),
+    sourceProviderKey: serviceProviderKeyValidator,
+    status: serviceInvocationStatusValidator,
+    supplyId: v.id("supplies"),
+    txHash: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_checkoutItemId", ["checkoutItemId"])
+    .index("by_paymentAttemptId", ["paymentAttemptId"])
+    .index("by_sourceProviderKey_and_createdAt", ["sourceProviderKey", "createdAt"]),
+
+  paymentAttempts: defineTable({
+    amount: v.optional(v.number()),
+    checkoutId: v.id("checkouts"),
+    checkoutItemId: v.id("checkoutItems"),
+    createdAt: v.number(),
+    currency: v.string(),
+    errorMessage: v.optional(v.string()),
+    network: v.optional(v.string()),
+    paymentProtocol: paymentProtocolValidator,
+    providerKey: serviceProviderKeyValidator,
+    receiptJson: v.optional(v.string()),
+    status: paymentAttemptStatusValidator,
+    txHash: v.optional(v.string()),
+    updatedAt: v.number(),
+    walletAddress: v.optional(v.string()),
+  })
+    .index("by_checkoutItemId", ["checkoutItemId"])
+    .index("by_checkoutId_and_createdAt", ["checkoutId", "createdAt"]),
+
+  transactionApprovals: defineTable({
+    actorExternalId: v.optional(v.string()),
+    approvalJson: v.optional(v.string()),
+    checkoutItemId: v.id("checkoutItems"),
+    createdAt: v.number(),
+    paymentAttemptId: v.id("paymentAttempts"),
+    status: transactionApprovalStatusValidator,
+    updatedAt: v.number(),
+    walletAddress: v.optional(v.string()),
+  })
+    .index("by_paymentAttemptId_and_createdAt", ["paymentAttemptId", "createdAt"])
+    .index("by_checkoutItemId_and_createdAt", ["checkoutItemId", "createdAt"]),
+
+  walletSessions: defineTable({
+    actorExternalId: v.optional(v.string()),
+    chainId: v.optional(v.string()),
+    createdAt: v.number(),
+    lastUsedAt: v.number(),
+    metadataJson: v.optional(v.string()),
+    walletAddress: v.string(),
+    walletProvider: v.literal("privy"),
+  })
+    .index("by_actorExternalId_and_lastUsedAt", ["actorExternalId", "lastUsedAt"])
+    .index("by_walletAddress", ["walletAddress"]),
 
   artifacts: defineTable({
     artifactKind: artifactKindValidator,

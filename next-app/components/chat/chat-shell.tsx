@@ -100,6 +100,11 @@ import {
   type ProposalDraft,
 } from "@/lib/boreal/schemas/proposal";
 import { cn } from "@/lib/utils";
+import { usePayment } from "@/hooks/use-payment";
+import {
+  inferInvocationAccess,
+  parsePaymentResponseHeader,
+} from "@/lib/boreal/integrations/service-providers/payments/x402";
 
 import { IntentSidebar } from "./intent-sidebar";
 import {
@@ -194,6 +199,14 @@ const generateUploadUrlMutation = makeFunctionReference<
 >("fulfillments:generateUploadUrl");
 
 export function ChatShell() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeIntentId = searchParams.get("request");
+  const seededPrompt = searchParams.get("prompt");
+  const selectedCenterTab = normalizeCenterViewTab(searchParams.get("view"));
+  const workspaceTab = normalizeWorkspaceTab(searchParams.get("browse"));
+
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -208,7 +221,7 @@ export function ChatShell() {
   const [workspace, setWorkspace] = useState<WorkspaceState>(emptyWorkspace);
   const [showWorkspace, setShowWorkspace] = useState(true);
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false);
-  const [composerText, setComposerText] = useState("");
+  const [composerText, setComposerText] = useState(() => seededPrompt ?? "");
   const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false);
   const [proposalMessage, setProposalMessage] = useState("");
   const [proposalDraft, setProposalDraft] = useState<ProposalDraft>(emptyProposalDraft);
@@ -221,17 +234,12 @@ export function ChatShell() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOutCart, setIsCheckingOutCart] = useState(false);
   const [cartNotice, setCartNotice] = useState<string | null>(null);
+  const [activePaymentItemId, setActivePaymentItemId] = useState<string | null>(null);
 
   const { data: session } = useSession();
   const ownerExternalId = session?.user?.id;
   const { ready: privyReady, authenticated: privyAuthenticated, login } = usePrivy();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const activeIntentId = searchParams.get("request");
-  const selectedCenterTab = normalizeCenterViewTab(searchParams.get("view"));
-  const workspaceTab = normalizeWorkspaceTab(searchParams.get("browse"));
+  const { defaultWalletAddress, isWalletReady, payWithX402 } = usePayment();
 
   const sidebarIntents =
     (useQuery(sidebarIntentQuery, {
@@ -284,6 +292,8 @@ export function ChatShell() {
   const removeFromCart = useMutation(convexFunctionRefs.removeFromCart);
   const clearActiveCart = useMutation(convexFunctionRefs.clearActiveCart);
   const checkoutCart = useMutation(convexFunctionRefs.checkoutCart);
+  const beginPaymentAttempt = useMutation(convexFunctionRefs.beginPaymentAttempt);
+  const completePaymentAttempt = useMutation(convexFunctionRefs.completePaymentAttempt);
 
   const requestWorkspace = requestDetail?.intent
     ? buildWorkspaceFromRequestDetail(requestDetail)
@@ -372,6 +382,19 @@ export function ChatShell() {
       scroll: false,
     });
   }
+
+  useEffect(() => {
+    if (!seededPrompt) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("prompt");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [pathname, router, searchParams, seededPrompt]);
 
   useEffect(() => {
     const artifact = requestDetail?.artifact;
@@ -525,11 +548,107 @@ export function ChatShell() {
         throw new Error("Could not place checkout.");
       }
 
-      setCartNotice("Checkout placed. Instant digital items are now available below.");
+      setCartNotice("Checkout placed. Payable provider items now show wallet actions below.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not place checkout.");
     } finally {
       setIsCheckingOutCart(false);
+    }
+  }
+
+  async function handleExecuteCheckoutItemPayment(
+    checkout: CheckoutRecord,
+    item: CheckoutRecord["items"][number],
+  ) {
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X first before paying for provider-backed items.");
+      return;
+    }
+
+    if (!privyAuthenticated) {
+      login();
+      return;
+    }
+
+    if (!isWalletReady || !defaultWalletAddress) {
+      setErrorMessage("Connect a Privy wallet with a funded address before paying.");
+      return;
+    }
+
+    const endpointUrl =
+      item.serviceInvocation?.endpointUrl ??
+      item.sourceListingUrl ??
+      item.accessUrl;
+
+    if (!endpointUrl || !item.payment) {
+      setErrorMessage("This checkout item does not have a payable invocation attached.");
+      return;
+    }
+
+    setActivePaymentItemId(item._id);
+    setCartNotice(null);
+    setErrorMessage(null);
+
+    try {
+      await beginPaymentAttempt({
+        checkoutItemId: item._id,
+        ownerExternalId,
+        walletAddress: defaultWalletAddress,
+      });
+
+      const response = await payWithX402({
+        init: {
+          method: item.serviceInvocation?.endpointMethod ?? "GET",
+        },
+        maxAmountUsd: item.payment.amount,
+        url: endpointUrl,
+        walletAddress: defaultWalletAddress,
+      });
+      const paymentReceipt = parsePaymentResponseHeader(response.headers.get("PAYMENT-RESPONSE"));
+      const contentType = response.headers.get("content-type") ?? "";
+      const responsePayload = contentType.includes("application/json")
+        ? ((await response.json()) as unknown)
+        : { rawText: await response.text() };
+
+      if (!response.ok) {
+        await completePaymentAttempt({
+          checkoutItemId: item._id,
+          errorMessage:
+            responsePayload && typeof responsePayload === "object" && "rawText" in responsePayload
+              ? String(responsePayload.rawText)
+              : `Invocation failed with ${response.status}.`,
+          ownerExternalId,
+          paymentReceiptJson: paymentReceipt ? JSON.stringify(paymentReceipt) : undefined,
+          responseJson: JSON.stringify(responsePayload),
+          status: "failed",
+          txHash: pickTxHash(paymentReceipt),
+        });
+        throw new Error(`Provider invocation failed with ${response.status}.`);
+      }
+
+      const invocationAccess = inferInvocationAccess(responsePayload);
+      await completePaymentAttempt({
+        accessLabel: invocationAccess.accessLabel,
+        accessUrl: invocationAccess.accessUrl,
+        checkoutItemId: item._id,
+        ownerExternalId,
+        paymentReceiptJson: paymentReceipt ? JSON.stringify(paymentReceipt) : undefined,
+        responseJson: JSON.stringify(responsePayload),
+        status: invocationAccess.accessUrl ? "completed" : "submitted",
+        txHash: pickTxHash(paymentReceipt),
+      });
+
+      setCartNotice(
+        invocationAccess.accessUrl
+          ? `Payment settled. ${item.title} is now available.`
+          : `Payment settled. ${item.title} has been invoked and is now tracked in checkout history.`,
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not complete this provider payment.",
+      );
+    } finally {
+      setActivePaymentItemId(null);
     }
   }
 
@@ -1667,13 +1786,16 @@ export function ChatShell() {
       </Dialog>
       <CartDialog
         activeCart={activeCart}
+        activePaymentItemId={activePaymentItemId}
         checkoutHistory={checkoutHistory}
         isCheckingOutCart={isCheckingOutCart}
         isOpen={isCartOpen}
+        isWalletReady={isWalletReady}
         notice={cartNotice}
         onCheckout={handleCheckoutCart}
         onClearCart={handleClearCart}
         onOpenChange={setIsCartOpen}
+        onPayItem={handleExecuteCheckoutItemPayment}
         onRemoveItem={handleRemoveFromCart}
         onUpdateQuantity={handleUpdateCartQuantity}
       />
@@ -3322,24 +3444,30 @@ function DeliveryDraftFields({
 
 function CartDialog({
   activeCart,
+  activePaymentItemId,
   checkoutHistory,
   isCheckingOutCart,
   isOpen,
+  isWalletReady,
   notice,
   onCheckout,
   onClearCart,
   onOpenChange,
+  onPayItem,
   onRemoveItem,
   onUpdateQuantity,
 }: {
   activeCart: ActiveCart;
+  activePaymentItemId: string | null;
   checkoutHistory: CheckoutRecord[];
   isCheckingOutCart: boolean;
   isOpen: boolean;
+  isWalletReady: boolean;
   notice: string | null;
   onCheckout: () => Promise<void>;
   onClearCart: () => Promise<void>;
   onOpenChange: (open: boolean) => void;
+  onPayItem: (checkout: CheckoutRecord, item: CheckoutRecord["items"][number]) => Promise<void>;
   onRemoveItem: (cartLineItemId: string) => Promise<void>;
   onUpdateQuantity: (cartLineItemId: string, quantity: number) => Promise<void>;
 }) {
@@ -3399,7 +3527,7 @@ function CartDialog({
                       <div className="space-y-1">
                         <p className="text-sm font-medium">Subtotal</p>
                         <p className="text-xs text-muted-foreground">
-                          Shipping and payment are not modeled yet in this dev checkout flow.
+                          Provider-backed items preserve their payment and invocation state after checkout.
                         </p>
                       </div>
                       <p className="text-sm font-medium">
@@ -3414,7 +3542,7 @@ function CartDialog({
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Recent checkouts</p>
                   <p className="text-xs text-muted-foreground">
-                    Completed digital downloads and submitted service orders stay visible here.
+                    Instant downloads, payable provider calls, and submitted service orders stay visible here.
                   </p>
                 </div>
 
@@ -3462,15 +3590,63 @@ function CartDialog({
                                     {formatMoney((item.unitPriceAmount ?? 0) * item.quantity, checkout.currency)}
                                   </span>
                                   {item.sellerDisplayName ? <span>By {item.sellerDisplayName}</span> : null}
+                                  {item.payment ? <span>{item.payment.protocol}</span> : null}
+                                  {item.payment?.network ? <span>{item.payment.network}</span> : null}
+                                  {item.serviceInvocation?.executionSurface ? (
+                                    <span>{item.serviceInvocation.executionSurface}</span>
+                                  ) : null}
                                 </div>
+                                {item.payment ? (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <span className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                                      {item.payment.status.replaceAll("_", " ")}
+                                    </span>
+                                    {item.payment.errorMessage ? (
+                                      <span className="inline-flex items-center rounded-full border border-amber-500/30 px-2.5 py-1 text-[11px] uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
+                                        {item.payment.errorMessage}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                ) : null}
                               </div>
 
                               <div className="flex flex-wrap gap-2">
+                                {item.payment &&
+                                (item.payment.status === "ready_to_pay" ||
+                                  item.payment.status === "pending_approval" ||
+                                  item.payment.status === "failed") &&
+                                item.serviceInvocation?.endpointUrl ? (
+                                  <Button
+                                    disabled={!isWalletReady || activePaymentItemId === item._id}
+                                    onClick={() => void onPayItem(checkout, item)}
+                                    size="sm"
+                                    type="button"
+                                  >
+                                    {activePaymentItemId === item._id ? (
+                                      <LoaderIcon className="animate-spin" />
+                                    ) : (
+                                      <WalletIcon />
+                                    )}
+                                    {activePaymentItemId === item._id
+                                      ? "Paying..."
+                                      : item.payment.status === "failed"
+                                        ? "Retry payment"
+                                        : "Pay & invoke"}
+                                  </Button>
+                                ) : null}
                                 {item.accessUrl ? (
                                   <Button asChild size="sm" type="button" variant="outline">
                                     <a href={item.accessUrl} rel="noreferrer" target="_blank">
                                       <DownloadIcon />
                                       {item.accessLabel ?? "Open"}
+                                    </a>
+                                  </Button>
+                                ) : null}
+                                {item.sourceListingUrl && !item.accessUrl ? (
+                                  <Button asChild size="sm" type="button" variant="outline">
+                                    <a href={item.sourceListingUrl} rel="noreferrer" target="_blank">
+                                      <ExternalLinkIcon />
+                                      Open provider
                                     </a>
                                   </Button>
                                 ) : null}
@@ -3540,6 +3716,9 @@ function CartLineItemCard({
               : formatMoney(item.unitPriceAmount, item.currency)}
           </span>
           {item.sellerDisplayName ? <span>By {item.sellerDisplayName}</span> : null}
+          {item.paymentProtocol ? <span>{item.paymentProtocol}</span> : null}
+          {item.sourceProviderKey ? <span>{item.sourceProviderKey}</span> : null}
+          {item.paymentNetworkHints[0] ? <span>{item.paymentNetworkHints[0]}</span> : null}
         </div>
       </div>
 
@@ -3580,16 +3759,18 @@ function CartLineItemCard({
 }
 
 function CheckoutStatusPill({ status }: { status: string }) {
-  const isFulfilled = status === "fulfilled";
+  const tone =
+    status === "fulfilled"
+      ? "border-teal-500/30 text-teal-700 dark:text-teal-300"
+      : status === "pending_payment"
+        ? "border-sky-500/30 text-sky-700 dark:text-sky-300"
+        : status === "failed"
+          ? "border-amber-500/30 text-amber-700 dark:text-amber-300"
+          : "border-border text-muted-foreground";
 
   return (
     <span
-      className={cn(
-        "inline-flex items-center border px-2 py-1 text-[11px] uppercase tracking-[0.16em]",
-        isFulfilled
-          ? "border-teal-500/30 text-teal-700 dark:text-teal-300"
-          : "border-border text-muted-foreground",
-      )}
+      className={cn("inline-flex items-center border px-2 py-1 text-[11px] uppercase tracking-[0.16em]", tone)}
     >
       {status.replaceAll("_", " ")}
     </span>
@@ -3717,6 +3898,22 @@ function formatMoney(amount: number, currency: string) {
   } catch {
     return `${currency} ${amount}`;
   }
+}
+
+function pickTxHash(receipt: Record<string, unknown> | null) {
+  if (!receipt) {
+    return undefined;
+  }
+
+  const candidates = [
+    receipt.txHash,
+    receipt.transactionHash,
+    receipt.hash,
+    receipt.transaction_id,
+  ];
+  const match = candidates.find((value) => typeof value === "string" && value.trim());
+
+  return typeof match === "string" ? match : undefined;
 }
 
 function getRequestActionState(
@@ -4108,6 +4305,9 @@ function CatalogWorkspaceCard({
             <span>{item.priceLabel}</span>
             {item.estimatedDeliveryLabel ? <span>{item.estimatedDeliveryLabel}</span> : null}
             {item.seller?.displayName ? <span>By {item.seller.displayName}</span> : null}
+            {item.paymentProtocol ? <span>{item.paymentProtocol}</span> : null}
+            {item.sourceProviderKey ? <span>{item.sourceProviderKey}</span> : null}
+            {item.paymentNetworkHints[0] ? <span>{item.paymentNetworkHints[0]}</span> : null}
           </div>
         </div>
       </div>
@@ -4136,7 +4336,15 @@ function CatalogWorkspaceCard({
           <Button asChild size="sm" type="button" variant="outline">
             <a href={item.executorUrl} rel="noreferrer" target="_blank">
               <DownloadIcon />
-              Preview
+              {item.supportsDirectInvoke ? "Open endpoint" : "Preview"}
+            </a>
+          </Button>
+        ) : null}
+        {item.sourceListingUrl ? (
+          <Button asChild size="sm" type="button" variant="outline">
+            <a href={item.sourceListingUrl} rel="noreferrer" target="_blank">
+              <ExternalLinkIcon />
+              Provider page
             </a>
           </Button>
         ) : null}
@@ -4473,12 +4681,15 @@ function mapCatalogEntryToItem(entry: CatalogEntry): CatalogItem {
     deliveryType: entry.deliveryType,
     description: entry.description,
     estimatedDeliveryLabel: entry.estimatedDeliveryLabel,
+    executionSurface: entry.executionSurface,
     executorUrl: entry.executorUrl,
     fulfillmentKind: entry.fulfillmentKind,
     id: entry._id,
     isCartEnabled: entry.isCartEnabled,
     matchReasons: entry.matchReasons,
     matchScore: entry.matchScore,
+    paymentNetworkHints: entry.paymentNetworkHints,
+    paymentProtocol: entry.paymentProtocol,
     priceAmount: entry.priceAmount,
     priceLabel:
       entry.priceAmount === null
@@ -4486,10 +4697,15 @@ function mapCatalogEntryToItem(entry: CatalogEntry): CatalogItem {
         : entry.priceAmount === 0
           ? "Included"
           : `${entry.currency} ${entry.priceAmount}/${entry.priceType}`,
+    requiresHumanApproval: entry.requiresHumanApproval,
     reviewCount: entry.reviewCount,
     seller: entry.seller,
+    sourceListingUrl: entry.sourceListingUrl,
+    sourceProviderKey: entry.sourceProviderKey,
     subtitle: entry.subtitle,
     supplyType: entry.supplyType,
+    supportsDirectInvoke: entry.supportsDirectInvoke,
+    supportsPrivyWallet: entry.supportsPrivyWallet,
     title: entry.title,
   };
 }

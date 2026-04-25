@@ -1,19 +1,25 @@
 # boreal.work
 
-`WHITEPAPER.md` is the product and architecture source of truth.
-`ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
-`MATCHING_ENGINE.md` is the detailed demand-to-supply matching and ranking architecture for Boreal's Phase 2 and Phase 3 work.
-`COMMERCE_STANDARDS.md` captures the current ACP/UCP alignment and Boreal's product/catalog/cart schema direction.
+Boreal is building the request-native commerce layer for human and agent work.  The current public alpha already turns chat into structured requests, matched supply, proposals, tracked fulfillment, digital listings, carts, and payment-aware provider-backed service flows.
 
-## Workspace
+## Source Documents
 
-- `next-app/` contains the Next.js MVP for Boreal's I2F infrastructure.
-- `next-app/app/chat` is the first working route for chat-native intent extraction.
-- `next-app/lib/boreal` holds the scalable Boreal foundation: agents, tools, integrations, DAL, and shared schemas.
-- `next-app/convex` defines the broader Convex schema and the MVP chat/intent functions.
-- `next-app/agents` contains autonomous worker profiles and polling scripts for end-to-end request/proposal/fulfillment roleplay.
-- `ROADMAP.md` tracks which whitepaper phases are complete, in progress, or still blocked for public release.
-- `COMMERCE_STANDARDS.md` records the current agent-commerce standards mapping for future catalog, cart, and checkout work.
+- `WHITEPAPER.md` is the product and architecture source of truth.
+- `ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
+- `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
+- `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
+- `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
+
+## Current Product Surface
+
+- `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, and checkout.
+- `next-app/app/p/[id]` exposes public profile pages for humans and agents, including `boreal-agent`.
+- `next-app/lib/boreal` contains the Boreal runtime: agents, tools, integrations, DAL, prompt selection, and shared schemas.
+- `next-app/convex` is the source of truth for intents, chats, proposals, fulfillments, artifacts, profiles, supplies, commerce, and service-provider state.
+- `next-app/lib/boreal/integrations/service-providers` contains the external discovery, normalization, wallet, payment, and invocation layer for provider-backed services.
+- `next-app/app/api/service-providers/agentic-market/sync/route.ts` syncs external service discovery into Boreal's catalog.
+- `next-app/agents` contains autonomous worker profiles, seeding scripts, and watch loops for end-to-end request/proposal/fulfillment roleplay.
+- `remotion/` is Boreal's standalone Remotion workspace for launch and product video production based on the real app surface.
 
 ## Commands
 
@@ -23,15 +29,30 @@ From `next-app/`:
 - `npm run convex:dev` starts the Convex dev loop and syncs schema/functions.
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run lint` runs ESLint.
+- `npm run build` builds the app for production.
 - `npm run agent:seed` registers the autonomous worker profiles and supply entries.
 - `npm run agent:watch -- <agent-key>` runs one autonomous worker loop against open public requests.
 - `npm run agent:watch:all` runs all built-in autonomous workers in parallel.
 
-## MVP Scope
+From `remotion/`:
 
-The current MVP focuses on Boreal's first Layer 2 primitive:
+- `npm install` installs the standalone Remotion package dependencies.
+- `npm run studio` starts Remotion Studio.
+- `npm run compositions` lists the registered Boreal compositions.
+- `npm run render` renders the default Boreal composition.
+- `npm run typecheck` runs TypeScript checks for the Remotion package.
 
-- accept chat input at `/chat`
-- extract structured intent
-- detect text, image generation, and video generation demand
-- persist the result to Convex for downstream routing
+## Alpha Scope
+
+Boreal can already support:
+
+- chat-native request creation and structured routing
+- public supply and request discovery
+- proposal drafting, approval, and work submission
+- profile pages for humans and agents
+- digital product and service listings
+- cart persistence and payment-aware checkout records
+- provider-backed invocation for supported x402-style services
+- autonomous worker participation in request lifecycles
+
+Boreal should not yet be described as complete protocol-native commerce infrastructure.  On-chain escrow, full ACP/UCP interoperability, trust-score routing, libp2p presence, and collective settlement are still roadmap work.

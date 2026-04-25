@@ -1,4 +1,5 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
 export const getActiveCart = query({
@@ -302,62 +303,180 @@ export const checkoutCart = mutation({
       updatedAt: now,
     });
 
-    let allInstant = true;
     const itemSnapshots: Array<{
       accessLabel?: string;
       accessUrl?: string;
       quantity: number;
-      status: "fulfilled" | "submitted";
+      status:
+        | "awaiting_payment"
+        | "fulfilled"
+        | "submitted";
       title: string;
     }> = [];
+    const checkoutItemStatuses: string[] = [];
 
     for (const line of cartItems) {
       const supply = await ctx.db.get(line.supplyId);
       const instantAccess = Boolean(
         supply &&
+          !supply.sourceProviderKey &&
           supply.fulfillmentKind === "digital" &&
           supply.deliveryType === "instant" &&
           supply.executorUrl,
       );
-
-      if (!instantAccess) {
-        allInstant = false;
-      }
-
-      await ctx.db.insert("checkoutItems", {
-        accessLabel: instantAccess ? "Open file" : undefined,
-        accessUrl: instantAccess ? supply?.executorUrl : undefined,
+      const directExternalInvoke = Boolean(
+        supply &&
+          supply.sourceProviderKey &&
+          supply.paymentProtocol === "x402" &&
+          supply.supportsDirectInvoke &&
+          supply.executorUrl,
+      );
+      const handoffExternalInvoke = Boolean(
+        supply &&
+          supply.sourceProviderKey &&
+          (!supply.supportsDirectInvoke || supply.paymentProtocol !== "x402"),
+      );
+      const checkoutItemStatus = instantAccess
+        ? "fulfilled"
+        : directExternalInvoke
+          ? "awaiting_payment"
+          : "submitted";
+      const checkoutItemId = await ctx.db.insert("checkoutItems", {
+        accessLabel: instantAccess
+          ? "Open file"
+          : handoffExternalInvoke
+            ? "Open provider"
+            : undefined,
+        accessUrl: instantAccess
+          ? supply?.executorUrl
+          : handoffExternalInvoke
+            ? supply?.sourceListingUrl ?? supply?.sourceProviderUrl ?? supply?.executorUrl
+            : undefined,
         category: line.category,
         checkoutId,
         createdAt: now,
         currency: line.currency,
         deliveryType: line.deliveryType,
+        executionSurface: supply?.executionSurface,
         fulfillmentKind: line.fulfillmentKind,
         metadataJson: supply?.metadataJson,
+        paymentAttemptId: undefined,
+        paymentProtocol: supply?.paymentProtocol,
         priceType: line.priceType,
         quantity: line.quantity,
         sellerDisplayName: line.sellerDisplayName,
         sellerProfileId: line.sellerProfileId,
         sellerUserId: line.sellerUserId,
-        status: instantAccess ? "fulfilled" : "submitted",
+        serviceInvocationId: undefined,
+        sourceListingUrl: supply?.sourceListingUrl,
+        sourceProviderKey: supply?.sourceProviderKey,
+        status: checkoutItemStatus,
         subtitleSnapshot: line.subtitleSnapshot,
         supplyId: line.supplyId,
         titleSnapshot: line.titleSnapshot,
         unitPriceAmount: line.unitPriceAmount,
         updatedAt: now,
       });
+      let paymentAttemptId: Id<"paymentAttempts"> | undefined;
+      let serviceInvocationId: Id<"serviceInvocations"> | undefined;
+
+      if (directExternalInvoke && supply) {
+        paymentAttemptId = await ctx.db.insert("paymentAttempts", {
+          amount: supply.priceAmount,
+          checkoutId,
+          checkoutItemId,
+          createdAt: now,
+          currency: supply.currency,
+          errorMessage: undefined,
+          network: derivePrimaryNetworkHint(supply.paymentNetworkHints),
+          paymentProtocol: supply.paymentProtocol ?? "x402",
+          providerKey: supply.sourceProviderKey!,
+          receiptJson: undefined,
+          status: supply.requiresHumanApproval ? "pending_approval" : "ready_to_pay",
+          txHash: undefined,
+          updatedAt: now,
+          walletAddress: undefined,
+        });
+        serviceInvocationId = await ctx.db.insert("serviceInvocations", {
+          amount: supply.priceAmount,
+          checkoutId,
+          checkoutItemId,
+          createdAt: now,
+          currency: supply.currency,
+          endpointMethod: deriveEndpointMethod(supply),
+          endpointUrl: supply.executorUrl,
+          executionSurface: supply.executionSurface ?? "http",
+          externalJobId: undefined,
+          externalRequestId: undefined,
+          network: derivePrimaryNetworkHint(supply.paymentNetworkHints),
+          paymentAttemptId,
+          paymentProtocol: supply.paymentProtocol ?? "x402",
+          requestJson: undefined,
+          responseJson: undefined,
+          resultUrl: undefined,
+          sourceCapabilityId: supply.sourceCapabilityId,
+          sourceProviderKey: supply.sourceProviderKey!,
+          status: "awaiting_payment",
+          supplyId: supply._id,
+          txHash: undefined,
+          updatedAt: now,
+        });
+        await ctx.db.patch(checkoutItemId, {
+          paymentAttemptId,
+          serviceInvocationId,
+        });
+      } else if (handoffExternalInvoke && supply?.sourceProviderKey) {
+        serviceInvocationId = await ctx.db.insert("serviceInvocations", {
+          amount: supply.priceAmount,
+          checkoutId,
+          checkoutItemId,
+          createdAt: now,
+          currency: supply.currency,
+          endpointMethod: deriveEndpointMethod(supply),
+          endpointUrl: supply.executorUrl,
+          executionSurface: supply.executionSurface ?? "handoff",
+          externalJobId: undefined,
+          externalRequestId: undefined,
+          network: derivePrimaryNetworkHint(supply.paymentNetworkHints),
+          paymentAttemptId: undefined,
+          paymentProtocol: supply.paymentProtocol ?? "none",
+          requestJson: undefined,
+          responseJson: undefined,
+          resultUrl: supply.sourceListingUrl ?? supply.sourceProviderUrl ?? supply.executorUrl,
+          sourceCapabilityId: supply.sourceCapabilityId,
+          sourceProviderKey: supply.sourceProviderKey!,
+          status: "handoff_required",
+          supplyId: supply._id,
+          txHash: undefined,
+          updatedAt: now,
+        });
+        await ctx.db.patch(checkoutItemId, {
+          serviceInvocationId,
+        });
+      }
 
       itemSnapshots.push({
-        accessLabel: instantAccess ? "Open file" : undefined,
-        accessUrl: instantAccess ? supply?.executorUrl : undefined,
+        accessLabel: instantAccess
+          ? "Open file"
+          : handoffExternalInvoke
+            ? "Open provider"
+            : undefined,
+        accessUrl: instantAccess
+          ? supply?.executorUrl
+          : handoffExternalInvoke
+            ? supply?.sourceListingUrl ?? supply?.sourceProviderUrl ?? supply?.executorUrl
+            : undefined,
         quantity: line.quantity,
-        status: instantAccess ? "fulfilled" : "submitted",
+        status: checkoutItemStatus,
         title: line.titleSnapshot,
       });
+      checkoutItemStatuses.push(checkoutItemStatus);
     }
 
+    const checkoutStatus = determineCheckoutStatus(checkoutItemStatuses);
+
     await ctx.db.patch(checkoutId, {
-      status: allInstant ? "fulfilled" : "submitted",
+      status: checkoutStatus,
       updatedAt: now,
     });
     await ctx.db.patch(cart._id, {
@@ -378,14 +497,14 @@ export const checkoutCart = mutation({
           payload: JSON.stringify({
             checkoutId,
             itemCount: itemSnapshots.reduce((sum, item) => sum + item.quantity, 0),
-            status: allInstant ? "fulfilled" : "submitted",
+            status: checkoutStatus,
           }),
           type: "commerce.checkout_submitted",
         });
 
         if (intent.conversationId) {
           await ctx.db.insert("chatMessages", {
-            body: buildCheckoutMessage(itemSnapshots, allInstant),
+            body: buildCheckoutMessage(itemSnapshots, checkoutStatus),
             conversationId: intent.conversationId,
             createdAt: now,
             intentKey: intent.intentKey,
@@ -422,29 +541,40 @@ async function buildCartDetail(
     )
     .order("desc")
     .collect();
+  const itemDetails = await Promise.all(
+    items.map(async (item) => {
+      const supply = await ctx.db.get(item.supplyId);
+
+      return {
+        _id: item._id,
+        category: item.category,
+        currency: item.currency,
+        deliveryType: item.deliveryType,
+        fulfillmentKind: item.fulfillmentKind,
+        lineTotalAmount: (item.unitPriceAmount ?? 0) * item.quantity,
+        paymentNetworkHints: supply?.paymentNetworkHints ?? [],
+        paymentProtocol: supply?.paymentProtocol ?? null,
+        priceType: item.priceType,
+        quantity: item.quantity,
+        sellerDisplayName: item.sellerDisplayName ?? null,
+        sellerProfileId: item.sellerProfileId ?? null,
+        sourceProviderKey: supply?.sourceProviderKey ?? null,
+        subtitle: item.subtitleSnapshot ?? null,
+        supplyId: item.supplyId,
+        supportsDirectInvoke: supply?.supportsDirectInvoke ?? false,
+        title: item.titleSnapshot,
+        unitPriceAmount: item.unitPriceAmount ?? null,
+        updatedAt: item.updatedAt,
+      };
+    }),
+  );
 
   return {
     _id: cart._id,
     createdAt: cart.createdAt,
     currency: items[0]?.currency ?? "USD",
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    items: items.map((item) => ({
-      _id: item._id,
-      category: item.category,
-      currency: item.currency,
-      deliveryType: item.deliveryType,
-      fulfillmentKind: item.fulfillmentKind,
-      lineTotalAmount: (item.unitPriceAmount ?? 0) * item.quantity,
-      priceType: item.priceType,
-      quantity: item.quantity,
-      sellerDisplayName: item.sellerDisplayName ?? null,
-      sellerProfileId: item.sellerProfileId ?? null,
-      subtitle: item.subtitleSnapshot ?? null,
-      supplyId: item.supplyId,
-      title: item.titleSnapshot,
-      unitPriceAmount: item.unitPriceAmount ?? null,
-      updatedAt: item.updatedAt,
-    })),
+    items: itemDetails,
     sourceIntentId: cart.sourceIntentId ?? null,
     status: cart.status,
     subtotalAmount: items.reduce(
@@ -462,7 +592,7 @@ async function buildCheckoutDetail(
     createdAt: number;
     currency: string;
     itemCount: number;
-    status: "cancelled" | "fulfilled" | "submitted";
+    status: "cancelled" | "failed" | "fulfilled" | "in_progress" | "pending_payment" | "submitted";
     subtotalAmount: number;
     updatedAt: number;
   },
@@ -475,29 +605,71 @@ async function buildCheckoutDetail(
     .order("asc")
     .collect();
 
+  const itemDetails = await Promise.all(
+    items.map(async (item) => {
+      const paymentAttempt = item.paymentAttemptId
+        ? await ctx.db.get(item.paymentAttemptId)
+        : null;
+      const serviceInvocation = item.serviceInvocationId
+        ? await ctx.db.get(item.serviceInvocationId)
+        : null;
+
+      return {
+        _id: item._id,
+        accessLabel: item.accessLabel ?? null,
+        accessUrl: item.accessUrl ?? null,
+        category: item.category,
+        deliveryType: item.deliveryType,
+        fulfillmentKind: item.fulfillmentKind,
+        payment: paymentAttempt
+          ? {
+              amount: paymentAttempt.amount ?? null,
+              attemptId: paymentAttempt._id,
+              currency: paymentAttempt.currency,
+              errorMessage: paymentAttempt.errorMessage ?? null,
+              network: paymentAttempt.network ?? null,
+              protocol: paymentAttempt.paymentProtocol,
+              providerKey: paymentAttempt.providerKey,
+              receiptJson: paymentAttempt.receiptJson ?? null,
+              status: paymentAttempt.status,
+              txHash: paymentAttempt.txHash ?? null,
+              walletAddress: paymentAttempt.walletAddress ?? null,
+            }
+          : null,
+        priceType: item.priceType,
+        quantity: item.quantity,
+        reviewRating: item.reviewRating ?? null,
+        sellerDisplayName: item.sellerDisplayName ?? null,
+        sellerProfileId: item.sellerProfileId ?? null,
+        serviceInvocation: serviceInvocation
+          ? {
+              endpointMethod: serviceInvocation.endpointMethod ?? null,
+              endpointUrl: serviceInvocation.endpointUrl ?? null,
+              executionSurface: serviceInvocation.executionSurface,
+              providerKey: serviceInvocation.sourceProviderKey,
+              resultUrl: serviceInvocation.resultUrl ?? null,
+              responseJson: serviceInvocation.responseJson ?? null,
+              status: serviceInvocation.status,
+              updatedAt: serviceInvocation.updatedAt,
+            }
+          : null,
+        sourceListingUrl: item.sourceListingUrl ?? null,
+        sourceProviderKey: item.sourceProviderKey ?? null,
+        status: item.status,
+        subtitle: item.subtitleSnapshot ?? null,
+        supplyId: item.supplyId,
+        title: item.titleSnapshot,
+        unitPriceAmount: item.unitPriceAmount ?? null,
+      };
+    }),
+  );
+
   return {
     _id: checkout._id,
     createdAt: checkout.createdAt,
     currency: checkout.currency,
     itemCount: checkout.itemCount,
-    items: items.map((item) => ({
-      _id: item._id,
-      accessLabel: item.accessLabel ?? null,
-      accessUrl: item.accessUrl ?? null,
-      category: item.category,
-      deliveryType: item.deliveryType,
-      fulfillmentKind: item.fulfillmentKind,
-      priceType: item.priceType,
-      quantity: item.quantity,
-      reviewRating: item.reviewRating ?? null,
-      sellerDisplayName: item.sellerDisplayName ?? null,
-      sellerProfileId: item.sellerProfileId ?? null,
-      status: item.status,
-      subtitle: item.subtitleSnapshot ?? null,
-      supplyId: item.supplyId,
-      title: item.titleSnapshot,
-      unitPriceAmount: item.unitPriceAmount ?? null,
-    })),
+    items: itemDetails,
     status: checkout.status,
     subtotalAmount: checkout.subtotalAmount,
     updatedAt: checkout.updatedAt,
@@ -615,20 +787,61 @@ function buildCheckoutMessage(
     accessLabel?: string;
     accessUrl?: string;
     quantity: number;
-    status: "fulfilled" | "submitted";
+    status: "awaiting_payment" | "fulfilled" | "submitted";
     title: string;
   }>,
-  allInstant: boolean,
+  checkoutStatus: "cancelled" | "failed" | "fulfilled" | "in_progress" | "pending_payment" | "submitted",
 ) {
   const lines = items
-    .map((item) => `- ${item.quantity}x ${item.title}${item.accessUrl ? ` (${item.accessLabel})` : ""}`)
+    .map(
+      (item) =>
+        `- ${item.quantity}x ${item.title} [${item.status.replaceAll("_", " ")}]${item.accessUrl ? ` (${item.accessLabel})` : ""}`,
+    )
     .join("\n");
 
   return [
-    allInstant
-      ? "Checkout completed. Instant digital access is ready."
-      : "Checkout submitted. Some items now require supplier fulfillment.",
+    checkoutStatus === "fulfilled"
+      ? "Checkout completed. Instant access is ready."
+      : checkoutStatus === "pending_payment"
+        ? "Checkout placed. Some items now require wallet payment before Boreal can invoke them."
+        : "Checkout submitted. Some items now require supplier fulfillment or provider handoff.",
     "",
     lines,
   ].join("\n");
+}
+
+function determineCheckoutStatus(statuses: string[]) {
+  if (statuses.length > 0 && statuses.every((status) => status === "fulfilled")) {
+    return "fulfilled" as const;
+  }
+
+  if (statuses.some((status) => status === "awaiting_payment")) {
+    return "pending_payment" as const;
+  }
+
+  return "submitted" as const;
+}
+
+function derivePrimaryNetworkHint(networkHints?: string[]) {
+  return networkHints?.[0];
+}
+
+function deriveEndpointMethod(supply: {
+  metadataJson?: string;
+}) {
+  if (!supply.metadataJson) {
+    return "GET";
+  }
+
+  try {
+    const metadata = JSON.parse(supply.metadataJson) as {
+      endpoint?: {
+        method?: string;
+      } | null;
+    };
+
+    return metadata.endpoint?.method ?? "GET";
+  } catch {
+    return "GET";
+  }
 }

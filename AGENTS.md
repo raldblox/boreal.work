@@ -1,9 +1,10 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- The repo is currently document-first: root holds `README.md`, `WHITEPAPER.md`, `ROADMAP.md`, and `COMMERCE_STANDARDS.md`, so keep additions near those files unless a new workspace (e.g., `src/`, `tests/`, `assets/`) appears later.
+- The repo is currently document-first: root holds `README.md`, `WHITEPAPER.md`, `ROADMAP.md`, `MATCHING_ENGINE.md`, `COMMERCE_STANDARDS.md`, and `SERVICE_PROVIDER.MD`, so keep additions near those files unless a new workspace (e.g., `src/`, `tests/`, `assets/`) appears later.
 - The active application workspace is `next-app/`, with feature code split across `next-app/app/`, `next-app/components/`, `next-app/lib/boreal/`, and `next-app/convex/`.
 - Autonomous worker definitions and their runtime scripts live under `next-app/agents/`.
+- Demo-video planning, assets, scripts, and future Remotion compositions live under the root-level `remotion/` package, using actual UI and product language from `next-app/` rather than standalone mockups.
 - Boreal domain code should live under `next-app/lib/boreal/` with clear subfolders such as `agents/`, `tools/`, `integrations/`, `dal/`, and `schemas/`.
 - When adding code, introduce clear subdirectories (e.g., `src/feature-name/`, `tests/{unit, integration}/`) and document them here so future contributors know where to look.
 - Keep assets bundled with their closest consumer (for example, `docs/images/` next to the whitepaper assets) and register new directories in this guide.
@@ -12,6 +13,7 @@
 - There are no automated build or test scripts yet; always document any new command you introduce in `README.md` and reference it here.
 - Use `git status` to confirm your working tree is clean before building or testing and `git diff --stat` to review staged changes.
 - For the app in `next-app/`, use `npm run dev` for Next.js, `npm run convex:dev` for Convex sync/codegen, `npm run typecheck` for TypeScript checks, and `npm run lint` for ESLint.
+- For the video app in `remotion/`, install dependencies once with `cd remotion && npm install`, then use `npm run studio`, `npm run compositions`, `npm run render`, and `npm run typecheck`.
 - Autonomous worker utilities are exposed as `npm run agent:seed`, `npm run agent:watch -- <agent-key>`, and `npm run agent:watch:all` from `next-app/`.
 - If you add npm/yarn tooling, include normal commands such as `npm run build` or `npm test`, and describe their effects in this section.
 
@@ -34,7 +36,10 @@
 - Keep this guide and `README.md` in sync; add a changelog entry whenever you alter structural expectations.
 - When a new agent, SDK, or process is introduced, create a short subsection here summarizing how contributors should interact with it.
 - `ROADMAP.md` is the execution tracker derived from `WHITEPAPER.md`; update its checklists when product capabilities materially change.
-- `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's future product, cart, and checkout schema direction.
+- `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
+- `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
+- `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
+- `remotion/` is the dedicated standalone workspace for Boreal's hackathon / launch video, including storyboard docs, media assets, helper scripts, and Remotion render code.
 
 ### Boreal Agent Surface
 
@@ -42,3 +47,6 @@
 - Agents should stay composable: provider access belongs in `integrations/`, persistence in `dal/`, and reusable execution units in `tools/`.
 - The UI-facing Boreal character and surface-aware behavior are grounded in `CHARACTER.md`, with prompt selection implemented from frontend state hints rather than full thread reconstruction.
 - Autonomous worker personas for end-to-end stress testing live in `next-app/agents/profiles/` and act through Convex mutations instead of the main Boreal chat agent.
+- External service discovery, payment, and invocation adapters live under `next-app/lib/boreal/integrations/service-providers/`.
+- Service-provider sync and integration endpoints live under `next-app/app/api/service-providers/`.
+- Boreal's public market language is `Supply` and `Requests`; avoid introducing alternative navigation nouns unless the UX clearly benefits.

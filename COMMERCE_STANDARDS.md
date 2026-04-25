@@ -5,7 +5,7 @@ This note captures the current direction for Boreal's product, catalog, cart, an
 ## Decision
 
 - Use **UCP** as Boreal's primary reference for:
-  - public catalog/search
+  - public catalog and search
   - cart sessions
   - checkout handoff shape
   - order lifecycle
@@ -37,11 +37,29 @@ In practice: **UCP for discovery and basket-building, ACP for merchant checkout 
 For broad public UX, Boreal should avoid market jargon where it increases ambiguity.
 
 - Prefer `Supply` for the public sell-side directory.
-- Prefer `Requests` for the public buy-side / ask-side directory.
-- Avoid `Demand` in the main navigation.  It is accurate, but more abstract for ordinary buyers, freelancers, and merchants.
+- Prefer `Requests` for the public buy-side and ask-side directory.
+- Avoid `Demand` in the main navigation.  It is accurate, but more abstract for ordinary buyers, freelancers, merchants, and investors.
 - Keep `Request` as the core workspace noun for user-submitted work or shopping asks.
-- Keep `Proposal` for seller/worker responses to a request.
+- Keep `Proposal` for seller or worker responses to a request.
 - Use `Cart` only for product purchase intent, not for general work requests.
+
+## Current Implementation Status
+
+As of April 25, 2026, Boreal already has:
+
+- a unified `supplies`-driven public listing surface for products, services, human supply, agent supply, and provider-backed capabilities
+- request-driven product and service search that renders matched listings inside a request workspace
+- add-to-cart actions from both the public supply directory and request workspaces
+- cart persistence and checkout history in the main product surface
+- payment-aware checkout states for provider-backed items
+- direct invocation support for supported concrete x402 HTTP endpoints
+
+Boreal does **not** yet have:
+
+- full UCP-compatible catalog, cart, checkout, and order endpoints
+- full ACP-compatible checkout capability descriptors across all listings
+- merchant-grade order management, refunds, returns, or disputes
+- stable public protocol descriptors per listing
 
 ## Boreal product-listing schema direction
 
@@ -51,7 +69,7 @@ Every public product-like listing should be rich enough for:
 - agent-readable comparison
 - cart insertion
 - checkout handoff
-- future A2A / MCP exposure
+- future A2A, MCP, ACP, or UCP exposure
 
 ### Minimum identity
 
@@ -139,9 +157,9 @@ Every public product-like listing should be rich enough for:
 
 If a user asks Boreal to find a product, compare products, or assemble a buyable shortlist:
 
-- create a request workspace
+- create or continue a request workspace
 - resolve matched listings into a store-like result surface
-- let the user add variants to cart from that workspace
+- let the user add items to cart from that workspace
 
 This keeps chat, auditability, and later handoff to checkout in one place.
 
@@ -162,20 +180,29 @@ Do not overload request approval with checkout.  Approval is for work execution 
 
 If checkout expects different item IDs than discovery returns, the model is wrong.
 
-## Implementation guidance for the next phase
+## Implementation guidance
 
-1. Extend `supplies` into a richer public listing model rather than creating a second incompatible product table immediately.
-2. Add structured `variants`, `media`, `pricing`, and `checkoutCapability` metadata.
-3. Add a first-class `cart` table and `cartLineItems`.
-4. Let product-search intents render a catalog workspace with add-to-cart actions.
-5. Add ACP/UCP protocol descriptors without claiming full interoperability until actual endpoints exist.
+### Already true in the current app
+
+1. `supplies` is Boreal's canonical user-facing listing model.
+2. Catalog matches can render inside request workspaces.
+3. A first-class cart and checkout-history surface exists.
+4. Provider-backed listings can advance through payment-aware checkout state.
+
+### Next upgrades
+
+1. Deepen `supplies` with stable structured `variants`, `media`, `pricing`, and richer merchant metadata.
+2. Add stronger `checkoutCapability` descriptors per listing without claiming interoperability before the endpoints are real.
+3. Add order, refund, dispute, and fulfillment lifecycle records beyond the current checkout history model.
+4. Expose protocol descriptors only where Boreal can actually honor them.
 
 ## Current claim boundary
 
 As of April 25, 2026:
 
 - Boreal can honestly claim public supply and request discovery.
-- Boreal cannot yet claim real UCP catalog/cart/order support.
-- Boreal cannot yet claim ACP checkout support.
-
-Those remain implementation targets, not shipped protocol compatibility.
+- Boreal can honestly claim request-driven catalog rendering, add-to-cart behavior, and cart persistence.
+- Boreal can honestly claim payment-aware checkout routing for supported provider-backed services.
+- Boreal cannot yet claim full UCP catalog/cart/order support.
+- Boreal cannot yet claim full ACP checkout compatibility.
+- Those remain implementation targets, not shipped protocol interoperability.

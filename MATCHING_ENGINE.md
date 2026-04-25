@@ -1,6 +1,23 @@
 # Matching Engine Architecture
 
-Status: proposed architecture for Boreal Phase 2 and Phase 3.
+Status: Phase 2 and Phase 3 architecture with some alpha foundations already shipped.
+
+Current alpha foundations already in the repo:
+
+- structured intent extraction from chat
+- embedding-based intent and modality scoring
+- public supply and request discovery
+- request-driven catalog rendering for product and service search
+- profiles, proposals, fulfillment records, reviews, and activity logs
+- cart and checkout-history surfaces tied back to supply and request workspaces
+
+Not shipped yet:
+
+- true hybrid retrieval with BM25 + vector + RRF
+- hard feasibility filters based on live availability and price
+- ranked match candidates with score breakdowns
+- reservation-aware assignment
+- learned reranking and calibrated success thresholds
 
 This document turns the whitepaper's matching section into an implementation-grade design for `next-app/` and the current Convex schema.  It assumes Boreal is matching broad, messy incoming intent to a mixed supply base of humans, agents, tools, products, and collectives.
 

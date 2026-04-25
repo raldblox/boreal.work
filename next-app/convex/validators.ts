@@ -93,6 +93,47 @@ export const checkoutProtocolValidator = v.union(
   v.literal("custom"),
 );
 
+export const serviceProviderKeyValidator = v.union(
+  v.literal("agentic-market"),
+  v.literal("agentcash"),
+  v.literal("frames"),
+  v.literal("moonpay"),
+  v.literal("solana-agent-kit"),
+  v.literal("manual"),
+);
+
+export const paymentProtocolValidator = v.union(
+  v.literal("x402"),
+  v.literal("mpp"),
+  v.literal("direct-solana"),
+  v.literal("widget"),
+  v.literal("none"),
+);
+
+export const executionSurfaceValidator = v.union(
+  v.literal("registry"),
+  v.literal("http"),
+  v.literal("mcp"),
+  v.literal("jsonrpc"),
+  v.literal("sdk"),
+  v.literal("widget"),
+  v.literal("handoff"),
+);
+
+export const walletExecutionModeValidator = v.union(
+  v.literal("client-sign"),
+  v.literal("server-execute-with-user-authorization"),
+  v.literal("external-wallet"),
+  v.literal("provider-managed"),
+);
+
+export const capabilityRoutingTierValidator = v.union(
+  v.literal("A-direct"),
+  v.literal("A-delegated"),
+  v.literal("B-ingest-handoff"),
+  v.literal("C-manual"),
+);
+
 export const cartStatusValidator = v.union(
   v.literal("active"),
   v.literal("checked_out"),
@@ -101,14 +142,54 @@ export const cartStatusValidator = v.union(
 
 export const checkoutStatusValidator = v.union(
   v.literal("submitted"),
+  v.literal("pending_payment"),
+  v.literal("in_progress"),
   v.literal("fulfilled"),
   v.literal("cancelled"),
+  v.literal("failed"),
 );
 
 export const checkoutItemStatusValidator = v.union(
   v.literal("submitted"),
+  v.literal("awaiting_payment"),
+  v.literal("paid"),
+  v.literal("in_progress"),
   v.literal("fulfilled"),
   v.literal("cancelled"),
+  v.literal("failed"),
+);
+
+export const paymentAttemptStatusValidator = v.union(
+  v.literal("pending_approval"),
+  v.literal("ready_to_pay"),
+  v.literal("processing"),
+  v.literal("paid"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+export const serviceInvocationStatusValidator = v.union(
+  v.literal("awaiting_payment"),
+  v.literal("handoff_required"),
+  v.literal("submitted"),
+  v.literal("in_progress"),
+  v.literal("completed"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+export const transactionApprovalStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected"),
+  v.literal("expired"),
+  v.literal("executed"),
+);
+
+export const serviceProviderSyncStatusValidator = v.union(
+  v.literal("started"),
+  v.literal("completed"),
+  v.literal("failed"),
 );
 
 export const messageRoleValidator = v.union(
