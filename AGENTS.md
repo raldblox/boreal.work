@@ -5,6 +5,9 @@
 - The active application workspace is `next-app/`, with feature code split across `next-app/app/`, `next-app/components/`, `next-app/lib/boreal/`, and `next-app/convex/`.
 - Autonomous worker definitions and their runtime scripts live under `next-app/agents/`.
 - Demo-video planning, assets, scripts, and future Remotion compositions live under the root-level `remotion/` package, using actual UI and product language from `next-app/` rather than standalone mockups.
+- Preserved Remotion generations should live under `remotion/src/generations/` so new video directions do not overwrite earlier Boreal cuts.
+- HTML-first explainer cuts, Boreal-specific motion comps, and future capture-driven HyperFrames renders live under the root-level `hyperframes/` workspace, with planning docs in `hyperframes/docs/`, reusable compositions in `hyperframes/compositions/`, shared vendored type assets in `hyperframes/fonts/`, project-specific cuts in `hyperframes/projects/`, and capture drop points in `hyperframes/assets/captures/`.
+- Editable PowerPoint decks live under the root-level `presentations/` workspace; the current Boreal pitch deck is in `presentations/boreal-pitch-deck/` with slide source in `src/`, previews and QA artifacts in `scratch/`, and the final `.pptx` in `output/`.
 - Boreal domain code should live under `next-app/lib/boreal/` with clear subfolders such as `agents/`, `tools/`, `integrations/`, `dal/`, and `schemas/`.
 - When adding code, introduce clear subdirectories (e.g., `src/feature-name/`, `tests/{unit, integration}/`) and document them here so future contributors know where to look.
 - Keep assets bundled with their closest consumer (for example, `docs/images/` next to the whitepaper assets) and register new directories in this guide.
@@ -15,7 +18,11 @@
 - For the app in `next-app/`, use `npm run dev` for Next.js, `npm run convex:dev` for Convex sync/codegen, `npm run typecheck` for TypeScript checks, and `npm run lint` for ESLint.
 - For the app in `next-app/`, use `npm run smoke:lifecycle` for the deterministic request/proposal/approval/delivery/review smoke test against Convex.
 - For the app in `next-app/`, use `npm run analytics:backfill` when profile analytics schema or lifecycle tracking changes and existing profiles need rebuilt snapshots.
-- For the video app in `remotion/`, install dependencies once with `cd remotion && npm install`, then use `npm run studio`, `npm run compositions`, `npm run voiceover:update`, `npm run render`, `npm run render:update`, `npm run render:launch`, `npm run render:technical`, the `npm run render:short:*` scripts, and `npm run typecheck`.
+- For the video app in `remotion/`, install dependencies once with `cd remotion && npm install`, then use `npm run studio`, `npm run compositions`, `npm run voiceover:update`, `npm run render`, `npm run render:update`, `npm run render:launch`, `npm run render:truth:demo`, `npm run render:truth:update`, `npm run render:truth:launch`, `npm run render:technical`, the `npm run render:short:*` scripts, and `npm run typecheck`.
+- For the video app in `hyperframes/`, use `cd hyperframes && npx hyperframes preview` for local review, `npx hyperframes lint` for composition validation, `npx hyperframes validate` for additional quality checks, and `npx hyperframes render --quality draft --output renders/boreal-explainer-48.mp4` for the preserved root explainer draft.
+- For the Boreal HyperFrames series cuts, use `cd hyperframes/projects/demo-90 && npx hyperframes render`, `cd hyperframes/projects/update-120 && npx hyperframes render`, and `cd hyperframes/projects/launch-60 && npx hyperframes render` to produce the adapted demo, update, and launch outputs.
+- For the Boreal HyperFrames architecture cut, use `cd hyperframes/projects/architecture-150 && npx hyperframes render` to produce the diagram-first end-to-end system explainer.
+- For the deck workspace in `presentations/boreal-pitch-deck/`, use `npm run build` to export the `.pptx`, render source and saved-PPTX slide previews, write layout JSON, and refresh the headless QA reports.
 - Autonomous worker utilities are exposed as `npm run agent:seed`, `npm run agent:watch -- <agent-key>`, and `npm run agent:watch:all` from `next-app/`.
 - If you add npm/yarn tooling, include normal commands such as `npm run build` or `npm test`, and describe their effects in this section.
 
@@ -41,7 +48,11 @@
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
+- Boreal's network-default policy lives in `next-app/lib/boreal/commerce/networks.ts`; default to Solana `devnet` locally unless deployment env flags intentionally switch the commerce layer to `mainnet` or EVM-first defaults.
+- `presentations/` is the standalone workspace for editable Boreal decks; `presentations/boreal-pitch-deck/` is the current pitch-deck source of truth and should be regenerated from `src/build-deck.mjs` rather than edited inside the exported `.pptx`.
 - `remotion/` is the dedicated standalone workspace for Boreal's hackathon / launch video, including storyboard docs, media assets, helper scripts, and Remotion render code.
+- `remotion/src/generations/` is the preservation layer for parallel Boreal video generations that should remain renderable side by side.
+- `hyperframes/` is the dedicated standalone workspace for Boreal's HTML-first explainer and demo cuts, with `DESIGN.md` as the visual gate, `hyperframes/docs/` as the storyboard and claim-alignment source of truth, `hyperframes/fonts/` as the vendored Boreal type layer, and `hyperframes/projects/` as the preservation layer for separate HyperFrames generations.
 
 ### Boreal Agent Surface
 
