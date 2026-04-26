@@ -2,6 +2,7 @@ import "server-only";
 
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
 import {
+  appendConversationAssistantMessage,
   appendRequestExecution,
   approveRequestDraft,
   ensureCatalogSeeded,
@@ -157,7 +158,11 @@ export const chatAssistantAgent: ComposableAgent<
         }),
       { attempts: 3 },
     );
-    const intent = refineIntentForRequestLifecycle(extractedIntent, input.message);
+    const intent = refineIntentForRequestLifecycle(
+      extractedIntent,
+      input.message,
+      input.uiContext,
+    );
 
     const relatedCatalogItems = intent.shouldSearchCatalog
       ? await withRetry(
@@ -190,7 +195,10 @@ export const chatAssistantAgent: ComposableAgent<
       userMessageId,
     });
 
-    if (requestNeedsApproval(persistedIntent)) {
+    if (
+      input.uiContext?.surface !== "request" &&
+      requestNeedsApproval(persistedIntent)
+    ) {
       const assistantMessage = buildApprovalMessage(intent, relatedCatalogItems);
       const persistedResult = await saveIntentPipelineRecord({
         assistantMessage,
@@ -230,6 +238,25 @@ export const chatAssistantAgent: ComposableAgent<
 
     let intentId: string | undefined;
     let persisted = false;
+
+    if (input.uiContext?.surface === "request") {
+      await appendConversationAssistantMessage({
+        assistantMessage: resolved.assistantMessage,
+        conversationId,
+        ownerExternalId: input.requester?.externalId,
+      });
+
+      return {
+        assistantMessage: resolved.assistantMessage,
+        conversationId,
+        intent: persistedIntent,
+        intentId: input.uiContext.requestId ?? undefined,
+        persisted: false,
+        relatedCatalogItems,
+        requiresApproval: false,
+        workspace: resolved.workspace,
+      };
+    }
 
     if (shouldPersistIntent(persistedIntent, resolved.artifact)) {
       const persistedResult = await saveIntentPipelineRecord({
@@ -309,6 +336,7 @@ export async function approvePersistedRequest(input: {
 
   const handlingMode = getRequestHandlingMode(toExecutionIntent(request));
   const assignedToolNames = buildAssignedTools(request.routeTarget);
+  const executionAgentId = getExecutionAgentId(request.routeTarget);
   if (handlingMode === "clarify") {
     throw new Error("This request still needs clarification before approval.");
   }
@@ -342,7 +370,7 @@ export async function approvePersistedRequest(input: {
   }
 
   await approveRequestDraft({
-    assignedAgent: "boreal-agent",
+    assignedAgent: executionAgentId,
     assignedToolNames,
     intentId: input.intentId,
     ownerExternalId: input.ownerExternalId,
@@ -377,17 +405,18 @@ export async function retryPersistedRequest(input: {
   }
 
   const assignedToolNames = buildAssignedTools(request.routeTarget);
+  const executionAgentId = getExecutionAgentId(request.routeTarget);
 
   await appendRequestExecution({
     activityPayload: JSON.stringify({
-      assignedAgent: "boreal-agent",
+      assignedAgent: executionAgentId,
       retrying: true,
       routeTarget: request.routeTarget,
     }),
     activityType: "request.retrying",
-    assignedAgent: "boreal-agent",
+    assignedAgent: executionAgentId,
     assignedToolNames,
-    assistantMessage: "Retrying this request with the current Boreal agent stack.",
+    assistantMessage: `Retrying this request with ${getExecutionAgentDisplayName(request.routeTarget)}.`,
     intentId: input.intentId,
     ownerExternalId: input.ownerExternalId,
     status: "in_progress",
@@ -464,7 +493,7 @@ async function executeIntent(input: {
     return {
       artifact,
       assistantMessage:
-        "Image request approved and completed. The generated output is attached to this request.",
+        "Image Studio completed this request. The generated output is attached here.",
       relatedCatalogItems: input.catalogItems,
       requestStatus: "fulfilled",
       workspace: {
@@ -489,7 +518,7 @@ async function executeIntent(input: {
     return {
       artifact,
       assistantMessage:
-        "Voice request approved and completed. The audio deliverable is attached to this request.",
+        "Voiceover Studio completed this request. The audio deliverable is attached here.",
       relatedCatalogItems: input.catalogItems,
       requestStatus: "fulfilled",
       workspace: {
@@ -512,7 +541,7 @@ async function executeIntent(input: {
     return {
       artifact,
       assistantMessage:
-        "Video request approved. Boreal queued the render and will keep this request updated until delivery.",
+        "Video request approved. Motion Video Studio queued the render and will keep this request updated until delivery.",
       relatedCatalogItems: input.catalogItems,
       requestStatus: "in_progress",
       workspace: {
@@ -589,6 +618,7 @@ async function runApprovedExecutionForRequest(input: {
       : [];
 
   try {
+    const executionAgentId = getExecutionAgentId(input.request.routeTarget);
     const resolved = await runExecutionWithRetry({
       assistantModelId: input.runtimeConfig.assistantModel,
       catalogItems: relatedCatalogItems,
@@ -610,7 +640,7 @@ async function runApprovedExecutionForRequest(input: {
       videoModelId: input.runtimeConfig.videoModel,
     });
     const activityPayload = {
-      assignedAgent: "boreal-agent",
+      assignedAgent: executionAgentId,
       routeTarget: input.request.routeTarget,
       ...(resolved.workspace.kind === "profile_builder"
         ? {
@@ -631,7 +661,7 @@ async function runApprovedExecutionForRequest(input: {
     await appendRequestExecution({
       activityPayload: JSON.stringify(activityPayload),
       activityType,
-      assignedAgent: "boreal-agent",
+      assignedAgent: executionAgentId,
       assignedToolNames: input.assignedToolNames,
       assistantMessage: resolved.assistantMessage,
       intentId: input.input.intentId,
@@ -669,18 +699,19 @@ async function runApprovedExecutionForRequest(input: {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Boreal failed after retrying this request.";
+    const executionAgentId = getExecutionAgentId(input.request.routeTarget);
 
     await appendRequestExecution({
       activityPayload: JSON.stringify({
-        assignedAgent: "boreal-agent",
+        assignedAgent: executionAgentId,
         error: message,
         routeTarget: input.request.routeTarget,
       }),
       activityType: "request.blocked",
-      assignedAgent: "boreal-agent",
+      assignedAgent: executionAgentId,
       assignedToolNames: input.assignedToolNames,
       assistantMessage:
-        "Boreal could not complete this request automatically. You can retry it from the workboard.",
+        `${getExecutionAgentDisplayName(input.request.routeTarget)} could not complete this request automatically. You can retry it from the workboard.`,
       intentId: input.input.intentId,
       ownerExternalId: input.input.ownerExternalId,
       status: "blocked",
@@ -688,7 +719,7 @@ async function runApprovedExecutionForRequest(input: {
 
     return {
       assistantMessage:
-        "Boreal could not complete this request automatically. The request is blocked and can be retried from the workboard.",
+        `${getExecutionAgentDisplayName(input.request.routeTarget)} could not complete this request automatically. The request is blocked and can be retried from the workboard.`,
       intentId: input.input.intentId,
       relatedCatalogItems,
       workspace: {
@@ -773,10 +804,10 @@ function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem
       questions: intent.missingDetails,
       subtitle:
         handlingMode === "workers"
-          ? "Clarify the scope first, then open it for workers or proposals."
-          : "Clarify the outcome first, then approve Boreal Agent to draft the final deliverable.",
+          ? "Clarify the scope first, then approve if you want Boreal to open this work to the market."
+          : "Clarify the outcome first, then approve if you want Boreal to open this as tracked work.",
       suggestions: intent.suggestedReplies,
-      title: "Clarify before approval",
+      title: "Review before opening work",
     };
   }
 
@@ -787,9 +818,9 @@ function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem
       kind: "catalog",
       subtitle:
         handlingMode === "workers"
-          ? "These matches can support worker discovery once the request is approved."
-          : "Relevant matches are ready if you want Boreal or the market to handle this request.",
-      title: "Preflight matches",
+          ? "These matches can support the request once you approve and open it to the market."
+          : "These matches are ready if you approve and want Boreal to route the work.",
+      title: "Potential matches",
     };
   }
 
@@ -797,10 +828,10 @@ function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem
     kind: "empty",
     subtitle:
       handlingMode === "workers"
-        ? "Approve to publish this request for workers and proposals."
-        : "Approve to let Boreal Agent handle it, or cancel to discard the draft.",
+        ? "Approve to open this as tracked work and gather workers or proposals."
+        : "Approve to open this as tracked work, or discard the draft.",
     title:
-      handlingMode === "workers" ? "Open for workers" : "Approve Boreal Agent",
+      handlingMode === "workers" ? "Ready to open work" : "Ready to open work",
   };
 }
 
@@ -824,26 +855,45 @@ function buildApprovalMessage(intent: IntentExtraction, catalogItems: CatalogIte
 
   if (handlingMode === "clarify") {
     return [
-      `I drafted this as a ${modeLabel} request, but it still needs a bit more scope before anyone should start.`,
+      `This looks like ${modeLabel} work, but it still needs a bit more scope before Boreal should open it.`,
       intent.summary,
       intent.missingDetails.length > 0
         ? `Still needed:\n${intent.missingDetails.map((detail) => `- ${detail}`).join("\n")}`
         : "Reply with the missing scope details in chat.",
-      "Once that is clear, you can approve Boreal Agent or open it for proposals.",
+      "Once that is clear, approve to open it as tracked work.",
     ].join("\n\n");
   }
 
   return [
-    `I drafted a request for ${modeLabel}.`,
+    `I prepared a work draft for ${modeLabel}.`,
     intent.summary,
-    `Recommended next handler: ${getRequestHandlingLabel(handlingMode)}.`,
+    `Recommended path: ${getRequestHandlingLabel(handlingMode)}.`,
     catalogItems.length > 0
       ? `I also found ${catalogItems.length} related catalog match${catalogItems.length === 1 ? "" : "es"}.`
       : "No extra artifacts were started yet.",
-    handlingMode === "workers"
-      ? "Approve to open it for workers and proposals, or cancel if you want to revise the ask first."
-      : "Approve to let Boreal Agent start, or cancel if you want to revise the ask first.",
+    getApprovalActionLine(intent.routeTarget, handlingMode),
   ].join("\n\n");
+}
+
+function getApprovalActionLine(
+  routeTarget: ToolRoute,
+  handlingMode: ReturnType<typeof getRequestHandlingMode>,
+) {
+  if (routeTarget === "image_generation") {
+    return "Approve to hand this request to Image Studio, or discard the draft if you want to revise the prompt first.";
+  }
+
+  if (routeTarget === "speech_generation") {
+    return "Approve to hand this request to Voiceover Studio, or discard the draft if you want to revise the script first.";
+  }
+
+  if (routeTarget === "video_generation") {
+    return "Approve to hand this request to Motion Video Studio, or discard the draft if you want to revise the brief first.";
+  }
+
+  return handlingMode === "workers"
+    ? "Approve to open it to workers and proposals, or discard the draft if you want to revise the ask first."
+    : "Approve to open it as tracked work, or discard the draft if you want to revise the ask first.";
 }
 
 function buildClarificationMessage(intent: IntentExtraction) {
@@ -859,8 +909,8 @@ function buildClarificationMessage(intent: IntentExtraction) {
 
 function requestNeedsApproval(intent: PersistedIntent) {
   return (
-    intent.routeTarget !== "general_assistance" ||
     intent.needsClarification ||
+    intent.routeTarget === "profile_update" ||
     intent.requestedOutputTypes.some((type) => type !== "text") ||
     intent.routing.shouldCreateFulfillmentRequest
   );
@@ -868,9 +918,12 @@ function requestNeedsApproval(intent: PersistedIntent) {
 
 function shouldPersistIntent(intent: PersistedIntent, artifact?: MediaArtifact) {
   return (
-    intent.persistence.shouldPersist ||
     intent.persistence.isUnresolved ||
-    intent.routeTarget !== "general_assistance" ||
+    intent.routeTarget === "profile_update" ||
+    intent.routeTarget === "image_generation" ||
+    intent.routeTarget === "speech_generation" ||
+    intent.routeTarget === "video_generation" ||
+    intent.routing.shouldCreateFulfillmentRequest ||
     Boolean(artifact)
   );
 }
@@ -961,4 +1014,36 @@ function toArtifactStatus(artifact: MediaArtifact) {
   }
 
   return "ready" as const;
+}
+
+function getExecutionAgentId(routeTarget: ToolRoute) {
+  if (routeTarget === "image_generation") {
+    return "agent:image-studio";
+  }
+
+  if (routeTarget === "speech_generation") {
+    return "agent:voiceover-studio";
+  }
+
+  if (routeTarget === "video_generation") {
+    return "agent:motion-video-studio";
+  }
+
+  return "boreal-agent";
+}
+
+function getExecutionAgentDisplayName(routeTarget: ToolRoute) {
+  if (routeTarget === "image_generation") {
+    return "Image Studio";
+  }
+
+  if (routeTarget === "speech_generation") {
+    return "Voiceover Studio";
+  }
+
+  if (routeTarget === "video_generation") {
+    return "Motion Video Studio";
+  }
+
+  return "Boreal Agent";
 }

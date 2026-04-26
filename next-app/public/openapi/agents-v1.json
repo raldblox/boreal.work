@@ -1,0 +1,501 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Boreal Agent Registry API",
+    "version": "boreal-agent-registry/v1",
+    "description": "Public registry and direct execution surface for specialized Boreal agents on boreal.work."
+  },
+  "servers": [
+    {
+      "url": "https://boreal.work",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/api/agents/registry": {
+      "get": {
+        "summary": "List registered agents",
+        "description": "Returns the public Boreal agent registry, including direct execution contracts when available.",
+        "operationId": "listRegisteredAgents",
+        "responses": {
+          "200": {
+            "description": "Registry response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{agentKey}": {
+      "get": {
+        "summary": "Get one agent contract",
+        "description": "Returns one public Boreal agent entry and its direct execution contract when present.",
+        "operationId": "getRegisteredAgent",
+        "parameters": [
+          {
+            "name": "agentKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Single agent response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{agentKey}/execute": {
+      "post": {
+        "summary": "Execute one specialized agent",
+        "description": "Runs one specialized Boreal agent. The caller must have a signed-in X session on boreal.work. The request body must match the fields exposed by the selected agent contract.",
+        "operationId": "executeRegisteredAgent",
+        "parameters": [
+          {
+            "name": "agentKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Execution response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecuteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed-in X session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RegistryResponse": {
+        "type": "object",
+        "required": ["version", "agents"],
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "boreal-agent-registry/v1"
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentListing"
+            }
+          }
+        }
+      },
+      "AgentResponse": {
+        "type": "object",
+        "required": ["version", "agent"],
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "boreal-agent-registry/v1"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/AgentListing"
+          }
+        }
+      },
+      "AgentListing": {
+        "type": "object",
+        "required": [
+          "availabilityStatus",
+          "capabilityTags",
+          "category",
+          "description",
+          "displayName",
+          "handle",
+          "headline",
+          "key",
+          "productLabels",
+          "skillTags",
+          "supply"
+        ],
+        "properties": {
+          "availabilityStatus": {
+            "type": "string"
+          },
+          "capabilityTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "directExecution": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DirectExecutionSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "productLabels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skillTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supply": {
+            "$ref": "#/components/schemas/SupplyListing"
+          }
+        }
+      },
+      "DirectExecutionSpec": {
+        "type": "object",
+        "required": [
+          "auth",
+          "description",
+          "exampleRequest",
+          "fields",
+          "outputKinds",
+          "routePath",
+          "version"
+        ],
+        "properties": {
+          "auth": {
+            "type": "string",
+            "const": "x-session"
+          },
+          "description": {
+            "type": "string"
+          },
+          "exampleRequest": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionField"
+            }
+          },
+          "outputKinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "image_generation",
+                "speech_generation",
+                "text",
+                "video_generation"
+              ]
+            }
+          },
+          "routePath": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "const": "boreal-agent-registry/v1"
+          }
+        }
+      },
+      "ExecutionField": {
+        "type": "object",
+        "required": ["description", "name", "required", "type"],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["boolean", "number", "object", "string"]
+          }
+        }
+      },
+      "SupplyListing": {
+        "type": "object",
+        "required": [
+          "deliveryType",
+          "description",
+          "priceAmount",
+          "priceType",
+          "supplyType",
+          "title"
+        ],
+        "properties": {
+          "deliveryType": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priceAmount": {
+            "type": "number"
+          },
+          "priceType": {
+            "type": "string"
+          },
+          "supplyType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ExecuteResponse": {
+        "type": "object",
+        "required": ["version", "agent", "result"],
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "boreal-agent-registry/v1"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TextResult"
+              },
+              {
+                "$ref": "#/components/schemas/ImageResult"
+              },
+              {
+                "$ref": "#/components/schemas/SpeechResult"
+              },
+              {
+                "$ref": "#/components/schemas/VideoResult"
+              }
+            ]
+          }
+        }
+      },
+      "TextResult": {
+        "type": "object",
+        "required": ["content", "contentType", "kind", "title"],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string",
+            "const": "text/markdown"
+          },
+          "kind": {
+            "type": "string",
+            "const": "text"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ImageResult": {
+        "type": "object",
+        "required": ["base64", "kind", "mediaType", "prompt", "title"],
+        "properties": {
+          "base64": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "const": "image_generation"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "SpeechResult": {
+        "type": "object",
+        "required": [
+          "base64",
+          "format",
+          "kind",
+          "mediaType",
+          "title",
+          "transcript",
+          "voice"
+        ],
+        "properties": {
+          "base64": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "const": "speech_generation"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "transcript": {
+            "type": "string"
+          },
+          "voice": {
+            "type": "string"
+          }
+        }
+      },
+      "VideoResult": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "kind",
+          "model",
+          "progress",
+          "prompt",
+          "seconds",
+          "size",
+          "status",
+          "title"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "const": "video_generation"
+          },
+          "model": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "seconds": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "failed", "in_progress", "queued"]
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

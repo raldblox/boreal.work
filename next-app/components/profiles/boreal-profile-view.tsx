@@ -24,12 +24,11 @@ import type { BorealAgentStats } from "@/lib/boreal/integrations/convex/function
 
 const capabilities = [
   "Intent extraction",
+  "Request routing",
+  "Approval coordination",
   "Proposal drafting",
   "Chat collaboration",
   "Catalog matching",
-  "Image generation",
-  "Speech generation",
-  "Video orchestration",
   "Request tracking",
 ]
 
@@ -65,9 +64,9 @@ export function BorealProfileView({
                 </div>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                   Boreal is the system operator for request-first work. It
-                  drafts intent, coordinates approvals, collaborates in thread,
-                  and fulfills supported tasks directly when the workspace
-                  allows it.
+                  turns chat into live requests, coordinates approvals, routes
+                  the best fulfillment path, and keeps the work thread intact
+                  until the outcome lands.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {capabilities.map((item) => (

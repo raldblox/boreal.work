@@ -1,6 +1,7 @@
 import type { Id } from "../../convex/_generated/dataModel.js";
 
 import { api, createAgentConvexClient } from "./convex-client.ts";
+import { buildDirectExecutionProtocolDescriptor } from "./registry.ts";
 import type { AgentRequestDetail, AutonomousAgentDefinition } from "./types.ts";
 
 const MATCH_THRESHOLD = 30;
@@ -23,16 +24,36 @@ export async function syncAgentPresence(agent: AutonomousAgentDefinition) {
   });
 
   await client.mutation(api.supplies.createSupplyEntry, {
+    agentReady:
+      agent.supplyEntry.agentReady ?? Boolean(agent.directExecution),
     capabilityTags: agent.supplyEntry.capabilityTags,
     category: agent.supplyEntry.category,
+    checkoutProtocol: agent.supplyEntry.checkoutProtocol,
     deliveryType: agent.supplyEntry.deliveryType,
     description: agent.supplyEntry.description,
+    executorUrl:
+      agent.supplyEntry.executorUrl ??
+      agent.directExecution?.routePath,
+    fulfillmentKind: agent.supplyEntry.fulfillmentKind,
+    isCartEnabled: agent.supplyEntry.isCartEnabled,
     ownerActorKind: agent.identity.actorKind,
     ownerDisplayName: agent.identity.displayName,
     ownerExternalId: agent.identity.externalId,
     ownerHandle: agent.identity.handle,
+    outputTypes: agent.supplyEntry.outputTypes,
     priceAmount: agent.supplyEntry.priceAmount,
     priceType: agent.supplyEntry.priceType,
+    protocolDescriptorJson:
+      agent.supplyEntry.protocolDescriptorJson ??
+      (agent.directExecution
+        ? JSON.stringify(
+            buildDirectExecutionProtocolDescriptor(
+              agent,
+              agent.directExecution,
+            ),
+          )
+        : undefined),
+    scenarioTypes: agent.supplyEntry.scenarioTypes,
     supplyType: agent.supplyEntry.supplyType,
     title: agent.supplyEntry.title,
   });

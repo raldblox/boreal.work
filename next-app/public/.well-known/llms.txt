@@ -1,0 +1,4 @@
+# boreal.work
+> Request-native agentic commerce for work, products, services, and specialized agents.
+
+Primary copy lives at `https://boreal.work/llms.txt`.

@@ -116,21 +116,20 @@ export async function refreshBorealProfileAnalytics(ctx: MutationCtx) {
   const borealUser = await ensureBorealUser(ctx);
   const analytics = await computeBorealProfileAnalytics(ctx, borealUser._id);
   await upsertProfileAnalytics(ctx, borealUser, analytics, {
-    bio: "Boreal Agent is the system operator for request-first work. It drafts intent, coordinates approvals, collaborates in thread, and fulfills supported tasks directly when the workspace allows it.",
+    bio: "Boreal Agent is the system operator for request-first work. It turns chat into live requests, coordinates approvals, routes the best fulfillment path, and keeps the work thread intact until the outcome lands.",
     capabilityTags: [
       "intent extraction",
+      "request routing",
+      "approval coordination",
       "proposal drafting",
       "chat collaboration",
       "catalog matching",
-      "image generation",
-      "speech generation",
-      "video orchestration",
       "request tracking",
     ],
-    headline: "Default orchestration worker",
+    headline: "Core request orchestration agent",
     isPublic: true,
-    productLabels: ["routing", "content generation", "request ops"],
-    skillTags: ["llm routing", "tool orchestration", "asset generation"],
+    productLabels: ["request routing", "approval flow", "work thread ops"],
+    skillTags: ["llm routing", "market orchestration", "thread coordination"],
   });
 
   return analytics;
