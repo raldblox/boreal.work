@@ -13,22 +13,22 @@ Use it for:
 
 ## Master Message
 
-Boreal is building request-native commerce: an intent-to-fulfillment layer for work, products, and services.
+Boreal is building a request router for paid agentic services, with human fallback when automation cannot complete the job.
 
 Short public version:
 
-Boreal is a chat-native market for request-native commerce.
+Boreal routes paid requests through tools first, then humans when needed.
 
 ## Shared Rules
 
 Across every audience:
 
 - start with the problem of disappearing demand
-- explain Boreal through requests, supply, proposals, fulfillment, and checkout
+- explain Boreal through requests, tool-first execution, human fallback, fulfillment, and checkout
 - keep the alpha boundary explicit
 - use `chat-native` for interface
-- use `request-native` for category
-- use `intent-to-fulfillment` for thesis
+- use `paid agentic services` for the current wedge
+- use `request-native commerce` and `intent-to-fulfillment` for the longer-term thesis
 
 ## Audience: Buyers
 
@@ -42,7 +42,7 @@ Across every audience:
 
 ### Lead line
 
-Post what you need in plain language. Boreal turns it into a request, checks existing supply first, and opens proposals when the work is custom.
+Post what you need in plain language. Boreal turns it into a paid request, routes executable supply first, and opens human fallback only when the work cannot be completed automatically.
 
 ### Supporting points
 
@@ -68,7 +68,7 @@ Post what you need in plain language. Boreal turns it into a request, checks exi
 
 ### Lead line
 
-List your service, product, or agent capability once, then let Boreal match it to relevant requests and buying intent.
+List your service, product, or agent capability once, then let Boreal route paid requests to you when automation alone is not enough.
 
 ### Supporting points
 
@@ -94,7 +94,7 @@ List your service, product, or agent capability once, then let Boreal match it t
 
 ### Lead line
 
-Boreal turns plain-language demand into structured requests that can be matched to supply, proposals, fulfillment workflows, and supported checkout paths.
+Boreal turns plain-language demand into structured paid requests that can be routed through tools, provider-backed services, human fallback, and supported checkout paths.
 
 ### Supporting points
 
@@ -121,7 +121,7 @@ Boreal turns plain-language demand into structured requests that can be matched 
 
 ### Lead line
 
-Boreal is a request-native commerce layer that can route demand into partner supply instead of leaving that demand trapped in chat or search.
+Boreal is an automation-first request router that can route paid demand into partner supply instead of leaving that demand trapped in chat or search.
 
 ### Supporting points
 
@@ -147,7 +147,7 @@ Boreal is a request-native commerce layer that can route demand into partner sup
 
 ### Lead line
 
-Boreal sits between work marketplaces and agentic commerce: a chat-native interface for request-native commerce, with a longer-term thesis around intent-to-fulfillment infrastructure.
+Boreal is starting as an automation-first request router for paid agentic services, with human fallback and a longer-term thesis around request-native commerce infrastructure.
 
 ### Supporting points
 
@@ -172,7 +172,7 @@ Boreal sits between work marketplaces and agentic commerce: a chat-native interf
 
 ### Lead line
 
-Boreal is a chat-native market where people and agents start with a request, then move through supply, proposals, fulfillment, and checkout in one place.
+Boreal is a chat-native request router where people start with one paid request, Boreal tries the best executable path first, and humans step in only when the work needs it.
 
 ### Supporting points
 
@@ -185,19 +185,19 @@ Boreal is a chat-native market where people and agents start with a request, the
 
 ### 5-word level
 
-`Commerce starts with a request.`
+`One request. Best path out.`
 
 ### 10-word level
 
-`Boreal turns chat into requests, then routes them to fulfillment.`
+`Boreal routes paid requests through tools first, then humans.`
 
 ### 20-word level
 
-`Boreal is a chat-native market for request-native commerce, connecting requests to supply, proposals, fulfillment, and supported checkout.`
+`Boreal is an automation-first request router for paid agentic services with human fallback when direct execution is not enough.`
 
 ### 50-word level
 
-`Boreal is building request-native commerce: an intent-to-fulfillment layer for work, products, and services. People or agents start with a plain-language request. Boreal turns that into a durable workspace, checks existing supply first, opens proposals when the work is custom, and keeps delivery or checkout visible until the outcome is complete.`
+`Boreal is building a request router for paid agentic services. People or agents start with a plain-language request. Boreal turns that into a durable workspace, routes tools and provider-backed services first, opens human fallback only when automation cannot complete the job, and keeps delivery or checkout visible until the outcome is complete.`
 
 ## Terms By Audience
 
@@ -229,7 +229,7 @@ Boreal is a chat-native market where people and agents start with a request, the
 
 If the message does not explain both:
 
-- how Boreal starts
-- what Boreal keeps attached until the outcome is done
+- that Boreal starts with one request
+- that Boreal routes the executable path first and escalates only when needed
 
 then it is probably too vague.

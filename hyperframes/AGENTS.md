@@ -18,9 +18,9 @@ Read these before changing story, copy, or visuals:
 - `docs/scenes.md`
 - `docs/voice-script.md`
 - `docs/capture-list.md`
-- `../BRAND_SYSTEM.md`
-- `../VISUAL_IDENTITY.md`
-- `../MESSAGING_MATRIX.md`
+- `../docs/BRAND_SYSTEM.md`
+- `../docs/VISUAL_IDENTITY.md`
+- `../docs/MESSAGING_MATRIX.md`
 - `../remotion/docs/creative-brief.md`
 
 ## Commands

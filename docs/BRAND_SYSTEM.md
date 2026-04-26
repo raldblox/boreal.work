@@ -2,7 +2,7 @@
 
 This document consolidates Boreal's current brand foundation from:
 
-- `WHITEPAPER.md`
+- `../WHITEPAPER.md`
 - `COPYWRITING.md`
 - `CHARACTER.md`
 - `CATEGORY_LANGUAGE_RESEARCH.md`

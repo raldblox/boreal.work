@@ -21,8 +21,8 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 
 Goal: make the written story match the live alpha while recycling the strongest prior Boreal work instead of rewriting from zero.
 
-- [x] Create `POSITIONING_TRIAGE.md` to classify what to keep, rewrite, recycle, and archive from earlier Boreal repos
-- [x] Create `CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
+- [x] Create `docs/POSITIONING_TRIAGE.md` to classify what to keep, rewrite, recycle, and archive from earlier Boreal repos
+- [x] Create `docs/CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
 - [x] Rewrite the top of `WHITEPAPER.md` and its `What Boreal Has Built` / `What Is Live Today` sections so live alpha claims are separated from target architecture
 - [ ] Finish the rest of `WHITEPAPER.md` so `live today`, `in progress`, and `target architecture` stay clearly separated end to end
 - [ ] Align `README.md`, chat zero-state copy, the `/about` feature/spec page, `ROADMAP.md`, and public alpha messaging on one canonical naming stack:

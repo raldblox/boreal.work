@@ -17,7 +17,7 @@ const PROMPTS = {
   request:
     "I need a launch page, onboarding copy, and a checkout-ready listing by Friday. Help me turn this into a request, search supply first, and open proposals only for the missing custom pieces.",
   supply:
-    "I want to package my services, products, and agent capabilities into strong public supply so Boreal can route relevant demand to me.",
+    "I want to package my services, products, and agent capabilities into strong public supply so Boreal can route paid demand to me when automation alone is not enough.",
 } as const
 
 const railMetrics = [
@@ -28,8 +28,8 @@ const railMetrics = [
   },
   {
     label: "Routing",
-    note: "Boreal checks live supply before opening custom proposal work.",
-    value: "Supply first",
+    note: "Boreal checks executable supply before opening human fallback work.",
+    value: "Tool first",
   },
   {
     label: "Execution",
@@ -41,7 +41,7 @@ const railMetrics = [
 const operatorCards = [
   {
     body:
-      "Turn a vague operational need into a scoped request with routing and proposal gates.",
+      "Turn a vague operational need into a paid request with tool-first routing and fallback gates.",
     cta: "Post a request",
     href: href(PROMPTS.request),
     label: "Founders",
@@ -49,7 +49,7 @@ const operatorCards = [
   },
   {
     body:
-      "List services, products, or capabilities once and let Boreal route live demand to you.",
+      "List services, products, or capabilities once and let Boreal route paid demand to you when automation is not enough.",
     cta: "List supply",
     href: href(PROMPTS.supply),
     label: "Sellers",
@@ -57,7 +57,7 @@ const operatorCards = [
   },
   {
     body:
-      "Expose tools, outputs, and fulfillment terms so Boreal can treat agents like market supply.",
+      "Expose tools, outputs, and fulfillment terms so Boreal can route executable demand without making buyers choose the stack.",
     cta: "Open Boreal Agent",
     href: "/p/boreal-agent",
     label: "Agents",
@@ -68,14 +68,14 @@ const operatorCards = [
 const demoLines = [
   "> founder: need a launch page, onboarding copy, and a checkout-ready listing by Friday",
   "parse_request() -> launch package / due friday / delivery window set",
-  "search_supply() -> 6 live operators, 3 productized offers, 1 Boreal tool",
-  "proposal_gate() -> open only for the missing custom pieces",
+  "route_execution() -> 1 Boreal tool, 3 provider-backed services, 2 live operators",
+  "fallback_gate() -> open the human path only for the missing custom pieces",
   "workspace.create() -> request, chat, delivery, and checkout stay attached",
 ] as const
 
 const featureTiles = [
   {
-    body: "Browse live people, agents, products, and services already in market.",
+    body: "Browse live people, agents, products, and services Boreal can route against.",
     href: "/?browse=workers",
     icon: PackageIcon,
     title: "Supply",
@@ -148,13 +148,14 @@ export function LandingPage() {
                 Product surface / Market mechanics / Execution model
               </p>
               <h1 className="mt-5 max-w-4xl font-heading text-balance text-4xl font-semibold tracking-tight sm:text-6xl lg:text-7xl">
-                How Boreal turns chat into requests, supply, and fulfillment.
+                How Boreal turns one request into the best paid execution path.
               </h1>
               <p className="mt-5 max-w-3xl text-base/8 text-muted-foreground sm:text-lg/8">
                 This page is the product walk-through. Boreal starts from a
-                plain-language ask, turns it into a structured request,
-                searches supply first, opens proposals only when the work is
-                custom, and keeps execution attached until the outcome is done.
+                plain-language ask, turns it into a structured paid request,
+                routes tools and provider-backed services first, opens human
+                fallback only when automation cannot finish the job, and keeps
+                execution attached until the outcome is done.
               </p>
 
               <div className="mt-8 border border-border bg-muted/16">
@@ -186,7 +187,7 @@ export function LandingPage() {
                           className="min-h-40 w-full resize-none border border-border bg-background px-4 py-4 text-base outline-none placeholder:text-muted-foreground"
                           defaultValue=""
                           name="prompt"
-                          placeholder="Describe what you need. Boreal will turn it into the first request draft."
+                          placeholder="Describe the outcome you need. Boreal will turn it into the first paid request draft."
                         />
                       </label>
 
@@ -200,7 +201,7 @@ export function LandingPage() {
                         <p className="max-w-md text-sm/7 text-muted-foreground">
                           The homepage is now the actual chat entry. This page
                           exists to explain the system behind that first
-                          message.
+                          paid request.
                         </p>
                         <Button className="rounded-none" size="lg" type="submit">
                           Start in chat
@@ -228,7 +229,7 @@ export function LandingPage() {
                         />
                         <RequestField
                           label="Routing"
-                          value="Search existing supply first, then open proposals if needed"
+                          value="Route tools and providers first, then open human fallback only if needed"
                         />
                         <RequestField
                           label="Execution"
@@ -244,7 +245,7 @@ export function LandingPage() {
 
           <footer className="border-t border-border pt-4">
             <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <p>Start in chat. Operate through requests.</p>
+              <p>Start with one request. Route the best path first.</p>
               <div className="flex flex-wrap gap-4">
                 <Link className="hover:text-foreground" href="/">
                   Open chat
@@ -285,7 +286,7 @@ export function LandingPage() {
                   Operator readiness
                 </p>
                 <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight">
-                  Choose the fastest way in.
+                  Choose the fastest execution path in.
                 </h2>
               </div>
               <div className="grid gap-px bg-border md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
@@ -308,7 +309,7 @@ export function LandingPage() {
                   Routing demo
                 </p>
                 <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight">
-                  What Boreal does after the first message.
+                  What Boreal does after the first paid request.
                 </h2>
               </div>
 

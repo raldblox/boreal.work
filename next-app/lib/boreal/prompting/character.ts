@@ -5,7 +5,7 @@ import path from "node:path";
 
 import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
 
-const characterPath = path.resolve(process.cwd(), "..", "CHARACTER.md");
+const characterPath = path.resolve(process.cwd(), "..", "docs", "CHARACTER.md");
 
 let cachedCharacterDoc: Promise<string> | null = null;
 

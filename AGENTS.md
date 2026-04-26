@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- The repo is currently document-first: root holds `README.md`, `WHITEPAPER.md`, `ROADMAP.md`, `MATCHING_ENGINE.md`, `COMMERCE_STANDARDS.md`, and `SERVICE_PROVIDER.MD`, so keep additions near those files unless a new workspace (e.g., `src/`, `tests/`, `assets/`) appears later.
+- The repo is currently document-first: root holds the core docs `README.md`, `MVP.md`, `WHITEPAPER.md`, `ROADMAP.md`, `MATCHING_ENGINE.md`, `COMMERCE_STANDARDS.md`, and `SERVICE_PROVIDER.MD`, while supporting strategy, brand, character, deck, and archive docs live under `docs/`.
 - The active application workspace is `next-app/`, with feature code split across `next-app/app/`, `next-app/components/`, `next-app/lib/boreal/`, and `next-app/convex/`.
 - Autonomous worker definitions and their runtime scripts live under `next-app/agents/`.
 - Demo-video planning, assets, scripts, and future Remotion compositions live under the root-level `remotion/` package, using actual UI and product language from `next-app/` rather than standalone mockups.
@@ -44,10 +44,12 @@
 ## Documentation & Agent Notes
 - Keep this guide and `README.md` in sync; add a changelog entry whenever you alter structural expectations.
 - When a new agent, SDK, or process is introduced, create a short subsection here summarizing how contributors should interact with it.
+- `MVP.md` is the current two-week wedge test plan and should stay focused on one assumption, one offer, and one launch path to real users.
 - `ROADMAP.md` is the execution tracker derived from `WHITEPAPER.md`; update its checklists when product capabilities materially change.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
+- `docs/` holds the supporting narrative layer: positioning, category research, copywriting, brand system, visual identity, deck guidance, archive notes, and the Boreal agent character prompt source.
 - Boreal's network-default policy lives in `next-app/lib/boreal/commerce/networks.ts`; default to Solana `devnet` locally unless deployment env flags intentionally switch the commerce layer to `mainnet` or EVM-first defaults.
 - `presentations/` is the standalone workspace for editable Boreal decks; `presentations/boreal-pitch-deck/` is the current pitch-deck source of truth and should be regenerated from `src/build-deck.mjs` rather than edited inside the exported `.pptx`.
 - `remotion/` is the dedicated standalone workspace for Boreal's hackathon / launch video, including storyboard docs, media assets, helper scripts, and Remotion render code.
@@ -58,7 +60,7 @@
 
 - The first production agent is `intent-extraction`, implemented in `next-app/lib/boreal/agents/intent-extraction/`.
 - Agents should stay composable: provider access belongs in `integrations/`, persistence in `dal/`, and reusable execution units in `tools/`.
-- The UI-facing Boreal character and surface-aware behavior are grounded in `CHARACTER.md`, with prompt selection implemented from frontend state hints rather than full thread reconstruction.
+- The UI-facing Boreal character and surface-aware behavior are grounded in `docs/CHARACTER.md`, with prompt selection implemented from frontend state hints rather than full thread reconstruction.
 - Autonomous worker personas for end-to-end stress testing live in `next-app/agents/profiles/` and act through Convex mutations instead of the main Boreal chat agent.
 - External service discovery, payment, and invocation adapters live under `next-app/lib/boreal/integrations/service-providers/`.
 - Service-provider sync and integration endpoints live under `next-app/app/api/service-providers/`.

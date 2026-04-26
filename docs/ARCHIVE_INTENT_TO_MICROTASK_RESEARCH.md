@@ -10,11 +10,11 @@
 >
 > For current product direction, use these documents first:
 >
-> - `WHITEPAPER.md`
-> - `ROADMAP.md`
-> - `MATCHING_ENGINE.md`
-> - `COMMERCE_STANDARDS.md`
-> - `SERVICE_PROVIDER.MD`
+> - `../WHITEPAPER.md`
+> - `../ROADMAP.md`
+> - `../MATCHING_ENGINE.md`
+> - `../COMMERCE_STANDARDS.md`
+> - `../SERVICE_PROVIDER.MD`
 
 **Executive Summary:** Modern AI and analytics capture vast user behavior data, yet many user **intents** remain unfulfilled, hidden in logs and session data. This report analyzes the need for a *new platform* that detects these latent intents (from logs, heatmaps, chat transcripts, etc.) and converts them into actionable microtasks for humans or AI agents. We examine market demand, task types, decomposition methods, human-vs-agent routing, pricing strategies, UI/UX design for an intent-to-task chat interface, data pipelines, quality controls, legal/privacy issues, system architecture, and go-to-market plans. Key insights include: (1) Many tasks (e.g. image labeling, content moderation, data lookup) are inherently human-intensive【24†L53-L60】; (2) Effective task allocation requires careful pricing and assignment mechanisms【24†L69-L77】【58†L70-L78】; (3) Proven “human-in-loop” workflows use confidence thresholds to route uncertain tasks to people【12†L46-L54】【18†L190-L199】; (4) Privacy and consent are critical since user data (even chat inputs) are often used by default for AI training【45†L126-L134】. We propose a hybrid system that bridges analytics with crowdsourcing, outline pilot metrics (e.g. completion vs escalation rates, time per task【14†L179-L187】), and suggest a 6–12 week pilot plan with milestones. Tables compare pricing models and task-matching methods, and mermaid diagrams illustrate the system architecture and user flows. 
 

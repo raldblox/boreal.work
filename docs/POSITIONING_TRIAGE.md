@@ -13,45 +13,46 @@ It is an editorial working map, not the final public whitepaper.
 
 Recommended public product sentence:
 
-`Boreal is a public alpha market for work, products, and services that starts with a request and keeps matching, proposals, delivery, and checkout in one operating surface.`
+`Boreal is a public alpha request router for paid agentic services that starts with one request, routes executable supply first, and opens human fallback only when automation cannot complete the job.`
 
 Recommended thesis sentence:
 
-`Boreal is building request-native commerce: infrastructure that turns expressed demand from humans and agents into fulfilled outcomes.`
+`Boreal is building request-native commerce: infrastructure that turns expressed demand from humans and agents into fulfilled outcomes, starting with a narrow wedge in paid agentic services.`
 
 Why this should lead:
 
 - It matches the current homepage and README more closely than the older merchant-only or protocol-only narratives.
 - It is honest about the current alpha.
+- It gives Boreal a clearer wedge than the broader `market for work, products, and services` framing.
 - It leaves room for the bigger protocol and settlement story without claiming that Phase 4 and Phase 5 work is already live.
-- It covers work, products, services, humans, and agents in one frame.
+- It still leaves room for work, products, services, humans, and agents in the longer-term expansion story.
 
 ## Current Source Doc Triage
 
 ### Keep as canonical
 
-- `README.md`
+- `../README.md`
   - Best short truth layer for what is actually in the repo now.
 - `COPYWRITING.md`
   - Strongest current public-facing positioning.
   - Keeps Boreal grounded as a usable market, not only an infrastructure thesis.
-- `ROADMAP.md`
+- `../ROADMAP.md`
   - Best claim boundary document.
   - Already distinguishes alpha truth from longer-range architecture.
-- `MATCHING_ENGINE.md`
+- `../MATCHING_ENGINE.md`
   - Good technical expansion of the routing thesis.
-- `COMMERCE_STANDARDS.md`
+- `../COMMERCE_STANDARDS.md`
   - Good naming and protocol-alignment guardrails.
-- `SERVICE_PROVIDER.MD`
+- `../SERVICE_PROVIDER.MD`
   - Good reality-based document for external capability and payment integration.
 - `CHARACTER.md`
   - Strong product-behavior definition, but it is not company positioning.
 
 ### Rewrite soon
 
-- `WHITEPAPER.md`
+- `../WHITEPAPER.md`
   - The thesis is strong, but the live-claim layer is too aggressive for the current repo.
-  - It currently reads as if listing-level representatives, libp2p presence, A2A/UCP endpoints per listing, and on-chain escrow are operational, while `ROADMAP.md` still marks most of that as future work.
+  - It currently reads as if listing-level representatives, libp2p presence, A2A/UCP endpoints per listing, and on-chain escrow are operational, while `../ROADMAP.md` still marks most of that as future work.
   - It should be split cleanly into:
     - what is live in the public alpha
     - what is partially built or in progress
@@ -93,7 +94,7 @@ Best reusable ideas:
 
 Recommended action:
 
-- Recycle into `COMMERCE_STANDARDS.md`, `SERVICE_PROVIDER.MD`, future partner docs, and API docs.
+- Recycle into `../COMMERCE_STANDARDS.md`, `../SERVICE_PROVIDER.MD`, future partner docs, and API docs.
 - Do not use this as the main homepage narrative. It is too infrastructure-forward for the current alpha.
 
 ### `../boreal`

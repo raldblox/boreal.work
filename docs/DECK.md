@@ -266,6 +266,6 @@ If copy conflicts between the homepage, deck, whitepaper, demo, and docs, use th
 1. live product behavior
 2. homepage and product UI
 3. this `DECK.md`
-4. `WHITEPAPER.md`
+4. `../WHITEPAPER.md`
 
 The product promise must stay tighter than the full thesis.
