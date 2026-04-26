@@ -6,6 +6,7 @@ import { api, createAgentConvexClient } from "../agents/shared/convex-client.ts"
 const now = Date.now();
 const ownerExternalId = `smoke-owner-${now}`;
 const workerExternalId = `smoke-worker-${now}`;
+const matchToken = `smoke-algebra-${now}`;
 
 async function main() {
   const client = createAgentConvexClient();
@@ -38,15 +39,15 @@ async function main() {
   try {
     const supply = await client.mutation(api.supplies.createSupplyEntry, {
       availabilityStatus: "available",
-      capabilityTags: ["math", "algebra", "proofs", "explainer"],
+      capabilityTags: ["math", "algebra", "proofs", "explainer", matchToken],
       category: "education",
       deliveryType: "async",
       description:
-        "I solve algebra and proof-based math requests with worked solutions in markdown and clear reasoning.",
+        `I solve algebra and proof-based math requests with worked solutions in markdown and clear reasoning. Unique match token: ${matchToken}.`,
       estimatedDeliveryLabel: "1 day",
       exampleIntents: [
-        "Prove an algebra identity step by step.",
-        "Solve a quadratic equation and explain the method.",
+        `Prove an algebra identity step by step for ${matchToken}.`,
+        `Solve a quadratic equation and explain the method for ${matchToken}.`,
       ],
       exclusions: ["image generation", "video generation"],
       maxConcurrentJobs: 3,
@@ -62,7 +63,7 @@ async function main() {
       priceType: "fixed",
       responseSlaMinutes: 30,
       supplyType: "capability",
-      title: "Algebra Proof and Solution Service",
+      title: `Algebra Proof and Solution Service ${matchToken}`,
     });
 
     assert.equal(supply.created, true, "expected supply creation to succeed");
@@ -76,9 +77,9 @@ async function main() {
       intent: {
         assistantMessageId: crypto.randomUUID(),
         assetPrompt: "",
-        body: "Need a worked algebra solution for x^2 - 5x + 6 = 0, including factorization and a short explanation of each step.",
-        capabilityTags: ["math", "algebra", "worked solution"],
-        catalogQuery: "algebra worked solution service",
+        body: `Need a worked algebra solution for x^2 - 5x + 6 = 0, including factorization and a short explanation of each step. Match token: ${matchToken}.`,
+        capabilityTags: ["math", "algebra", "worked solution", matchToken],
+        catalogQuery: `algebra worked solution service ${matchToken}`,
         category: "education",
         confidence: 0.94,
         conversationId,
@@ -94,7 +95,7 @@ async function main() {
         },
         intentModel: "smoke-test",
         intentType: "demand",
-        keywords: ["algebra", "equation", "worked solution", "math"],
+        keywords: ["algebra", "equation", "worked solution", "math", matchToken],
         missingDetails: [],
         modalityScores: [
           {
@@ -120,8 +121,8 @@ async function main() {
         shouldSearchCatalog: true,
         speechText: "",
         suggestedReplies: [],
-        summary: "Need an algebra expert to solve and explain a quadratic equation in markdown.",
-        title: "Solve and explain a quadratic equation",
+        summary: `Need an algebra expert to solve and explain a quadratic equation in markdown for ${matchToken}.`,
+        title: `Solve and explain a quadratic equation ${matchToken}`,
         userMessageId: crypto.randomUUID(),
         voice: "alloy",
       },
@@ -154,7 +155,9 @@ async function main() {
     assert.ok(ownerDetail.catalogItems.length > 0, "expected matched catalog items");
     assert.ok(
       ownerDetail.catalogItems.some((item) => item._id === supply.supplyId),
-      "expected the created supply to appear in the matched catalog",
+      `expected the created supply to appear in the matched catalog; saw ${ownerDetail.catalogItems
+        .map((item) => `${item.title} (${item._id})`)
+        .join(", ")}`,
     );
 
     const workerPerspective = await client.query(api.intents.getRequestDetail, {

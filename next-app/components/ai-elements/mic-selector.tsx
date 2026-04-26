@@ -54,10 +54,24 @@ export const useAudioDevices = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
+  const loadingRef = useRef(false);
+
+  const setLoadingState = useCallback((nextLoading: boolean) => {
+    loadingRef.current = nextLoading;
+    setLoading(nextLoading);
+  }, []);
 
   const loadDevicesWithoutPermission = useCallback(async () => {
+    if (
+      loadingRef.current ||
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.enumerateDevices
+    ) {
+      return;
+    }
+
     try {
-      setLoading(true);
+      setLoadingState(true);
       setError(null);
 
       const deviceList = await navigator.mediaDevices.enumerateDevices();
@@ -75,17 +89,22 @@ export const useAudioDevices = () => {
       setError(message);
       console.error("Error getting audio devices:", message);
     } finally {
-      setLoading(false);
+      setLoadingState(false);
     }
-  }, []);
+  }, [setLoadingState]);
 
   const loadDevicesWithPermission = useCallback(async () => {
-    if (loading) {
+    if (
+      loadingRef.current ||
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia ||
+      !navigator.mediaDevices.enumerateDevices
+    ) {
       return;
     }
 
     try {
-      setLoading(true);
+      setLoadingState(true);
       setError(null);
 
       const tempStream = await navigator.mediaDevices.getUserMedia({
@@ -112,12 +131,18 @@ export const useAudioDevices = () => {
       setError(message);
       console.error("Error getting audio devices:", message);
     } finally {
-      setLoading(false);
+      setLoadingState(false);
     }
-  }, [loading]);
+  }, [setLoadingState]);
 
   useEffect(() => {
-    loadDevicesWithoutPermission();
+    const frame = requestAnimationFrame(() => {
+      void loadDevicesWithoutPermission();
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
   }, [loadDevicesWithoutPermission]);
 
   useEffect(() => {

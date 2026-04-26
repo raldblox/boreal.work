@@ -3,8 +3,8 @@
 import { cn } from "@/lib/utils";
 import type { RiveParameters } from "@rive-app/react-webgl2";
 import {
+  EventType,
   useRive,
-  useStateMachineInput,
   useViewModel,
   useViewModelInstance,
   useViewModelInstanceColor,
@@ -267,31 +267,38 @@ export const Persona: FC<PersonaProps> = memo(
         : null
     );
 
-    const listeningInput = useStateMachineInput(
-      rive,
-      stateMachine,
-      "listening"
-    );
-    const thinkingInput = useStateMachineInput(rive, stateMachine, "thinking");
-    const speakingInput = useStateMachineInput(rive, stateMachine, "speaking");
-    const asleepInput = useStateMachineInput(rive, stateMachine, "asleep");
+    useEffect(() => {
+      if (!rive) {
+        return;
+      }
 
     // Rive state machine inputs are mutable objects that must be set via direct
     // property assignment — this is the intended Rive API, not a React anti-pattern.
-    useEffect(() => {
-      if (listeningInput) {
-        listeningInput.value = state === "listening";
-      }
-      if (thinkingInput) {
-        thinkingInput.value = state === "thinking";
-      }
-      if (speakingInput) {
-        speakingInput.value = state === "speaking";
-      }
-      if (asleepInput) {
-        asleepInput.value = state === "asleep";
-      }
-    }, [state, listeningInput, thinkingInput, speakingInput, asleepInput]);
+      const syncInputs = () => {
+        const inputs = rive.stateMachineInputs(stateMachine);
+        const setInputValue = (
+          inputName: "listening" | "thinking" | "speaking" | "asleep",
+          isActive: boolean
+        ) => {
+          const input = inputs.find((candidate) => candidate.name === inputName);
+          if (input) {
+            input.value = isActive;
+          }
+        };
+
+        setInputValue("listening", state === "listening");
+        setInputValue("thinking", state === "thinking");
+        setInputValue("speaking", state === "speaking");
+        setInputValue("asleep", state === "asleep");
+      };
+
+      syncInputs();
+      rive.on(EventType.Load, syncInputs);
+
+      return () => {
+        rive.off(EventType.Load, syncInputs);
+      };
+    }, [rive, state]);
 
     const Component = source.hasModel ? PersonaWithModel : PersonaWithoutModel;
 
