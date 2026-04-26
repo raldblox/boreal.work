@@ -1789,8 +1789,11 @@ const ArchitectureDiagram: React.FC = () => {
 
 const HookScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const fade = sceneFade(frame, 210, 22);
-  const firstOpacity = interpolate(frame, [0, 20, 82, 108], [0, 1, 1, 0], {
+  const fade = interpolate(frame, [0, 188, 210], [1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const firstOpacity = interpolate(frame, [0, 82, 108], [1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });

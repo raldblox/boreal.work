@@ -41,30 +41,32 @@ export function HomeChatSurface({
         {quickActions}
       </div>
 
-      <div className="grid w-full gap-3 text-left md:grid-cols-2">
-        {starterPrompts.map((prompt) => (
-          <button
-            className="group rounded-2xl border border-border bg-card px-4 py-4 transition-colors hover:bg-accent/40"
-            key={prompt.title}
-            onClick={prompt.onSelect}
-            type="button"
-          >
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 rounded-full border border-border p-2 text-muted-foreground transition-colors group-hover:text-foreground">
-                {prompt.icon}
+      {starterPrompts.length > 0 ? (
+        <div className="grid w-full gap-3 text-left md:grid-cols-2">
+          {starterPrompts.map((prompt) => (
+            <button
+              className="group rounded-2xl border border-border bg-card px-4 py-4 transition-colors hover:bg-accent/40"
+              key={prompt.title}
+              onClick={prompt.onSelect}
+              type="button"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-full border border-border p-2 text-muted-foreground transition-colors group-hover:text-foreground">
+                  {prompt.icon}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {prompt.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {prompt.description}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  {prompt.title}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {prompt.description}
-                </p>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

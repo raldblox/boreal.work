@@ -23,17 +23,33 @@ export const recordIntentPipeline = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const conversationId = args.conversationId ?? crypto.randomUUID();
+    const ownerExternalId = args.ownerExternalId?.trim();
+
+    if (!ownerExternalId) {
+      throw new Error("Sign in with X before using Boreal chat.");
+    }
+
     const ownerUserId: string | undefined = await upsertOwnerUser(ctx, {
       displayName: args.ownerDisplayName,
-      externalId: args.ownerExternalId,
+      externalId: ownerExternalId,
       handle: args.ownerHandle,
     });
+    if (!ownerUserId) {
+      throw new Error("Sign in with X before using Boreal chat.");
+    }
     const existingConversation = await ctx.db
       .query("conversations")
       .withIndex("by_conversationId", (queryBuilder) =>
         queryBuilder.eq("conversationId", conversationId),
       )
       .unique();
+
+    if (
+      existingConversation?.ownerExternalId &&
+      existingConversation.ownerExternalId !== ownerExternalId
+    ) {
+      throw new Error("You do not have access to this conversation.");
+    }
     const conversationTitle =
       args.intent.title.trim().length > 0
         ? args.intent.title
@@ -47,7 +63,7 @@ export const recordIntentPipeline = mutation({
         latestMessageAt: now,
         messageCount: (existingConversation.messageCount ?? 0) + 2,
         ownerExternalId:
-          args.ownerExternalId ?? existingConversation.ownerExternalId,
+          ownerExternalId ?? existingConversation.ownerExternalId,
         ownerHandle: args.ownerHandle ?? existingConversation.ownerHandle,
         ownerUserId: ownerUserId ?? existingConversation.ownerUserId,
         title: conversationTitle,
@@ -62,7 +78,7 @@ export const recordIntentPipeline = mutation({
         lastMessageRole: "assistant",
         latestMessageAt: now,
         messageCount: 2,
-        ownerExternalId: args.ownerExternalId,
+        ownerExternalId,
         ownerHandle: args.ownerHandle,
         ownerUserId,
         provider: args.intent.provider,
@@ -88,7 +104,7 @@ export const recordIntentPipeline = mutation({
       role: "user",
       senderActorKind: "human",
       senderDisplayName: args.ownerDisplayName ?? "X user",
-      senderExternalId: args.ownerExternalId,
+      senderExternalId: ownerExternalId,
       senderHandle: args.ownerHandle,
     });
 
@@ -336,17 +352,33 @@ export const postConversationMessage = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const conversationId = args.conversationId ?? crypto.randomUUID();
+    const ownerExternalId = args.ownerExternalId?.trim();
+
+    if (!ownerExternalId) {
+      throw new Error("Sign in with X before using Boreal chat.");
+    }
+
     const ownerUserId: string | undefined = await upsertOwnerUser(ctx, {
       displayName: args.ownerDisplayName,
-      externalId: args.ownerExternalId,
+      externalId: ownerExternalId,
       handle: args.ownerHandle,
     });
+    if (!ownerUserId) {
+      throw new Error("Sign in with X before using Boreal chat.");
+    }
     const existingConversation = await ctx.db
       .query("conversations")
       .withIndex("by_conversationId", (queryBuilder) =>
         queryBuilder.eq("conversationId", conversationId),
       )
       .unique();
+
+    if (
+      existingConversation?.ownerExternalId &&
+      existingConversation.ownerExternalId !== ownerExternalId
+    ) {
+      throw new Error("You do not have access to this conversation.");
+    }
     const trimmedBody = args.body.trim();
 
     if (existingConversation) {
@@ -356,7 +388,7 @@ export const postConversationMessage = mutation({
         latestMessageAt: now,
         messageCount: (existingConversation.messageCount ?? 0) + 1,
         ownerExternalId:
-          args.ownerExternalId ?? existingConversation.ownerExternalId,
+          ownerExternalId ?? existingConversation.ownerExternalId,
         ownerHandle: args.ownerHandle ?? existingConversation.ownerHandle,
         ownerUserId: ownerUserId ?? existingConversation.ownerUserId,
         title:
@@ -374,7 +406,7 @@ export const postConversationMessage = mutation({
         lastMessageRole: "user",
         latestMessageAt: now,
         messageCount: 1,
-        ownerExternalId: args.ownerExternalId,
+        ownerExternalId,
         ownerHandle: args.ownerHandle,
         ownerUserId,
         provider: "boreal-agent",
@@ -396,7 +428,7 @@ export const postConversationMessage = mutation({
       role: "user",
       senderActorKind: "human",
       senderDisplayName: args.ownerDisplayName ?? "X user",
-      senderExternalId: args.ownerExternalId,
+      senderExternalId: ownerExternalId,
       senderHandle: args.ownerHandle,
     });
 
@@ -420,17 +452,33 @@ export const recordConversationExchange = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const conversationId = args.conversationId ?? crypto.randomUUID();
+    const ownerExternalId = args.ownerExternalId?.trim();
+
+    if (!ownerExternalId) {
+      throw new Error("Sign in with X before using Boreal chat.");
+    }
+
     const ownerUserId: string | undefined = await upsertOwnerUser(ctx, {
       displayName: args.ownerDisplayName,
-      externalId: args.ownerExternalId,
+      externalId: ownerExternalId,
       handle: args.ownerHandle,
     });
+    if (!ownerUserId) {
+      throw new Error("Sign in with X before using Boreal chat.");
+    }
     const existingConversation = await ctx.db
       .query("conversations")
       .withIndex("by_conversationId", (queryBuilder) =>
         queryBuilder.eq("conversationId", conversationId),
       )
       .unique();
+
+    if (
+      existingConversation?.ownerExternalId &&
+      existingConversation.ownerExternalId !== ownerExternalId
+    ) {
+      throw new Error("You do not have access to this conversation.");
+    }
     const trimmedUserMessage = args.userMessage.trim();
     const trimmedAssistantMessage = args.assistantMessage.trim();
 
@@ -441,7 +489,7 @@ export const recordConversationExchange = mutation({
         latestMessageAt: now,
         messageCount: (existingConversation.messageCount ?? 0) + 2,
         ownerExternalId:
-          args.ownerExternalId ?? existingConversation.ownerExternalId,
+          ownerExternalId ?? existingConversation.ownerExternalId,
         ownerHandle: args.ownerHandle ?? existingConversation.ownerHandle,
         ownerUserId: ownerUserId ?? existingConversation.ownerUserId,
         title:
@@ -459,7 +507,7 @@ export const recordConversationExchange = mutation({
         lastMessageRole: "assistant",
         latestMessageAt: now,
         messageCount: 2,
-        ownerExternalId: args.ownerExternalId,
+        ownerExternalId,
         ownerHandle: args.ownerHandle,
         ownerUserId,
         provider: "boreal-agent",
@@ -483,7 +531,7 @@ export const recordConversationExchange = mutation({
       role: "user",
       senderActorKind: "human",
       senderDisplayName: args.ownerDisplayName ?? "X user",
-      senderExternalId: args.ownerExternalId,
+      senderExternalId: ownerExternalId,
       senderHandle: args.ownerHandle,
     });
 
@@ -902,6 +950,10 @@ export const getConversationThread = query({
     ownerExternalId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (!args.ownerExternalId) {
+      return null;
+    }
+
     const conversation = await ctx.db
       .query("conversations")
       .withIndex("by_conversationId", (queryBuilder) =>
@@ -1033,7 +1085,7 @@ async function hasRequestAccess(
   ownerExternalId: string | undefined,
 ): Promise<boolean> {
   if (!ownerUserId || !ownerExternalId) {
-    return true;
+    return false;
   }
 
   const owner = await ctx.db

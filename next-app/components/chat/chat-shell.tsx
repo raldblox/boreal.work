@@ -15,7 +15,7 @@ import { makeFunctionReference } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
 import { usePrivy } from "@privy-io/react-auth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 import {
   BotIcon,
   CheckIcon,
@@ -344,8 +344,11 @@ export function ChatShell() {
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
 
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const ownerExternalId = session?.user?.id
+  const isXAuthenticated =
+    sessionStatus === "authenticated" && Boolean(ownerExternalId)
+  const isPublicDiscoveryOnly = !isXAuthenticated
   const {
     ready: privyReady,
     authenticated: privyAuthenticated,
@@ -354,17 +357,24 @@ export function ChatShell() {
   const { defaultWallet, defaultWalletAddress, isWalletReady, payWithX402 } =
     usePayment()
 
-  const sidebarIntentsResult = useQuery(sidebarIntentQuery, {
-    limit: 24,
-    ownerExternalId,
-  }) as SidebarIntentPreview[] | undefined
+  const sidebarIntentsResult = useQuery(
+    sidebarIntentQuery,
+    isXAuthenticated
+      ? {
+        limit: 24,
+        ownerExternalId,
+      }
+      : "skip"
+  ) as SidebarIntentPreview[] | undefined
   const conversationSidebarResult = useQuery(
     convexFunctionRefs.listConversationSidebar,
-    ownerExternalId ? { limit: 24, ownerExternalId } : "skip"
+    isXAuthenticated && ownerExternalId
+      ? { limit: 24, ownerExternalId }
+      : "skip"
   )
   const selectedConversationThreadResult = useQuery(
     convexFunctionRefs.getConversationThread,
-    !activeIntentId && selectedConversationId
+    isXAuthenticated && !activeIntentId && selectedConversationId
       ? { conversationId: selectedConversationId, ownerExternalId }
       : "skip"
   )
@@ -390,7 +400,9 @@ export function ChatShell() {
 
   const requestDetailResult = useQuery(
     requestDetailQuery,
-    activeIntentId ? { intentId: activeIntentId, ownerExternalId } : "skip"
+    isXAuthenticated && activeIntentId
+      ? { intentId: activeIntentId, ownerExternalId }
+      : "skip"
   )
   const activeCartResult = useQuery(
     convexFunctionRefs.getActiveCart,
@@ -409,7 +421,9 @@ export function ChatShell() {
     ownerExternalId ? { ownerExternalId } : "skip"
   )
   const isRequestLoading =
-    Boolean(activeIntentId) && requestDetailResult === undefined
+    isXAuthenticated &&
+    Boolean(activeIntentId) &&
+    requestDetailResult === undefined
   const requestDetail = (requestDetailResult ?? null) as RequestDetail | null
   const requestNotificationCounts = useMemo(
     () => getDetailRequestNotificationCounts(requestDetail),
@@ -426,10 +440,12 @@ export function ChatShell() {
   const myProfileRecord = (myProfileResult ?? null) as MyProfileRecord
   const walletAccounts = (walletAccountsResult ?? []) as WalletAccountRecord
   const isConversationLoading =
+    isXAuthenticated &&
     Boolean(!activeIntentId && selectedConversationId) &&
     selectedConversationThreadResult === undefined &&
     messages.length === 0
   const isMissingConversation =
+    isXAuthenticated &&
     Boolean(!activeIntentId && selectedConversationId) &&
     !isConversationLoading &&
     selectedConversationThread === null
@@ -452,9 +468,9 @@ export function ChatShell() {
       participants: requestDetail?.participants,
     })
   )
-  const shouldShowHomeBorealButton = !activeIntentId
+  const shouldShowHomeBorealButton = isXAuthenticated && !activeIntentId
   const shouldShowAssignedBorealButton = Boolean(
-    activeIntentId && isBorealAssignedToActiveRequest
+    isXAuthenticated && activeIntentId && isBorealAssignedToActiveRequest
   )
   const runtimeEnvironment = getBorealChainEnvironment()
   const runtimePrimaryChainFamily = getBorealPrimaryChainFamily()
@@ -466,9 +482,10 @@ export function ChatShell() {
     shouldShowHomeBorealButton || shouldShowAssignedBorealButton
   const isChatSurfaceActive = !activeIntentId || activeCenterTab === "chat"
   const shouldShowChatComposer =
-    isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
+    isXAuthenticated && isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
   const effectiveBorealEnabled =
-    !activeIntentId || isBorealAssignedToActiveRequest
+    isXAuthenticated && (!activeIntentId || isBorealAssignedToActiveRequest)
+  const isDiscoveryRailOpen = isPublicDiscoveryOnly || showWorkspace
   const isAnyMobileSidebarOpen =
     isMobileIntentSidebarOpen || isMobileWorkspaceOpen
   const desktopIntentSidebarStyle = {
@@ -487,7 +504,10 @@ export function ChatShell() {
   const togglePinnedSupplyMatch = useMutation(
     convexFunctionRefs.togglePinnedSupplyMatch
   )
-  const borealAgentStats = useQuery(convexFunctionRefs.getBorealAgentStats, {})
+  const borealAgentStats = useQuery(
+    convexFunctionRefs.getBorealAgentStats,
+    isBorealProfileOpen ? {} : "skip"
+  )
   const addToCart = useMutation(convexFunctionRefs.addToCart)
   const updateCartLineQuantity = useMutation(
     convexFunctionRefs.updateCartLineQuantity
@@ -1035,6 +1055,11 @@ export function ChatShell() {
     const trimmed = message.trim()
 
     if (!trimmed || isSubmitting) {
+      return
+    }
+
+    if (!isXAuthenticated) {
+      setErrorMessage("Sign in with X to chat with Boreal Agent.")
       return
     }
 
@@ -2092,6 +2117,10 @@ export function ChatShell() {
   }
 
   function openMobileIntentSidebar() {
+    if (!isXAuthenticated) {
+      return
+    }
+
     if (window.matchMedia("(min-width: 1024px)").matches) {
       return
     }
@@ -2109,65 +2138,78 @@ export function ChatShell() {
     setIsMobileWorkspaceOpen(true)
   }
 
+  function openXSignIn() {
+    void signIn("twitter", {
+      callbackUrl: pathname || "/",
+    })
+  }
+
   const isHomeView =
     !activeIntentId &&
     !selectedConversationId &&
     displayedMessages.length === 0
-  const shouldShowFooterComposer = shouldShowChatComposer && !isHomeView
+  const shouldShowFooterComposer =
+    isXAuthenticated && shouldShowChatComposer && !isHomeView
 
   return (
       <>
       <div className="flex h-svh w-full max-w-none flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-0 lg:flex-row">
-          <DesktopIntentRail
-            collapsedContent={
-              <CollapsedRequestsRail
-                accountImageUrl={session?.user?.image ?? null}
-                accountName={session?.user?.name ?? null}
-                onOpenAccount={() => setIsAccountDialogOpen(true)}
-                onExpand={() => setShowIntentSidebar(true)}
-                onNewChat={handleClearSelection}
-                requestCount={visibleSidebarIntents.length}
-              />
-            }
-            collapsedWidth={COLLAPSED_SIDEBAR_WIDTH}
-            containerStyle={desktopIntentSidebarStyle}
-            expandedContent={
-              <IntentSidebar
-                conversations={conversationSidebar}
-                intents={visibleSidebarIntents}
-                onOpenAccount={() => setIsAccountDialogOpen(true)}
-                onCollapse={() => setShowIntentSidebar(false)}
-                onOpenConversationRequest={handleConversationOpenRequest}
-                onDeselect={handleClearSelection}
-                onOpenPendingApprovals={() => {
-                  const nextIntent = pendingApprovalIntents[0]
-                  if (nextIntent) {
-                    handleSidebarSelect(nextIntent, "workspace")
-                  }
-                }}
-                onSelectConversation={handleConversationSelect}
-                onSelect={handleSidebarSelect}
-                pendingApprovalCount={pendingApprovalIntents.length}
-                selectedConversationId={selectedConversationId}
-                selectedIntentId={activeIntentId}
-              />
-            }
-            expandedWidth={REQUEST_SIDEBAR_WIDTH}
-            showExpanded={showIntentSidebar}
-          />
+          {isXAuthenticated ? (
+            <DesktopIntentRail
+              collapsedContent={
+                <CollapsedRequestsRail
+                  accountImageUrl={session?.user?.image ?? null}
+                  accountName={session?.user?.name ?? null}
+                  onOpenAccount={() => setIsAccountDialogOpen(true)}
+                  onExpand={() => setShowIntentSidebar(true)}
+                  onNewChat={handleClearSelection}
+                  requestCount={visibleSidebarIntents.length}
+                />
+              }
+              collapsedWidth={COLLAPSED_SIDEBAR_WIDTH}
+              containerStyle={desktopIntentSidebarStyle}
+              expandedContent={
+                <IntentSidebar
+                  conversations={conversationSidebar}
+                  intents={visibleSidebarIntents}
+                  onOpenAccount={() => setIsAccountDialogOpen(true)}
+                  onCollapse={() => setShowIntentSidebar(false)}
+                  onOpenConversationRequest={handleConversationOpenRequest}
+                  onDeselect={handleClearSelection}
+                  onOpenPendingApprovals={() => {
+                    const nextIntent = pendingApprovalIntents[0]
+                    if (nextIntent) {
+                      handleSidebarSelect(nextIntent, "workspace")
+                    }
+                  }}
+                  onSelectConversation={handleConversationSelect}
+                  onSelect={handleSidebarSelect}
+                  pendingApprovalCount={pendingApprovalIntents.length}
+                  selectedConversationId={selectedConversationId}
+                  selectedIntentId={activeIntentId}
+                />
+              }
+              expandedWidth={REQUEST_SIDEBAR_WIDTH}
+              showExpanded={showIntentSidebar}
+            />
+          ) : null}
 
           <div className="relative flex min-h-0 min-w-0 flex-1">
             <section
               className={cn(
                 "relative z-10 flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background",
-                showWorkspace
-                  ? "border-l border-border"
+                isXAuthenticated
+                  ? isDiscoveryRailOpen
+                    ? "border-l border-border"
+                    : "border-x border-border"
                   : "border-x border-border"
               )}
             >
               <ChatShellHeader
-                isRequestSelected={Boolean(activeIntentId)}
+                hideIntentMenu={isPublicDiscoveryOnly}
+                hideWorkspaceToggle={isPublicDiscoveryOnly}
+                isRequestSelected={isXAuthenticated && Boolean(activeIntentId)}
                 isSubmitting={isSubmitting}
                 onOpenMobileDiscovery={openMobileDiscovery}
                 onOpenMobileIntentSidebar={openMobileIntentSidebar}
@@ -2176,10 +2218,50 @@ export function ChatShell() {
                 requestTitle={
                   requestDetail?.intent?.title ?? selectedIntent?.title ?? "Request"
                 }
-                showWorkspace={showWorkspace}
+                showWorkspace={isDiscoveryRailOpen}
               />
 
-              {activeIntentId ? (
+              {isPublicDiscoveryOnly ? (
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <div className={HOME_PANEL_CLASS}>
+                    <HomeChatSurface
+                      composer={
+                        <PromptInput className="w-full" onSubmit={async () => {}}>
+                          <PromptInputBody>
+                            <PromptInputTextarea
+                              className="min-h-[140px] text-base"
+                              disabled
+                              placeholder="Sign in with X to talk to Boreal Agent. Public offers and requests stay available in Market."
+                              value=""
+                            />
+                          </PromptInputBody>
+                          <PromptInputFooter className="justify-end">
+                            <PromptInputSubmit disabled />
+                          </PromptInputFooter>
+                        </PromptInput>
+                      }
+                      quickActions={
+                        <>
+                          <Button onClick={openXSignIn} size="sm" type="button">
+                            Sign in with X
+                          </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`${pathname}?browse=workers`}>
+                              Browse offers
+                            </Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`${pathname}?browse=requests`}>
+                              Browse requests
+                            </Link>
+                          </Button>
+                        </>
+                      }
+                      starterPrompts={[]}
+                    />
+                  </div>
+                </div>
+              ) : activeIntentId ? (
                 <Tabs
                   className="min-h-0 flex-1 gap-0"
                   onValueChange={(value) =>
@@ -2753,7 +2835,7 @@ export function ChatShell() {
             </section>
 
             <DesktopDiscoveryRail
-              open={showWorkspace}
+              open={isDiscoveryRailOpen}
               width={DISCOVERY_SIDEBAR_WIDTH}
             >
               <WorkspacePanel
@@ -2767,32 +2849,34 @@ export function ChatShell() {
           </div>
         </div>
       </div>
-      <MobileSidebarDrawer
-        label="Requests"
-        onOpenChange={setIsMobileIntentSidebarOpen}
-        open={isMobileIntentSidebarOpen}
-        side="left"
-      >
-        <IntentSidebar
-          conversations={conversationSidebar}
-          intents={visibleSidebarIntents}
-          onOpenAccount={() => setIsAccountDialogOpen(true)}
-          onCollapse={() => setIsMobileIntentSidebarOpen(false)}
-          onOpenConversationRequest={handleConversationOpenRequest}
-          onDeselect={handleClearSelection}
-          onOpenPendingApprovals={() => {
-            const nextIntent = pendingApprovalIntents[0]
-            if (nextIntent) {
-              handleSidebarSelect(nextIntent, "workspace")
-            }
-          }}
-          onSelectConversation={handleConversationSelect}
-          onSelect={handleSidebarSelect}
-          pendingApprovalCount={pendingApprovalIntents.length}
-          selectedConversationId={selectedConversationId}
-          selectedIntentId={activeIntentId}
-        />
-      </MobileSidebarDrawer>
+      {isXAuthenticated ? (
+        <MobileSidebarDrawer
+          label="Requests"
+          onOpenChange={setIsMobileIntentSidebarOpen}
+          open={isMobileIntentSidebarOpen}
+          side="left"
+        >
+          <IntentSidebar
+            conversations={conversationSidebar}
+            intents={visibleSidebarIntents}
+            onOpenAccount={() => setIsAccountDialogOpen(true)}
+            onCollapse={() => setIsMobileIntentSidebarOpen(false)}
+            onOpenConversationRequest={handleConversationOpenRequest}
+            onDeselect={handleClearSelection}
+            onOpenPendingApprovals={() => {
+              const nextIntent = pendingApprovalIntents[0]
+              if (nextIntent) {
+                handleSidebarSelect(nextIntent, "workspace")
+              }
+            }}
+            onSelectConversation={handleConversationSelect}
+            onSelect={handleSidebarSelect}
+            pendingApprovalCount={pendingApprovalIntents.length}
+            selectedConversationId={selectedConversationId}
+            selectedIntentId={activeIntentId}
+          />
+        </MobileSidebarDrawer>
+      ) : null}
       <MobileSidebarDrawer
         label="Discovery"
         onOpenChange={setIsMobileWorkspaceOpen}

@@ -10,6 +10,10 @@ export const listSidebar = query({
     ownerExternalId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (!args.ownerExternalId) {
+      return [];
+    }
+
     const ownerUserId = await getOwnerUserId(ctx, args.ownerExternalId);
     const intents = await ctx.db.query("intents").order("desc").take(args.limit);
 

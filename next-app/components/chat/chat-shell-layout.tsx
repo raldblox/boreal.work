@@ -104,6 +104,8 @@ export function DesktopDiscoveryRail({
 }
 
 export function ChatShellHeader({
+  hideIntentMenu = false,
+  hideWorkspaceToggle = false,
   isRequestSelected,
   isSubmitting,
   onOpenMobileDiscovery,
@@ -113,6 +115,8 @@ export function ChatShellHeader({
   requestTitle,
   showWorkspace,
 }: {
+  hideIntentMenu?: boolean
+  hideWorkspaceToggle?: boolean
   isRequestSelected: boolean
   isSubmitting: boolean
   onOpenMobileDiscovery: () => void
@@ -147,16 +151,18 @@ export function ChatShellHeader({
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 lg:hidden">
-            <Button
-              aria-label="Open requests menu"
-              onClick={onOpenMobileIntentSidebar}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <PanelLeftOpenIcon />
-              Menu
-            </Button>
+            {!hideIntentMenu ? (
+              <Button
+                aria-label="Open requests menu"
+                onClick={onOpenMobileIntentSidebar}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <PanelLeftOpenIcon />
+                Menu
+              </Button>
+            ) : null}
             <Button
               aria-label="Open discovery drawer"
               onClick={onOpenMobileDiscovery}
@@ -174,28 +180,30 @@ export function ChatShellHeader({
                 <Link href="/about">About</Link>
               </Button>
             ) : null}
-            {showWorkspace ? (
-              <Button
-                aria-label="Hide market"
-                onClick={onToggleWorkspace}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <PanelRightCloseIcon />
-              </Button>
-            ) : (
-              <Button
-                aria-label="Open market"
-                onClick={onToggleWorkspace}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <PackageIcon />
-                Market
-              </Button>
-            )}
+            {!hideWorkspaceToggle ? (
+              showWorkspace ? (
+                <Button
+                  aria-label="Hide market"
+                  onClick={onToggleWorkspace}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <PanelRightCloseIcon />
+                </Button>
+              ) : (
+                <Button
+                  aria-label="Open market"
+                  onClick={onToggleWorkspace}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <PackageIcon />
+                  Market
+                </Button>
+              )
+            ) : null}
           </div>
           {isSubmitting ? (
             <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
