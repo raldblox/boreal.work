@@ -99,7 +99,7 @@ export const AmbientBed: React.FC<{
         interpolate(
           frame,
           [Math.max(0, durationInFrames - 60), durationInFrames],
-          [0.15, 0],
+          [0.26, 0],
           {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
@@ -272,7 +272,7 @@ export const WordTypewriterText: React.FC<{
     >
       {words.slice(0, visibleWords).join(" ")}
       {visibleWords < words.length ? (
-        <span style={{opacity: frame % 18 < 9 ? 1 : 0}}>_</span>
+        <span style={{opacity: frame % 18 < 9 ? 1 : 0}}>|</span>
       ) : null}
     </span>
   );

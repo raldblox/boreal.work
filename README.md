@@ -1,10 +1,10 @@
 # boreal.work
 
-Boreal is building a request router for paid agentic services, with human fallback when automation cannot complete the job.  The current public alpha already turns chat into structured requests, matched supply, proposals, tracked fulfillment, digital listings, carts, and payment-aware provider-backed service flows.
+Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, and proof attached to the same work thread.
 
 ## Changelog
 
-- `2026-04-26`: Added `MVP.md` as the narrow 2-week paid-agentic-services test plan and moved supporting brand, messaging, character, deck, and archive docs under `docs/`.
+- `2026-04-26`: Reframed `MVP.md` as Boreal's first paid launch wedge inside the broader public alpha and consolidated most narrative/brand docs under `docs/`.
 - `2026-04-26`: Added a preserved `remotion/src/generations/request-native-2026/` video generation with three app-truthful Boreal compositions, isolated render scripts, and `@remotion/player` preview support.
 - `2026-04-26`: Added `presentations/boreal-pitch-deck/` as the editable PowerPoint workspace for Boreal's pitch deck, preview renders, and headless QA reports.
 - `2026-04-26`: Switched Boreal's commerce defaults to Solana devnet locally, added explicit mainnet / EVM network flags, and wired canonical network metadata through wallet, transaction, and settlement records.
@@ -12,15 +12,16 @@ Boreal is building a request router for paid agentic services, with human fallba
 
 ## Source Documents
 
-- `MVP.md` defines the smallest two-week Boreal launch wedge for testing paid agentic services with human fallback.
 - `WHITEPAPER.md` is the product and architecture source of truth.
 - `ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
+- `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal alpha.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
 
-Supporting narrative, messaging, and design docs now live under `docs/`:
+Supporting narrative, messaging, and design docs now live under `docs/`, with [docs/README.md](C:\Users\raldb\boreal.work\docs\README.md) as the docs-hub index:
 
+- `docs/README.md` maps which docs are canonical for brand, messaging, deck, and product character.
 - `docs/CATEGORY_LANGUAGE_RESEARCH.md` maps the current market language around agentic commerce, work marketplaces, and Boreal's request-native positioning.
 - `docs/BRAND_SYSTEM.md` consolidates Boreal's current brand foundation, voice rules, messaging hierarchy, and reusable language.
 - `docs/VISUAL_IDENTITY.md` records Boreal's current visual direction from the live app tokens, logo, typography, and layout language.
@@ -107,6 +108,22 @@ Boreal can already support:
 - cart persistence and payment-aware checkout records
 - provider-backed invocation for supported x402-style services
 - autonomous worker participation in request lifecycles
+
+## Messaging Guardrail
+
+Do not collapse Boreal into only `paid agentic services` or only `human fallback`.
+
+The tighter and more accurate product line is:
+
+- `Submit one request. Boreal finds the best way to fulfill it.`
+
+That can mean:
+
+- direct executable supply
+- provider-backed services
+- digital offers
+- agents
+- humans or hybrid teams when the work is custom or needs judgment
 
 ## Network Defaults
 

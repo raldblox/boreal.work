@@ -4,9 +4,12 @@ import {Player} from "@remotion/player";
 import {
   BOREAL_DEMO_DURATION,
   BOREAL_LAUNCH_DURATION,
+  BOREAL_SHOWCASE_DEFAULT_AUDIO,
+  BOREAL_SHOWCASE_DURATION,
   BOREAL_UPDATE_DURATION,
   BorealDemo,
   BorealLaunch,
+  BorealShowcase60,
   BorealUpdate,
 } from "./compositions";
 import {FPS, HEIGHT, WIDTH} from "./theme";
@@ -37,7 +40,7 @@ export const BorealTruthPreview: React.FC = () => {
         controls
         durationInFrames={BOREAL_DEMO_DURATION}
         fps={FPS}
-        inputProps={{ambientAudioSrc: null}}
+        inputProps={{ambientAudioSrc: BOREAL_SHOWCASE_DEFAULT_AUDIO}}
         style={playerStyle}
       />
       <Player
@@ -58,6 +61,17 @@ export const BorealTruthPreview: React.FC = () => {
         compositionWidth={WIDTH}
         controls
         durationInFrames={BOREAL_LAUNCH_DURATION}
+        fps={FPS}
+        inputProps={{ambientAudioSrc: null}}
+        style={playerStyle}
+      />
+      <Player
+        autoPlay={false}
+        component={BorealShowcase60}
+        compositionHeight={HEIGHT}
+        compositionWidth={WIDTH}
+        controls
+        durationInFrames={BOREAL_SHOWCASE_DURATION}
         fps={FPS}
         inputProps={{ambientAudioSrc: null}}
         style={playerStyle}

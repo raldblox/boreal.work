@@ -30,7 +30,10 @@ import {
   springIn,
   withAlpha,
 } from "./shared";
+import {BOREAL_SHOWCASE_DEFAULT_AUDIO, BOREAL_SHOWCASE_DURATION, BorealShowcase60} from "./showcase-update-60";
 import {COLORS, FONTS, FPS, HEIGHT, WIDTH} from "./theme";
+
+export {BOREAL_SHOWCASE_DEFAULT_AUDIO, BOREAL_SHOWCASE_DURATION, BorealShowcase60} from "./showcase-update-60";
 
 export const BOREAL_DEMO_DURATION = 2700;
 export const BOREAL_UPDATE_DURATION = 3600;
@@ -1425,6 +1428,15 @@ export const BorealTruthful2026Compositions: React.FC = () => {
         component={BorealLaunch}
         defaultProps={{ambientAudioSrc: null} satisfies SharedCompositionProps}
         durationInFrames={BOREAL_LAUNCH_DURATION}
+        fps={FPS}
+        height={HEIGHT}
+        width={WIDTH}
+      />
+      <Composition
+        id="BorealShowcase60"
+        component={BorealShowcase60}
+        defaultProps={{ambientAudioSrc: BOREAL_SHOWCASE_DEFAULT_AUDIO} satisfies SharedCompositionProps}
+        durationInFrames={BOREAL_SHOWCASE_DURATION}
         fps={FPS}
         height={HEIGHT}
         width={WIDTH}

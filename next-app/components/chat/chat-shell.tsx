@@ -17,7 +17,6 @@ import { usePrivy } from "@privy-io/react-auth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import {
-  ArrowLeftIcon,
   BotIcon,
   CheckIcon,
   CircleUserRoundIcon,
@@ -27,13 +26,11 @@ import {
   ExternalLinkIcon,
   FileIcon,
   LoaderIcon,
-  MessageSquarePlusIcon,
   MessagesSquareIcon,
   MicIcon,
   MinusIcon,
   PackageIcon,
   PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
   PanelRightCloseIcon,
   PinIcon,
   PlusIcon,
@@ -91,10 +88,8 @@ import {
   PromptInputTextarea,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Logo } from "@/components/ui/logo"
 import {
   Dialog,
   DialogContent,
@@ -113,6 +108,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  ChatShellHeader,
+  CollapsedRequestsRail,
+  DesktopDiscoveryRail,
+  DesktopIntentRail,
+  FooterComposerRegion,
+} from "./chat-shell-layout"
 import type {
   ActiveCart,
   CatalogEntry,
@@ -2114,57 +2116,11 @@ export function ChatShell() {
   const shouldShowFooterComposer = shouldShowChatComposer && !isHomeView
 
   return (
-    <>
+      <>
       <div className="flex h-svh w-full max-w-none flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-0 lg:flex-row">
-          <div
-            className="relative hidden min-h-0 shrink-0 overflow-hidden transition-[width,min-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:block"
-            style={desktopIntentSidebarStyle}
-          >
-            <div
-              aria-hidden={!showIntentSidebar}
-              className={cn(
-                "absolute inset-y-0 left-0 transition-opacity duration-200 ease-out",
-                showIntentSidebar
-                  ? "opacity-100"
-                  : "pointer-events-none opacity-0"
-              )}
-              inert={!showIntentSidebar}
-              style={{ width: REQUEST_SIDEBAR_WIDTH }}
-            >
-              <>
-                <IntentSidebar
-                  conversations={conversationSidebar}
-                  intents={visibleSidebarIntents}
-                  onOpenAccount={() => setIsAccountDialogOpen(true)}
-                  onCollapse={() => setShowIntentSidebar(false)}
-                  onOpenConversationRequest={handleConversationOpenRequest}
-                  onDeselect={handleClearSelection}
-                  onOpenPendingApprovals={() => {
-                    const nextIntent = pendingApprovalIntents[0]
-                    if (nextIntent) {
-                      handleSidebarSelect(nextIntent, "workspace")
-                    }
-                  }}
-                  onSelectConversation={handleConversationSelect}
-                  onSelect={handleSidebarSelect}
-                  pendingApprovalCount={pendingApprovalIntents.length}
-                  selectedConversationId={selectedConversationId}
-                  selectedIntentId={activeIntentId}
-                />
-              </>
-            </div>
-            <div
-              aria-hidden={showIntentSidebar}
-              className={cn(
-                "absolute inset-y-0 left-0 transition-opacity duration-200 ease-out",
-                showIntentSidebar
-                  ? "pointer-events-none opacity-0"
-                  : "opacity-100"
-              )}
-              inert={showIntentSidebar}
-              style={{ width: COLLAPSED_SIDEBAR_WIDTH }}
-            >
+          <DesktopIntentRail
+            collapsedContent={
               <CollapsedRequestsRail
                 accountImageUrl={session?.user?.image ?? null}
                 accountName={session?.user?.name ?? null}
@@ -2173,8 +2129,33 @@ export function ChatShell() {
                 onNewChat={handleClearSelection}
                 requestCount={visibleSidebarIntents.length}
               />
-            </div>
-          </div>
+            }
+            collapsedWidth={COLLAPSED_SIDEBAR_WIDTH}
+            containerStyle={desktopIntentSidebarStyle}
+            expandedContent={
+              <IntentSidebar
+                conversations={conversationSidebar}
+                intents={visibleSidebarIntents}
+                onOpenAccount={() => setIsAccountDialogOpen(true)}
+                onCollapse={() => setShowIntentSidebar(false)}
+                onOpenConversationRequest={handleConversationOpenRequest}
+                onDeselect={handleClearSelection}
+                onOpenPendingApprovals={() => {
+                  const nextIntent = pendingApprovalIntents[0]
+                  if (nextIntent) {
+                    handleSidebarSelect(nextIntent, "workspace")
+                  }
+                }}
+                onSelectConversation={handleConversationSelect}
+                onSelect={handleSidebarSelect}
+                pendingApprovalCount={pendingApprovalIntents.length}
+                selectedConversationId={selectedConversationId}
+                selectedIntentId={activeIntentId}
+              />
+            }
+            expandedWidth={REQUEST_SIDEBAR_WIDTH}
+            showExpanded={showIntentSidebar}
+          />
 
           <div className="relative flex min-h-0 min-w-0 flex-1">
             <section
@@ -2185,97 +2166,18 @@ export function ChatShell() {
                   : "border-x border-border"
               )}
             >
-              <div className="flex h-16 items-center border-b border-border px-4">
-                <div className="flex w-full items-center justify-between gap-4">
-                  <div className="min-w-0 flex flex-1 items-center gap-3 overflow-hidden">
-                    {activeIntentId ? (
-                      <>
-                        <button
-                          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                          onClick={handleReturnHome}
-                          type="button"
-                        >
-                          <ArrowLeftIcon className="size-4" />
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <h1 className="truncate text-base font-medium">
-                            {requestDetail?.intent?.title ??
-                              selectedIntent?.title ??
-                              "Request"}
-                          </h1>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <p className="truncate text-sm font-medium">
-                          Boreal chat
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 lg:hidden">
-                      <Button
-                        aria-label="Open requests menu"
-                        onClick={openMobileIntentSidebar}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <PanelLeftOpenIcon />
-                        Menu
-                      </Button>
-                      <Button
-                        aria-label="Open discovery drawer"
-                        onClick={openMobileDiscovery}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <SearchIcon />
-                        Discovery
-                      </Button>
-                    </div>
-                    <div className="hidden items-center gap-2 lg:flex">
-                      {!activeIntentId ? (
-                        <Button
-                          asChild
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <Link href="/about">About</Link>
-                        </Button>
-                      ) : null}
-                      {showWorkspace ? (
-                        <Button
-                          aria-label="Hide market"
-                          onClick={() => setShowWorkspace(false)}
-                          size="icon-sm"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <PanelRightCloseIcon />
-                        </Button>
-                      ) : (
-                        <Button
-                          aria-label="Open market"
-                          onClick={() => setShowWorkspace(true)}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <PackageIcon />
-                          Market
-                        </Button>
-                      )}
-                    </div>
-                    {isSubmitting ? (
-                      <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
-                    ) : null}
-                  </div>
-                </div>
-              </div>
+              <ChatShellHeader
+                isRequestSelected={Boolean(activeIntentId)}
+                isSubmitting={isSubmitting}
+                onOpenMobileDiscovery={openMobileDiscovery}
+                onOpenMobileIntentSidebar={openMobileIntentSidebar}
+                onReturnHome={handleReturnHome}
+                onToggleWorkspace={() => setShowWorkspace((current) => !current)}
+                requestTitle={
+                  requestDetail?.intent?.title ?? selectedIntent?.title ?? "Request"
+                }
+                showWorkspace={showWorkspace}
+              />
 
               {activeIntentId ? (
                 <Tabs
@@ -2742,165 +2644,126 @@ export function ChatShell() {
                 </div>
               )}
 
-              <div
-                aria-hidden={!shouldShowFooterComposer}
-                className={cn(
-                  "overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out",
-                  shouldShowFooterComposer
-                    ? "max-h-[40rem] opacity-100"
-                    : "pointer-events-none max-h-0 -translate-y-2 opacity-0"
-                )}
-                inert={!shouldShowFooterComposer}
+              <FooterComposerRegion
+                centerPanelClass={CENTER_PANEL_CLASS}
+                errorMessage={errorMessage}
+                show={shouldShowFooterComposer}
               >
-                <div className="py-4">
-                  <div className={CHAT_COMPOSER_CLASS}>
-                    <PromptInputTools className="w-full flex-wrap justify-start gap-2">
-                      <Button
-                        onClick={openProfileBuilder}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <CircleUserRoundIcon />
-                        My profile
-                      </Button>
-                      <Button
-                        onClick={() => setIsCartOpen(true)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <ShoppingCartIcon />
-                        Cart
-                        {activeCart?.itemCount ? ` (${activeCart.itemCount})` : ""}
-                      </Button>
-                      <Button
-                        onClick={() => setIsAccountDialogOpen(true)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <CircleUserRoundIcon />
-                        Account
-                      </Button>
-                      <Button
-                        onClick={login}
-                        size="sm"
-                        type="button"
-                        variant={privyAuthenticated ? "secondary" : "ghost"}
-                      >
-                        <WalletIcon />
-                        {privyReady
-                          ? privyAuthenticated
-                            ? "Connected"
-                            : runtimePrimaryChainFamily === "solana"
-                              ? "Connect Solana"
-                              : "Connect Wallet"
-                          : "Wallet"}
-                      </Button>
-                    </PromptInputTools>
+                <div className={CHAT_COMPOSER_CLASS}>
+                  <PromptInputTools className="w-full flex-wrap justify-start gap-2">
+                    <Button
+                      onClick={openProfileBuilder}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <CircleUserRoundIcon />
+                      My profile
+                    </Button>
+                    <Button
+                      onClick={() => setIsCartOpen(true)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <ShoppingCartIcon />
+                      Cart
+                      {activeCart?.itemCount ? ` (${activeCart.itemCount})` : ""}
+                    </Button>
+                    <Button
+                      onClick={() => setIsAccountDialogOpen(true)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <CircleUserRoundIcon />
+                      Account
+                    </Button>
+                    <Button
+                      onClick={login}
+                      size="sm"
+                      type="button"
+                      variant={privyAuthenticated ? "secondary" : "ghost"}
+                    >
+                      <WalletIcon />
+                      {privyReady
+                        ? privyAuthenticated
+                          ? "Connected"
+                          : runtimePrimaryChainFamily === "solana"
+                            ? "Connect Solana"
+                            : "Connect Wallet"
+                        : "Wallet"}
+                    </Button>
+                  </PromptInputTools>
 
-                    {isArchivedTranscript ? (
-                      <div className="border border-border px-4 py-3 text-xs text-muted-foreground">
-                        This request has been archived. The chat is now
-                        read-only.
-                      </div>
-                    ) : (
-                      <PromptInput
-                        className="w-full"
-                        onSubmit={async (input) => {
-                          if (!input.text.trim()) {
-                            return
+                  {isArchivedTranscript ? (
+                    <div className="border border-border px-4 py-3 text-xs text-muted-foreground">
+                      This request has been archived. The chat is now read-only.
+                    </div>
+                  ) : (
+                    <PromptInput
+                      className="w-full"
+                      onSubmit={async (input) => {
+                        if (!input.text.trim()) {
+                          return
+                        }
+
+                        await submitMessage(input.text)
+                      }}
+                    >
+                      <PromptInputBody>
+                        <PromptInputTextarea
+                          onChange={(event) =>
+                            setComposerText(event.currentTarget.value)
                           }
-
-                          await submitMessage(input.text)
-                        }}
+                          placeholder="Ask a question, coordinate on a request, or ask Boreal for help."
+                          value={composerText}
+                        />
+                      </PromptInputBody>
+                      <PromptInputFooter
+                        className={cn(
+                          shouldShowBorealToolbarButton
+                            ? "justify-between gap-2"
+                            : "justify-end"
+                        )}
                       >
-                        <PromptInputBody>
-                          <PromptInputTextarea
-                            onChange={(event) =>
-                              setComposerText(event.currentTarget.value)
-                            }
-                            placeholder="Ask a question, coordinate on a request, or ask Boreal for help."
-                            value={composerText}
-                          />
-                        </PromptInputBody>
-                        <PromptInputFooter
-                          className={cn(
-                            shouldShowBorealToolbarButton
-                              ? "justify-between gap-2"
-                              : "justify-end"
-                          )}
-                        >
-                          {shouldShowBorealToolbarButton ? (
-                            <PromptInputTools className="flex-wrap gap-2">
-                              <Button
-                                className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                                onClick={() => setIsBorealProfileOpen(true)}
-                                size="sm"
-                                type="button"
-                                variant="outline"
-                              >
-                                <BotIcon className="size-4" />
-                                Boreal Agent
-                              </Button>
-                            </PromptInputTools>
-                          ) : null}
-                          <PromptInputSubmit
-                            disabled={
-                              isSubmitting || composerText.trim().length === 0
-                            }
-                            status={isSubmitting ? "submitted" : undefined}
-                          />
-                        </PromptInputFooter>
-                      </PromptInput>
-                    )}
-                  </div>
+                        {shouldShowBorealToolbarButton ? (
+                          <PromptInputTools className="flex-wrap gap-2">
+                            <Button
+                              className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
+                              onClick={() => setIsBorealProfileOpen(true)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <BotIcon className="size-4" />
+                              Boreal Agent
+                            </Button>
+                          </PromptInputTools>
+                        ) : null}
+                        <PromptInputSubmit
+                          disabled={isSubmitting || composerText.trim().length === 0}
+                          status={isSubmitting ? "submitted" : undefined}
+                        />
+                      </PromptInputFooter>
+                    </PromptInput>
+                  )}
                 </div>
-              </div>
-
-              {errorMessage ? (
-                <div className="pb-4">
-                  <div className={CENTER_PANEL_CLASS}>
-                    <p className="text-xs text-destructive">{errorMessage}</p>
-                  </div>
-                </div>
-              ) : null}
+              </FooterComposerRegion>
             </section>
 
-            <div
-              aria-hidden={!showWorkspace}
-              className={cn(
-                "hidden shrink-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:block",
-                showWorkspace ? "pointer-events-auto" : "pointer-events-none"
-              )}
-              inert={!showWorkspace}
-              style={{
-                width: showWorkspace ? DISCOVERY_SIDEBAR_WIDTH : "0px",
-                willChange: "width",
-              }}
+            <DesktopDiscoveryRail
+              open={showWorkspace}
+              width={DISCOVERY_SIDEBAR_WIDTH}
             >
-              <div
-                className={cn(
-                  "h-full origin-right transform-gpu border-l border-border bg-background transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-                  showWorkspace
-                    ? "translate-x-0 opacity-100"
-                    : "translate-x-6 opacity-0"
-                )}
-                style={{
-                  width: DISCOVERY_SIDEBAR_WIDTH,
-                  willChange: "transform,opacity",
-                }}
-              >
-                <WorkspacePanel
-                  activeTab={workspaceTab}
-                  onAddToCart={handleAddToCart}
-                  onSelectRequest={handleMarketplaceSelect}
-                  onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
-                  ownerExternalId={ownerExternalId}
-                />
-              </div>
-            </div>
+              <WorkspacePanel
+                activeTab={workspaceTab}
+                onAddToCart={handleAddToCart}
+                onSelectRequest={handleMarketplaceSelect}
+                onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
+                ownerExternalId={ownerExternalId}
+              />
+            </DesktopDiscoveryRail>
           </div>
         </div>
       </div>
@@ -3011,92 +2874,6 @@ export function ChatShell() {
         onUpdateQuantity={handleUpdateCartQuantity}
       />
     </>
-  )
-}
-
-function CollapsedRequestsRail({
-  accountImageUrl,
-  accountName,
-  onOpenAccount,
-  onNewChat,
-  onExpand,
-  requestCount,
-}: {
-  accountImageUrl: string | null
-  accountName: string | null
-  onOpenAccount: () => void
-  onNewChat: () => void
-  onExpand: () => void
-  requestCount: number
-}) {
-  const requestBadge = requestCount > 99 ? "99+" : String(requestCount)
-  const avatarInitial = accountName?.trim().charAt(0).toUpperCase() ?? "U"
-
-  return (
-    <aside className="flex h-full w-full flex-col items-center border-r border-border bg-foreground/[0.05] px-3 py-4">
-      <button
-        aria-label="Expand requests sidebar"
-        className="group relative flex size-10 items-center justify-center rounded-xl border border-border bg-background p-2 transition-colors hover:bg-muted/40"
-        onClick={onExpand}
-        type="button"
-      >
-        <span className="flex size-full items-center justify-center rounded-lg bg-muted/30 transition-opacity duration-150 group-hover:opacity-0">
-          <Logo size={13} />
-        </span>
-        <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          <PanelLeftOpenIcon className="size-4" />
-        </span>
-      </button>
-
-      <div className="mt-4 flex flex-col items-center gap-2">
-        <Button
-          aria-label="Start new chat"
-          className="size-10"
-          onClick={onNewChat}
-          size="icon"
-          type="button"
-        >
-          <MessageSquarePlusIcon className="size-4" />
-        </Button>
-
-        <button
-          aria-label={`Open requests sidebar with ${requestCount} tracked requests`}
-          className="relative flex size-10 items-center justify-center rounded-xl border border-border bg-background text-foreground transition-colors hover:bg-muted/40"
-          onClick={onExpand}
-          type="button"
-        >
-          <MessagesSquareIcon className="size-4" />
-          <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[0.55rem] leading-none font-semibold text-primary-foreground">
-            {requestBadge}
-          </span>
-        </button>
-      </div>
-
-      <div className="mt-auto flex flex-col items-center gap-3">
-        <button
-          aria-label="Open account settings"
-          className="flex size-10 items-center justify-center rounded-xl border border-border bg-background transition-colors hover:bg-muted/40"
-          onClick={onOpenAccount}
-          type="button"
-        >
-          <Avatar className="size-7 rounded-lg">
-            {accountImageUrl ? (
-              <AvatarImage
-                alt={accountName ?? "Account"}
-                src={accountImageUrl}
-              />
-            ) : null}
-            <AvatarFallback className="rounded-lg">
-              {accountName ? (
-                avatarInitial
-              ) : (
-                <CircleUserRoundIcon className="size-4" />
-              )}
-            </AvatarFallback>
-          </Avatar>
-        </button>
-      </div>
-    </aside>
   )
 }
 

@@ -16,10 +16,11 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 
 - The creative brief lives in `docs/creative-brief.md`
 - The scene-by-scene storyboard lives in `docs/scenes.md`
+- The premium one-minute showcase/update shot plan lives in `docs/showcase-update-60.md`
 - The video system now has a reusable scene architecture for full-length films and standalone short cuts
 - Current registered compositions include the main hackathon / launch films plus short reusable marketing cuts
-- `src/generations/request-native-2026/` holds a preserved parallel generation for `BorealDemo`, `BorealUpdate`, and `BorealLaunch`
-- `src/generations/request-native-2026/player-preview.tsx` exposes an `@remotion/player` preview surface for those three compositions
+- `src/generations/request-native-2026/` holds a preserved parallel generation for `BorealDemo`, `BorealUpdate`, `BorealLaunch`, and `BorealShowcase60`
+- `src/generations/request-native-2026/player-preview.tsx` exposes an `@remotion/player` preview surface for those preserved compositions
 
 ## Render commands
 
@@ -28,6 +29,7 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 - `npm run render:launch` renders the 90-second launch cut
 - `npm run render:update` renders the 60-second hackathon update cut
 - `npm run render:truth:demo` renders the 90-second truthful Boreal demo cut
+- `npm run render:truth:showcase` renders the premium 60-second truthful showcase/update cut
 - `npm run render:truth:update` renders the 2-minute truthful Boreal project update cut
 - `npm run render:truth:launch` renders the 60-second truthful Boreal launch cut
 - `npm run render:technical` renders the technical demo variant

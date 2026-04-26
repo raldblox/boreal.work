@@ -13,22 +13,23 @@ Use it for:
 
 ## Master Message
 
-Boreal is building a request router for paid agentic services, with human fallback when automation cannot complete the job.
+Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps proposals, delivery, checkout, and proof attached to the same work thread.
 
 Short public version:
 
-Boreal routes paid requests through tools first, then humans when needed.
+`Submit one request. Boreal finds the best way to fulfill it.`
 
 ## Shared Rules
 
 Across every audience:
 
 - start with the problem of disappearing demand
-- explain Boreal through requests, tool-first execution, human fallback, fulfillment, and checkout
+- explain Boreal through requests, offers, work threads, delivery, and checkout
 - keep the alpha boundary explicit
-- use `chat-native` for interface
-- use `paid agentic services` for the current wedge
-- use `request-native commerce` and `intent-to-fulfillment` for the longer-term thesis
+- use `chat-native` for the interface layer
+- use `request-native commerce` for the category layer
+- use `intent-to-fulfillment` for the deeper thesis
+- do not describe humans as only a fallback; some requests should go to humans or hybrid teams first
 
 ## Audience: Buyers
 
@@ -42,12 +43,12 @@ Across every audience:
 
 ### Lead line
 
-Post what you need in plain language. Boreal turns it into a paid request, routes executable supply first, and opens human fallback only when the work cannot be completed automatically.
+Post what you need in plain language. Boreal turns it into a request, checks the best executable path first, and opens custom work when the request needs a real proposal.
 
 ### Supporting points
 
 - start in chat
-- match supply first
+- search direct offers first
 - compare proposals with price, timing, and deliverables
 - keep fulfillment attached to the request
 
@@ -56,51 +57,51 @@ Post what you need in plain language. Boreal turns it into a paid request, route
 - `Post a request`
 - `Open Boreal`
 
-## Audience: Sellers / Supply-side operators
+## Audience: Sellers / Offer-side operators
 
 ### What they care about
 
 - discoverability
 - better inbound demand
 - clear request context
-- easier selling and response workflows
+- easier response workflows
 - being reachable by humans and agents
 
 ### Lead line
 
-List your service, product, or agent capability once, then let Boreal route paid requests to you when automation alone is not enough.
+Publish your service, product, or agent capability once, then let Boreal route matching demand to you through requests, proposals, and direct checkout paths.
 
 ### Supporting points
 
-- public supply profile
-- request-side demand visibility
+- public offer profile
+- visible request-side demand
 - proposal workflows for custom work
 - digital listings and supported checkout flows
 
 ### Good CTA
 
-- `List your supply`
-- `Browse Supply`
+- `Publish an offer`
+- `Browse offers`
 
-## Audience: Agents / developers building agent flows
+## Audience: Agents / Developers
 
 ### What they care about
 
 - structured demand
 - routable supply
-- interoperability over time
 - machine-readable state
 - execution paths beyond chat answers
+- interoperability over time
 
 ### Lead line
 
-Boreal turns plain-language demand into structured paid requests that can be routed through tools, provider-backed services, human fallback, and supported checkout paths.
+Boreal turns plain-language demand into structured requests that can route through offers, provider-backed services, agents, humans, or supported checkout flows.
 
 ### Supporting points
 
 - durable request object
 - supply normalization
-- routing architecture
+- matching and routing architecture
 - provider-backed execution foundation
 - deeper protocol support as roadmap work
 
@@ -109,24 +110,24 @@ Boreal turns plain-language demand into structured paid requests that can be rou
 - `Explore the product surface`
 - `Read the whitepaper`
 
-## Audience: Partners / marketplaces / service providers
+## Audience: Partners / Marketplaces / Service Providers
 
 ### What they care about
 
 - distribution
 - integration surface
-- demand flow
+- attributable demand flow
 - normalized ingestion
-- attributable routed traffic
+- commercial reach
 
 ### Lead line
 
-Boreal is an automation-first request router that can route paid demand into partner supply instead of leaving that demand trapped in chat or search.
+Boreal routes structured demand into products, services, humans, and agents instead of leaving that demand trapped in chat, search, or disconnected marketplaces.
 
 ### Supporting points
 
 - service-provider normalization
-- external supply sync
+- external offer sync
 - provider-backed invocation
 - future protocol depth
 
@@ -147,22 +148,22 @@ Boreal is an automation-first request router that can route paid demand into par
 
 ### Lead line
 
-Boreal is starting as an automation-first request router for paid agentic services, with human fallback and a longer-term thesis around request-native commerce infrastructure.
+Boreal is building request-native commerce: a market and routing layer where one request can resolve through direct supply, provider execution, or custom fulfillment without leaving the same work thread.
 
 ### Supporting points
 
-- demand is already being expressed in chat, prompts, and agent flows
+- demand is already being expressed in chat, search, and agent flows
 - current products either stop at answers or split work and commerce into different systems
-- Boreal unifies requests, supply, proposals, fulfillment, and checkout
+- Boreal unifies requests, offers, proposals, fulfillment, and checkout
 - the alpha is already a usable market surface
-- protocol depth and settlement expand later from that base
+- the first paid wedge can validate routed execution without reducing the company to only that wedge
 
 ### Good CTA
 
 - `Read the whitepaper`
 - `See what is live today`
 
-## Audience: Press / broad public
+## Audience: Press / Broad Public
 
 ### What they care about
 
@@ -172,7 +173,7 @@ Boreal is starting as an automation-first request router for paid agentic servic
 
 ### Lead line
 
-Boreal is a chat-native request router where people start with one paid request, Boreal tries the best executable path first, and humans step in only when the work needs it.
+Boreal is where people start with one request and get the best available path to fulfillment, whether that means buying something directly or opening the right custom work thread.
 
 ### Supporting points
 
@@ -189,23 +190,24 @@ Boreal is a chat-native request router where people start with one paid request,
 
 ### 10-word level
 
-`Boreal routes paid requests through tools first, then humans.`
+`Boreal turns one request into the best fulfillment path.`
 
 ### 20-word level
 
-`Boreal is an automation-first request router for paid agentic services with human fallback when direct execution is not enough.`
+`Boreal is a chat-native market where one request can route to offers, proposals, fulfillment, or checkout.`
 
 ### 50-word level
 
-`Boreal is building a request router for paid agentic services. People or agents start with a plain-language request. Boreal turns that into a durable workspace, routes tools and provider-backed services first, opens human fallback only when automation cannot complete the job, and keeps delivery or checkout visible until the outcome is complete.`
+`Boreal is building request-native commerce. People or agents start with one request. Boreal turns that into a durable workspace, checks existing offers and provider-backed services first, opens proposals when the work is custom, and keeps delivery, checkout, and proof attached until the outcome is complete.`
 
 ## Terms By Audience
 
 ### Safe for almost everyone
 
 - request
-- supply
+- offer
 - proposal
+- work thread
 - fulfillment
 - checkout
 - public alpha
@@ -230,6 +232,6 @@ Boreal is a chat-native request router where people start with one paid request,
 If the message does not explain both:
 
 - that Boreal starts with one request
-- that Boreal routes the executable path first and escalates only when needed
+- that Boreal chooses the best fulfillment path from there
 
-then it is probably too vague.
+then it is probably too vague or too narrow.

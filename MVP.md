@@ -1,86 +1,127 @@
 # Boreal MVP
 
-This document defines the smallest possible Boreal launch wedge for testing whether buyers will pay for automation-first execution with human fallback.  It is not the full product roadmap.  It is the narrowest test that can generate real signal in two weeks.
+This document defines the smallest paid launch wedge inside the broader Boreal alpha.  It is not the whole product, and it should not replace the whitepaper, roadmap, or market thesis.  Its job is narrower: prove that buyers will pay Boreal to take one request, choose the best fulfillment path, and return a usable outcome without making them assemble the stack themselves.
+
+## What This Document Is
+
+- the first paid launch wedge
+- the fastest route to real commercial signal
+- the shortest Boreal path that still tests routing, fulfillment, delivery, and margin quality
+
+## What This Document Is Not
+
+- not the full Boreal launch plan
+- not the full public alpha surface
+- not the full roadmap
+- not a reason to hide the broader request and offer market already in the product
+
+The public Boreal product can still expose requests, offers, profiles, proposals, work threads, and checkout.  This wedge only defines the first paid path we should push hardest.
 
 ## Core Assumption
 
-Boreal only works as a business if buyers will pay to hand over an outcome request instead of choosing tools themselves.
+Boreal only compounds if buyers will pay to hand over an outcome request instead of choosing tools, providers, or freelancers themselves.
 
-For the first test, the assumption is:
+For the first paid wedge, the assumption is:
 
-`Early-stage founders with launch pressure will pay Boreal to complete a scoped AI-executable request through a tool-first flow, with human fallback only when automation is not enough.`
+`Early-stage founders under launch pressure will pay Boreal to complete a scoped launch-copy request when Boreal can route that request through a direct executable path first, then use human or hybrid fulfillment only when judgment or polish is required.`
 
-If this assumption is wrong, Boreal is not a request router for paid agentic services.  It becomes either:
+If this assumption is wrong, Boreal is still useful, but the business model changes.  It becomes more like:
 
-- a services marketplace with extra routing
-- a tool wrapper with weak monetization
-- a concierge product that does not compound
+- a marketplace with extra routing
+- a tool wrapper with weak margins
+- a concierge service that does not scale cleanly
 
 ## Recommended Wedge
 
-Start with one paid request type for one buyer segment.
+Start with one buyer segment and one fixed offer:
 
 - Buyer: early-stage founders shipping in the next 30 days
 - Offer: `Launch Copy Pack`
 - Outcome: launch page copy, onboarding copy, and a checkout-ready listing draft
 - SLA: 24 hours
-- Delivery model: tool-first generation, human fallback polish
+- Delivery model: direct Boreal execution first, human or hybrid polish only when the request needs real judgment
 
-This wedge is strong enough to test payment, routing, delivery quality, and fallback behavior without needing a marketplace.
+This is still a strong wedge because it tests:
+
+- willingness to pay
+- request intake quality
+- routing quality
+- fulfillment quality
+- human-assist rate
+- margin survivability
+
+## How This Fits The Current Product
+
+Boreal already has a broader public alpha:
+
+- chat-native request intake
+- public offers and requests
+- profiles
+- proposals
+- work threads
+- carts and checkout records
+- provider-backed execution
+
+The wedge should use that product, not bypass it.
+
+For this test:
+
+- the buyer should still start inside Boreal
+- the request should still become a Boreal request/work thread
+- the paid offer should live as a Boreal offer
+- delivery should stay attached to the Boreal work thread
+- acceptance, revision, and review should happen inside Boreal when possible
+
+Manual fulfillment behind the scenes is fine.  Pretending the product does not exist is not.
 
 ## Minimum Feature Set
 
-Build only what is required to test the assumption.
+Build and use only what is required to test the wedge honestly.
 
 ### Buyer-facing
 
-- One landing page
-- One plain-language intake form
-- One fixed-price checkout
-- One confirmation page or email
-- One delivery page or email with `Accept` / `Needs revision`
+- one landing page or campaign page for the wedge
+- one plain-language request intake path inside Boreal
+- one fixed-price offer or checkout path
+- one request/work thread that shows progress and delivery
+- one `Accept` or `Needs revision` decision path
 
 ### Operator-facing
 
-- One internal request queue in Airtable or Notion
-- One runbook for tool execution order
-- One fallback rule for human rescue
-- One delivery template
-- One metrics log
+- one internal Boreal request queue or tightly scoped ops view
+- one execution runbook for the direct path
+- one rule for when human or hybrid fulfillment is allowed
+- one delivery template
+- one metrics log
 
 ### Product behavior
 
-- Buyer submits one request
+- buyer submits one request
 - Boreal structures the request
-- Boreal runs the tool-first path
-- Human fallback triggers only when the output is below threshold
-- Delivery returns in one thread or one delivery packet
+- Boreal checks the direct executable path first
+- if the request fits the wedge, the buyer can pay and proceed
+- if the request is too broad, Boreal rejects or reroutes it instead of quietly turning the wedge into custom agency work
+- delivery returns in one Boreal work thread with acceptance or revision handling
 
-## What Gets Cut
+## What Gets Cut From The Wedge
 
-Everything below is out of scope for the MVP because it does not test the core assumption directly.
+These are not deleted from Boreal.  They are simply not the focus of the first paid launch test.
 
-- public request directory
-- public supply directory
-- profiles
-- proposals
-- carts
-- wallets
-- protocol endpoints
-- external provider registry sync
-- autonomous workers
-- multi-category matching
-- agent-to-agent routing
-- open marketplace dynamics
-- generalized checkout flows
-- reputation systems
-- review systems beyond simple acceptance
-- multimodal intake
+- broad multi-category marketing
+- open-ended marketplace growth experiments
+- deep proposal-market behavior as the main conversion path
 - multi-offer packaging
+- milestone billing
+- physical service scheduling
+- generalized refunds and disputes beyond clear manual handling
+- collective fulfillment as the lead message
+- protocol depth as the lead landing-page message
+
+The wedge is testing paid routed execution, not the whole long-term market.
 
 ## Fixed-Price Offer
 
-Use one fixed offer so pricing does not confuse the test.
+Use one fixed offer so pricing does not introduce noise.
 
 - Offer name: `Launch Copy Pack`
 - Price: `$149`
@@ -91,24 +132,24 @@ Use one fixed offer so pricing does not confuse the test.
   - checkout-ready listing copy draft
   - one revision pass
 - Delivery time: `within 24 hours`
-- Escalation rule: if the request needs original strategic thinking beyond the pack scope, reject or refund instead of quietly turning the MVP into a custom agency service
+- Escalation rule: if the request requires deep positioning strategy, legal review, original market research, or custom brand work outside the pack, reject or refund instead of expanding scope invisibly
 
-## Landing Page Copy
+## Landing Page Copy Direction
 
-Use direct copy that sells the wedge, not the whole Boreal vision.
+The wedge page should sell the paid path, while staying consistent with Boreal’s broader product story.
 
 ### Hero
 
 - Eyebrow: `24-hour launch copy`
-- Headline: `Submit one request. Get launch-ready copy without choosing AI tools.`
-- Subheadline: `Boreal turns your launch request into a paid execution flow, runs the best available tools first, and adds human fallback only when the output needs polish.`
+- Headline: `Submit one request. Get launch-ready copy without choosing tools.`
+- Subheadline: `Boreal takes one launch request, checks the fastest executable path first, and returns a polished delivery in one work thread.`
 - Primary CTA: `Start your request`
 - Secondary proof line: `Fixed price. 24-hour turnaround. One revision included.`
 
 ### Problem section
 
-- Title: `Founders should not have to assemble a tool stack for every launch task.`
-- Body: `Most founders know the outcome they need, not which AI tools to combine to get there. Boreal takes one request, runs the tool-first path, and delivers usable launch assets in one package.`
+- Title: `Founders should not have to assemble a workflow just to ship.`
+- Body: `Most founders know the outcome they need, not which prompts, tools, or freelancers to combine to get there. Boreal turns one request into a structured paid path and keeps the work visible until delivery is complete.`
 
 ### What you get
 
@@ -116,16 +157,16 @@ Use direct copy that sells the wedge, not the whole Boreal vision.
 - `Onboarding copy block`
 - `Checkout-ready listing copy`
 - `Delivery in 24 hours`
-- `Human polish when automation misses`
+- `Human or hybrid polish when the direct path needs judgment`
 
 ### CTA section
 
 - Title: `Describe the launch outcome you need.`
-- Body: `If this fits the pack, you can pay and submit in minutes. If it does not, Boreal should reject it instead of pretending the wedge is broader than it is.`
+- Body: `If the request fits the pack, you can pay and submit in minutes. If it does not, Boreal should reject it or reroute it instead of pretending this wedge is broader than it is.`
 
 ## Intake Form Spec
 
-Ask only for fields that change execution quality.
+Ask only for fields that materially change output quality.
 
 - `What are you launching?`
 - `Product URL or product description`
@@ -143,19 +184,18 @@ Optional:
 Do not ask for:
 
 - budget negotiation
-- team size
-- long company background
-- brand workshop questions
-- anything that turns the form into discovery consulting
+- long discovery consulting
+- broad brand-workshop questions
+- unrelated team or company background
 
 ## Manual Ops Runbook
 
-The first version should be mostly manual behind the scenes.
+The wedge can stay partly manual behind the scenes, but the workflow should still pass through Boreal.
 
 ### Intake triage
 
 1. Confirm the request fits the `Launch Copy Pack` scope.
-2. Reject and refund requests that need deep strategy, legal review, or custom research.
+2. Reject or reroute requests that need deep strategy, legal review, or research-heavy custom work.
 3. Normalize the request into:
    - product
    - target user
@@ -163,49 +203,50 @@ The first version should be mostly manual behind the scenes.
    - required deliverables
    - constraints
 
-### Tool-first execution order
+### Direct execution order
 
-1. Generate the first draft with the primary LLM prompt.
+1. Generate the first draft with the primary execution prompt.
 2. Run a second pass for structure, clarity, and conversion polish.
-3. Run a lightweight consistency check against the user constraints.
-4. Package the draft into the delivery template.
+3. Run a consistency check against the user constraints.
+4. Package the result into the Boreal delivery thread.
 
-### Human fallback rule
+### Human or hybrid assist rule
 
-Use a human editor only when one of these is true:
+Allow human or hybrid fulfillment only when one of these is true:
 
 - the copy is generic relative to the product description
 - the output ignores the target user
-- the listing copy is not commercially usable
-- the request contains nuance the automated path missed
+- the listing copy is commercially weak
+- the request contains nuance the direct path missed
 
-Human fallback should polish or repair the output, not rewrite the deliverable from zero unless the test itself shows automation is too weak.
+Assist should repair, polish, or sharpen the outcome.  It should not become a hidden full custom service unless the test itself proves the wedge must be redefined.
 
-### Delivery template
+### Delivery packet
 
-Deliver in one structured packet:
+Deliver in one structured work thread:
 
 - headline and subheadline
 - body sections
 - onboarding block
 - listing copy
 - short usage note
-- `Accept` link
-- `Needs revision` link
+- `Accept`
+- `Needs revision`
 
 ## Test Criteria
 
-Success or failure must come from behavior, not compliments.
+Success or failure must come from commercial behavior, not compliments.
 
 ### Success threshold
 
 Within 14 days:
 
 - at least `20` qualified prospects are reached directly
-- at least `5` people pay
-- at least `70%` of paid requests are completed tool-first with only light human polish
+- at least `5` buyers pay
+- at least `70%` of paid requests are completed through the direct path with only light human or hybrid polish
 - at least `60%` of deliveries are accepted on first pass
 - at least `2` customers ask for another paid task or a clear adjacent upsell
+- direct-path economics remain positive after assist effort
 
 ### Failure threshold
 
@@ -214,21 +255,22 @@ The wedge is wrong if any of these dominate:
 - prospects are curious but do not pay
 - paid requests require heavy custom human work from scratch
 - outputs need repeated clarification before delivery
-- customers would rather use a known tool directly
-- the effective margin disappears because fallback becomes the main labor path
+- customers would rather use a known tool or freelancer path directly
+- the effective margin disappears because assist becomes the main labor path
 
 ## Metrics Log
 
-Track the same fields for every request:
+Track the same fields for every paid wedge request:
 
 - source
 - request type
 - paid or not paid
 - delivery time
-- tool-first or fallback-assisted
+- direct path or assist path
 - accepted first pass or revision needed
 - refund or no refund
 - follow-up paid request or none
+- estimated margin quality
 
 ## 2-Week Launch Plan
 
@@ -239,13 +281,13 @@ Track the same fields for every request:
 
 ### Day 2
 
-- Write the landing page copy.
-- Build the intake form and payment link.
+- Write the wedge landing page copy.
+- Build the Boreal request path and paid offer path for this wedge.
 
 ### Day 3
 
-- Build the internal ops queue and delivery template.
-- Write the execution and fallback runbook.
+- Finalize the execution runbook and delivery template.
+- Make sure the request/work thread stays usable for delivery and revision.
 
 ### Day 4
 
@@ -255,7 +297,7 @@ Track the same fields for every request:
 ### Day 5
 
 - Prepare 3 example outputs from fake but realistic launches.
-- Add those examples to the landing page or outreach material.
+- Use them on the landing page or in outbound material.
 
 ### Day 6
 
@@ -268,27 +310,27 @@ Track the same fields for every request:
 ### Day 7
 
 - Send the first outbound wave.
-- Book the first buyers manually if needed through DMs or email.
+- Close the first buyers manually if needed.
 
 ### Day 8
 
 - Close the first 1 to 2 paid requests.
-- Fulfill them through the tool-first path.
+- Fulfill them through the direct path.
 
 ### Day 9
 
 - Deliver those requests.
-- Record acceptance, revision demand, and fallback effort.
+- Record acceptance, revision demand, and assist effort.
 
 ### Day 10
 
-- Send the second outbound wave using the first delivery examples and early proof.
+- Send the second outbound wave using first proof points and delivery examples.
 - Close the next 2 to 3 paid requests.
 
 ### Day 11
 
 - Fulfill the second batch.
-- Tighten the fallback rule if the human rescue path is too heavy.
+- Tighten the assist rule if human work is too heavy.
 
 ### Day 12
 
@@ -309,10 +351,18 @@ Track the same fields for every request:
 
 ## Decision Rule
 
-Do not expand the product surface until this wedge proves that buyers pay for outcome routing itself.
+Do not confuse wedge success with whole-company proof.
 
-If the launch copy wedge fails, Boreal should not add more infrastructure.  It should either:
+If the `Launch Copy Pack` wedge works:
 
-- choose a more automation-friendly paid request type
+- keep the broader Boreal product story
+- keep the request-native market surface
+- expand through adjacent high-fit paid requests
+
+If the wedge fails:
+
+- choose a more automation-friendly request type
 - choose a tighter buyer segment
-- or admit that the real business is human services, not paid agentic routing
+- or admit that the best near-term business is not this paid routed-execution path
+
+The goal is to prove the smallest paid path that still feels like Boreal.

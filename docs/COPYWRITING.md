@@ -1,13 +1,14 @@
 # Homepage Copy Draft
 
-This draft is written to fit the current section structure in `next-app/app/page.tsx`.
+This draft is for the public Boreal alpha, not only the first paid wedge.
 
 Messaging direction:
 
-- Boreal is a request router for paid agentic services.
-- Boreal should read as automation-first execution with human fallback.
-- Boreal should read as a product people can use now, not as infrastructure-first positioning.
-- `Public alpha` stays as release-stage context, not the primary definition.
+- Boreal is a chat-native market for request-native commerce.
+- Boreal should read as one request in, best fulfillment path out.
+- Boreal should sound product-first and operational, not protocol-first.
+- Humans are part of the market, not merely an exception path.
+- `Public alpha` is useful release context, but not the main promise.
 
 ## Hero
 
@@ -21,11 +22,11 @@ Eyebrow support:
 
 Headline:
 
-`Submit one request. Get paid execution without choosing AI tools.`
+`Submit one request. Boreal finds the best way to fulfill it.`
 
 Subheadline:
 
-`Boreal is an automation-first request router for paid agentic services. Describe the outcome you want, Boreal routes it through tools and provider-backed services first, and opens human fallback only when automation cannot complete the job.`
+`Start with the outcome you need. Boreal checks existing offers, provider-backed services, agents, and human supply first, then keeps proposals, delivery, checkout, and proof attached to the same work thread.`
 
 Primary CTA:
 
@@ -37,16 +38,16 @@ Secondary CTA:
 
 Tertiary CTA:
 
-`List your supply`
+`Publish an offer`
 
 Proof points:
 
 - `One request instead of tool switching`
-- `Tool-first routing with human fallback`
-- `Structured delivery and evidence`
-- `Supported checkout flows`
-- `Requests stay attached to fulfillment`
-- `People and agents in one execution flow`
+- `Direct supply first`
+- `Proposals when work is custom`
+- `Delivery and proof stay attached`
+- `Products, services, humans, and agents in one market`
+- `Checkout-ready when the offer is already buyable`
 
 ## Three Paths
 
@@ -62,7 +63,7 @@ Headline:
 
 Body:
 
-`Tell Boreal what you need. It turns the ask into a structured request, routes executable supply first, and opens human fallback only when the automated path cannot finish the job.`
+`Tell Boreal what you need. It turns the ask into a structured request, checks the fastest executable path first, and opens custom work only when the request needs judgment or a tailored response.`
 
 Primary CTA:
 
@@ -70,7 +71,7 @@ Primary CTA:
 
 Secondary CTA:
 
-`Browse Requests`
+`Browse requests`
 
 ### Path 2
 
@@ -80,15 +81,15 @@ Headline:
 
 Body:
 
-`List your service, product, or agent capability. Boreal makes it routable when paid demand shows up with clear intent and automation alone is not enough.`
+`Publish your service, product, or agent capability as an offer. Boreal makes it discoverable when matching demand shows up from people or agents.`
 
 Primary CTA:
 
-`List your supply`
+`Publish an offer`
 
 Secondary CTA:
 
-`Browse Supply`
+`Browse offers`
 
 ### Path 3
 
@@ -98,7 +99,7 @@ Headline:
 
 Body:
 
-`Explore open requests, packaged supply, and the Boreal agent. Start with the side you know, or let Boreal route you from a plain-language ask.`
+`Explore open requests, packaged offers, and Boreal itself. Start from the side you know, or start with a request and let Boreal route from there.`
 
 Primary CTA:
 
@@ -106,7 +107,7 @@ Primary CTA:
 
 Secondary CTA:
 
-`Meet the Boreal agent`
+`Meet Boreal Agent`
 
 ## How It Works
 
@@ -116,11 +117,11 @@ Section label:
 
 Headline:
 
-`From request to delivery, without losing the thread.`
+`From request to outcome, without losing the thread.`
 
 Intro copy:
 
-`Some requests resolve through existing tools or provider-backed services. Others need human fallback. Boreal starts in chat, but the request becomes the durable workspace, so the execution flow stays visible from first ask to fulfillment or checkout.`
+`Some requests resolve through existing offers or provider-backed services. Others need proposals and custom fulfillment. Boreal starts in chat, but the request becomes the durable workspace, so matching, approval, delivery, and checkout stay visible from start to finish.`
 
 ### Step 1
 
@@ -130,37 +131,37 @@ Title:
 
 Body:
 
-`Type what you need in plain language. Boreal uses chat as the interface, then structures the ask as a request so it can be searched, priced, scoped, and acted on.`
+`Type what you need in plain language. Boreal uses chat as the interface, then turns the ask into a request that can be matched, scoped, priced, and fulfilled.`
 
 ### Step 2
 
 Title:
 
-`Route executable supply first`
+`Check the best executable path first`
 
 Body:
 
-`Boreal checks tools, provider-backed services, agents, and other executable supply before opening human work. If the automated path fits, you can move immediately.`
+`Boreal looks across offers, products, services, provider-backed capabilities, agents, and known supply before opening custom work.`
 
 ### Step 3
 
 Title:
 
-`Escalate only when automation is not enough`
+`Open the market when the work is custom`
 
 Body:
 
-`When the request needs judgment, nuance, or custom work, Boreal opens the human path with price, timing, and deliverables you can compare.`
+`When the request needs real judgment, local presence, or tailored work, Boreal opens proposals with price, timing, and deliverables you can compare clearly.`
 
 ### Step 4
 
 Title:
 
-`Keep delivery attached to the request`
+`Keep delivery and proof attached`
 
 Body:
 
-`Approvals, activity, fulfillment, evidence, and review stay in the same workspace, so the request does not disappear into DMs, email, or a chat log.`
+`Activity, submissions, evidence, review, and checkout stay inside the same work thread, so the request does not disappear into DMs, email, or a dead prompt log.`
 
 ## Live Surfaces
 
@@ -172,31 +173,31 @@ Section label:
 
 Label:
 
-`Boreal`
+`Requests`
 
 Description:
 
-`Start a request, search supply, and manage the work from one surface.`
+`Start a request, route it, and track fulfillment from one workspace.`
 
 ### Card 2
 
 Label:
 
-`Supply`
+`Offers`
 
 Description:
 
-`Browse people, agents, products, and services already listed.`
+`Browse people, agents, products, and services already listed in the market.`
 
 ### Card 3
 
 Label:
 
-`Requests`
+`Work threads`
 
 Description:
 
-`See open demand and submit proposals with clear terms.`
+`Keep proposals, delivery, files, evidence, and review attached to the same request.`
 
 ### Card 4
 
@@ -206,7 +207,7 @@ Label:
 
 Description:
 
-`See how Boreal itself participates inside the market.`
+`See how Boreal itself participates as a collaborator, router, and market operator.`
 
 ## Final CTA
 
@@ -216,11 +217,11 @@ Badge:
 
 Headline:
 
-`The fastest path should not require choosing the stack.`
+`The fastest path should start with the request, not the stack.`
 
 Body:
 
-`Use Boreal to turn chat into a paid request, route the best executable path first, and keep delivery or checkout visible until the outcome is complete.`
+`Use Boreal to turn chat into a structured request, check the best executable path first, and keep fulfillment or checkout visible until the outcome is complete.`
 
 Primary CTA:
 

@@ -13,17 +13,17 @@ It is an editorial working map, not the final public whitepaper.
 
 Recommended public product sentence:
 
-`Boreal is a public alpha request router for paid agentic services that starts with one request, routes executable supply first, and opens human fallback only when automation cannot complete the job.`
+`Boreal is a public alpha chat-native market for request-native commerce.  Start with one request, then let Boreal find the best fulfillment path.`
 
 Recommended thesis sentence:
 
-`Boreal is building request-native commerce: infrastructure that turns expressed demand from humans and agents into fulfilled outcomes, starting with a narrow wedge in paid agentic services.`
+`Boreal is building request-native commerce: infrastructure that turns expressed demand from humans and agents into fulfilled outcomes, starting with one narrow paid wedge but not limited to it.`
 
 Why this should lead:
 
 - It matches the current homepage and README more closely than the older merchant-only or protocol-only narratives.
 - It is honest about the current alpha.
-- It gives Boreal a clearer wedge than the broader `market for work, products, and services` framing.
+- It keeps the wedge clear without letting the wedge replace the product.
 - It leaves room for the bigger protocol and settlement story without claiming that Phase 4 and Phase 5 work is already live.
 - It still leaves room for work, products, services, humans, and agents in the longer-term expansion story.
 
@@ -35,7 +35,7 @@ Why this should lead:
   - Best short truth layer for what is actually in the repo now.
 - `COPYWRITING.md`
   - Strongest current public-facing positioning.
-  - Keeps Boreal grounded as a usable market, not only an infrastructure thesis.
+  - Should keep Boreal grounded as a usable market, not only an infrastructure thesis and not only a narrow paid wedge.
 - `../ROADMAP.md`
   - Best claim boundary document.
   - Already distinguishes alpha truth from longer-range architecture.
@@ -180,13 +180,17 @@ For now, Boreal should tell one simple story consistently:
 
 - Public product story:
   - a market for work, products, and services
-  - starts with a request
-  - searches supply before opening custom work
+  - starts with one request
+  - checks supply before opening custom work
   - keeps proposals, approvals, delivery, and checkout attached to the request
 
 - Technical thesis:
   - request-native commerce
   - intent-to-fulfillment infrastructure
   - protocol and settlement depth grows over time
+
+- Paid launch wedge:
+  - one narrow commercial offer can validate willingness to pay
+  - that wedge should live inside the broader Boreal product story, not replace it
 
 That is the cleanest bridge between what is already usable and what Boreal is trying to become.
