@@ -19,7 +19,11 @@ export const listSidebar = query({
 
     return Promise.all(
       intents
-        .filter((intent) => !ownerUserId || intent.ownerUserId === ownerUserId)
+        .filter(
+          (intent) =>
+            (!ownerUserId || intent.ownerUserId === ownerUserId) &&
+            intent.status !== "proposed",
+        )
         .map(async (intent) => ({
         _creationTime: intent._creationTime,
         _id: intent._id,

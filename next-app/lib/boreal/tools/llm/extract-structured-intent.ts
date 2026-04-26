@@ -69,6 +69,8 @@ function buildPrompt(
     '  "extractionNotes": string[]',
     "}",
     "Rules:",
+    "- greetings, acknowledgements, thanks, and basic conversational messages should stay direct chat replies and should not become tracked work.",
+    "- basic information questions about Boreal, an offer, a provider, or how something works should stay direct chat replies unless the user clearly wants work opened.",
     "- general questions should use routeTarget=general_assistance.",
     "- if the user is asking Boreal to make, write, build, draft, explain, package, or prepare a deliverable for them, do not treat it as a plain direct answer. Treat it as a tracked request.",
     "- for underspecified text deliverables, tutorials, explainers, lessons, scripts, guides, or packaged outputs, set needsClarification=true and list the missing scope details.",

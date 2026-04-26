@@ -28,6 +28,18 @@ export async function saveConversationExchange(args: {
   return client.mutation(convexFunctionRefs.recordConversationExchange, args);
 }
 
+export async function appendConversationAssistantMessage(args: {
+  assistantMessage: string;
+  conversationId: string;
+  ownerExternalId?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(
+    convexFunctionRefs.appendConversationAssistantMessage,
+    args
+  );
+}
+
 export async function approveRequestDraft(args: {
   assignedAgent?: string;
   assignedToolNames?: string[];

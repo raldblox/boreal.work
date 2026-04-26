@@ -182,7 +182,10 @@ export function normalizeIntentExtraction(
       ),
       shouldPersist:
         rawIntent.persistence?.shouldPersist ??
-        (routeTarget !== "general_assistance" || confidence >= 0.58),
+        (routeTarget === "profile_update" ||
+          routeTarget === "image_generation" ||
+          routeTarget === "speech_generation" ||
+          routeTarget === "video_generation"),
     },
     requestedOutputTypes:
       requestedOutputTypes.length > 0 ? requestedOutputTypes : [bestModality],
@@ -200,7 +203,7 @@ export function normalizeIntentExtraction(
       ),
       shouldCreateFulfillmentRequest:
         rawIntent.routing?.shouldCreateFulfillmentRequest ??
-        routeTarget !== "general_assistance",
+        false,
       shouldPersistToBoard:
         rawIntent.routing?.shouldPersistToBoard ??
         Boolean(rawIntent.persistence?.isUnresolved),

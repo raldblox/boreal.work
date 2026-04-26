@@ -35,7 +35,7 @@ export function ConversationSidebarSection({
     <>
       <div className="px-4 py-3">
         <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          Your chats
+          History
         </p>
       </div>
 
@@ -48,6 +48,10 @@ export function ConversationSidebarSection({
               const isActive =
                 !selectedIntentId &&
                 conversation.conversationId === selectedConversationId
+              const latestOpenableRequest =
+                conversation.linkedRequests.find(
+                  (linkedRequest) => linkedRequest.status !== "proposed"
+                ) ?? null
 
               return (
                 <div
@@ -72,21 +76,28 @@ export function ConversationSidebarSection({
                       </p>
                     </div>
                   </button>
-                  {conversation.linkedRequest ? (
+                  {conversation.linkedRequests.length > 0 ? (
                     <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2">
                       <p className="truncate text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                        Request ready
+                        History · {conversation.linkedRequests.length} work{" "}
+                        {conversation.linkedRequests.length === 1 ? "item" : "items"}
                       </p>
-                      <Button
-                        onClick={() =>
-                          onOpenConversationRequest?.(conversation)
-                        }
-                        size="sm"
-                        type="button"
-                        variant="ghost"
-                      >
-                        Open request
-                      </Button>
+                      {latestOpenableRequest ? (
+                        <Button
+                          onClick={() =>
+                            onOpenConversationRequest?.(conversation)
+                          }
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          Open latest
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Pending draft
+                        </span>
+                      )}
                     </div>
                   ) : null}
                 </div>

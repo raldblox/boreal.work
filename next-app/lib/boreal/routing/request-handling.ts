@@ -1,3 +1,4 @@
+import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
 import type { IntentExtraction, RequestedOutputType } from "@/lib/boreal/schemas/intent";
 
 type RequestHandlingIntent = {
@@ -39,16 +40,51 @@ const formatPattern =
   /\b(tutorial|guide|article|lesson|script|outline|deck|presentation|slides|blog post|thread|video script|email|prompt)\b/i;
 const supplyOnboardingPattern =
   /\b(publish my skills|publish.*(skills|services|products)|supply listing|list my (skills|services|products)|public worker profile|worker profile|profile update|package my capabilities|package my skills|match me to relevant requests|set up a strong supply listing|help me set up.*listing|help me publish.*(services|products|skills))\b/i;
+const lowSignalConversationPattern =
+  /^(hi|hello|hey|yo|sup|gm|good morning|good afternoon|good evening|thanks|thank you|thx|ok|okay|cool|nice|sounds good|all good|test|ping)[!. ]*$/i;
+const informationalQuestionPattern =
+  /\b(what is|what's|how does|how do|can you explain|explain|tell me about|who is|where is|why does|why is|what can you do)\b/i;
 
 export function refineIntentForRequestLifecycle(
   intent: IntentExtraction,
   message: string,
+  uiContext?: ChatUiContext,
 ): IntentExtraction {
   const text = buildIntentText(intent, message);
   const supplyOnboarding = isLikelySupplyOnboardingRequest(text);
   const likelyDeliverable = isLikelyDeliverableRequest(text);
   const workerLed = isLikelyWorkerLedRequest(text);
   const textOnly = isTextOnlyIntent(intent.requestedOutputTypes);
+
+  if (shouldStayDirect(text, intent, uiContext)) {
+    return {
+      ...intent,
+      intentType: "informational",
+      missingDetails: [],
+      needsClarification: false,
+      persistence: {
+        ...intent.persistence,
+        isUnresolved: false,
+        reason: "Handled as direct chat guidance.",
+        shouldPersist: false,
+      },
+      responseInstructions:
+        uiContext?.surface === "request"
+          ? "Reply directly inside the current request thread. Do not open a new request."
+          : "Reply directly in chat. Do not open a tracked request unless the user clearly asks for work to be opened.",
+      routeTarget:
+        intent.routeTarget === "catalog_lookup" ? "catalog_lookup" : "general_assistance",
+      routing: {
+        ...intent.routing,
+        resolutionTier: "fast",
+        shouldCreateFulfillmentRequest: false,
+        shouldPersistToBoard: false,
+      },
+      shouldSearchCatalog:
+        intent.routeTarget === "catalog_lookup" ? intent.shouldSearchCatalog : false,
+      suggestedReplies: intent.suggestedReplies.slice(0, 4),
+    };
+  }
 
   if (supplyOnboarding && textOnly) {
     return {
@@ -183,6 +219,32 @@ function isLikelyWorkerLedRequest(text: string) {
 
 function isLikelySupplyOnboardingRequest(text: string) {
   return supplyOnboardingPattern.test(text);
+}
+
+function shouldStayDirect(
+  text: string,
+  intent: IntentExtraction,
+  uiContext?: ChatUiContext,
+) {
+  if (uiContext?.surface === "request") {
+    return true;
+  }
+
+  if (lowSignalConversationPattern.test(text.trim())) {
+    return true;
+  }
+
+  if (
+    informationalQuestionPattern.test(text) &&
+    !isLikelyDeliverableRequest(text) &&
+    !isLikelyWorkerLedRequest(text) &&
+    !isLikelySupplyOnboardingRequest(text) &&
+    isTextOnlyIntent(intent.requestedOutputTypes)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function isTextOnlyIntent(values: RequestedOutputType[]) {

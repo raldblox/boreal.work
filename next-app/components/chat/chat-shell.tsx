@@ -253,7 +253,7 @@ const DISCOVERY_SIDEBAR_WIDTH = "clamp(21rem, 24vw, 25rem)"
 const COLLAPSED_SIDEBAR_WIDTH = "4.25rem"
 const CENTER_PANEL_CLASS = "mx-auto w-full max-w-4xl px-4"
 const CONTENT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 py-6`
-const CHAT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 pt-0 pb-6`
+const CHAT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 pt-6 pb-6`
 const HOME_PANEL_CLASS = `${CENTER_PANEL_CLASS} flex h-full flex-col justify-center py-8`
 const CHAT_COMPOSER_CLASS = `${CENTER_PANEL_CLASS} flex flex-col gap-3`
 
@@ -306,6 +306,7 @@ export function ChatShell() {
   const [workspace, setWorkspace] = useState<WorkspaceState>(emptyWorkspace)
   const [showIntentSidebar, setShowIntentSidebar] = useState(true)
   const [showWorkspace, setShowWorkspace] = useState(false)
+  const [isPublicMarketDismissed, setIsPublicMarketDismissed] = useState(false)
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isMobileIntentSidebarOpen, setIsMobileIntentSidebarOpen] =
     useState(false)
@@ -393,6 +394,16 @@ export function ChatShell() {
   )
   const selectedConversationThread =
     (selectedConversationThreadResult ?? null) as ConversationThreadRecord
+  const selectedConversationRequestHistory =
+    selectedConversationThread?.linkedRequests ?? []
+  const latestPendingConversationRequest =
+    selectedConversationRequestHistory.find(
+      (linkedRequest) => linkedRequest.status === "proposed"
+    ) ?? null
+  const latestOpenableConversationRequest =
+    selectedConversationRequestHistory.find(
+      (linkedRequest) => linkedRequest.status !== "proposed"
+    ) ?? null
   const selectedIntent =
     visibleSidebarIntents.find((intent) => intent._id === activeIntentId) ??
     sidebarIntents.find((intent) => intent._id === activeIntentId) ??
@@ -485,7 +496,9 @@ export function ChatShell() {
     isXAuthenticated && isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
   const effectiveBorealEnabled =
     isXAuthenticated && (!activeIntentId || isBorealAssignedToActiveRequest)
-  const isDiscoveryRailOpen = isPublicDiscoveryOnly || showWorkspace
+  const isDiscoveryRailOpen = isPublicDiscoveryOnly
+    ? !isPublicMarketDismissed
+    : showWorkspace
   const isAnyMobileSidebarOpen =
     isMobileIntentSidebarOpen || isMobileWorkspaceOpen
   const desktopIntentSidebarStyle = {
@@ -1230,14 +1243,7 @@ export function ChatShell() {
       setShowWorkspace(finalPayload.workspace.kind !== "empty")
 
       if (finalPayload.requiresApproval && finalPayload.intentId) {
-        updateWorkspaceUrl({
-          browse: "workers",
-          chat: finalPayload.conversationId,
-          request: finalPayload.intentId,
-          view: "chat",
-        })
         setOptimisticReviewRating(null)
-        setMessages([])
         return
       }
     } catch (error) {
@@ -1983,6 +1989,7 @@ export function ChatShell() {
     intent: SidebarIntentPreview,
     view?: RequestNavigationView
   ) {
+    setErrorMessage(null)
     updateWorkspaceUrl({
       browse: "workers",
       request: intent._id,
@@ -2006,6 +2013,7 @@ export function ChatShell() {
   }
 
   function handleConversationSelect(conversation: ConversationSidebarPreview) {
+    setErrorMessage(null)
     updateWorkspaceUrl({
       chat: conversation.conversationId,
       request: null,
@@ -2026,14 +2034,30 @@ export function ChatShell() {
   function handleConversationOpenRequest(
     conversation: ConversationSidebarPreview
   ) {
-    if (!conversation.linkedRequest) {
+    const latestOpenableRequest =
+      conversation.linkedRequests.find(
+        (linkedRequest) => linkedRequest.status !== "proposed"
+      ) ?? null
+
+    if (!latestOpenableRequest) {
       return
     }
 
+    openConversationRequestById(
+      conversation.conversationId,
+      latestOpenableRequest.id
+    )
+  }
+
+  function openConversationRequestById(
+    conversationIdToOpen: string,
+    requestId: string
+  ) {
+    setErrorMessage(null)
     updateWorkspaceUrl({
       browse: "workers",
-      chat: conversation.conversationId,
-      request: conversation.linkedRequest.id,
+      chat: conversationIdToOpen,
+      request: requestId,
       view: "chat",
     })
     setMatchQueryDraft(null)
@@ -2051,6 +2075,7 @@ export function ChatShell() {
     intent: SidebarIntentPreview,
     view?: RequestNavigationView
   ) {
+    setErrorMessage(null)
     updateWorkspaceUrl({
       browse: "requests",
       request: intent._id,
@@ -2074,6 +2099,7 @@ export function ChatShell() {
   }
 
   function handleClearSelection() {
+    setErrorMessage(null)
     updateWorkspaceUrl({
       chat: null,
       request: null,
@@ -2092,6 +2118,7 @@ export function ChatShell() {
   }
 
   function handleReturnHome() {
+    setErrorMessage(null)
     updateWorkspaceUrl({
       request: null,
       view: null,
@@ -2144,6 +2171,44 @@ export function ChatShell() {
     })
   }
 
+  function openMarketplaceTab(tab: WorkspaceTab) {
+    updateWorkspaceUrl({ browse: tab })
+
+    if (isPublicDiscoveryOnly) {
+      setIsPublicMarketDismissed(false)
+    } else {
+      setShowWorkspace(true)
+    }
+
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setIsMobileIntentSidebarOpen(false)
+      setIsMobileWorkspaceOpen(true)
+    }
+  }
+
+  function handleToggleWorkspace() {
+    if (isPublicDiscoveryOnly) {
+      setIsPublicMarketDismissed((current) => !current)
+      return
+    }
+
+    setShowWorkspace((current) => !current)
+  }
+
+  useEffect(() => {
+    if (!errorMessage) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      setErrorMessage((current) =>
+        current === errorMessage ? null : current
+      )
+    }, 4200)
+
+    return () => window.clearTimeout(timeout)
+  }, [errorMessage])
+
   const isHomeView =
     !activeIntentId &&
     !selectedConversationId &&
@@ -2155,45 +2220,50 @@ export function ChatShell() {
       <>
       <div className="flex h-svh w-full max-w-none flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-0 lg:flex-row">
-          {isXAuthenticated ? (
-            <DesktopIntentRail
-              collapsedContent={
-                <CollapsedRequestsRail
-                  accountImageUrl={session?.user?.image ?? null}
-                  accountName={session?.user?.name ?? null}
-                  onOpenAccount={() => setIsAccountDialogOpen(true)}
-                  onExpand={() => setShowIntentSidebar(true)}
-                  onNewChat={handleClearSelection}
-                  requestCount={visibleSidebarIntents.length}
-                />
-              }
-              collapsedWidth={COLLAPSED_SIDEBAR_WIDTH}
-              containerStyle={desktopIntentSidebarStyle}
-              expandedContent={
-                <IntentSidebar
-                  conversations={conversationSidebar}
-                  intents={visibleSidebarIntents}
-                  onOpenAccount={() => setIsAccountDialogOpen(true)}
-                  onCollapse={() => setShowIntentSidebar(false)}
-                  onOpenConversationRequest={handleConversationOpenRequest}
-                  onDeselect={handleClearSelection}
-                  onOpenPendingApprovals={() => {
-                    const nextIntent = pendingApprovalIntents[0]
-                    if (nextIntent) {
-                      handleSidebarSelect(nextIntent, "workspace")
-                    }
-                  }}
-                  onSelectConversation={handleConversationSelect}
-                  onSelect={handleSidebarSelect}
-                  pendingApprovalCount={pendingApprovalIntents.length}
-                  selectedConversationId={selectedConversationId}
-                  selectedIntentId={activeIntentId}
-                />
-              }
-              expandedWidth={REQUEST_SIDEBAR_WIDTH}
-              showExpanded={showIntentSidebar}
-            />
-          ) : null}
+          <DesktopIntentRail
+            collapsedContent={
+              <CollapsedRequestsRail
+                accountImageUrl={session?.user?.image ?? null}
+                accountName={session?.user?.name ?? null}
+                onOpenAccount={() => {
+                  if (!isXAuthenticated) {
+                    openXSignIn()
+                    return
+                  }
+
+                  setIsAccountDialogOpen(true)
+                }}
+                onExpand={() => setShowIntentSidebar(true)}
+                onNewChat={handleClearSelection}
+                requestCount={visibleSidebarIntents.length}
+              />
+            }
+            collapsedWidth={COLLAPSED_SIDEBAR_WIDTH}
+            containerStyle={desktopIntentSidebarStyle}
+            expandedContent={
+              <IntentSidebar
+                conversations={conversationSidebar}
+                intents={visibleSidebarIntents}
+                onOpenAccount={() => setIsAccountDialogOpen(true)}
+                onCollapse={() => setShowIntentSidebar(false)}
+                onOpenConversationRequest={handleConversationOpenRequest}
+                onDeselect={handleClearSelection}
+                onOpenPendingApprovals={() => {
+                  const nextIntent = pendingApprovalIntents[0]
+                  if (nextIntent) {
+                    handleSidebarSelect(nextIntent, "workspace")
+                  }
+                }}
+                onSelectConversation={handleConversationSelect}
+                onSelect={handleSidebarSelect}
+                pendingApprovalCount={pendingApprovalIntents.length}
+                selectedConversationId={selectedConversationId}
+                selectedIntentId={activeIntentId}
+              />
+            }
+            expandedWidth={REQUEST_SIDEBAR_WIDTH}
+            showExpanded={showIntentSidebar}
+          />
 
           <div className="relative flex min-h-0 min-w-0 flex-1">
             <section
@@ -2207,14 +2277,14 @@ export function ChatShell() {
               )}
             >
               <ChatShellHeader
-                hideIntentMenu={isPublicDiscoveryOnly}
-                hideWorkspaceToggle={isPublicDiscoveryOnly}
+                hideIntentMenu={false}
+                hideWorkspaceToggle={false}
                 isRequestSelected={isXAuthenticated && Boolean(activeIntentId)}
                 isSubmitting={isSubmitting}
                 onOpenMobileDiscovery={openMobileDiscovery}
                 onOpenMobileIntentSidebar={openMobileIntentSidebar}
                 onReturnHome={handleReturnHome}
-                onToggleWorkspace={() => setShowWorkspace((current) => !current)}
+                onToggleWorkspace={handleToggleWorkspace}
                 requestTitle={
                   requestDetail?.intent?.title ?? selectedIntent?.title ?? "Request"
                 }
@@ -2228,12 +2298,12 @@ export function ChatShell() {
                       composer={
                         <PromptInput className="w-full" onSubmit={async () => {}}>
                           <PromptInputBody>
-                            <PromptInputTextarea
-                              className="min-h-[140px] text-base"
-                              disabled
-                              placeholder="Sign in with X to talk to Boreal Agent. Public offers and requests stay available in Market."
-                              value=""
-                            />
+                              <PromptInputTextarea
+                                className="min-h-[140px] text-base"
+                                disabled
+                                placeholder="Sign in with X to submit a request, publish an offer, or tell Boreal what should happen."
+                                value=""
+                              />
                           </PromptInputBody>
                           <PromptInputFooter className="justify-end">
                             <PromptInputSubmit disabled />
@@ -2245,15 +2315,21 @@ export function ChatShell() {
                           <Button onClick={openXSignIn} size="sm" type="button">
                             Sign in with X
                           </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`${pathname}?browse=workers`}>
-                              Browse offers
-                            </Link>
+                          <Button
+                            onClick={() => openMarketplaceTab("workers")}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            Browse offers
                           </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`${pathname}?browse=requests`}>
-                              Browse requests
-                            </Link>
+                          <Button
+                            onClick={() => openMarketplaceTab("requests")}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            Browse requests
                           </Button>
                         </>
                       }
@@ -2363,9 +2439,7 @@ export function ChatShell() {
                             <div className={CONTENT_RAIL_CLASS}>
                               <RequestWorkersPanel
                                 onBrowseWorkers={() => {
-                                  updateWorkspaceUrl({ browse: "workers" })
-                                  setShowWorkspace(true)
-                                  openMobileDiscovery()
+                                  openMarketplaceTab("workers")
                                 }}
                                 requestDetail={requestDetail}
                                 shareUrl={selectedRequestShareUrl}
@@ -2560,11 +2634,23 @@ export function ChatShell() {
                                 onChange={(event) =>
                                   setComposerText(event.currentTarget.value)
                                 }
-                                placeholder="Ask for work, describe an offer, or tell Boreal what should happen."
+                                placeholder="Submit a request, publish an offer, or tell Boreal what should happen."
                                 value={composerText}
                               />
                             </PromptInputBody>
-                            <PromptInputFooter className="justify-end">
+                            <PromptInputFooter className="justify-between gap-2">
+                              <PromptInputTools className="flex-wrap gap-2">
+                                <Button
+                                  className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
+                                  onClick={() => setIsBorealProfileOpen(true)}
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <BotIcon className="size-4" />
+                                  Boreal Agent
+                                </Button>
+                              </PromptInputTools>
                               <PromptInputSubmit
                                 disabled={
                                   isSubmitting || composerText.trim().length === 0
@@ -2577,41 +2663,20 @@ export function ChatShell() {
                         quickActions={
                           <>
                           <Button
-                            className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                            onClick={() => setIsBorealProfileOpen(true)}
+                            onClick={() => openMarketplaceTab("workers")}
                             size="sm"
                             type="button"
                             variant="outline"
                           >
-                            <BotIcon className="size-4" />
-                            Boreal Agent
+                            Browse offers
                           </Button>
                           <Button
-                            onClick={openProfileBuilder}
+                            onClick={() => openMarketplaceTab("requests")}
                             size="sm"
                             type="button"
                             variant="outline"
                           >
-                            <CircleUserRoundIcon className="size-4" />
-                            My profile
-                          </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`${pathname}?browse=workers`}>
-                              Browse offers
-                            </Link>
-                          </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`${pathname}?browse=requests`}>
-                              Browse requests
-                            </Link>
-                          </Button>
-                          <Button
-                            onClick={() => setIsAccountDialogOpen(true)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            Account
+                            Browse requests
                           </Button>
                           <Button
                             onClick={() => {
@@ -2655,30 +2720,102 @@ export function ChatShell() {
                     <Conversation className="h-full min-h-0">
                       <ConversationContent className={CHAT_RAIL_CLASS}>
                         {!activeIntentId &&
-                        selectedConversationThread?.linkedRequest ? (
-                          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium">
-                                This chat was promoted into a request.
-                              </p>
-                              <p className="truncate text-sm text-muted-foreground">
-                                {selectedConversationThread.linkedRequest.title}
-                              </p>
+                        selectedConversationRequestHistory.length > 0 ? (
+                          <div className="space-y-3 rounded-2xl border border-border bg-card px-4 py-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium">
+                                  Thread history
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Boreal keeps draft work and approved requests
+                                  in this same thread.
+                                </p>
+                              </div>
+                              {latestOpenableConversationRequest ? (
+                                <Button
+                                  onClick={() =>
+                                    handleConversationOpenRequest({
+                                      ...selectedConversationThread!.conversation,
+                                      linkedRequests:
+                                        selectedConversationRequestHistory,
+                                    })
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  Open latest request
+                                </Button>
+                              ) : null}
                             </div>
-                            <Button
-                              onClick={() =>
-                                handleConversationOpenRequest({
-                                  ...selectedConversationThread.conversation,
-                                  linkedRequest:
-                                    selectedConversationThread.linkedRequest,
-                                })
-                              }
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              Open request
-                            </Button>
+                            <div className="space-y-2">
+                              {selectedConversationRequestHistory.map(
+                                (linkedRequest) => (
+                                  <div
+                                    className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/70 px-3 py-2"
+                                    key={linkedRequest.id}
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-medium">
+                                        {linkedRequest.title}
+                                      </p>
+                                      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                                        {linkedRequest.status === "proposed"
+                                          ? "Awaiting approval"
+                                          : linkedRequest.status.replaceAll("_", " ")}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {linkedRequest.status === "proposed" ? (
+                                        <>
+                                          <Button
+                                            onClick={() =>
+                                              handleApproveRequest(linkedRequest.id)
+                                            }
+                                            size="sm"
+                                            type="button"
+                                          >
+                                            Approve
+                                          </Button>
+                                          <Button
+                                            onClick={() =>
+                                              handleCancelRequest(linkedRequest.id)
+                                            }
+                                            size="sm"
+                                            type="button"
+                                            variant="outline"
+                                          >
+                                            Discard
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <Button
+                                          onClick={() =>
+                                            openConversationRequestById(
+                                              selectedConversationThread!
+                                                .conversation.conversationId,
+                                              linkedRequest.id
+                                            )
+                                          }
+                                          size="sm"
+                                          type="button"
+                                          variant="ghost"
+                                        >
+                                          Open
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                            {latestPendingConversationRequest ? (
+                              <p className="text-xs text-muted-foreground">
+                                Approve a draft only when you want Boreal to
+                                open tracked work and involve supply.
+                              </p>
+                            ) : null}
                           </div>
                         ) : null}
                         {displayedMessages.map((message) => (
@@ -2728,20 +2865,11 @@ export function ChatShell() {
 
               <FooterComposerRegion
                 centerPanelClass={CENTER_PANEL_CLASS}
-                errorMessage={errorMessage}
+                errorMessage={null}
                 show={shouldShowFooterComposer}
               >
                 <div className={CHAT_COMPOSER_CLASS}>
                   <PromptInputTools className="w-full flex-wrap justify-start gap-2">
-                    <Button
-                      onClick={openProfileBuilder}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <CircleUserRoundIcon />
-                      My profile
-                    </Button>
                     <Button
                       onClick={() => setIsCartOpen(true)}
                       size="sm"
@@ -2751,15 +2879,6 @@ export function ChatShell() {
                       <ShoppingCartIcon />
                       Cart
                       {activeCart?.itemCount ? ` (${activeCart.itemCount})` : ""}
-                    </Button>
-                    <Button
-                      onClick={() => setIsAccountDialogOpen(true)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <CircleUserRoundIcon />
-                      Account
                     </Button>
                     <Button
                       onClick={login}
@@ -2849,34 +2968,39 @@ export function ChatShell() {
           </div>
         </div>
       </div>
-      {isXAuthenticated ? (
-        <MobileSidebarDrawer
-          label="Requests"
-          onOpenChange={setIsMobileIntentSidebarOpen}
-          open={isMobileIntentSidebarOpen}
-          side="left"
-        >
-          <IntentSidebar
-            conversations={conversationSidebar}
-            intents={visibleSidebarIntents}
-            onOpenAccount={() => setIsAccountDialogOpen(true)}
-            onCollapse={() => setIsMobileIntentSidebarOpen(false)}
-            onOpenConversationRequest={handleConversationOpenRequest}
-            onDeselect={handleClearSelection}
-            onOpenPendingApprovals={() => {
-              const nextIntent = pendingApprovalIntents[0]
-              if (nextIntent) {
-                handleSidebarSelect(nextIntent, "workspace")
-              }
-            }}
-            onSelectConversation={handleConversationSelect}
-            onSelect={handleSidebarSelect}
-            pendingApprovalCount={pendingApprovalIntents.length}
-            selectedConversationId={selectedConversationId}
-            selectedIntentId={activeIntentId}
-          />
-        </MobileSidebarDrawer>
+      {errorMessage ? (
+        <div className="pointer-events-none fixed top-20 left-1/2 z-50 -translate-x-1/2 px-4">
+          <div className="pointer-events-auto min-w-[18rem] max-w-[min(32rem,calc(100vw-2rem))] rounded-2xl border border-destructive/25 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur-sm">
+            <p className="text-sm text-destructive">{errorMessage}</p>
+          </div>
+        </div>
       ) : null}
+      <MobileSidebarDrawer
+        label="Requests"
+        onOpenChange={setIsMobileIntentSidebarOpen}
+        open={isMobileIntentSidebarOpen}
+        side="left"
+      >
+        <IntentSidebar
+          conversations={conversationSidebar}
+          intents={visibleSidebarIntents}
+          onOpenAccount={() => setIsAccountDialogOpen(true)}
+          onCollapse={() => setIsMobileIntentSidebarOpen(false)}
+          onOpenConversationRequest={handleConversationOpenRequest}
+          onDeselect={handleClearSelection}
+          onOpenPendingApprovals={() => {
+            const nextIntent = pendingApprovalIntents[0]
+            if (nextIntent) {
+              handleSidebarSelect(nextIntent, "workspace")
+            }
+          }}
+          onSelectConversation={handleConversationSelect}
+          onSelect={handleSidebarSelect}
+          pendingApprovalCount={pendingApprovalIntents.length}
+          selectedConversationId={selectedConversationId}
+          selectedIntentId={activeIntentId}
+        />
+      </MobileSidebarDrawer>
       <MobileSidebarDrawer
         label="Discovery"
         onOpenChange={setIsMobileWorkspaceOpen}

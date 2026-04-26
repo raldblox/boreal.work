@@ -1,7 +1,6 @@
 "use client"
 
 import type { CSSProperties, ReactNode } from "react"
-import Link from "next/link"
 import {
   ArrowLeftIcon,
   CircleUserRoundIcon,
@@ -175,22 +174,16 @@ export function ChatShellHeader({
             </Button>
           </div>
           <div className="hidden items-center gap-2 lg:flex">
-            {!isRequestSelected ? (
-              <Button asChild size="sm" type="button" variant="outline">
-                <Link href="/about">About</Link>
-              </Button>
-            ) : null}
             {!hideWorkspaceToggle ? (
               showWorkspace ? (
-                <Button
+                <button
                   aria-label="Hide market"
+                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
                   onClick={onToggleWorkspace}
-                  size="icon-sm"
                   type="button"
-                  variant="ghost"
                 >
-                  <PanelRightCloseIcon />
-                </Button>
+                  <PanelRightCloseIcon className="size-4" />
+                </button>
               ) : (
                 <Button
                   aria-label="Open market"

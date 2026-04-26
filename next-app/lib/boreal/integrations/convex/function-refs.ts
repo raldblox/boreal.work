@@ -65,11 +65,12 @@ export type ConversationSidebarPreview = {
   lastMessageBody: string | null;
   lastMessageRole: "assistant" | "system" | "user" | null;
   latestMessageAt: number;
-  linkedRequest: {
+  linkedRequests: Array<{
     id: string;
     status: string;
     title: string;
-  } | null;
+    updatedAt: number;
+  }>;
   messageCount: number;
   title: string;
   updatedAt: number;
@@ -87,11 +88,12 @@ export type ConversationThreadRecord = {
     title: string;
     updatedAt: number;
   };
-  linkedRequest: {
+  linkedRequests: Array<{
     id: string;
     status: string;
     title: string;
-  } | null;
+    updatedAt: number;
+  }>;
   messages: Array<{
     _id: string;
     body: string;
@@ -606,6 +608,19 @@ export const convexFunctionRefs = {
       userMessageId: string;
     }
   >("chats:recordConversationExchange"),
+  appendConversationAssistantMessage: makeFunctionReference<
+    "mutation",
+    {
+      assistantMessage: string;
+      conversationId: string;
+      ownerExternalId?: string;
+    },
+    {
+      assistantMessageId: string;
+      conversationId: string;
+      posted: boolean;
+    }
+  >("chats:appendConversationAssistantMessage"),
   approveRequest: makeFunctionReference<
     "mutation",
     {

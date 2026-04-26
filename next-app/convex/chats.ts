@@ -558,6 +558,72 @@ export const recordConversationExchange = mutation({
   },
 });
 
+export const appendConversationAssistantMessage = mutation({
+  args: {
+    assistantMessage: v.string(),
+    conversationId: v.string(),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const ownerExternalId = args.ownerExternalId?.trim();
+
+    if (!ownerExternalId) {
+      throw new Error("Sign in with X before using Boreal chat.");
+    }
+
+    const existingConversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_conversationId", (queryBuilder) =>
+        queryBuilder.eq("conversationId", args.conversationId),
+      )
+      .unique();
+
+    if (!existingConversation) {
+      throw new Error("This conversation is no longer available.");
+    }
+
+    if (
+      existingConversation.ownerExternalId &&
+      existingConversation.ownerExternalId !== ownerExternalId
+    ) {
+      throw new Error("You do not have access to this conversation.");
+    }
+
+    const trimmedAssistantMessage = args.assistantMessage.trim();
+
+    await ctx.db.patch(existingConversation._id, {
+      lastMessageBody: trimmedAssistantMessage,
+      lastMessageRole: "assistant",
+      latestMessageAt: now,
+      messageCount: (existingConversation.messageCount ?? 0) + 1,
+      updatedAt: now,
+    });
+
+    const assistantMessageId = crypto.randomUUID();
+
+    await ctx.db.insert("chatMessages", {
+      body: trimmedAssistantMessage,
+      conversationId: args.conversationId,
+      createdAt: now,
+      intentKey: undefined,
+      messageId: assistantMessageId,
+      provider: "boreal-agent",
+      role: "assistant",
+      senderActorKind: "agent",
+      senderDisplayName: "Boreal Agent",
+      senderExternalId: "agent:boreal",
+      senderHandle: "boreal",
+    });
+
+    return {
+      assistantMessageId,
+      conversationId: args.conversationId,
+      posted: true,
+    };
+  },
+});
+
 export const cancelRequest = mutation({
   args: {
     intentId: v.id("intents"),
@@ -916,9 +982,15 @@ export const listConversationSidebar = query({
             queryBuilder.eq("conversationId", conversation.conversationId),
           )
           .collect();
-        const latestLinkedIntent =
-          linkedIntent.sort((left, right) => right.createdAt - left.createdAt)[0] ??
-          null;
+        const linkedRequests = linkedIntent
+          .sort((left, right) => right.createdAt - left.createdAt)
+          .map((intent) => ({
+            id: intent._id,
+            status: intent.status,
+            title: intent.title,
+            updatedAt: intent.updatedAt ?? intent.createdAt,
+          }))
+          .slice(0, 6);
 
         return {
           _id: conversation._id,
@@ -927,14 +999,7 @@ export const listConversationSidebar = query({
           lastMessageBody: conversation.lastMessageBody ?? null,
           lastMessageRole: conversation.lastMessageRole ?? null,
           latestMessageAt: conversation.latestMessageAt,
-          linkedRequest:
-            latestLinkedIntent
-              ? {
-                  id: latestLinkedIntent._id,
-                  status: latestLinkedIntent.status,
-                  title: latestLinkedIntent.title,
-                }
-              : null,
+          linkedRequests,
           messageCount: conversation.messageCount ?? 0,
           title: conversation.title,
           updatedAt: conversation.updatedAt,
@@ -986,9 +1051,15 @@ export const getConversationThread = query({
         queryBuilder.eq("conversationId", args.conversationId),
       )
       .collect();
-    const latestLinkedIntent =
-      linkedIntent.sort((left, right) => right.createdAt - left.createdAt)[0] ??
-      null;
+    const linkedRequests = linkedIntent
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .map((intent) => ({
+        id: intent._id,
+        status: intent.status,
+        title: intent.title,
+        updatedAt: intent.updatedAt ?? intent.createdAt,
+      }))
+      .slice(0, 6);
 
     return {
       conversation: {
@@ -1002,14 +1073,7 @@ export const getConversationThread = query({
         title: conversation.title,
         updatedAt: conversation.updatedAt,
       },
-      linkedRequest:
-        latestLinkedIntent
-          ? {
-              id: latestLinkedIntent._id,
-              status: latestLinkedIntent.status,
-              title: latestLinkedIntent.title,
-            }
-          : null,
+      linkedRequests,
       messages: messages.map((message) => ({
         _id: message._id,
         body: message.body,
