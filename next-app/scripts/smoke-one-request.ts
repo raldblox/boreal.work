@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
+import { createServer } from "node:http";
 
 import type { Id } from "../convex/_generated/dataModel.js";
 import { normalizeIntentExtraction } from "../lib/boreal/schemas/intent.ts";
@@ -9,15 +10,16 @@ import { directExecutionAgents } from "../agents/index.ts";
 import { syncAgentPresence } from "../agents/shared/runtime.ts";
 import {
   buildPaymentAuthorizationMessage,
+  buildPaymentReferenceMemo,
   createOpaqueToken,
   createRequestFingerprint,
   createSiwxChallenge,
   getWalletDisplayName,
   getWalletExternalId,
-  verifyPaymentReceipt,
   verifySessionToken,
   verifySiwxChallenge,
 } from "../lib/boreal/one-request/auth.ts";
+import { verifyOneRequestPayment } from "../lib/boreal/one-request/payment.ts";
 import { buildAutoRoutePlan, executeAutoRoute } from "../lib/boreal/one-request/routing.ts";
 
 const now = Date.now();
@@ -29,6 +31,7 @@ const message = [
 
 async function main() {
   const client = createAgentConvexClient();
+  const quoteExpiresAt = Date.now() + 15 * 60 * 1000;
 
   for (const agent of directExecutionAgents) {
     if (agent.settlement) {
@@ -155,7 +158,7 @@ async function main() {
     paymentProtocol: "x402",
     quoteAmount: routePlan!.totalQuoteUsd,
     quoteAuthorizationMessage,
-    quoteExpiresAt: Date.now() + 15 * 60 * 1000,
+    quoteExpiresAt,
     quoteToken,
     requestFingerprint: createRequestFingerprint(message),
     requestToken,
@@ -185,6 +188,86 @@ async function main() {
     walletAddress,
   });
 
+  const paymentReference = buildPaymentReferenceMemo({
+    quoteToken,
+    requestToken,
+  });
+  const rpcServer = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    request.on("end", () => {
+      const payload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
+        method: string;
+      };
+      let result: unknown;
+
+      if (payload.method === "getTransaction") {
+        result = {
+          blockTime: Math.floor(Date.now() / 1000),
+          meta: {
+            err: null,
+            logMessages: [
+              `Program log: Memo (len ${paymentReference.length}): ${paymentReference}`,
+            ],
+          },
+          slot: 123456,
+          transaction: {
+            message: {
+              accountKeys: [
+                {
+                  pubkey: walletAddress,
+                  signer: true,
+                  writable: true,
+                },
+              ],
+              instructions: [
+                {
+                  parsed: paymentReference,
+                  program: "spl-memo",
+                  programId: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+                },
+              ],
+            },
+            signatures: [paymentReceiptHash(now)],
+          },
+        };
+      } else if (payload.method === "getSignatureStatuses") {
+        result = {
+          value: [
+            {
+              confirmationStatus: "confirmed",
+              confirmations: 0,
+              err: null,
+              slot: 123456,
+            },
+          ],
+        };
+      } else {
+        result = null;
+      }
+
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          id: 1,
+          jsonrpc: "2.0",
+          result,
+        }),
+      );
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    rpcServer.once("error", reject);
+    rpcServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const rpcAddress = rpcServer.address();
+
+  if (!rpcAddress || typeof rpcAddress === "string") {
+    throw new Error("Unable to start local Solana RPC mock server.");
+  }
+
+  process.env.BOREAL_SOLANA_DEVNET_RPC_URL = `http://127.0.0.1:${rpcAddress.port}`;
+  const txHash = paymentReceiptHash(now);
   const paymentReceipt = {
     amount: routePlan!.totalQuoteUsd,
     currency: "USD" as const,
@@ -198,13 +281,15 @@ async function main() {
       privateKey,
     ).toString("hex"),
     signedMessage: quoteAuthorizationMessage,
-    txHash: `devnet-smoke-${now}`,
+    txHash,
     walletAddress,
   };
 
-  verifyPaymentReceipt({
+  const paymentVerification = await verifyOneRequestPayment({
     amount: routePlan!.totalQuoteUsd,
+    authorizationMessage: quoteAuthorizationMessage,
     currency: "USD",
+    quoteExpiresAt,
     quoteToken,
     receipt: paymentReceipt,
     requestToken,
@@ -215,6 +300,7 @@ async function main() {
     ownerExternalId,
     payerSource: paymentReceipt.payerSource,
     paymentReceiptJson: JSON.stringify(paymentReceipt),
+    paymentVerificationJson: JSON.stringify(paymentVerification),
     requestToken,
     txHash: paymentReceipt.txHash,
   });
@@ -290,6 +376,7 @@ async function main() {
   });
 
   assert.equal(storedSession?.status, "delivered", "session should be delivered");
+  assert.ok(storedSession?.paymentVerificationJson, "expected stored payment verification payload");
   assert.equal(financials?.transactionStatus, "fulfilled", "transaction should be fulfilled");
   assert.equal(
     financials?.settlementStatus,
@@ -339,6 +426,21 @@ async function main() {
       2,
     ),
   );
+
+  await new Promise<void>((resolve, reject) => {
+    rpcServer.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+function paymentReceiptHash(seed: number) {
+  return `devnet-smoke-${seed}`;
 }
 
 function encodeBase58(buffer: Uint8Array) {

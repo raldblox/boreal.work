@@ -37,14 +37,14 @@ Use Boreal when:
 - public behavior: `auto`
 - wallet auth: `SIWX`
 - payment boundary: `402`
-- payment model: signed devnet payment authorization receipt plus Boreal financial records
+- payment model: signed devnet payment authorization receipt plus Boreal verification of the referenced Solana devnet transaction and payment-reference memo
 - network: Solana `devnet`
 - payer source labels: `OpenWallet` and `AgentCash`
 
 Important caveat:
 
 - the current payment contract is live and smoke-tested
-- Boreal does not yet claim independent on-chain Solana receipt verification on this path
+- Boreal does not yet claim treasury/payto-grade settlement verification or Solana mainnet settlement on this path
 
 ## Request example
 

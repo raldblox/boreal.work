@@ -634,9 +634,12 @@ export default defineSchema({
     payerSource: v.optional(agentPaymentSourceValidator),
     paymentProtocol: paymentProtocolValidator,
     paymentReceiptJson: v.optional(v.string()),
+    paymentVerificationJson: v.optional(v.string()),
+    paymentVerifiedAt: v.optional(v.number()),
     quoteAmount: v.number(),
     quoteAuthorizationMessage: v.string(),
     quoteExpiresAt: v.number(),
+    quoteRefreshCount: v.optional(v.number()),
     quoteToken: v.string(),
     requestFingerprint: v.string(),
     requestToken: v.string(),
@@ -655,6 +658,7 @@ export default defineSchema({
   })
     .index("by_requestToken", ["requestToken"])
     .index("by_quoteToken", ["quoteToken"])
+    .index("by_txHash", ["txHash"])
     .index("by_ownerExternalId_and_idempotencyKey", ["ownerExternalId", "idempotencyKey"])
     .index("by_ownerExternalId_and_requestFingerprint", ["ownerExternalId", "requestFingerprint"])
     .index("by_ownerExternalId_and_updatedAt", ["ownerExternalId", "updatedAt"]),

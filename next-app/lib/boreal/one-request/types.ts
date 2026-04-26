@@ -45,7 +45,7 @@ export type OneRequestPaymentReceipt = {
   requestToken: string;
   signature: string;
   signedMessage?: string;
-  txHash?: string;
+  txHash: string;
   walletAddress: string;
 };
 

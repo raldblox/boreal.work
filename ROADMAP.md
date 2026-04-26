@@ -14,7 +14,9 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
 - Boreal now has a live premium agent contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, `SIWX` wallet auth, a `402` payment boundary, seeded specialist payouts, and a dedicated one-request smoke target.
+- Boreal's request-first payment path now verifies a real Solana devnet transaction hash, authenticated signer, confirmation status, and Boreal payment-reference memo before execution begins.
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
+- Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
@@ -226,20 +228,33 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Wallet and payout addresses present for every seeded specialist eligible for `auto`
 - [x] Dedicated one-request end-to-end smoke covering submit -> quote -> pay -> execute -> deliver -> settle
 - [x] Public onboarding docs for Codex, OpenClaw, Hermes, and similar local agents through `SKILL.md`, `llms.txt`, and the request contract docs
-- [ ] Independent on-chain Solana devnet receipt verification for the request-first payment path
+- [x] Independent on-chain Solana devnet receipt verification for the request-first payment path
 
 ### Supplier-Side One-Inbox API
 
-- [ ] `GET /api/v1/inbox` as the personalized matched-demand watch surface for external agents
-- [ ] `GET /api/v1/inbox/events` and `GET /api/v1/inbox/{entryToken}` for machine-readable inbox tracking
-- [ ] `POST /api/v1/requests/{requestToken}/proposals` for quote-required and proposal-first participation
-- [ ] `POST /api/v1/requests/{requestToken}/claim` for fixed-route work acceptance
-- [ ] `POST /api/v1/requests/{requestToken}/deliver` for artifact and proof delivery
-- [ ] `POST /api/v1/requests/{requestToken}/decline` for explicit rejection and routing feedback
-- [ ] `GET /api/v1/payouts` and `GET /api/v1/payouts/{payoutToken}` for supplier payout visibility
-- [ ] Personalized ranking by capability, output kinds, payout readiness, network compatibility, fit, and economics
-- [ ] One-inbox end-to-end smoke covering matched demand -> claim or proposal -> delivery -> payout ready
-- [ ] Public onboarding docs that explain `one request` for buyers and `one inbox` for suppliers as the two-sided agent contract
+- [x] `GET /api/v1/inbox` as the personalized matched-demand watch surface for external agents
+- [x] `GET /api/v1/inbox/events` and `GET /api/v1/inbox/{entryToken}` for machine-readable inbox tracking
+- [x] `POST /api/v1/requests/{requestToken}/proposals` for quote-required and proposal-first participation
+- [x] `POST /api/v1/requests/{requestToken}/claim` for fixed-route work acceptance
+- [x] `POST /api/v1/requests/{requestToken}/deliver` for artifact and proof delivery
+- [x] `POST /api/v1/requests/{requestToken}/decline` for explicit rejection and routing feedback
+- [x] `GET /api/v1/payouts` and `GET /api/v1/payouts/{payoutToken}` for supplier payout visibility
+- [x] Personalized ranking by capability, output kinds, payout readiness, network compatibility, fit, and economics
+- [x] One-inbox end-to-end smoke covering matched demand -> claim or proposal -> delivery -> payout ready
+- [x] Public onboarding docs that explain `one request` for buyers and `one inbox` for suppliers as the two-sided agent contract
+
+### External Discovery And Distribution
+
+- [ ] Harden the premium request-first surface into a truthfully listable x402 seller endpoint with treasury/payto-grade settlement verification and Bazaar-ready seller metadata
+- [ ] Add Bazaar-compatible metadata to the first public paid Boreal routes
+- [ ] Publish listing-ready specialist surfaces for external discovery with stable descriptions, input shapes, output shapes, and pricing
+- [ ] Pursue x402 ecosystem and Bazaar-compatible discoverability for Boreal's public paid surfaces
+- [ ] Pursue Agentic Market inclusion for Boreal's request-first and specialist surfaces
+- [ ] Validate Boreal as a clean runtime target for AgentCash-powered local agents
+- [ ] Build Boreal's first remote MCP server around request creation, request tracking, and inbox access
+- [ ] Publish Boreal's MCP server to the official MCP Registry with verified namespace and `server.json`
+- [ ] Build a request-native ChatGPT app with the Apps SDK and submit it for directory review
+- [ ] Confirm a real public developer contract for Frames before claiming or building a deeper integration
 
 ## Phase 4 - Launch Hardening, Trust, and Operations
 
@@ -334,3 +349,4 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Build revision-request loops and richer deadline/SLA signals into the request workspace
 - [ ] Deepen supply and product metadata plus merchant-grade listing pages on top of the new protocol base
 - [ ] Add a Boreal Agent capability explorer and prompt-starter surface so users can discover real supported flows directly from the Boreal profile
+- [ ] Execute `DISCOVERY_PLAN.md` in order: x402 seller hardening, Bazaar/Agentic Market discoverability, AgentCash compatibility, MCP publication, then ChatGPT app submission

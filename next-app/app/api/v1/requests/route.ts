@@ -6,9 +6,9 @@ import { api } from "@/convex/_generated/api";
 import { createConvexServerClient } from "@/lib/boreal/integrations/convex/server-client";
 import {
   buildPaymentAuthorizationMessage,
+  buildPaymentReferenceMemo,
   createOpaqueToken,
   createRequestFingerprint,
-  verifyPaymentReceipt,
 } from "@/lib/boreal/one-request/auth";
 import {
   buildSessionEnvelope,
@@ -17,6 +17,7 @@ import {
   parsePaymentReceiptHeader,
   requireAgentSession,
 } from "@/lib/boreal/one-request/http";
+import { verifyOneRequestPayment } from "@/lib/boreal/one-request/payment";
 import { buildAutoRoutePlan } from "@/lib/boreal/one-request/routing";
 import {
   buildPersistedIntent,
@@ -42,11 +43,14 @@ type RequestSessionState = {
   quoteAmount: number;
   quoteAuthorizationMessage: string;
   quoteExpiresAt: number;
+  quoteRefreshCount?: number | null;
   quoteToken: string;
   requestToken: string;
   requestedOutputTypes: Array<
     "image_generation" | "speech_generation" | "text" | "video_generation"
   >;
+  paymentVerificationJson?: string | null;
+  paymentVerifiedAt?: number | null;
   resultJson?: string | null;
   routeJson: string;
   status: string;
@@ -355,6 +359,19 @@ async function handleExistingSession(input: {
         status: 202,
       });
     case "payment_required":
+      if (input.existing.quoteExpiresAt <= Date.now()) {
+        const refreshed = await refreshExpiredQuote(input);
+
+        return NextResponse.json(
+          buildExistingPaymentResponse(
+            input.request,
+            refreshed,
+            safeParseJson(refreshed.routeJson),
+          ),
+          { status: 402 },
+        );
+      }
+
       if (!input.paymentReceipt) {
         return NextResponse.json(
           buildExistingPaymentResponse(input.request, input.existing, route),
@@ -388,12 +405,14 @@ async function executePaidSession(
       return NextResponse.json(
         buildExistingPaymentResponse(input.request, input.existing, route),
         { status: 402 },
-      );
+        );
     }
 
-    verifyPaymentReceipt({
+    const verification = await verifyOneRequestPayment({
       amount: input.existing.quoteAmount,
+      authorizationMessage: input.existing.quoteAuthorizationMessage,
       currency: input.existing.currency,
+      quoteExpiresAt: input.existing.quoteExpiresAt,
       quoteToken: input.existing.quoteToken,
       receipt: input.paymentReceipt,
       requestToken: input.existing.requestToken,
@@ -404,6 +423,7 @@ async function executePaidSession(
       ownerExternalId: input.caller.externalId,
       payerSource: input.paymentReceipt.payerSource,
       paymentReceiptJson: JSON.stringify(input.paymentReceipt),
+      paymentVerificationJson: JSON.stringify(verification),
       requestToken: input.existing.requestToken,
       txHash: input.paymentReceipt.txHash,
     });
@@ -532,12 +552,49 @@ async function executePaidSession(
   }
 }
 
+async function refreshExpiredQuote(input: {
+  caller: ReturnType<typeof requireAgentSession>;
+  convex: ReturnType<typeof createConvexServerClient>;
+  existing: RequestSessionState;
+  paymentReceipt: OneRequestPaymentReceipt | null;
+  request: Request;
+}) {
+  const quoteToken = createOpaqueToken("quote", input.existing.requestToken);
+  const quoteExpiresAt = Date.now() + QUOTE_TTL_MS;
+  const quoteAuthorizationMessage = buildPaymentAuthorizationMessage({
+    amount: input.existing.quoteAmount,
+    currency: input.existing.currency,
+    quoteToken,
+    requestToken: input.existing.requestToken,
+  });
+
+  await input.convex.mutation(api.requestApi.refreshQuote, {
+    ownerExternalId: input.caller.externalId,
+    quoteAuthorizationMessage,
+    quoteExpiresAt,
+    quoteToken,
+    requestToken: input.existing.requestToken,
+  });
+
+  const refreshed =
+    (await input.convex.query(api.requestApi.getRequestSession, {
+      ownerExternalId: input.caller.externalId,
+      requestToken: input.existing.requestToken,
+    })) ?? input.existing;
+
+  return refreshed;
+}
+
 function buildExistingEnvelope(
   request: Request,
   session: RequestSessionState,
   route: Record<string, unknown>,
 ) {
   const tracking = buildTrackingUrls(request, session.requestToken);
+  const paymentReference = buildPaymentReferenceMemo({
+    quoteToken: session.quoteToken,
+    requestToken: session.requestToken,
+  });
 
   return buildSessionEnvelope({
     eventsUrl: tracking.eventsUrl,
@@ -551,8 +608,12 @@ function buildExistingEnvelope(
         authorizationMessage: session.quoteAuthorizationMessage,
         currency: "USD",
         expiresAt: session.quoteExpiresAt,
+        paymentReference,
         quoteToken: session.quoteToken,
       },
+      paymentVerification: session.paymentVerificationJson
+        ? safeParseJson(session.paymentVerificationJson)
+        : null,
       result: session.resultJson ? safeParseJson(session.resultJson) : null,
       status: session.status,
       summary: session.summary,
@@ -567,6 +628,11 @@ function buildExistingPaymentResponse(
   session: RequestSessionState,
   route: Record<string, unknown>,
 ) {
+  const paymentReference = buildPaymentReferenceMemo({
+    quoteToken: session.quoteToken,
+    requestToken: session.requestToken,
+  });
+
   return {
     ...buildExistingEnvelope(request, session, route),
     quote: {
@@ -576,6 +642,7 @@ function buildExistingPaymentResponse(
       expiresAt: session.quoteExpiresAt,
       networkKey: "solana:devnet",
       payerSources: ["openwallet", "agentcash"],
+      paymentReference,
       paymentProtocol: "x402",
       quoteToken: session.quoteToken,
     },
@@ -593,6 +660,10 @@ function buildPaymentRequiredResponse(input: {
   routePlan: OneRequestRoutePlan;
 }) {
   const tracking = buildTrackingUrls(input.request, input.requestToken);
+  const paymentReference = buildPaymentReferenceMemo({
+    quoteToken: input.quoteToken,
+    requestToken: input.requestToken,
+  });
 
   return {
     quote: {
@@ -603,6 +674,7 @@ function buildPaymentRequiredResponse(input: {
       expiresAt: input.quoteExpiresAt,
       networkKey: input.routePlan.networkKey,
       payerSources: ["openwallet", "agentcash"],
+      paymentReference,
       paymentProtocol: input.routePlan.paymentProtocol,
       quoteToken: input.quoteToken,
     },

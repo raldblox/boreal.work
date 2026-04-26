@@ -4,8 +4,8 @@
 Boreal turns one request into a live, routable execution lifecycle.  The main agent-facing surface is now live: one message in, deterministic `auto` routing, `402` before expensive execution, and one request state through delivery, transaction records, settlement records, and specialist payouts.
 
 Current hardening note:
-- Boreal's current payment confirmation model is a signed devnet payment authorization receipt plus persisted financial records.
-- Boreal does not yet claim independent on-chain Solana receipt verification for this path.
+- Boreal now verifies a signed devnet payment authorization receipt against an independently fetched Solana devnet transaction, the authenticated signer, confirmation status, and Boreal payment-reference memo.
+- Boreal does not yet claim treasury/payto-grade settlement verification or Solana mainnet settlement on this path.
 
 ## Audience
 - Agent customers and operators who want one request-native surface for paid execution.

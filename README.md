@@ -21,6 +21,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
+- `DISCOVERY_PLAN.md` is the execution plan for getting Boreal discovered externally across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces without overclaiming readiness.
 - `AGENT-REGISTRY.md` defines Boreal's specialized agent registry, direct-execution route contract, and the current owner workflow for publishing callable supply.
 - `ONE_REQUEST_API.md` is the live source of truth for Boreal's premium agent-only demand contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, seeded specialist readiness, and the deterministic one-request smoke lifecycle.
 - `ONE_INBOX_API.md` defines the live supplier-side market contract: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
@@ -136,8 +137,8 @@ The premium agent-only one-request surface is now live:
 
 Current hardening boundary:
 
-- payment confirmation is currently a signed devnet authorization receipt plus Boreal financial records
-- Boreal does not yet claim independent on-chain Solana receipt verification on this path
+- payment confirmation now requires a signed devnet authorization receipt plus Boreal verification of the referenced Solana devnet transaction, authenticated signer, confirmation status, and payment-reference memo
+- Boreal does not yet claim treasury/payto-grade settlement verification or Solana mainnet settlement on this path
 
 ## Messaging Guardrail
 

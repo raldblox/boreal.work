@@ -130,14 +130,27 @@ export function buildPaymentAuthorizationMessage(input: {
   quoteToken: string;
   requestToken: string;
 }) {
+  const paymentReference = buildPaymentReferenceMemo({
+    quoteToken: input.quoteToken,
+    requestToken: input.requestToken,
+  });
+
   return [
     `${BOREAL_HOST} payment authorization`,
     `Request: ${input.requestToken}`,
     `Quote: ${input.quoteToken}`,
     `Amount: ${input.amount} ${input.currency}`,
     `Network: ${SOLANA_DEVNET}`,
+    `Reference: ${paymentReference}`,
     "Purpose: authorize one Boreal auto route execution",
   ].join("\n");
+}
+
+export function buildPaymentReferenceMemo(input: {
+  quoteToken: string;
+  requestToken: string;
+}) {
+  return `boreal:one-request:${input.requestToken}:${input.quoteToken}`;
 }
 
 export function verifySolanaMessageSignature(input: {
@@ -162,6 +175,7 @@ export function verifySolanaMessageSignature(input: {
 
 export function verifyPaymentReceipt(input: {
   amount: number;
+  authorizationMessage?: string;
   currency: string;
   quoteToken: string;
   receipt: {
@@ -172,11 +186,16 @@ export function verifyPaymentReceipt(input: {
     requestToken: string;
     signature: string;
     signedMessage?: string;
+    txHash: string;
     walletAddress: string;
   };
   requestToken: string;
   walletAddress: string;
 }) {
+  if (!input.receipt.txHash?.trim()) {
+    throw new Error("Payment receipt must include a Solana devnet transaction hash.");
+  }
+
   if (input.receipt.walletAddress !== input.walletAddress) {
     throw new Error("Payment receipt wallet does not match the authenticated wallet.");
   }
@@ -191,12 +210,14 @@ export function verifyPaymentReceipt(input: {
     throw new Error("Payment receipt does not match the locked quote.");
   }
 
-  const expectedMessage = buildPaymentAuthorizationMessage({
-    amount: input.amount,
-    currency: input.currency,
-    quoteToken: input.quoteToken,
-    requestToken: input.requestToken,
-  });
+  const expectedMessage =
+    input.authorizationMessage ??
+    buildPaymentAuthorizationMessage({
+      amount: input.amount,
+      currency: input.currency,
+      quoteToken: input.quoteToken,
+      requestToken: input.requestToken,
+    });
   const signedMessage = input.receipt.signedMessage ?? expectedMessage;
 
   if (signedMessage !== expectedMessage) {

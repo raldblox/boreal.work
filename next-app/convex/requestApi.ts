@@ -179,6 +179,7 @@ export const createRequestSession = mutation({
       quoteAmount: args.quoteAmount,
       quoteAuthorizationMessage: args.quoteAuthorizationMessage,
       quoteExpiresAt: args.quoteExpiresAt,
+      quoteRefreshCount: 0,
       quoteToken: args.quoteToken,
       requestFingerprint: args.requestFingerprint,
       requestToken: args.requestToken,
@@ -259,13 +260,73 @@ export const appendRequestEvent = mutation({
   },
 });
 
+export const refreshQuote = mutation({
+  args: {
+    ownerExternalId: v.string(),
+    quoteAuthorizationMessage: v.string(),
+    quoteExpiresAt: v.number(),
+    quoteToken: v.string(),
+    requestToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const session = await getSessionByToken(ctx, args.requestToken);
+
+    if (!session || session.ownerExternalId !== args.ownerExternalId) {
+      return { refreshed: false };
+    }
+
+    if (session.paidAt || session.status !== "payment_required") {
+      return {
+        quoteAuthorizationMessage: session.quoteAuthorizationMessage,
+        quoteExpiresAt: session.quoteExpiresAt,
+        quoteRefreshCount: session.quoteRefreshCount ?? 0,
+        quoteToken: session.quoteToken,
+        refreshed: false,
+      };
+    }
+
+    const now = Date.now();
+    const quoteRefreshCount = (session.quoteRefreshCount ?? 0) + 1;
+
+    await ctx.db.patch(session._id, {
+      quoteAuthorizationMessage: args.quoteAuthorizationMessage,
+      quoteExpiresAt: args.quoteExpiresAt,
+      quoteRefreshCount,
+      quoteToken: args.quoteToken,
+      updatedAt: now,
+    });
+
+    await insertRequestEvent(ctx, {
+      dataJson: JSON.stringify({
+        quoteExpiresAt: args.quoteExpiresAt,
+        quoteRefreshCount,
+        quoteToken: args.quoteToken,
+      }),
+      message: "Locked route quote refreshed after expiry.",
+      requestSessionId: session._id,
+      requestToken: session.requestToken,
+      status: "payment_required",
+      type: "request.quote_refreshed",
+    });
+
+    return {
+      quoteAuthorizationMessage: args.quoteAuthorizationMessage,
+      quoteExpiresAt: args.quoteExpiresAt,
+      quoteRefreshCount,
+      quoteToken: args.quoteToken,
+      refreshed: true,
+    };
+  },
+});
+
 export const recordQuotePayment = mutation({
   args: {
     ownerExternalId: v.string(),
     payerSource: agentPaymentSourceValidator,
     paymentReceiptJson: v.string(),
+    paymentVerificationJson: v.string(),
     requestToken: v.string(),
-    txHash: v.optional(v.string()),
+    txHash: v.string(),
   },
   handler: async (ctx, args) => {
     const session = await getSessionByToken(ctx, args.requestToken);
@@ -284,6 +345,22 @@ export const recordQuotePayment = mutation({
     }
 
     const now = Date.now();
+
+    if (session.quoteExpiresAt <= now) {
+      throw new Error("Locked quote expired before Boreal could record payment.");
+    }
+
+    const existingTxSession = await ctx.db
+      .query("agentRequestSessions")
+      .withIndex("by_txHash", (queryBuilder) => queryBuilder.eq("txHash", args.txHash))
+      .unique();
+
+    if (existingTxSession && existingTxSession.requestToken !== session.requestToken) {
+      throw new Error(
+        "This Solana transaction hash has already been used for another Boreal request.",
+      );
+    }
+
     const ownerUser = await getUserByExternalId(ctx, args.ownerExternalId);
     const buyerWalletAccountId = await getDefaultBuyerWalletAccountId(ctx, ownerUser?._id);
     const transactionId =
@@ -338,6 +415,8 @@ export const recordQuotePayment = mutation({
       paidAt: now,
       payerSource: args.payerSource,
       paymentReceiptJson: args.paymentReceiptJson,
+      paymentVerificationJson: args.paymentVerificationJson,
+      paymentVerifiedAt: now,
       settlementId,
       status: "paid",
       transactionId,
@@ -367,9 +446,10 @@ export const recordQuotePayment = mutation({
     });
     await recordTransactionAuditEvent(ctx, {
       intentId: session.intentId,
-      message: "One-request payment recorded and locked route can now execute.",
+      message: "One-request payment verified and locked route can now execute.",
       metadata: {
         payerSource: args.payerSource,
+        paymentVerificationJson: args.paymentVerificationJson,
         requestToken: session.requestToken,
         txHash: args.txHash,
       },
@@ -400,6 +480,10 @@ export const markExecutionStarted = mutation({
 
     if (!session || session.ownerExternalId !== args.ownerExternalId) {
       return { started: false };
+    }
+
+    if (!session.paidAt || !session.paymentVerifiedAt) {
+      throw new Error("Boreal cannot execute a one-request route before payment is verified.");
     }
 
     if (session.startedAt) {

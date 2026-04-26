@@ -137,9 +137,11 @@ export default function AgentDeveloperPage() {
               and payout tracking.
             </p>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-white/55">
-              Current hardening note: payment confirmation on this path is a signed devnet
-              authorization receipt plus Boreal transaction, settlement, and payout records.
-              Boreal does not yet claim independent on-chain Solana receipt verification here.
+              Current hardening note: payment confirmation on this path now requires a signed
+              devnet authorization receipt plus an independently fetched Solana devnet
+              transaction with the authenticated signer, confirmation status, and Boreal
+              payment-reference memo. Boreal does not yet claim treasury/payto-grade settlement
+              verification or Solana mainnet settlement here.
             </p>
           </div>
         </section>

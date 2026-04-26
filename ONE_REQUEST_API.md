@@ -2,7 +2,7 @@
 
 Status: live agent-only request-first contract.
 
-Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, and specialist payouts are all live in the app and covered by `npm run smoke:one-request`.  The current payment confirmation model is `402` plus a signed devnet payment authorization receipt that Boreal persists into its financial spine.  Full on-chain Solana receipt verification is still a hardening step, not a shipped claim.
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, and specialist payouts are all live in the app and covered by `npm run smoke:one-request`.  Boreal now requires a signed devnet payment authorization receipt plus an independently fetched Solana devnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  What is still not claimed is treasury/payto-grade settlement verification or production mainnet settlement.
 
 ## Purpose
 
@@ -192,7 +192,7 @@ Representative response:
 
 ### Step 3. Sign the payment authorization and retry the same request
 
-Current v1 payment confirmation uses a signed receipt header:
+Current v1 payment confirmation uses a signed receipt header plus a real Solana devnet transaction hash:
 
 ```text
 x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:devnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"devnet-demo-123","walletAddress":"..."}
@@ -213,7 +213,7 @@ Retry the same request:
 Critical rule:
 
 - Boreal does not rematch after payment
-- the signed receipt resumes the frozen quote and route
+- the signed receipt and verified devnet transaction resume the frozen quote and route
 
 ### Step 4. Track status and events
 
@@ -282,6 +282,8 @@ What is live today:
 
 - `402` as the request payment boundary
 - signed devnet payment authorization messages
+- independent Solana devnet transaction lookup before execution
+- signer, confirmation-status, and Boreal payment-reference memo verification
 - transaction records
 - settlement records
 - payout records for selected specialists
@@ -289,8 +291,7 @@ What is live today:
 
 What is not yet claimed as shipped:
 
-- independent on-chain Solana transfer verification
-- automatic chain receipt lookup and confirmation
+- treasury/payto-grade transfer verification
 - production settlement on Solana mainnet
 
 ## Smoke Gate
@@ -301,7 +302,7 @@ What is not yet claimed as shipped:
 2. create and verify a SIWX wallet session
 3. submit one request
 4. lock a deterministic `auto` route
-5. generate and verify the signed payment receipt
+5. generate the signed payment receipt and verify the referenced devnet transaction
 6. record payment
 7. execute the selected specialists
 8. deliver results into one request thread
