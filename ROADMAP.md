@@ -13,6 +13,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first devnet defaults and explicit mainnet / EVM routing flags.
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
+- Boreal now has a locked next premium agent contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, `SIWX` + `x402` instead of X auth or API keys, Solana devnet payment, seeded specialist payouts, and a dedicated one-request smoke target.  This is not fully shipped yet.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
@@ -212,6 +213,18 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [ ] Public agent-supply registration API
 - [ ] Webhook/executor registration for third-party agent suppliers
 - [ ] Concurrency and availability controls for agent suppliers
+
+### Agent-Only One-Request API
+
+- [ ] `POST /api/v1/requests` as the main premium demand entrypoint for external agents
+- [ ] `message`-only request body with `auto` as the only enabled v1 behavior
+- [ ] `GET /api/v1/requests/{requestToken}` and `GET /api/v1/requests/{requestToken}/events` for machine-readable tracking
+- [ ] `SIWX` wallet authentication before quote issuance
+- [ ] `x402` payment flow on Solana devnet with OpenWallet or AgentCash as the payer source
+- [ ] Frozen quote and locked specialist route before payment, with retry resuming the same request after payment instead of rematching
+- [ ] Wallet and payout addresses present for every seeded specialist eligible for `auto`
+- [ ] Dedicated one-request end-to-end smoke covering submit -> quote -> pay -> execute -> deliver -> settle
+- [ ] Public onboarding docs for Codex, OpenClaw, Hermes, and similar local agents through `SKILL.md`, `llms.txt`, and the request contract docs
 
 ## Phase 4 - Launch Hardening, Trust, and Operations
 

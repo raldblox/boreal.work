@@ -4,6 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Locked the next agent-only `one request` plan in `ONE_REQUEST_API.md`: `POST /api/v1/requests`, message-only demand intake, SIWX + x402, Solana devnet payment, seeded specialist payouts, and an end-to-end smoke target.
 - `2026-04-26`: Reframed `MVP.md` as Boreal's first paid launch wedge inside the broader public alpha and consolidated most narrative/brand docs under `docs/`.
 - `2026-04-26`: Added a preserved `remotion/src/generations/request-native-2026/` video generation with three app-truthful Boreal compositions, isolated render scripts, and `@remotion/player` preview support.
 - `2026-04-26`: Added `presentations/boreal-pitch-deck/` as the editable PowerPoint workspace for Boreal's pitch deck, preview renders, and headless QA reports.
@@ -18,6 +19,8 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
+- `AGENT-REGISTRY.md` defines Boreal's specialized agent registry, direct-execution route contract, and the current owner workflow for publishing callable supply.
+- `ONE_REQUEST_API.md` locks the next premium agent-only demand contract: `POST /api/v1/requests`, `SIWX` + `x402`, Solana devnet payment, seeded specialist readiness, and the target end-to-end smoke lifecycle.
 
 Supporting narrative, messaging, and design docs now live under `docs/`, with [docs/README.md](C:\Users\raldb\boreal.work\docs\README.md) as the docs-hub index:
 
@@ -36,12 +39,17 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 
 - `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, and checkout.
 - `next-app/app/account` is the dedicated settings surface for public profile setup, offers, wallet sync, and payout defaults.
+- `next-app/app/developers/agents` is the public guide for agent customers, suppliers, and developers integrating with Boreal's request-first and specialist-agent surfaces.
 - `next-app/app/p/[id]` exposes public profile pages for humans and agents, including `boreal-agent`.
 - `next-app/lib/boreal` contains the Boreal runtime: agents, tools, integrations, DAL, prompt selection, and shared schemas.
 - `next-app/convex` is the source of truth for intents, chats, proposals, fulfillments, artifacts, profiles, supplies, commerce, and service-provider state.
 - `next-app/lib/boreal/integrations/service-providers` contains the external discovery, normalization, wallet, payment, and invocation layer for provider-backed services.
 - `next-app/app/api/service-providers/agentic-market/sync/route.ts` syncs external service discovery into Boreal's catalog.
 - `next-app/agents` contains autonomous worker profiles, seeding scripts, and watch loops for end-to-end request/proposal/fulfillment roleplay.
+- `next-app/app/api/agents/registry/route.ts` exposes the public registry of Boreal's specialized direct-execution agents.
+- `next-app/app/api/agents/[agentKey]/execute/route.ts` runs one signed-in specialized agent through Boreal-owned credentials and routing policy.
+- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, and `next-app/public/openapi/agents-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.
+- `ONE_REQUEST_API.md` is the locked source of truth for the next pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
 - `presentations/boreal-pitch-deck/` is the editable PowerPoint workspace for the current Boreal pitch deck, including slide source, headless `.pptx` export, preview renders, and QA reports.
 - `remotion/` is Boreal's standalone Remotion workspace for launch and product video production based on the real app surface.
 - `remotion/src/generations/request-native-2026/` is the preserved 2026 Remotion generation for the truthful demo, project update, and launch cuts.
@@ -56,6 +64,7 @@ From `next-app/`:
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run lint` runs ESLint.
 - `npm run build` builds the app for production.
+- `npm run smoke:agents` validates the specialized agent registry, route alignment, and protocol descriptor contract.
 - `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
 - `npm run analytics:backfill` rebuilds profile analytics snapshots for existing users after schema or lifecycle changes.
 - `npm run agent:seed` registers the autonomous worker profiles and supply entries.
@@ -108,6 +117,15 @@ Boreal can already support:
 - cart persistence and payment-aware checkout records
 - provider-backed invocation for supported x402-style services
 - autonomous worker participation in request lifecycles
+- specialized direct agents for image generation, voiceover generation, motion-video jobs, startup pressure tests, and MVP scoping
+
+The next locked premium agent surface is not fully live yet:
+
+- `POST /api/v1/requests` as the one-request front door for agent demand
+- `SIWX` wallet auth and `x402` payment instead of X auth or API keys
+- Solana devnet transaction flow through OpenWallet or AgentCash
+- seeded specialist execution with payout-ready wallets
+- a dedicated one-request end-to-end smoke gate
 
 ## Messaging Guardrail
 

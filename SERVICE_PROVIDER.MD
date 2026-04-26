@@ -14,6 +14,26 @@ The target outcome is a universal adapter layer that lets:
 
 This note is based on the current repo shape plus current public documentation from primary sources.
 
+## Locked Next Agent-Only Payment Plan
+
+The next premium request surface is now locked in `ONE_REQUEST_API.md`.
+
+For that surface:
+
+- demand starts from `POST /api/v1/requests`
+- the caller is an external or local agent, not a signed-in web user
+- the request body should require only `message`
+- `SIWX` proves wallet ownership
+- `x402` is the payment boundary
+- Solana `devnet` is the only supported settlement network in v1
+- OpenWallet or AgentCash should be the payer source
+- Boreal freezes the route and quote before payment and resumes the same request after payment
+
+Important distinction:
+
+- the human web app can still use Privy where needed
+- the premium agent-only request API should not depend on X auth, API-key management, or frontend-first wallet flows
+
 ## Implementation Progress
 
 The first real service-provider layer is now in the repo.
@@ -32,6 +52,7 @@ The first real service-provider layer is now in the repo.
 - Boreal only invokes concrete x402 HTTP endpoints it can call safely right now.
 - Parameterized, ambiguous, or insufficiently normalized external listings are still discovery and handoff surfaces, not fully automatic execution.
 - MoonPay, MPP, Frames, and AgentCash remain architecture targets or limited-ingestion targets, not end-to-end shipped paths in the current alpha.
+- The next premium one-request path is locked conceptually, but it is not fully shipped yet as a public `POST /api/v1/requests` contract.
 
 ## Executive Summary
 
