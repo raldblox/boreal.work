@@ -41,6 +41,15 @@ export const imageStudioAgent: AutonomousAgentDefinition = {
     supplyType: "agent_tool",
     title: "Image Studio",
   },
+  settlement: {
+    autoQuoteUsd: 35,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "5cPwv7uSPBGptC8fjDUf4y4yZtXGYnGVDMeUHHPmNPr3",
+    walletAddress: "5cPwv7uSPBGptC8fjDUf4y4yZtXGYnGVDMeUHHPmNPr3",
+  },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

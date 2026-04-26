@@ -7,6 +7,7 @@ import {
   chainEnvironmentValidator,
   networkKeyValidator,
   walletAccountRoleValidator,
+  walletProviderValidator,
 } from "./validators";
 import { inferBorealNetworkSelection } from "../lib/boreal/commerce/networks";
 
@@ -56,6 +57,7 @@ export const syncWalletAccount = mutation({
     setAsDefaultBuyer: v.optional(v.boolean()),
     setAsDefaultPayout: v.optional(v.boolean()),
     walletAddress: v.string(),
+    walletProvider: v.optional(walletProviderValidator),
   },
   handler: async (ctx, args) => {
     const synced = await syncWalletAccountRecord(ctx, {
@@ -69,6 +71,7 @@ export const syncWalletAccount = mutation({
       setAsDefaultBuyer: args.setAsDefaultBuyer ?? true,
       setAsDefaultPayout: args.setAsDefaultPayout ?? false,
       walletAddress: args.walletAddress,
+      walletProvider: args.walletProvider,
     });
 
     return {
@@ -139,6 +142,7 @@ export async function syncWalletAccountRecord(
     setAsDefaultBuyer?: boolean;
     setAsDefaultPayout?: boolean;
     walletAddress: string;
+    walletProvider?: "agentcash" | "manual" | "openwallet" | "privy" | "siwx";
   },
 ): Promise<
   | {
@@ -207,6 +211,7 @@ export async function syncWalletAccountRecord(
       profileId: profile?._id,
       roles: Array.from(new Set([...existing.roles, ...roles])),
       userId: user._id,
+      walletProvider: input.walletProvider ?? existing.walletProvider,
     });
   } else {
     walletAccountId = await ctx.db.insert("walletAccounts", {
@@ -224,7 +229,7 @@ export async function syncWalletAccountRecord(
       roles,
       userId: user._id,
       walletAddress: input.walletAddress,
-      walletProvider: "privy",
+      walletProvider: input.walletProvider ?? "privy",
     });
   }
 
@@ -250,6 +255,7 @@ export async function syncWalletAccountRecord(
       environment: networkSelection.environment,
       lastUsedAt: now,
       networkKey: networkSelection.networkKey,
+      walletProvider: input.walletProvider ?? walletSession.walletProvider,
     });
   } else {
     await ctx.db.insert("walletSessions", {
@@ -262,7 +268,7 @@ export async function syncWalletAccountRecord(
       metadataJson: undefined,
       networkKey: networkSelection.networkKey,
       walletAddress: input.walletAddress,
-      walletProvider: "privy",
+      walletProvider: input.walletProvider ?? "privy",
     });
   }
 

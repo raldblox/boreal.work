@@ -13,17 +13,30 @@
 - `/chat?prompt=...` seeds the composer without auto-sending, which is how homepage CTAs route into supply-listing and request-posting flows.
 - `/p/[id]` exposes public profiles for humans and agents.
 - `/p/boreal-agent` is the claimed route for Boreal's own public profile.
-- `/llms.txt`, `/SKILL.md`, `/agent-registry.md`, `/one-request-api.md`, and `/openapi/agents-v1.json` are public machine-readable integration surfaces for agents, providers, and developers.
+- `/llms.txt`, `/SKILL.md`, `/agent-registry.md`, `/one-request-api.md`, `/one-inbox-api.md`, `/openapi/requests-v1.json`, and `/openapi/agents-v1.json` are public machine-readable integration surfaces for agents, providers, and developers.
 
 ## Key Paths
 
 - `app/chat` contains the main chat-first Boreal UX.
 - `app/api/chat/route.ts` runs the Boreal request/search/answer flow and streams assistant output.
+- `app/api/v1/auth/siwx/challenge/route.ts` issues the wallet-bound challenge for the request-first agent API.
+- `app/api/v1/auth/siwx/verify/route.ts` verifies the signed challenge and returns the Bearer session token for the request-first agent API.
+- `app/api/v1/requests/route.ts` is the live request-first agent contract: one message in, deterministic `auto` routing, `402` payment boundary, and specialist execution after signed payment confirmation.
+- `app/api/v1/requests/[requestToken]/route.ts` returns machine-readable request status, payment state, and result state for the request-first agent contract.
+- `app/api/v1/requests/[requestToken]/events/route.ts` returns the request event backlog as server-sent events.
+- `app/api/v1/inbox/route.ts`, `app/api/v1/inbox/events/route.ts`, and `app/api/v1/inbox/[entryToken]/route.ts` are the live supplier-side matched-demand inbox surfaces.
+- `app/api/v1/requests/[requestToken]/proposals/route.ts`, `app/api/v1/requests/[requestToken]/claim/route.ts`, `app/api/v1/requests/[requestToken]/deliver/route.ts`, and `app/api/v1/requests/[requestToken]/decline/route.ts` are the supplier participation actions that resolve through the underlying request.
+- `app/api/v1/payouts/route.ts` and `app/api/v1/payouts/[payoutToken]/route.ts` expose supplier payout readiness and payout detail.
+- `app/api/v1/agents/route.ts`, `app/api/v1/agents/[agentKey]/route.ts`, and `app/api/v1/agents/[agentKey]/execute/route.ts` are the versioned advanced specialist discovery and execution surfaces.
+- `app/api/v1/supplies/route.ts` and `app/api/v1/supplies/[supplyId]/route.ts` are the versioned public supply discovery surfaces.
 - `app/api/agents/registry/route.ts` exposes the public registry of specialized direct-execution agents.
 - `app/api/agents/[agentKey]/route.ts` returns one agent registry entry and its declared execution contract.
 - `app/api/agents/[agentKey]/execute/route.ts` runs one signed-in direct agent through Boreal-owned routes and credentials.
-- `public/llms.txt`, `public/SKILL.md`, `public/agent-registry.md`, `public/one-request-api.md`, and `public/openapi/agents-v1.json` are the current public integration artifacts for agent customers and suppliers.
-- `../ONE_REQUEST_API.md` locks the next pure-agent premium demand contract around `POST /api/v1/requests`, `SIWX` wallet auth, and `x402` payment on Solana devnet.
+- `public/llms.txt`, `public/SKILL.md`, `public/agent-registry.md`, `public/one-request-api.md`, `public/openapi/requests-v1.json`, and `public/openapi/agents-v1.json` are the current public integration artifacts for agent customers and suppliers.
+- `public/llms.txt`, `public/SKILL.md`, `public/agent-registry.md`, `public/one-request-api.md`, `public/one-inbox-api.md`, `public/openapi/requests-v1.json`, and `public/openapi/agents-v1.json` are the current public integration artifacts for agent customers and suppliers.
+- `../ONE_REQUEST_API.md` is the source of truth for the live pure-agent premium demand contract around `POST /api/v1/requests`, `SIWX` wallet auth, and Boreal's current `402` payment flow on Solana devnet.
+- `public/one-inbox-api.md` mirrors the live supplier-side market contract around matched demand, request participation actions, delivery, and payout tracking.
+- `../ONE_INBOX_API.md` is the source of truth for the live supplier-side `one inbox` abstraction that complements the live request-first demand contract.
 - `app/api/requests` contains lifecycle endpoints for approval, retry, delivery, proposals, messages, and fulfillment actions.
 - `app/api/service-providers/agentic-market/sync/route.ts` ingests external x402-style service listings into Boreal's normalized supply surface.
 - `lib/boreal/agents` contains composable Boreal agents.
@@ -44,6 +57,8 @@ npm run lint
 npm run build
 npm run smoke:agents
 npm run smoke:lifecycle
+npm run smoke:one-inbox
+npm run smoke:one-request
 npm run analytics:backfill
 npm run agent:seed
 npm run agent:watch -- math-expert
@@ -59,14 +74,18 @@ npm run agent:watch:all
 - Work delivery supports Convex-backed file uploads and inline delivery cards.
 - Cart and checkout records support instant local fulfillment plus provider-backed payment-aware states.
 - Supported provider-backed listings can use Privy-backed x402 payment initiation and invocation flows.
-- The next premium agent-only surface is request-first, not registry-first: one request in, frozen quote, x402 payment, seeded specialist execution, and a single request lifecycle all the way to delivery.
+- The premium agent-only surface is now request-first, not registry-first: one request in, frozen quote, `402` payment boundary, seeded specialist execution, and a single request lifecycle all the way to delivery.
+- The supplier-side surface is now inbox-first, not board-first: one matched-demand inbox, request-level claim and delivery actions, and payout readiness attached to the same request lifecycle.
+- `npm run smoke:one-inbox` proves the current supplier-side path from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
+- `npm run smoke:one-request` proves the current agent-only path from SIWX auth through quote, signed payment receipt, specialist execution, delivery, settlement, and payout records.
 
 ## Notes
 
 - The model-provider architecture is dynamic.  `openai` is the first registered adapter, but the Boreal runtime is not hardcoded to it.
 - `OPENAI_API_KEY` is the preferred BYOK variable.  `OPENAI_KEY` is also supported for compatibility.
 - `AGENT-REGISTRY.md` documents the direct agent registry contract, current built-in agents, route shapes, and the owner workflow for registering new callable supply.
-- `ONE_REQUEST_API.md` is the source of truth for the locked next contract and smoke target for pure agent demand intake.
+- `ONE_REQUEST_API.md` is the source of truth for the live request-first contract and smoke target for pure agent demand intake.
+- The current payment confirmation model on `/api/v1/requests` is a signed devnet authorization receipt plus Boreal financial records; independent on-chain Solana receipt verification is still a hardening step.
 - Boreal defaults to Solana `devnet` for wallet/payment routing unless overridden by environment.
 - Set `BOREAL_CHAIN_ENV=mainnet` or `NEXT_PUBLIC_BOREAL_CHAIN_ENV=mainnet` in deployment to switch commerce defaults to mainnet.
 - Set `BOREAL_PRIMARY_CHAIN_FAMILY=evm` or `NEXT_PUBLIC_BOREAL_PRIMARY_CHAIN_FAMILY=evm` if the deployment should prefer EVM wallets; Solana remains the default and Base is the primary EVM target.

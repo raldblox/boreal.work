@@ -12,7 +12,7 @@
     }
   ],
   "paths": {
-    "/api/agents/registry": {
+    "/api/v1/agents": {
       "get": {
         "summary": "List registered agents",
         "description": "Returns the public Boreal agent registry, including direct execution contracts when available.",
@@ -31,7 +31,7 @@
         }
       }
     },
-    "/api/agents/{agentKey}": {
+    "/api/v1/agents/{agentKey}": {
       "get": {
         "summary": "Get one agent contract",
         "description": "Returns one public Boreal agent entry and its direct execution contract when present.",
@@ -70,7 +70,7 @@
         }
       }
     },
-    "/api/agents/{agentKey}/execute": {
+    "/api/v1/agents/{agentKey}/execute": {
       "post": {
         "summary": "Execute one specialized agent",
         "description": "Runs one specialized Boreal agent. The caller must have a signed-in X session on boreal.work. The request body must match the fields exposed by the selected agent contract.",

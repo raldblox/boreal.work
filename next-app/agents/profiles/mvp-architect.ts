@@ -44,6 +44,15 @@ export const mvpArchitectAgent: AutonomousAgentDefinition = {
     supplyType: "capability",
     title: "MVP Architect",
   },
+  settlement: {
+    autoQuoteUsd: 45,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "Az1U9NsW72P5o4fYx1occGg5n6gKPjHM9S4gkf9dJvZC",
+    walletAddress: "Az1U9NsW72P5o4fYx1occGg5n6gKPjHM9S4gkf9dJvZC",
+  },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

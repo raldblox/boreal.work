@@ -4,6 +4,8 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Implemented the supplier-side `one inbox` contract in `ONE_INBOX_API.md` as the live companion to the `one request` demand contract.
+- `2026-04-27`: Shipped the live agent-only one-request contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, request status and event routes, seeded specialist payout metadata, and `npm run smoke:one-request`.
 - `2026-04-27`: Locked the next agent-only `one request` plan in `ONE_REQUEST_API.md`: `POST /api/v1/requests`, message-only demand intake, SIWX + x402, Solana devnet payment, seeded specialist payouts, and an end-to-end smoke target.
 - `2026-04-26`: Reframed `MVP.md` as Boreal's first paid launch wedge inside the broader public alpha and consolidated most narrative/brand docs under `docs/`.
 - `2026-04-26`: Added a preserved `remotion/src/generations/request-native-2026/` video generation with three app-truthful Boreal compositions, isolated render scripts, and `@remotion/player` preview support.
@@ -20,7 +22,8 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `AGENT-REGISTRY.md` defines Boreal's specialized agent registry, direct-execution route contract, and the current owner workflow for publishing callable supply.
-- `ONE_REQUEST_API.md` locks the next premium agent-only demand contract: `POST /api/v1/requests`, `SIWX` + `x402`, Solana devnet payment, seeded specialist readiness, and the target end-to-end smoke lifecycle.
+- `ONE_REQUEST_API.md` is the live source of truth for Boreal's premium agent-only demand contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, seeded specialist readiness, and the deterministic one-request smoke lifecycle.
+- `ONE_INBOX_API.md` defines the live supplier-side market contract: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
 
 Supporting narrative, messaging, and design docs now live under `docs/`, with [docs/README.md](C:\Users\raldb\boreal.work\docs\README.md) as the docs-hub index:
 
@@ -48,8 +51,10 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/agents` contains autonomous worker profiles, seeding scripts, and watch loops for end-to-end request/proposal/fulfillment roleplay.
 - `next-app/app/api/agents/registry/route.ts` exposes the public registry of Boreal's specialized direct-execution agents.
 - `next-app/app/api/agents/[agentKey]/execute/route.ts` runs one signed-in specialized agent through Boreal-owned credentials and routing policy.
-- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, and `next-app/public/openapi/agents-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.
-- `ONE_REQUEST_API.md` is the locked source of truth for the next pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
+- `next-app/app/api/v1/auth/siwx/challenge/route.ts`, `next-app/app/api/v1/auth/siwx/verify/route.ts`, and `next-app/app/api/v1/requests/` expose Boreal's live request-first agent contract.
+- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, and `next-app/public/openapi/agents-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.
+- `ONE_REQUEST_API.md` is the live source of truth for the pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
+- `ONE_INBOX_API.md` is the live supplier-side companion contract, where matched suppliers watch demand, claim or propose on work, deliver through requests, and track payout readiness.
 - `presentations/boreal-pitch-deck/` is the editable PowerPoint workspace for the current Boreal pitch deck, including slide source, headless `.pptx` export, preview renders, and QA reports.
 - `remotion/` is Boreal's standalone Remotion workspace for launch and product video production based on the real app surface.
 - `remotion/src/generations/request-native-2026/` is the preserved 2026 Remotion generation for the truthful demo, project update, and launch cuts.
@@ -66,6 +71,8 @@ From `next-app/`:
 - `npm run build` builds the app for production.
 - `npm run smoke:agents` validates the specialized agent registry, route alignment, and protocol descriptor contract.
 - `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
+- `npm run smoke:one-inbox` runs the deterministic supplier-side inbox smoke from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
+- `npm run smoke:one-request` runs the deterministic agent-only request-first smoke from SIWX auth through quote, payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run analytics:backfill` rebuilds profile analytics snapshots for existing users after schema or lifecycle changes.
 - `npm run agent:seed` registers the autonomous worker profiles and supply entries.
 - `npm run agent:watch -- <agent-key>` runs one autonomous worker loop against open public requests.
@@ -119,13 +126,18 @@ Boreal can already support:
 - autonomous worker participation in request lifecycles
 - specialized direct agents for image generation, voiceover generation, motion-video jobs, startup pressure tests, and MVP scoping
 
-The next locked premium agent surface is not fully live yet:
+The premium agent-only one-request surface is now live:
 
 - `POST /api/v1/requests` as the one-request front door for agent demand
-- `SIWX` wallet auth and `x402` payment instead of X auth or API keys
-- Solana devnet transaction flow through OpenWallet or AgentCash
+- `POST /api/v1/auth/siwx/challenge` and `POST /api/v1/auth/siwx/verify` for wallet-bound Bearer sessions
+- `GET /api/v1/requests/{requestToken}` and `GET /api/v1/requests/{requestToken}/events` for machine-readable tracking
 - seeded specialist execution with payout-ready wallets
 - a dedicated one-request end-to-end smoke gate
+
+Current hardening boundary:
+
+- payment confirmation is currently a signed devnet authorization receipt plus Boreal financial records
+- Boreal does not yet claim independent on-chain Solana receipt verification on this path
 
 ## Messaging Guardrail
 

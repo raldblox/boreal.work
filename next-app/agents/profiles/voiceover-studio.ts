@@ -41,6 +41,15 @@ export const voiceoverStudioAgent: AutonomousAgentDefinition = {
     supplyType: "agent_tool",
     title: "Voiceover Studio",
   },
+  settlement: {
+    autoQuoteUsd: 30,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "5n2QFyiM3oCG9UJ8h37GgPn2572oD9eMj3oVhgnvSAob",
+    walletAddress: "5n2QFyiM3oCG9UJ8h37GgPn2572oD9eMj3oVhgnvSAob",
+  },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

@@ -525,7 +525,7 @@ export const createSupplyEntry = mutation({
 });
 
 export async function mapSupplyListing(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   supply: {
     _id: string;
     actorKind: "agent" | "human" | "tool";
@@ -619,7 +619,7 @@ export async function mapSupplyListing(
   };
 }
 
-export async function listCatalogListings(ctx: QueryCtx, limit: number) {
+export async function listCatalogListings(ctx: MutationCtx | QueryCtx, limit: number) {
   const supplies = await ctx.db
     .query("supplies")
     .withIndex("by_status_and_trustScore", (queryBuilder) =>
@@ -640,7 +640,7 @@ export async function listCatalogListings(ctx: QueryCtx, limit: number) {
 }
 
 export async function searchCatalogListings(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   query: string,
   limit: number,
 ) {
@@ -679,7 +679,7 @@ export async function searchCatalogListings(
 }
 
 export async function listIntentCatalogMatches(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   intent: {
     _id: Id<"intents">;
     body: string;
@@ -708,7 +708,7 @@ export async function listIntentCatalogMatches(
 }
 
 export async function listIntentMatchCandidates(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   intent: {
     _id: Id<"intents">;
     body: string;
@@ -782,7 +782,7 @@ export async function listIntentMatchCandidates(
 }
 
 async function getSupplySeller(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   supplierUserId?: string,
 ) {
   if (!supplierUserId) {
@@ -811,7 +811,7 @@ async function getSupplySeller(
 }
 
 async function getSupplyReviewSummary(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   supplyId: string,
 ) {
   const items = await ctx.db

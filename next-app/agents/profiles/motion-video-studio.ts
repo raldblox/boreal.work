@@ -41,6 +41,15 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
     supplyType: "agent_tool",
     title: "Motion Video Studio",
   },
+  settlement: {
+    autoQuoteUsd: 60,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "GHc6UXMXYPVGT3kSCpivugrCvsbsenEzcjNo2MdZPAsb",
+    walletAddress: "GHc6UXMXYPVGT3kSCpivugrCvsbsenEzcjNo2MdZPAsb",
+  },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

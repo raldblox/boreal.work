@@ -151,6 +151,14 @@ export const walletExecutionModeValidator = v.union(
   v.literal("provider-managed"),
 );
 
+export const walletProviderValidator = v.union(
+  v.literal("privy"),
+  v.literal("siwx"),
+  v.literal("manual"),
+  v.literal("openwallet"),
+  v.literal("agentcash"),
+);
+
 export const walletAccountRoleValidator = v.union(
   v.literal("connected"),
   v.literal("buyer"),
@@ -161,6 +169,23 @@ export const walletSyncStatusValidator = v.union(
   v.literal("missing"),
   v.literal("connected"),
   v.literal("ready"),
+);
+
+export const agentPaymentSourceValidator = v.union(
+  v.literal("openwallet"),
+  v.literal("agentcash"),
+);
+
+export const agentRequestStatusValidator = v.union(
+  v.literal("received"),
+  v.literal("routing"),
+  v.literal("payment_required"),
+  v.literal("paid"),
+  v.literal("executing"),
+  v.literal("delivered"),
+  v.literal("failed"),
+  v.literal("fallback_required"),
+  v.literal("clarification_required"),
 );
 
 export const transactionScenarioValidator = v.union(

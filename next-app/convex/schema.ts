@@ -2,6 +2,8 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 import {
+  agentPaymentSourceValidator,
+  agentRequestStatusValidator,
   actorKindValidator,
   artifactKindValidator,
   artifactStatusValidator,
@@ -46,6 +48,7 @@ import {
   toolRouteValidator,
   walletAccountRoleValidator,
   walletExecutionModeValidator,
+  walletProviderValidator,
   walletSyncStatusValidator,
 } from "./validators";
 
@@ -141,7 +144,7 @@ export default defineSchema({
     roles: v.array(walletAccountRoleValidator),
     userId: v.optional(v.string()),
     walletAddress: v.string(),
-    walletProvider: v.literal("privy"),
+    walletProvider: walletProviderValidator,
   })
     .index("by_actorExternalId_and_lastSyncedAt", ["actorExternalId", "lastSyncedAt"])
     .index("by_profileId", ["profileId"])
@@ -603,10 +606,84 @@ export default defineSchema({
     metadataJson: v.optional(v.string()),
     networkKey: v.optional(networkKeyValidator),
     walletAddress: v.string(),
-    walletProvider: v.literal("privy"),
+    walletProvider: walletProviderValidator,
   })
     .index("by_actorExternalId_and_lastUsedAt", ["actorExternalId", "lastUsedAt"])
     .index("by_walletAddress", ["walletAddress"]),
+
+  agentRequestSessions: defineTable({
+    chainFamily: chainFamilyValidator,
+    conversationId: v.optional(v.string()),
+    createdAt: v.number(),
+    currency: v.string(),
+    deliveredAt: v.optional(v.number()),
+    environment: chainEnvironmentValidator,
+    errorCode: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    idempotencyKey: v.string(),
+    intentId: v.optional(v.id("intents")),
+    intentKey: v.optional(v.string()),
+    lastEventAt: v.number(),
+    lockedAt: v.number(),
+    message: v.string(),
+    mode: v.literal("auto"),
+    networkKey: networkKeyValidator,
+    ownerDisplayName: v.optional(v.string()),
+    ownerExternalId: v.string(),
+    paidAt: v.optional(v.number()),
+    payerSource: v.optional(agentPaymentSourceValidator),
+    paymentProtocol: paymentProtocolValidator,
+    paymentReceiptJson: v.optional(v.string()),
+    quoteAmount: v.number(),
+    quoteAuthorizationMessage: v.string(),
+    quoteExpiresAt: v.number(),
+    quoteToken: v.string(),
+    requestFingerprint: v.string(),
+    requestToken: v.string(),
+    requestedOutputTypes: v.array(requestedOutputTypeValidator),
+    resultJson: v.optional(v.string()),
+    routeJson: v.string(),
+    settlementId: v.optional(v.id("settlements")),
+    startedAt: v.optional(v.number()),
+    status: agentRequestStatusValidator,
+    summary: v.string(),
+    title: v.string(),
+    transactionId: v.optional(v.id("transactions")),
+    txHash: v.optional(v.string()),
+    updatedAt: v.number(),
+    walletAddress: v.string(),
+  })
+    .index("by_requestToken", ["requestToken"])
+    .index("by_quoteToken", ["quoteToken"])
+    .index("by_ownerExternalId_and_idempotencyKey", ["ownerExternalId", "idempotencyKey"])
+    .index("by_ownerExternalId_and_requestFingerprint", ["ownerExternalId", "requestFingerprint"])
+    .index("by_ownerExternalId_and_updatedAt", ["ownerExternalId", "updatedAt"]),
+
+  agentRequestEvents: defineTable({
+    createdAt: v.number(),
+    dataJson: v.optional(v.string()),
+    eventType: v.string(),
+    message: v.string(),
+    requestSessionId: v.id("agentRequestSessions"),
+    requestToken: v.string(),
+    status: agentRequestStatusValidator,
+  })
+    .index("by_requestSessionId_and_createdAt", ["requestSessionId", "createdAt"])
+    .index("by_requestToken_and_createdAt", ["requestToken", "createdAt"]),
+
+  supplierRequestDecisions: defineTable({
+    createdAt: v.number(),
+    intentId: v.id("intents"),
+    reason: v.optional(v.string()),
+    requestToken: v.string(),
+    status: v.literal("declined"),
+    supplierUserId: v.string(),
+    supplyId: v.optional(v.id("supplies")),
+    updatedAt: v.number(),
+  })
+    .index("by_supplierUserId_and_createdAt", ["supplierUserId", "createdAt"])
+    .index("by_supplierUserId_and_intentId", ["supplierUserId", "intentId"])
+    .index("by_requestToken_and_createdAt", ["requestToken", "createdAt"]),
 
   transactions: defineTable({
     amount: v.optional(v.number()),

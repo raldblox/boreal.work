@@ -2,14 +2,14 @@
 
 Boreal exposes specialized agents as callable supply.  Boreal Agent stays focused on core request orchestration, while specialized agents publish their own public profile, supply entry, direct execution route, and protocol descriptor.
 
-This document is now the source of truth for the advanced specialist surface.  The locked next premium demand front door lives in `ONE_REQUEST_API.md`.
+This document is now the source of truth for the advanced specialist surface.  The live request-first demand front door lives in `ONE_REQUEST_API.md`, and the live supplier-side market companion lives in `ONE_INBOX_API.md`.
 
 ## Purpose
 
 Use the registry when an agent should:
 
 - appear as public supply in Boreal
-- expose a stable advanced execution route under `next-app/app/api/agents/`
+- expose a stable advanced execution route under Boreal's versioned `/api/v1/agents/*` surface
 - run with Boreal-owned credentials and routing policy
 - stay callable by Boreal, other agent owners, or future external integrations after a request has already been routed or when a caller explicitly wants a specialist contract
 
@@ -19,7 +19,7 @@ This is the current pattern for media-generation agents and structured advisory 
 
 - Registry version: `boreal-agent-registry/v1`
 - Current live auth mode for direct execution: `x-session`
-- Locked next premium request auth and payment: `SIWX` + `x402`
+- Current live request-first auth and payment: `SIWX` + Boreal's `402` devnet payment contract
 
 ## Contract Split
 
@@ -27,15 +27,20 @@ This is the current pattern for media-generation agents and structured advisory 
 
 Live today:
 
-- `GET /api/agents/registry`
-- `GET /api/agents/{agentKey}`
-- `POST /api/agents/{agentKey}/execute`
+- `GET /api/v1/agents`
+- `GET /api/v1/agents/{agentKey}`
+- `POST /api/v1/agents/{agentKey}/execute`
 
 This remains the advanced direct specialist surface.
 
-### Locked next premium front door
+Compatibility note:
 
-The next premium agent-facing contract is request-first, not registry-first:
+- the older `/api/agents/*` aliases still exist
+- public docs and new integrations should use `/api/v1/agents/*`
+
+### Live request-first front door
+
+The premium agent-facing contract is request-first, not registry-first:
 
 - `POST /api/v1/requests`
 - `GET /api/v1/requests/{requestToken}`
@@ -46,17 +51,43 @@ Rules:
 - one required input: `message`
 - v1 behavior: `auto`
 - wallet auth: `SIWX`
-- payment: `x402`
+- payment boundary: `402`
 - network: Solana `devnet`
 - payment sources: OpenWallet or AgentCash
 
+Current hardening note:
+
+- Boreal now persists payment, transaction, settlement, and payout state on this path
+- Boreal does not yet claim independent on-chain Solana receipt verification on this path
+
 The registry remains important, but it should not be the first demand API a caller has to understand.
+
+### Locked next supplier-side inbox
+
+The matching supplier-side contract is not registry-first either.  It should become:
+
+- `GET /api/v1/inbox`
+- `GET /api/v1/inbox/events`
+- `GET /api/v1/inbox/{entryToken}`
+
+with participation actions continuing through request resources:
+
+- `POST /api/v1/requests/{requestToken}/proposals`
+- `POST /api/v1/requests/{requestToken}/claim`
+- `POST /api/v1/requests/{requestToken}/deliver`
+- `POST /api/v1/requests/{requestToken}/decline`
+
+That keeps the model coherent:
+
+- buyers use one request
+- suppliers use one inbox
+- the request remains the canonical work object
 
 ## Core Endpoints
 
 ### List registered agents
 
-`GET /api/agents/registry`
+`GET /api/v1/agents`
 
 Returns the public registry envelope:
 
@@ -69,13 +100,13 @@ Returns the public registry envelope:
 
 ### Get one registered agent
 
-`GET /api/agents/{agentKey}`
+`GET /api/v1/agents/{agentKey}`
 
 Returns one registry entry plus its direct execution contract when present.
 
 ### Execute one direct agent
 
-`POST /api/agents/{agentKey}/execute`
+`POST /api/v1/agents/{agentKey}/execute`
 
 Requires a signed-in X session today.  The body must be a JSON object matching the agent's declared `fields`.
 
@@ -118,13 +149,13 @@ Boreal Agent is also not the premium `one request` media executor.  It routes, f
 
 - `image-studio`
   - direct image generation
-  - route: `/api/agents/image-studio/execute`
+  - route: `/api/v1/agents/image-studio/execute`
 - `voiceover-studio`
   - direct speech generation
-  - route: `/api/agents/voiceover-studio/execute`
+  - route: `/api/v1/agents/voiceover-studio/execute`
 - `motion-video-studio`
   - direct video job creation
-  - route: `/api/agents/motion-video-studio/execute`
+  - route: `/api/v1/agents/motion-video-studio/execute`
 
 These routes use Boreal's existing OpenAI-backed provider stack and runtime config.  They do not require agent owners to bring their own model key.
 
@@ -132,10 +163,10 @@ These routes use Boreal's existing OpenAI-backed provider stack and runtime conf
 
 - `startup-pressure-test`
   - Paul Graham-style startup evaluation
-  - route: `/api/agents/startup-pressure-test/execute`
+  - route: `/api/v1/agents/startup-pressure-test/execute`
 - `mvp-architect`
   - 2-week MVP scoping and assumption testing
-  - route: `/api/agents/mvp-architect/execute`
+  - route: `/api/v1/agents/mvp-architect/execute`
 
 ## Registry Entry Shape
 
@@ -188,7 +219,7 @@ For direct execution agents, `supplyEntry` should usually include:
 
 - `agentReady: true`
 - `checkoutProtocol: "custom"`
-- `executorUrl: "/api/agents/<agent-key>/execute"`
+- `executorUrl: "/api/v1/agents/<agent-key>/execute"`
 - `isCartEnabled: false`
 - `outputTypes`
 - `scenarioTypes`
@@ -274,6 +305,7 @@ For the next premium `one request` flow, direct agents that can participate in `
 
 - Boreal Agent orchestrates requests.  Specialized agents execute focused work.
 - The registry is an advanced surface.  The premium demand front door should be `POST /api/v1/requests`.
+- The supplier-side market contract should be `one inbox`, not a second competing request object.
 - Public agents should read like callable supply, not hidden internal jobs.
 - Direct execution contracts must stay stable enough for other agent owners to follow.
 - Registry metadata should be specific enough for developers, providers, and freelancers to understand what the agent does without exposing private system prompts or internal routing heuristics.

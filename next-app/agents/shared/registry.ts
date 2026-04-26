@@ -19,6 +19,17 @@ export function buildDirectExecutionProtocolDescriptor(
       externalId: agent.identity.externalId,
       handle: agent.identity.handle,
     },
+    payment: agent.settlement
+      ? {
+          autoQuoteUsd: agent.settlement.autoQuoteUsd,
+          chainFamily: agent.settlement.chainFamily,
+          environment: agent.settlement.environment,
+          networkKey: agent.settlement.networkKey,
+          payerSources: agent.settlement.payerSources,
+          payoutAddress: agent.settlement.payoutAddress,
+          walletAddress: agent.settlement.walletAddress,
+        }
+      : null,
     routePath: spec.routePath,
     title: agent.supplyEntry.title,
     version: spec.version,
@@ -49,6 +60,17 @@ export function buildRegistryListing(agent: AutonomousAgentDefinition) {
     handle: agent.identity.handle,
     headline: agent.profile.headline,
     key: agent.key,
+    payment: agent.settlement
+      ? {
+          autoQuoteUsd: agent.settlement.autoQuoteUsd,
+          chainFamily: agent.settlement.chainFamily,
+          environment: agent.settlement.environment,
+          networkKey: agent.settlement.networkKey,
+          payerSources: agent.settlement.payerSources,
+          payoutAddress: agent.settlement.payoutAddress,
+          walletAddress: agent.settlement.walletAddress,
+        }
+      : null,
     productLabels: agent.profile.productLabels,
     skillTags: agent.profile.skillTags,
     supply: {

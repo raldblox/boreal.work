@@ -306,7 +306,7 @@ export type WalletAccountRecord = Array<{
     | "solana:testnet";
   roles: Array<"buyer" | "connected" | "payout">;
   walletAddress: string;
-  walletProvider: "privy";
+  walletProvider: "agentcash" | "manual" | "openwallet" | "privy" | "siwx";
 }>;
 
 export type ProfileAnalytics = {

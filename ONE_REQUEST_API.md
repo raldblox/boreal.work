@@ -1,36 +1,49 @@
-# Boreal One-Request API Plan
+# Boreal One-Request API
 
-Status: locked product and integration plan for the next premium agent surface.  This document is not a claim that the full contract is already live.
+Status: live agent-only request-first contract.
+
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, and specialist payouts are all live in the app and covered by `npm run smoke:one-request`.  The current payment confirmation model is `402` plus a signed devnet payment authorization receipt that Boreal persists into its financial spine.  Full on-chain Solana receipt verification is still a hardening step, not a shipped claim.
 
 ## Purpose
 
-Boreal needs one clear agent-facing front door for demand:
+Boreal exposes one agent-facing front door for demand:
 
 - one request in
 - fastest automatable path out
 - payment before expensive execution
 - one live request state across routing, work, proof, and settlement
 
-This plan is agent-only.  It is not a frontend-first flow, and it should not depend on X auth, chat UI, or manual account setup for the caller.
+This surface is pure agent-facing.  It is not a frontend-first flow, and it does not depend on X auth.
 
-## Primary Contract
+Supplier-side companion:
 
-Primary demand entrypoint:
+- `ONE_INBOX_API.md` locks the matched-demand inbox contract for agents that want to participate, deliver, and earn.
+
+## Live Endpoints
+
+Auth:
+
+- `POST /api/v1/auth/siwx/challenge`
+- `POST /api/v1/auth/siwx/verify`
+
+Primary demand surface:
 
 - `POST /api/v1/requests`
-
-Tracking:
-
 - `GET /api/v1/requests/{requestToken}`
 - `GET /api/v1/requests/{requestToken}/events`
 
-Advanced specialist and supply surfaces remain available, but they are not the front door:
+Advanced discovery and specialist surfaces:
 
 - `GET /api/v1/agents`
 - `GET /api/v1/agents/{agentKey}`
 - `POST /api/v1/agents/{agentKey}/execute`
 - `GET /api/v1/supplies`
 - `GET /api/v1/supplies/{supplyId}`
+
+Compatibility note:
+
+- the older `/api/agents/*` direct specialist routes still exist
+- `/api/v1/agents/*` and `/api/v1/supplies/*` are the public versioned entrypoints to prefer in docs and integrations
 
 ## Request Shape
 
@@ -45,105 +58,206 @@ Required request body:
 Rules:
 
 - `message` is the only required input
-- the public contract should not force callers to pick providers, tools, or specialist agents
-- `mode` is reserved for later expansion, but v1 should only support `auto`
+- `mode` is optional, but v1 only accepts `auto`
+- callers do not choose providers, tools, or specialists up front
 
-## V1 Behavior
+Recommended header:
 
-V1 supports one behavior only:
+- `Idempotency-Key: <stable-caller-key>`
+
+If no `Idempotency-Key` is provided, Boreal falls back to a message fingerprint.
+
+## Auth
+
+### 1. Request a SIWX challenge
+
+`POST /api/v1/auth/siwx/challenge`
+
+```json
+{
+  "walletAddress": "<solana-wallet-address>"
+}
+```
+
+Response:
+
+```json
+{
+  "challengeToken": "...",
+  "expiresAt": 1777440000000,
+  "message": "Sign in with Boreal to open request-native execution on Solana devnet.\n..."
+}
+```
+
+### 2. Sign and verify the challenge
+
+`POST /api/v1/auth/siwx/verify`
+
+```json
+{
+  "walletAddress": "<solana-wallet-address>",
+  "challengeToken": "<challenge-token>",
+  "signature": "<hex-signature-of-message>"
+}
+```
+
+Response:
+
+```json
+{
+  "chainFamily": "solana",
+  "networkKey": "solana:devnet",
+  "ownerDisplayName": "wallet:AbCd...1234",
+  "ownerExternalId": "wallet:solana:<wallet-address>",
+  "sessionToken": "<bearer-session-token>",
+  "walletAddress": "<solana-wallet-address>"
+}
+```
+
+Use that `sessionToken` as:
+
+```text
+Authorization: Bearer <sessionToken>
+```
+
+## Execution Flow
+
+### Step 1. Submit one request
+
+`POST /api/v1/requests`
+
+```json
+{
+  "message": "Pressure test this startup idea and design the smallest two-week MVP for it."
+}
+```
+
+The route returns one of:
+
+- `402 payment_required`
+- `409 fallback_required`
+- `422 clarification_required`
+- `202 executing`
+- `200 delivered`
+
+### Step 2. Handle `402 Payment Required`
+
+When Boreal can lock a deterministic `auto` route, it returns `402` with:
+
+- `requestToken`
+- `quoteToken`
+- frozen route summary
+- amount and currency
+- authorization message to sign
+- tracking URLs
+
+Representative response:
+
+```json
+{
+  "requestToken": "req_...",
+  "route": {
+    "estimatedMinutes": 5,
+    "paymentProtocol": "x402",
+    "selectedAgents": [
+      {
+        "agentKey": "startup-pressure-test",
+        "quoteUsd": 18
+      },
+      {
+        "agentKey": "mvp-architect",
+        "quoteUsd": 24
+      }
+    ],
+    "totalQuoteUsd": 42
+  },
+  "session": {
+    "payment": {
+      "amount": 42,
+      "authorizationMessage": "Pay 42 USD for Boreal request req_... with quote quote_...",
+      "currency": "USD",
+      "expiresAt": 1777440000000,
+      "quoteToken": "quote_..."
+    },
+    "status": "payment_required",
+    "summary": "Need a brutal startup pressure test and a two-week MVP plan.",
+    "title": "Pressure test Boreal and design the MVP"
+  },
+  "tracking": {
+    "eventsUrl": "https://boreal.work/api/v1/requests/req_.../events",
+    "statusUrl": "https://boreal.work/api/v1/requests/req_..."
+  }
+}
+```
+
+### Step 3. Sign the payment authorization and retry the same request
+
+Current v1 payment confirmation uses a signed receipt header:
+
+```text
+x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:devnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"devnet-demo-123","walletAddress":"..."}
+```
+
+Supported payer-source labels in v1:
+
+- `agentcash`
+- `openwallet`
+
+Retry the same request:
+
+- same `Authorization: Bearer ...`
+- same `Idempotency-Key`
+- same request body
+- include `x-boreal-payment-receipt`
+
+Critical rule:
+
+- Boreal does not rematch after payment
+- the signed receipt resumes the frozen quote and route
+
+### Step 4. Track status and events
+
+Request status:
+
+- `GET /api/v1/requests/{requestToken}`
+
+Server-sent event backlog:
+
+- `GET /api/v1/requests/{requestToken}/events`
+
+Current event types:
+
+- `request.received`
+- `request.routed`
+- `request.payment_required`
+- `request.paid`
+- `request.execution_started`
+- `request.delivered`
+- `request.failed`
+
+## Current V1 Behavior
+
+V1 supports one public behavior:
 
 - `auto`
 
 Meaning:
 
 - Boreal parses the request
-- Boreal finds the fastest automatable route across seeded specialist supply
-- Boreal freezes the selected route, quote, and ETA
-- Boreal requires payment before expensive work starts
-- Boreal resumes the exact locked route after payment
+- Boreal selects the fastest deterministic specialist route it can support
+- Boreal freezes quote, route, and ETA
+- Boreal requires payment before expensive execution
+- Boreal resumes the exact route after payment
 
-V1 should not yet expose:
+Other modes remain reserved:
 
 - `assist`
 - `market`
 - `hybrid`
 
-Those can stay in reserve until the `auto` lifecycle is stable end to end.
+## Seeded Specialists Eligible For `auto`
 
-## Auth And Payment
-
-The one-request API should be wallet-native.
-
-Required layers:
-
-- `SIWX` for wallet ownership
-- `x402` / `402 Payment Required` for actual payment
-- Solana `devnet` as the only supported network in v1
-
-Not part of the premium request contract:
-
-- X / Twitter auth
-- API-key-based API management
-- manual account setup as the required caller path
-
-Expected payer sources:
-
-- OpenWallet
-- AgentCash
-
-## Execution Flow
-
-1. Agent calls `POST /api/v1/requests` with one `message`
-2. Boreal validates the request and verifies wallet ownership through `SIWX`
-3. Boreal fingerprints the request and routes it through `auto`
-4. Boreal returns one of:
-   - `402 payment_required`
-   - `409 fallback_required`
-   - `422 clarification_required`
-   - `202 accepted` for already-paid or zero-cost execution
-5. On `402`, Boreal returns a frozen quote and route
-6. The caller pays through x402 on Solana devnet
-7. The caller retries the same request
-8. Boreal verifies payment and executes the locked route
-9. Boreal streams events and returns the final result through the same request lifecycle
-
-Critical rule:
-
-- Boreal must not rematch after payment
-
-## Internal State
-
-The public contract is message-only, but the backend still needs durable state:
-
-- internal request record
-- request fingerprint
-- quote record
-- transaction and settlement records
-- route snapshot
-- specialist selection
-- payout targets
-- artifacts, proof, and delivery state
-
-Public callers can use opaque request and quote tokens.  Boreal still needs stable internal IDs.
-
-## Seeded Specialist Requirements
-
-Every specialist eligible for `auto` must be execution-ready.
-
-Required metadata per seeded agent:
-
-- `agentKey`
-- title and description
-- normalized output kinds
-- `walletAddress`
-- `payoutAddress`
-- `chainFamily`
-- `networkKey`
-- payment source compatibility
-- deterministic quote behavior
-- deterministic smoke readiness
-
-Current seeded set intended for this path:
+Current seeded set:
 
 - `image-studio`
 - `voiceover-studio`
@@ -151,78 +265,63 @@ Current seeded set intended for this path:
 - `startup-pressure-test`
 - `mvp-architect`
 
+Every specialist on this path now exposes:
+
+- public identity metadata
+- normalized output kinds
+- wallet address
+- payout address
+- network metadata
+- payment-source compatibility
+
 Boreal Agent stays orchestration-only.
 
-## Abuse Controls
+## Financial Model
 
-The premium request path should be wallet-gated and payment-aware, not API-key-gated.
+What is live today:
 
-V1 controls:
+- `402` as the request payment boundary
+- signed devnet payment authorization messages
+- transaction records
+- settlement records
+- payout records for selected specialists
+- request-level event history and thread delivery
 
-- valid `SIWX` proof before quote issuance
-- per-wallet and per-IP rate limits
-- request fingerprint cache
-- quote TTL
-- max active unpaid quotes per wallet
-- idempotency protection
-- spend and concurrency caps per wallet
-- no anonymous execution
+What is not yet claimed as shipped:
 
-Rule:
+- independent on-chain Solana transfer verification
+- automatic chain receipt lookup and confirmation
+- production settlement on Solana mainnet
 
-- free to understand
-- paid to execute
+## Smoke Gate
 
-## E2E Smoke Target
+`npm run smoke:one-request` now verifies the full premium path:
 
-The one-request smoke test should prove:
+1. seed payout-ready specialists
+2. create and verify a SIWX wallet session
+3. submit one request
+4. lock a deterministic `auto` route
+5. generate and verify the signed payment receipt
+6. record payment
+7. execute the selected specialists
+8. deliver results into one request thread
+9. write transaction, settlement, payout, and event records
 
-1. seeded agents are present and payout-ready
-2. one request message is accepted
-3. `auto` routing selects a deterministic specialist route
-4. Boreal returns `402`
-5. payment succeeds on Solana devnet through OpenWallet or AgentCash
-6. retry resumes the same frozen route
-7. specialists execute and produce artifacts
-8. delivery lands in one work thread
-9. transaction, settlement, and payout records are written
-10. event stream reflects the full lifecycle
+This is now the repo’s deterministic release gate for the request-first agent contract.
 
-This smoke should become the release gate for the premium agent-only request path.
+## Public Onboarding Surfaces
 
-## Public Agent Onboarding
+Machine-readable and operator-facing docs:
 
-Boreal should onboard external local agents with prompt-first and machine-readable docs:
+- `next-app/public/llms.txt`
+- `next-app/public/SKILL.md`
+- `next-app/public/agent-registry.md`
+- `next-app/public/one-request-api.md`
+- `next-app/public/openapi/requests-v1.json`
+- `next-app/public/openapi/agents-v1.json`
 
-- `SKILL.md`
-- `llms.txt`
-- OpenAPI
-- concise setup prompts for Codex, OpenClaw, and Hermes
+These should guide Codex, OpenClaw, Hermes, and other local-agent stacks toward:
 
-The first version should document:
-
-- how to call `POST /api/v1/requests`
-- how to respond to `402`
-- how to bind a wallet with `SIWX`
-- how to watch request state and events
-- how to discover advanced specialist routes only when needed
-
-Direct specialist endpoints remain advanced surfaces, not the main customer workflow.
-
-## Documentation Policy
-
-This plan should stay aligned across:
-
-- `ROADMAP.md`
-- `AGENT-REGISTRY.md`
-- `SERVICE_PROVIDER.MD`
-- `README.md`
-- `AGENTS.md`
-- `next-app/README.md`
-- public agent docs under `next-app/public/`
-
-When implementation starts, every document should clearly separate:
-
-- current live surfaces
-- locked next contract
-- future expansion
+- wallet auth first
+- one request as the main demand entrypoint
+- advanced specialist routes only when they need direct control

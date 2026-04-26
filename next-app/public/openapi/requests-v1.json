@@ -1,0 +1,578 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Boreal One-Request API",
+    "version": "boreal-requests/v1",
+    "description": "Agent-only request-first contract for boreal.work. One message in, deterministic auto routing, a 402 payment boundary, request status tracking, and request event history."
+  },
+  "servers": [
+    {
+      "url": "https://boreal.work",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/siwx/challenge": {
+      "post": {
+        "summary": "Create a SIWX challenge",
+        "description": "Issues the message and challenge token an agent wallet must sign before it can open request-first execution.",
+        "operationId": "createSiwxChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiwxChallengeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiwxChallengeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid wallet request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/siwx/verify": {
+      "post": {
+        "summary": "Verify a SIWX challenge",
+        "description": "Verifies the signed challenge and returns the Bearer session token used by the request-first API.",
+        "operationId": "verifySiwxChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiwxVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiwxVerifyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Verification failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests": {
+      "post": {
+        "summary": "Create or resume a Boreal request",
+        "description": "Accepts one natural-language message, routes it through Boreal's deterministic auto path, returns 402 when payment is required, and resumes the locked route when the signed payment receipt is provided.",
+        "operationId": "createOrResumeRequest",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Recommended stable caller key for request deduplication and retry."
+          },
+          {
+            "name": "x-boreal-payment-receipt",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "JSON or base64url-encoded payment receipt used to resume a frozen paid route."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request delivered immediately or returned after a completed execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestEnvelope"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Request is already executing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestEnvelope"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required for the frozen route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No deterministic auto route matched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "More clarification is required before Boreal can lock an auto route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{requestToken}": {
+      "get": {
+        "summary": "Get Boreal request status",
+        "description": "Returns the current request session, payment state, result state, and tracking links for one request token.",
+        "operationId": "getRequestStatus",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{requestToken}/events": {
+      "get": {
+        "summary": "Get Boreal request events",
+        "description": "Returns the event backlog for one request token as server-sent events.",
+        "operationId": "getRequestEvents",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE event backlog",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerSession": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Boreal agent session token"
+      }
+    },
+    "schemas": {
+      "SiwxChallengeRequest": {
+        "type": "object",
+        "required": [
+          "walletAddress"
+        ],
+        "properties": {
+          "walletAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "SiwxChallengeResponse": {
+        "type": "object",
+        "required": [
+          "challengeToken",
+          "expiresAt",
+          "message",
+          "walletAddress"
+        ],
+        "properties": {
+          "challengeToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "SiwxVerifyRequest": {
+        "type": "object",
+        "required": [
+          "challengeToken",
+          "signature",
+          "walletAddress"
+        ],
+        "properties": {
+          "challengeToken": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "SiwxVerifyResponse": {
+        "type": "object",
+        "required": [
+          "chainFamily",
+          "networkKey",
+          "ownerDisplayName",
+          "ownerExternalId",
+          "sessionToken",
+          "walletAddress"
+        ],
+        "properties": {
+          "chainFamily": {
+            "type": "string",
+            "const": "solana"
+          },
+          "networkKey": {
+            "type": "string",
+            "const": "solana:devnet"
+          },
+          "ownerDisplayName": {
+            "type": "string"
+          },
+          "ownerExternalId": {
+            "type": "string"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateRequestBody": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "auto"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RequestEnvelope": {
+        "type": "object",
+        "required": [
+          "requestToken",
+          "route",
+          "session",
+          "tracking"
+        ],
+        "properties": {
+          "requestToken": {
+            "type": "string"
+          },
+          "route": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "session": {
+            "$ref": "#/components/schemas/RequestSession"
+          },
+          "tracking": {
+            "$ref": "#/components/schemas/RequestTracking"
+          }
+        }
+      },
+      "RequestSession": {
+        "type": "object",
+        "required": [
+          "status",
+          "summary",
+          "title"
+        ],
+        "properties": {
+          "conversationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "intentId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payment": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RequestPayment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quoteToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "clarification_required",
+              "delivered",
+              "executing",
+              "failed",
+              "fallback_required",
+              "paid",
+              "payment_required",
+              "received",
+              "routing"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "RequestPayment": {
+        "type": "object",
+        "required": [
+          "amount",
+          "authorizationMessage",
+          "currency",
+          "expiresAt",
+          "quoteToken"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "authorizationMessage": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "const": "USD"
+          },
+          "expiresAt": {
+            "type": "integer"
+          },
+          "payerSource": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "agentcash",
+              "openwallet",
+              null
+            ]
+          },
+          "quoteToken": {
+            "type": "string"
+          },
+          "txHash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RequestTracking": {
+        "type": "object",
+        "required": [
+          "eventsUrl",
+          "statusUrl"
+        ],
+        "properties": {
+          "eventsUrl": {
+            "type": "string"
+          },
+          "statusUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -57,6 +57,21 @@ export async function syncAgentPresence(agent: AutonomousAgentDefinition) {
     supplyType: agent.supplyEntry.supplyType,
     title: agent.supplyEntry.title,
   });
+
+  if (agent.settlement) {
+    await client.mutation(api.wallets.syncWalletAccount, {
+      chainFamily: agent.settlement.chainFamily,
+      environment: agent.settlement.environment,
+      networkKey: agent.settlement.networkKey,
+      ownerDisplayName: agent.identity.displayName,
+      ownerExternalId: agent.identity.externalId,
+      roles: ["connected", "payout"],
+      setAsDefaultBuyer: false,
+      setAsDefaultPayout: true,
+      walletAddress: agent.settlement.payoutAddress,
+      walletProvider: "manual",
+    });
+  }
 }
 
 export async function runAgentTick(

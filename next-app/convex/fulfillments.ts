@@ -1,10 +1,13 @@
-import { mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 import {
   ensureSettlementForTransaction,
   ensureWorkTransaction,
+  getDefaultPayoutWalletAccountId,
   getCommerceEnvironment,
+  getProfileIdForUser,
   updateTransactionById,
 } from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
@@ -170,6 +173,19 @@ export const submitWork = mutation({
           acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
         transactionId,
       });
+
+      if (acceptedProposal.price > 0) {
+        await ensurePayoutRecord(ctx, {
+          amount: transaction?.amount ?? acceptedProposal.price,
+          chainFamily: transaction?.chainFamily,
+          currency: transaction?.currency ?? acceptedProposal.currency,
+          environment: transaction?.environment ?? getCommerceEnvironment(),
+          networkKey: transaction?.networkKey,
+          settlementId,
+          transactionId,
+          userId: worker._id,
+        });
+      }
 
       await recordTransactionAuditEvent(ctx, {
         fulfillmentId: activeFulfillment._id,
@@ -411,6 +427,19 @@ export const markRequestFulfilled = mutation({
         transactionId,
       });
 
+      if (acceptedProposal && acceptedProposal.price > 0 && acceptedProposal.proposerUserId) {
+        await ensurePayoutRecord(ctx, {
+          amount: transaction?.amount ?? acceptedProposal.price,
+          chainFamily: transaction?.chainFamily,
+          currency: transaction?.currency ?? acceptedProposal.currency,
+          environment: transaction?.environment ?? getCommerceEnvironment(),
+          networkKey: transaction?.networkKey,
+          settlementId,
+          transactionId,
+          userId: acceptedProposal.proposerUserId,
+        });
+      }
+
       await recordTransactionAuditEvent(ctx, {
         fulfillmentId,
         intentId: intent._id,
@@ -459,3 +488,58 @@ export const markRequestFulfilled = mutation({
     return { fulfilled: true };
   },
 });
+
+async function ensurePayoutRecord(
+  ctx: MutationCtx,
+  input: {
+    amount: number;
+    chainFamily?: "evm" | "solana";
+    currency: string;
+    environment: "devnet" | "mainnet" | "testnet";
+    networkKey?:
+      | "base:mainnet"
+      | "base:sepolia"
+      | "ethereum:mainnet"
+      | "ethereum:sepolia"
+      | "polygon:amoy"
+      | "polygon:mainnet"
+      | "solana:devnet"
+      | "solana:mainnet"
+      | "solana:testnet";
+    settlementId: Id<"settlements">;
+    transactionId: Id<"transactions">;
+    userId: string;
+  },
+) {
+  const existing = await ctx.db
+    .query("payouts")
+    .withIndex("by_transactionId", (queryBuilder) =>
+      queryBuilder.eq("transactionId", input.transactionId),
+    )
+    .collect();
+
+  if (existing.some((payout) => payout.payeeUserId === input.userId)) {
+    return;
+  }
+
+  const now = Date.now();
+  const payeeProfileId = await getProfileIdForUser(ctx, input.userId);
+  const walletAccountId = await getDefaultPayoutWalletAccountId(ctx, input.userId);
+
+  await ctx.db.insert("payouts", {
+    amount: input.amount,
+    chainFamily: input.chainFamily,
+    createdAt: now,
+    currency: input.currency,
+    environment: input.environment,
+    networkKey: input.networkKey,
+    payeeProfileId,
+    payeeUserId: input.userId,
+    settlementId: input.settlementId,
+    status: "pending",
+    transactionId: input.transactionId,
+    txHash: undefined,
+    updatedAt: now,
+    walletAccountId,
+  });
+}

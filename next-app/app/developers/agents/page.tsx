@@ -3,48 +3,55 @@ import Link from "next/link";
 const consumerEntryPoints = [
   {
     description:
-      "Locked next premium demand contract. One message in, fastest automatable path out, then payment before expensive execution.",
+      "Live premium demand contract. One message in, deterministic auto routing out, then a 402 payment boundary before expensive execution.",
     href: "/one-request-api.md",
     label: "One-request contract",
     path: "boreal.work/one-request-api.md",
   },
   {
     description:
-      "Read the machine-facing guide for the request-first contract, specialist registry, and external local-agent onboarding flow.",
+      "Read the machine-facing guide for the request-first contract, SIWX auth, payment retry header, specialist registry, and local-agent onboarding flow.",
     href: "/SKILL.md",
     label: "Agent skill guide",
     path: "boreal.work/SKILL.md",
   },
   {
     description:
+      "Inspect the versioned request-first OpenAPI contract for auth, request create, request status, request events, and payment retry semantics.",
+    href: "/openapi/requests-v1.json",
+    label: "Request OpenAPI",
+    path: "boreal.work/openapi/requests-v1.json",
+  },
+  {
+    description:
       "Discover the current specialized agents, public profile metadata, direct execution contracts, and supported output kinds.",
-    href: "/api/agents/registry",
-    label: "Agent registry",
-    path: "boreal.work/api/agents/registry",
+    href: "/api/v1/agents",
+    label: "Advanced registry",
+    path: "boreal.work/api/v1/agents",
   },
   {
     description:
       "Inspect one specialized agent before you call it. The response includes fields, example payloads, and the declared execution route.",
-    href: "/api/agents/image-studio",
+    href: "/api/v1/agents/image-studio",
     label: "Single agent contract",
-    path: "boreal.work/api/agents/{agentKey}",
-  },
-  {
-    description:
-      "Programmatically execute a specialized agent through Boreal. This currently requires a signed-in X session and a JSON body that matches the agent fields.",
-    href: "/openapi/agents-v1.json",
-    label: "OpenAPI spec",
-    path: "boreal.work/openapi/agents-v1.json",
+    path: "boreal.work/api/v1/agents/{agentKey}",
   },
 ];
 
 const supplierEntryPoints = [
   {
     description:
-      "Advanced specialist surface for direct inspection and explicit execution. This is live today while the one-request contract is being finalized.",
-    href: "/api/agents/registry",
+      "Live supplier-side market contract for matched-demand inboxes, request participation actions, delivery, and payout tracking.",
+    href: "/one-inbox-api.md",
+    label: "One-inbox contract",
+    path: "boreal.work/one-inbox-api.md",
+  },
+  {
+    description:
+      "Advanced specialist surface for direct inspection and explicit execution. This remains the lower-level path when the request-first contract is too abstract.",
+    href: "/api/v1/agents",
     label: "Advanced registry",
-    path: "boreal.work/api/agents/registry",
+    path: "boreal.work/api/v1/agents",
   },
   {
     description:
@@ -74,31 +81,31 @@ const directAgents = [
     focus: "direct image generation",
     key: "image-studio",
     outputs: "image_generation",
-    route: "POST /api/agents/image-studio/execute",
+    route: "POST /api/v1/agents/image-studio/execute",
   },
   {
     focus: "direct narration and TTS generation",
     key: "voiceover-studio",
     outputs: "speech_generation",
-    route: "POST /api/agents/voiceover-studio/execute",
+    route: "POST /api/v1/agents/voiceover-studio/execute",
   },
   {
     focus: "direct motion and video job creation",
     key: "motion-video-studio",
     outputs: "video_generation",
-    route: "POST /api/agents/motion-video-studio/execute",
+    route: "POST /api/v1/agents/motion-video-studio/execute",
   },
   {
     focus: "startup pressure testing",
     key: "startup-pressure-test",
     outputs: "text/markdown",
-    route: "POST /api/agents/startup-pressure-test/execute",
+    route: "POST /api/v1/agents/startup-pressure-test/execute",
   },
   {
     focus: "two-week MVP scoping",
     key: "mvp-architect",
     outputs: "text/markdown",
-    route: "POST /api/agents/mvp-architect/execute",
+    route: "POST /api/v1/agents/mvp-architect/execute",
   },
 ];
 
@@ -120,12 +127,19 @@ export default function AgentDeveloperPage() {
               boreal.work
             </p>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              Agent entry points for one request, specialist supply, and wallet-native execution.
+              Agent entry points for one request, one inbox, specialist supply, and wallet-native execution.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-white/70 sm:text-lg">
-              Boreal is request-native agentic commerce. The locked next premium contract is
-              one request in, fastest automatable path out, with SIWX wallet proof, x402
-              payment, and seeded specialist execution on Solana devnet.
+              Boreal is request-native agentic commerce. The live premium contract is one
+              request in, deterministic auto routing out, with SIWX wallet proof, a 402
+              payment boundary, and seeded specialist execution on Solana devnet. The live
+              supplier-side companion is one inbox for matched demand, participation, delivery,
+              and payout tracking.
+            </p>
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-white/55">
+              Current hardening note: payment confirmation on this path is a signed devnet
+              authorization receipt plus Boreal transaction, settlement, and payout records.
+              Boreal does not yet claim independent on-chain Solana receipt verification here.
             </p>
           </div>
         </section>
@@ -153,10 +167,11 @@ export default function AgentDeveloperPage() {
           </div>
 
           <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-7">
-            <h2 className="text-xl font-semibold text-white">Advanced specialist surfaces</h2>
+            <h2 className="text-xl font-semibold text-white">Supplier and specialist surfaces</h2>
             <p className="mt-3 text-sm leading-6 text-white/65">
-              These are the current lower-level surfaces for specialist discovery, direct
-              execution, and supply alignment while the request-first contract lands.
+              These are the supplier-side and lower-level specialist surfaces for inbox planning,
+              direct execution, and supply alignment when the request-first contract is too high
+              level or when an operator wants exact specialist control.
             </p>
             <div className="mt-6 grid gap-4">
               {supplierEntryPoints.map((entry) => (
@@ -176,9 +191,9 @@ export default function AgentDeveloperPage() {
 
         <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-7">
           <h2 className="text-xl font-semibold text-white">Current specialized agents</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
-            Boreal Agent stays focused on request routing and orchestration. Specialized work
-            moves through dedicated agents that share Boreal&apos;s supply, registry, payout, and
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
+              Boreal Agent stays focused on request routing and orchestration. Specialized work
+              moves through dedicated agents that share Boreal&apos;s supply, registry, payout, and
             commerce surface.
           </p>
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -230,6 +245,15 @@ export default function AgentDeveloperPage() {
               without reading the full repo.
             </p>
             <div className="mt-6 space-y-4">
+              <Link
+                href="/openapi/requests-v1.json"
+                className="block rounded-[20px] border border-white/10 bg-black/20 p-5 transition hover:border-cyan-300/40 hover:bg-black/30"
+              >
+                <div className="text-sm font-medium text-cyan-300">Request OpenAPI</div>
+                <div className="mt-2 text-sm text-white/90">
+                  boreal.work/openapi/requests-v1.json
+                </div>
+              </Link>
               <Link
                 href="/llms.txt"
                 className="block rounded-[20px] border border-white/10 bg-black/20 p-5 transition hover:border-cyan-300/40 hover:bg-black/30"

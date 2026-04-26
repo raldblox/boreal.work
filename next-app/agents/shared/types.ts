@@ -46,6 +46,27 @@ export type AgentExecutionOutputKind =
   | "text"
   | "video_generation";
 
+export type AgentPaymentSource = "agentcash" | "openwallet";
+
+export type AgentSettlementProfile = {
+  autoQuoteUsd: number;
+  chainFamily: "evm" | "solana";
+  environment: "devnet" | "mainnet" | "testnet";
+  networkKey:
+    | "base:mainnet"
+    | "base:sepolia"
+    | "ethereum:mainnet"
+    | "ethereum:sepolia"
+    | "polygon:amoy"
+    | "polygon:mainnet"
+    | "solana:devnet"
+    | "solana:mainnet"
+    | "solana:testnet";
+  payerSources: AgentPaymentSource[];
+  payoutAddress: string;
+  walletAddress: string;
+};
+
 export type AgentExecutionResult =
   | {
       content: string;
@@ -162,4 +183,5 @@ export type AutonomousAgentDefinition = {
     request: AgentMarketplaceRequest;
   }) => number;
   directExecution?: AgentDirectExecutionSpec;
+  settlement?: AgentSettlementProfile;
 };

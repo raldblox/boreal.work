@@ -13,7 +13,8 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first devnet defaults and explicit mainnet / EVM routing flags.
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
-- Boreal now has a locked next premium agent contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, `SIWX` + `x402` instead of X auth or API keys, Solana devnet payment, seeded specialist payouts, and a dedicated one-request smoke target.  This is not fully shipped yet.
+- Boreal now has a live premium agent contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, `SIWX` wallet auth, a `402` payment boundary, seeded specialist payouts, and a dedicated one-request smoke target.
+- Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
@@ -216,15 +217,29 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 
 ### Agent-Only One-Request API
 
-- [ ] `POST /api/v1/requests` as the main premium demand entrypoint for external agents
-- [ ] `message`-only request body with `auto` as the only enabled v1 behavior
-- [ ] `GET /api/v1/requests/{requestToken}` and `GET /api/v1/requests/{requestToken}/events` for machine-readable tracking
-- [ ] `SIWX` wallet authentication before quote issuance
-- [ ] `x402` payment flow on Solana devnet with OpenWallet or AgentCash as the payer source
-- [ ] Frozen quote and locked specialist route before payment, with retry resuming the same request after payment instead of rematching
-- [ ] Wallet and payout addresses present for every seeded specialist eligible for `auto`
-- [ ] Dedicated one-request end-to-end smoke covering submit -> quote -> pay -> execute -> deliver -> settle
-- [ ] Public onboarding docs for Codex, OpenClaw, Hermes, and similar local agents through `SKILL.md`, `llms.txt`, and the request contract docs
+- [x] `POST /api/v1/requests` as the main premium demand entrypoint for external agents
+- [x] `message`-only request body with `auto` as the only enabled v1 behavior
+- [x] `GET /api/v1/requests/{requestToken}` and `GET /api/v1/requests/{requestToken}/events` for machine-readable tracking
+- [x] `SIWX` wallet authentication before quote issuance
+- [x] `402` payment boundary on Solana devnet with OpenWallet or AgentCash as the payer-source labels
+- [x] Frozen quote and locked specialist route before payment, with retry resuming the same request after payment instead of rematching
+- [x] Wallet and payout addresses present for every seeded specialist eligible for `auto`
+- [x] Dedicated one-request end-to-end smoke covering submit -> quote -> pay -> execute -> deliver -> settle
+- [x] Public onboarding docs for Codex, OpenClaw, Hermes, and similar local agents through `SKILL.md`, `llms.txt`, and the request contract docs
+- [ ] Independent on-chain Solana devnet receipt verification for the request-first payment path
+
+### Supplier-Side One-Inbox API
+
+- [ ] `GET /api/v1/inbox` as the personalized matched-demand watch surface for external agents
+- [ ] `GET /api/v1/inbox/events` and `GET /api/v1/inbox/{entryToken}` for machine-readable inbox tracking
+- [ ] `POST /api/v1/requests/{requestToken}/proposals` for quote-required and proposal-first participation
+- [ ] `POST /api/v1/requests/{requestToken}/claim` for fixed-route work acceptance
+- [ ] `POST /api/v1/requests/{requestToken}/deliver` for artifact and proof delivery
+- [ ] `POST /api/v1/requests/{requestToken}/decline` for explicit rejection and routing feedback
+- [ ] `GET /api/v1/payouts` and `GET /api/v1/payouts/{payoutToken}` for supplier payout visibility
+- [ ] Personalized ranking by capability, output kinds, payout readiness, network compatibility, fit, and economics
+- [ ] One-inbox end-to-end smoke covering matched demand -> claim or proposal -> delivery -> payout ready
+- [ ] Public onboarding docs that explain `one request` for buyers and `one inbox` for suppliers as the two-sided agent contract
 
 ## Phase 4 - Launch Hardening, Trust, and Operations
 

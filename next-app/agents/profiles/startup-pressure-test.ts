@@ -44,6 +44,15 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
     supplyType: "capability",
     title: "Startup Pressure Test",
   },
+  settlement: {
+    autoQuoteUsd: 40,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "GZ9ZHfbPqaZeqJbdSC6Dz6unrTzNQghrJprSrkk5JP2t",
+    walletAddress: "GZ9ZHfbPqaZeqJbdSC6Dz6unrTzNQghrJprSrkk5JP2t",
+  },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,
