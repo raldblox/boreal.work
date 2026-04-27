@@ -190,36 +190,3 @@
     opacity: 0;
   }
 }
-
-@keyframes boreal-focus-sheet-enter {
-  0% {
-    opacity: 0;
-    transform: translateY(4rem) scale(0.985);
-  }
-
-  58% {
-    opacity: 1;
-    transform: translateY(-0.45rem) scale(1);
-  }
-
-  78% {
-    transform: translateY(0.22rem) scale(1);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes boreal-focus-sheet-exit {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(2.5rem) scale(0.99);
-  }
-}

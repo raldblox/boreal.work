@@ -71,8 +71,17 @@ const positioningPanels = [
   },
 ] as const
 
-export function AboutPage({ embedded = false }: { embedded?: boolean }) {
+export function AboutPage({
+  embedded = false,
+  onOpenPaper,
+  onOpenPapers,
+}: {
+  embedded?: boolean
+  onOpenPaper?: (slug: string) => void
+  onOpenPapers?: () => void
+}) {
   const featuredPapers = listFeaturedPublicPapers().slice(0, 4)
+  const canOpenEmbeddedPapers = embedded && Boolean(onOpenPaper)
   const content = (
     <div
       className={cn(
@@ -106,11 +115,23 @@ export function AboutPage({ embedded = false }: { embedded?: boolean }) {
                   <ArrowRight className="size-4" />
                 </Link>
               </Button>
-              <Button asChild className="rounded-full" size="lg" variant="outline">
-                <Link href={getPublicPaperHref("work-network")}>
+              {canOpenEmbeddedPapers && onOpenPaper ? (
+                <Button
+                  className="rounded-full"
+                  onClick={() => onOpenPaper("work-network")}
+                  size="lg"
+                  type="button"
+                  variant="outline"
+                >
                   Read the flagship paper
-                </Link>
-              </Button>
+                </Button>
+              ) : (
+                <Button asChild className="rounded-full" size="lg" variant="outline">
+                  <Link href={getPublicPaperHref("work-network")}>
+                    Read the flagship paper
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -212,14 +233,30 @@ export function AboutPage({ embedded = false }: { embedded?: boolean }) {
               Read the narrative layer in full
             </h2>
           </div>
-          <Button asChild className="rounded-full" size="sm" variant="outline">
-            <Link href="/papers">View all papers</Link>
-          </Button>
+          {embedded && onOpenPapers ? (
+            <Button
+              className="rounded-full"
+              onClick={onOpenPapers}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              View all papers
+            </Button>
+          ) : (
+            <Button asChild className="rounded-full" size="sm" variant="outline">
+              <Link href="/papers">View all papers</Link>
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           {featuredPapers.map((paper) => (
-            <PaperCard key={paper.slug} paper={paper} />
+            <PaperCard
+              key={paper.slug}
+              onOpen={canOpenEmbeddedPapers && onOpenPaper ? () => onOpenPaper(paper.slug) : null}
+              paper={paper}
+            />
           ))}
         </div>
       </section>
@@ -227,7 +264,7 @@ export function AboutPage({ embedded = false }: { embedded?: boolean }) {
   )
 
   if (embedded) {
-    return <div className="h-full overflow-y-auto">{content}</div>
+    return content
   }
 
   return (

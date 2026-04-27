@@ -346,7 +346,7 @@ export function AgentDeveloperSurface({
   )
 
   if (embedded) {
-    return <div className="h-full overflow-y-auto">{content}</div>
+    return content
   }
 
   return (
