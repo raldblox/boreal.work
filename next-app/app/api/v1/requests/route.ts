@@ -515,6 +515,8 @@ async function executePaidSession(
         summary: input.existing.summary,
         title: input.existing.title,
         userMessageId: crypto.randomUUID(),
+        videoSeconds: String(routePlan.seconds ?? "8"),
+        videoSize: String(routePlan.size ?? "1280x720"),
         voice: String(routePlan.voice ?? "alloy"),
       },
       routePlan,

@@ -171,6 +171,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Request approval before fulfillment
 - [x] Qualified advisory requests now preview best-fit specialist routes before approval, and approval runs the matched route instead of a generic clarification-first loop
 - [x] Highlighted matched-route cards can approve tracked work inline, so route choice stays visible at the exact approval point instead of hiding behind a generic control
+- [x] Video requests now carry validated duration and size defaults, reject unsupported video settings before approval, and surface real provider-unavailable errors when the OpenAI video route is not enabled
 - [x] Product-search intents that open a request workboard and render matched supply
 - [x] Public proposal board behavior through public requests
 - [x] Keyword generation stored and actively used in retrieval/routing

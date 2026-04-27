@@ -455,6 +455,8 @@ export const persistedIntentValidator = v.object({
   summary: v.string(),
   title: v.string(),
   userMessageId: v.string(),
+  videoSeconds: v.string(),
+  videoSize: v.string(),
   voice: v.string(),
 });
 

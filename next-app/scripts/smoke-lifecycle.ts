@@ -125,6 +125,8 @@ async function main() {
         summary: `Need an algebra expert to solve and explain a quadratic equation in markdown for ${matchToken}.`,
         title: `Solve and explain a quadratic equation ${matchToken}`,
         userMessageId: crypto.randomUUID(),
+        videoSeconds: "8",
+        videoSize: "1280x720",
         voice: "alloy",
       },
       ownerDisplayName: "Smoke Owner",

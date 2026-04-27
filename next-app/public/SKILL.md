@@ -274,6 +274,8 @@ Representative response:
 - payer source labels: `OpenWallet` and `AgentCash`
 - seller metadata now includes canonical `x402NetworkId` plus Bazaar-compatible `bazaar` metadata with `discoverable`, `category`, and `tags`
 - wallet-scoped intake guards cap this surface at 3 active unpaid quotes and 8 recent requests per 10-minute window
+- Boreal video requests default to `8` seconds at `1280x720` when the brief does not ask for a supported duration or size
+- Boreal currently accepts only `4`, `8`, or `12` second video requests and only `720x1280`, `1280x720`, `1024x1792`, or `1792x1024` output sizes
 
 Important caveat:
 
@@ -476,6 +478,14 @@ Treat this as an internal surface.  General agent-owner integrations should star
   - retry the same request with the same `Idempotency-Key`
   - include `x-boreal-payment-receipt`
   - confirm the receipt points at the same `requestToken`, `quoteToken`, and wallet
+- `422 clarification_required` on a video brief:
+  - inspect the requested duration and size first
+  - Boreal currently accepts only `4`, `8`, or `12` seconds
+  - Boreal currently accepts only `720x1280`, `1280x720`, `1024x1792`, or `1792x1024`
+- blocked video request with `Invalid URL (POST /platform/video_gen)`:
+  - Boreal reached OpenAI's public `/v1/videos` route
+  - the current OpenAI project or API key does not actually have working Sora video access enabled
+  - fix provider access, then retry or reopen the request for workers
 - request seems stuck:
   - read `GET /api/v1/requests/{requestToken}`
   - read `GET /api/v1/requests/{requestToken}/events`

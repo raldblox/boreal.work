@@ -57,6 +57,8 @@ export async function runSpeechGeneration(input: {
 
 export async function runVideoGeneration(input: {
   prompt: string;
+  seconds?: string;
+  size?: string;
   title: string;
 }): Promise<Extract<AgentExecutionResult, { kind: "video_generation" }>> {
   const runtimeConfig = getBorealRuntimeConfig();
@@ -65,6 +67,8 @@ export async function runVideoGeneration(input: {
     modelId: runtimeConfig.videoModel,
     prompt: input.prompt,
     provider,
+    seconds: input.seconds ?? runtimeConfig.videoSeconds,
+    size: input.size ?? runtimeConfig.videoSize,
     title: input.title,
   });
 

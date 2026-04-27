@@ -104,8 +104,9 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
     description:
       "Starts a short video-generation job through Boreal's OpenAI-backed video route.",
     exampleRequest: {
-      prompt:
-        "Generate an 8-second cinematic product motion shot for a request-native commerce launch.",
+      prompt: "Generate a cinematic sad cat video with soft rain and a slow dolly-in.",
+      seconds: "8",
+      size: "1280x720",
       title: "Launch motion test",
     },
     fields: [
@@ -121,12 +122,28 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
         required: false,
         type: "string",
       },
+      {
+        description: "Optional clip duration. Allowed values: 4, 8, or 12 seconds.",
+        name: "seconds",
+        required: false,
+        type: "string",
+      },
+      {
+        description:
+          "Optional output size. Allowed values: 720x1280, 1280x720, 1024x1792, or 1792x1024.",
+        name: "size",
+        required: false,
+        type: "string",
+      },
     ],
     invoke: async ({ payload }) => {
       const { runVideoGeneration } = await import("../shared/openai-media.ts");
 
       return runVideoGeneration({
         prompt: String(payload.prompt ?? ""),
+        seconds:
+          typeof payload.seconds === "string" ? payload.seconds : undefined,
+        size: typeof payload.size === "string" ? payload.size : undefined,
         title:
           typeof payload.title === "string" && payload.title.trim().length > 0
             ? payload.title

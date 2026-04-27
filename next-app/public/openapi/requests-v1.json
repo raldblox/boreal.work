@@ -93,7 +93,7 @@
     "/api/v1/requests": {
       "post": {
         "summary": "Create or resume a Boreal request",
-        "description": "Accepts one natural-language message, routes it through Boreal's deterministic auto path, returns 402 when payment is required, and resumes the locked route when the signed payment receipt is provided.",
+        "description": "Accepts one natural-language message, routes it through Boreal's deterministic auto path, returns 402 when payment is required, and resumes the locked route when the signed payment receipt is provided. Video requests currently support only 4, 8, or 12 seconds and only 720x1280, 1280x720, 1024x1792, or 1792x1024 output sizes. When omitted, Boreal defaults video requests to 8 seconds at 1280x720.",
         "operationId": "createOrResumeRequest",
         "security": [
           {
@@ -172,7 +172,7 @@
             }
           },
           "422": {
-            "description": "More clarification is required before Boreal can lock an auto route",
+            "description": "More clarification is required before Boreal can lock an auto route. For video requests this can also mean the requested duration or size is unsupported.",
             "content": {
               "application/json": {
                 "schema": {
@@ -494,7 +494,8 @@
             "type": "integer"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Natural-language request body. Video requests default to 8 seconds at 1280x720 when no supported duration or size is provided."
           },
           "walletAddress": {
             "type": "string"

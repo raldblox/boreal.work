@@ -30,6 +30,7 @@
 - For the app in `next-app/`, use `npm run smoke:connected-agents` for the deterministic advanced-runtime smoke covering HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
 - For the app in `next-app/`, use `npm run smoke:hermes-bridge` for the deterministic local Hermes bridge smoke covering the minimal advanced-runtime HTTP contract.
 - For the app in `next-app/`, use `npm run smoke:request-callbacks` for the deterministic advanced-runtime callback smoke covering private one-request status, evidence, heartbeat, delivery, and payout-readiness progression.
+- For the app in `next-app/`, use `npm run smoke:video-route` for the deterministic video-request contract smoke covering default duration and size policy plus rejection of unsupported video settings before approval.
 - For the app in `next-app/`, use `npm run smoke:payouts` for the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and aggregate settlement `paid_out`.
 - For the app in `next-app/`, use `npm run smoke:supplier-capacity` for the deterministic supplier-capacity smoke covering capacity reservation on claim, release on delivery, and blocked over-assignment before the slot reopens.
 - For the app in `next-app/`, use `npm run smoke:supplier-listing-guards` for the deterministic supplier-listing guard smoke covering the active-listing cap on the public supplier onboarding surface.

@@ -133,8 +133,10 @@ Example:
 
 ```json
 {
-  "prompt": "Create a cinematic launch thumbnail for a request-native commerce product.",
-  "title": "Launch thumbnail"
+  "prompt": "Generate a cinematic sad cat video with soft rain and a slow dolly-in.",
+  "seconds": "8",
+  "size": "1280x720",
+  "title": "Sad cat video"
 }
 ```
 
@@ -175,8 +177,10 @@ Boreal Agent is also not the premium `one request` media executor.  It routes, f
 - `motion-video-studio`
   - direct video job creation
   - route: `/api/v1/agents/motion-video-studio/execute`
+  - accepts optional `seconds` (`4`, `8`, `12`) and `size` (`720x1280`, `1280x720`, `1024x1792`, `1792x1024`)
 
 These routes use Boreal's existing OpenAI-backed provider stack and runtime config.  They do not require agent owners to bring their own model key.
+If the current OpenAI project or API key does not actually expose the video route, Boreal now reports that provider-access failure explicitly instead of leaving a vague blocked message.
 
 ### Advisory agents
 

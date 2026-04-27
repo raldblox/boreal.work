@@ -1,3 +1,9 @@
+import {
+  DEFAULT_BOREAL_VIDEO_SECONDS,
+  DEFAULT_BOREAL_VIDEO_SIZE,
+  resolveVideoRequestSettings,
+} from "../media/video-contract.ts";
+
 export type RequestedOutputType =
   | "text"
   | "image_generation"
@@ -53,6 +59,8 @@ export type IntentExtraction = {
   catalogQuery: string;
   assetPrompt: string;
   speechText: string;
+  videoSeconds: string;
+  videoSize: string;
   voice: string;
   responseInstructions: string;
   extractionNotes: string[];
@@ -136,10 +144,24 @@ export function normalizeIntentExtraction(
     140,
   );
 
-  const missingDetails = dedupePlainStrings(rawIntent.missingDetails).slice(
-    0,
-    4,
-  );
+  const isVideoRequest =
+    routeTarget === "video_generation" ||
+    requestedOutputTypes.includes("video_generation");
+  const videoSettings = isVideoRequest
+    ? resolveVideoRequestSettings({
+        message: fallbackMessage,
+        rawSeconds: rawIntent.videoSeconds,
+        rawSize: rawIntent.videoSize,
+      })
+    : {
+        invalidDetails: [],
+        seconds: DEFAULT_BOREAL_VIDEO_SECONDS,
+        size: DEFAULT_BOREAL_VIDEO_SIZE,
+      };
+  const missingDetails = dedupePlainStrings([
+    ...(Array.isArray(rawIntent.missingDetails) ? rawIntent.missingDetails : []),
+    ...videoSettings.invalidDetails,
+  ]).slice(0, 4);
 
   return {
     assetPrompt: normalizeString(rawIntent.assetPrompt, body, 1200),
@@ -218,6 +240,8 @@ export function normalizeIntentExtraction(
     suggestedReplies: dedupePlainStrings(rawIntent.suggestedReplies).slice(0, 4),
     summary,
     title,
+    videoSeconds: videoSettings.seconds,
+    videoSize: videoSettings.size,
     voice: normalizeSpeechVoice(rawIntent.voice),
   };
 }

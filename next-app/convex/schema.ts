@@ -262,6 +262,8 @@ export default defineSchema({
     title: v.string(),
     updatedAt: v.number(),
     urgencyScore: v.number(),
+    videoSeconds: v.optional(v.string()),
+    videoSize: v.optional(v.string()),
     visibility: v.union(v.literal("private"), v.literal("public")),
     voice: v.optional(v.string()),
   })

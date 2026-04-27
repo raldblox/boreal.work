@@ -573,6 +573,8 @@ export type RequestDetail = {
     suggestedReplies: string[];
     summary: string;
     title: string;
+    videoSeconds: string;
+    videoSize: string;
   } | null;
   matchCandidates: CatalogEntry[];
   collectiveTrust: {
@@ -667,6 +669,8 @@ export type RequestExecutionContext = {
   suggestedReplies: string[];
   summary: string;
   title: string;
+  videoSeconds: string;
+  videoSize: string;
   voice: string;
 } | null;
 

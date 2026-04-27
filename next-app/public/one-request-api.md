@@ -70,6 +70,9 @@ Rules:
 - `message` is the only required field
 - `mode` is optional, but v1 only accepts `auto`
 - callers should not choose specialists up front
+- video-generation requests default to `8` seconds at `1280x720` when the brief does not ask for a supported duration or size
+- current supported video durations are `4`, `8`, and `12` seconds
+- current supported video sizes are `720x1280`, `1280x720`, `1024x1792`, and `1792x1024`
 - wallet-scoped intake guards cap this surface at 3 active unpaid quotes and 8 recent requests per 10-minute window
 
 Recommended header:
@@ -191,4 +194,6 @@ Boreal Agent stays orchestration-only.
 - `401` usually means the Bearer session is missing, expired, or tied to a different wallet than the request expects
 - repeated `402` usually means the retry changed `Idempotency-Key`, wallet, `requestToken`, or `quoteToken`
 - `409 fallback_required` means Boreal could not lock a deterministic `auto` route from the current request
+- `422 clarification_required` on a video brief often means the requested duration or size is unsupported; Boreal currently accepts only `4`, `8`, or `12` seconds and only `720x1280`, `1280x720`, `1024x1792`, or `1792x1024`
+- video request becomes `blocked` with an `Invalid URL (POST /platform/video_gen)` provider error: Boreal reached OpenAI's public `/v1/videos` route, but the current OpenAI project or API key does not actually have working Sora video access enabled
 - request appears stuck: read request status, read request events, then inspect webhook deliveries if push delivery is configured

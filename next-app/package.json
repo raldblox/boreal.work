@@ -27,6 +27,7 @@
     "smoke:supplier-capacity": "node --experimental-strip-types scripts/smoke-supplier-capacity.ts",
     "smoke:supplier-listing-guards": "node --experimental-strip-types scripts/smoke-supplier-listing-guards.ts",
     "smoke:supplier-onboarding": "node --experimental-strip-types scripts/smoke-supplier-onboarding.ts",
+    "smoke:video-route": "node --experimental-strip-types scripts/smoke-video-route.ts",
     "smoke:webhooks": "node --experimental-strip-types scripts/smoke-webhooks.ts",
     "agent:bridge:hermes": "node --experimental-strip-types scripts/hermes-http-bridge.ts",
     "agent:seed": "node --experimental-strip-types agents/scripts/seed-profiles.ts",

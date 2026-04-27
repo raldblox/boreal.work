@@ -1,5 +1,12 @@
 import "server-only";
 
+import {
+  DEFAULT_BOREAL_VIDEO_SECONDS,
+  DEFAULT_BOREAL_VIDEO_SIZE,
+  normalizeVideoSeconds,
+  normalizeVideoSize,
+} from "./media/video-contract.ts";
+
 export type SupportedProviderKey = "openai";
 
 const DEFAULT_PROVIDER = "openai" satisfies SupportedProviderKey;
@@ -18,6 +25,8 @@ export type BorealRuntimeConfig = {
   imageModel: string;
   speechModel: string;
   videoModel: string;
+  videoSeconds: string;
+  videoSize: string;
 };
 
 export function getBorealRuntimeConfig(): BorealRuntimeConfig {
@@ -31,6 +40,8 @@ export function getBorealRuntimeConfig(): BorealRuntimeConfig {
     imageModel: process.env.BOREAL_IMAGE_MODEL ?? DEFAULT_IMAGE_MODEL,
     speechModel: process.env.BOREAL_SPEECH_MODEL ?? DEFAULT_SPEECH_MODEL,
     videoModel: process.env.BOREAL_VIDEO_MODEL ?? DEFAULT_VIDEO_MODEL,
+    videoSeconds: resolveConfiguredVideoSeconds(process.env.BOREAL_VIDEO_SECONDS),
+    videoSize: resolveConfiguredVideoSize(process.env.BOREAL_VIDEO_SIZE),
   };
 }
 
@@ -46,4 +57,36 @@ function normalizeProvider(value?: string): SupportedProviderKey {
   throw new Error(
     `Unsupported provider "${value}". Add an adapter in lib/boreal/integrations/providers before enabling it.`,
   );
+}
+
+function resolveConfiguredVideoSeconds(value?: string) {
+  if (!value) {
+    return DEFAULT_BOREAL_VIDEO_SECONDS;
+  }
+
+  const normalized = normalizeVideoSeconds(value);
+
+  if (!normalized) {
+    throw new Error(
+      `Unsupported BOREAL_VIDEO_SECONDS value "${value}". Use 4, 8, or 12.`,
+    );
+  }
+
+  return normalized;
+}
+
+function resolveConfiguredVideoSize(value?: string) {
+  if (!value) {
+    return DEFAULT_BOREAL_VIDEO_SIZE;
+  }
+
+  const normalized = normalizeVideoSize(value);
+
+  if (!normalized) {
+    throw new Error(
+      `Unsupported BOREAL_VIDEO_SIZE value "${value}". Use 720x1280, 1280x720, 1024x1792, or 1792x1024.`,
+    );
+  }
+
+  return normalized;
 }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
+import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
 import {
   appendConversationAssistantMessage,
   appendRequestExecution,
@@ -663,6 +664,8 @@ async function executeIntent(input: {
       modelId: input.videoModelId,
       prompt: input.intent.assetPrompt,
       provider: input.provider,
+      seconds: input.intent.videoSeconds,
+      size: input.intent.videoSize,
       title: input.intent.title,
     });
 
@@ -675,7 +678,10 @@ async function executeIntent(input: {
       workspace: {
         artifact,
         kind: "artifact",
-        subtitle: "Async video generation job",
+        subtitle: buildVideoSettingsSummary({
+          seconds: artifact.seconds,
+          size: artifact.size,
+        }),
         title: artifact.title,
       },
     };
@@ -851,9 +857,7 @@ async function runApprovedExecutionForRequest(input: {
       intentId: input.input.intentId,
       relatedCatalogItems,
       workspace: {
-        kind: "empty",
-        subtitle: `Execution failed after automatic retries. Last error: ${message}`,
-        title: "Route blocked",
+        ...buildBlockedWorkspace(input.request.routeTarget, message),
       } satisfies WorkspaceState,
     };
   }
@@ -980,9 +984,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
       intentId: input.input.intentId,
       relatedCatalogItems,
       workspace: {
-        kind: "empty",
-        subtitle: `Execution failed after automatic retries. Last error: ${message}`,
-        title: "Route blocked",
+        ...buildBlockedWorkspace(input.request.routeTarget, message),
       } satisfies WorkspaceState,
     };
   }
@@ -1037,6 +1039,8 @@ function toExecutionIntent(
     suggestedReplies: request.suggestedReplies,
     summary: request.summary,
     title: request.title,
+    videoSeconds: request.videoSeconds,
+    videoSize: request.videoSize,
     voice: request.voice,
   };
 }
@@ -1178,11 +1182,19 @@ function buildApprovalMessage(
     `I prepared a work draft for ${modeLabel}.`,
     intent.summary,
     `Recommended path: ${getRequestHandlingLabel(handlingMode)}.`,
+    intent.routeTarget === "video_generation"
+      ? `Planned render: ${buildVideoSettingsSummary({
+          seconds: intent.videoSeconds,
+          size: intent.videoSize,
+        })}.`
+      : null,
     catalogItems.length > 0
       ? `I also found ${catalogItems.length} related catalog match${catalogItems.length === 1 ? "" : "es"}.`
       : "No extra artifacts were started yet.",
     getApprovalActionLine(intent.routeTarget, handlingMode),
-  ].join("\n\n");
+  ]
+    .filter((section): section is string => Boolean(section))
+    .join("\n\n");
 }
 
 function getApprovalActionLine(
@@ -1215,6 +1227,26 @@ function buildClarificationMessage(intent: IntentExtraction) {
     "",
     "Reply here or use the workspace prompts to unblock it.",
   ].join("\n");
+}
+
+function buildBlockedWorkspace(routeTarget: ToolRoute, message: string): WorkspaceState {
+  if (
+    routeTarget === "video_generation" &&
+    /video route is unavailable for the current project or API key/i.test(message)
+  ) {
+    return {
+      kind: "empty",
+      subtitle:
+        "Motion Video Studio could not start because the current OpenAI project or key does not have working Sora video access. Fix provider access, then retry or reopen the request for workers.",
+      title: "Video route unavailable",
+    };
+  }
+
+  return {
+    kind: "empty",
+    subtitle: `Execution failed after automatic retries. Last error: ${message}`,
+    title: "Route blocked",
+  };
 }
 
 function buildSpecialistRoutePlan(input: {

@@ -39,6 +39,8 @@ Use the registry when:
   - direct speech generation
 - `motion-video-studio`
   - direct video job creation
+  - optional `seconds`: `4`, `8`, or `12`
+  - optional `size`: `720x1280`, `1280x720`, `1024x1792`, or `1792x1024`
 - `startup-pressure-test`
   - startup evaluation in markdown
 - `mvp-architect`
@@ -81,6 +83,8 @@ Current request rules:
 - public behavior: `auto`
 - network: Solana `devnet`
 - payer-source labels: `OpenWallet` and `AgentCash`
+- Boreal's video route defaults to `8` seconds at `1280x720` when the brief does not request a supported duration or size
+- unsupported video durations or sizes are rejected before approval instead of being passed through as blocked execution
 
 Current hardening note:
 

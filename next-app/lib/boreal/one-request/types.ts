@@ -25,7 +25,9 @@ export type OneRequestRoutePlan = {
   routeTarget?: PersistedIntent["routeTarget"];
   selected: OneRequestRouteSelection[];
   speechText?: string;
+  size?: string;
   summary: string;
+  seconds?: string;
   title: string;
   totalQuoteUsd: number;
   voice?: string;

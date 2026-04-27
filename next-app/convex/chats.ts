@@ -164,6 +164,8 @@ export const recordIntentPipeline = mutation({
       title: args.intent.title,
       updatedAt: now,
       urgencyScore: args.intent.persistence.isUnresolved ? 0.72 : 0.15,
+      videoSeconds: args.intent.videoSeconds,
+      videoSize: args.intent.videoSize,
       visibility:
         isProfileUpdate
           ? "private"

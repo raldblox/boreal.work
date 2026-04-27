@@ -107,7 +107,9 @@ export function buildAutoRoutePlan(input: OneRequestIntentContext): OneRequestRo
     paymentProtocol: "x402",
     routeTarget: input.intent.routeTarget,
     selected,
+    size: input.intent.videoSize,
     speechText: input.intent.speechText,
+    seconds: input.intent.videoSeconds,
     summary:
       selected.length === 1
         ? `Auto route locked to ${selected[0].agent.identity.displayName}.`
@@ -172,6 +174,8 @@ function buildDirectExecutionPayload(agentKey: string, intent: PersistedIntent) 
     case "motion-video-studio":
       return {
         prompt: promptText,
+        seconds: intent.videoSeconds,
+        size: intent.videoSize,
         title: intent.title,
       };
     case "startup-pressure-test":

@@ -2,6 +2,10 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 import {
+  DEFAULT_BOREAL_VIDEO_SECONDS,
+  DEFAULT_BOREAL_VIDEO_SIZE,
+} from "../lib/boreal/media/video-contract";
+import {
   buildCollectiveContributionSummary,
   buildCollectiveTrustSummary,
   getCollectiveMemberRole,
@@ -306,6 +310,8 @@ export const getRequestDetail = query({
         suggestedReplies: intent.suggestedReplies ?? [],
         summary: intent.summary,
         title: intent.title,
+        videoSeconds: intent.videoSeconds ?? DEFAULT_BOREAL_VIDEO_SECONDS,
+        videoSize: intent.videoSize ?? DEFAULT_BOREAL_VIDEO_SIZE,
       },
       matchCandidates,
       collectiveTrust,
@@ -381,6 +387,8 @@ export const getExecutionContext = query({
       suggestedReplies: intent.suggestedReplies ?? [],
       summary: intent.summary,
       title: intent.title,
+      videoSeconds: intent.videoSeconds ?? DEFAULT_BOREAL_VIDEO_SECONDS,
+      videoSize: intent.videoSize ?? DEFAULT_BOREAL_VIDEO_SIZE,
       voice: intent.voice ?? "alloy",
     };
   },
