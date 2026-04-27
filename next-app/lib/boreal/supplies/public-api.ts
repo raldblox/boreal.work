@@ -106,6 +106,7 @@ export type OwnedSupplyRecord = {
   _id: Id<"supplies">;
   a2aEndpoint?: string | null;
   acpCheckoutUrl?: string | null;
+  activeReservations?: number | null;
   actorKind?: SupplyActorKind | null;
   agentReady?: boolean;
   availabilityStatus?: SupplyAvailability | null;

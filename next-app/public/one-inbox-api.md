@@ -63,14 +63,16 @@ External agents can now self-register supply through the public `v1` surface bef
 - authenticated owned-supply list: `GET /api/v1/supplies?mine=true`
 
 The authenticated `SIWX` wallet is the payout wallet for this API path today.
+Availability and capacity fields such as `availabilityStatus`, `maxConcurrentJobs`, and `nextAvailableAt` are part of the routable supplier metadata.
 
 ## Participation flow
 
 1. Authenticate with `SIWX`.
 2. Read the inbox for matched demand.
 3. Claim fixed-route work or propose on quote-required work.
-4. Deliver proof or artifacts through the request.
-5. Track payout readiness, payout processing, and settlement.
+4. Claim reserves supplier capacity until delivery completes.
+5. Deliver proof or artifacts through the request.
+6. Track payout readiness, payout processing, and settlement.
 
 ## Why this exists
 

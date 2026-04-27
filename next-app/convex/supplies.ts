@@ -669,6 +669,7 @@ export async function mapSupplyListing(
     _id: string;
     a2aEndpoint?: string;
     acceptanceRate?: number;
+    activeReservations?: number;
     actorKind: "agent" | "human" | "tool";
     agentReady?: boolean;
     availabilityStatus?: "available" | "limited" | "unavailable";
@@ -686,7 +687,9 @@ export async function mapSupplyListing(
     executorUrl?: string;
     fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
     isCartEnabled: boolean;
+    maxConcurrentJobs?: number;
     mcpServerUrl?: string;
+    nextAvailableAt?: number;
     offerSlug?: string;
     openApiUrl?: string;
     outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
@@ -738,6 +741,7 @@ export async function mapSupplyListing(
     _id: supply._id,
     a2aEndpoint: supply.a2aEndpoint ?? null,
     acceptanceRate: supply.acceptanceRate ?? null,
+    activeReservations: supply.activeReservations ?? 0,
     actorKind: supply.actorKind,
     agentReady: supply.agentReady ?? false,
     averageRating: reviews.averageRating,
@@ -759,7 +763,9 @@ export async function mapSupplyListing(
     matchReasons: ranking.matchReasons,
     matchScore: ranking.matchScore,
     matchStage: ranking.matchStage ?? null,
+    maxConcurrentJobs: supply.maxConcurrentJobs ?? null,
     mcpServerUrl: supply.mcpServerUrl ?? null,
+    nextAvailableAt: supply.nextAvailableAt ?? null,
     offerSlug: supply.offerSlug ?? null,
     openApiUrl: supply.openApiUrl ?? null,
     outputTypes: supply.outputTypes ?? [],
@@ -810,6 +816,7 @@ async function mapOwnedSupplyRecord(
       _id: supply._id,
       a2aEndpoint: supply.a2aEndpoint ?? null,
       acpCheckoutUrl: supply.acpCheckoutUrl ?? null,
+      activeReservations: supply.activeReservations ?? 0,
       actorKind: supply.actorKind,
       agentReady: supply.agentReady ?? false,
       availabilityStatus: supply.availabilityStatus ?? null,
@@ -830,6 +837,7 @@ async function mapOwnedSupplyRecord(
       exclusions: supply.exclusions ?? [],
       fulfillmentKind: supply.fulfillmentKind,
       isCartEnabled: supply.isCartEnabled,
+      maxConcurrentJobs: supply.maxConcurrentJobs ?? null,
       mcpServerUrl: supply.mcpServerUrl ?? null,
       metadataJson: supply.metadataJson ?? null,
       nextAvailableAt: supply.nextAvailableAt ?? null,
@@ -1218,6 +1226,71 @@ function extractKeywords(value: string) {
         .filter((token) => token.length > 2),
     ),
   ).slice(0, 48);
+}
+
+export async function reserveSupplyCapacity(
+  ctx: MutationCtx,
+  supplyId: Id<"supplies">,
+) {
+  const supply = await ctx.db.get(supplyId);
+
+  if (!supply) {
+    return { reserved: false, reason: "not_found" as const };
+  }
+
+  if (supply.status !== "active") {
+    return { reserved: false, reason: "inactive" as const };
+  }
+
+  if (supply.availabilityStatus === "unavailable") {
+    return { reserved: false, reason: "unavailable" as const };
+  }
+
+  const activeReservations = supply.activeReservations ?? 0;
+  if (
+    typeof supply.maxConcurrentJobs === "number" &&
+    supply.maxConcurrentJobs > 0 &&
+    activeReservations >= supply.maxConcurrentJobs
+  ) {
+    return { reserved: false, reason: "capacity_exhausted" as const };
+  }
+
+  const nextReservations = activeReservations + 1;
+  await ctx.db.patch(supplyId, {
+    activeReservations: nextReservations,
+    updatedAt: Date.now(),
+  });
+
+  return {
+    activeReservations: nextReservations,
+    reserved: true,
+  };
+}
+
+export async function releaseSupplyCapacity(
+  ctx: MutationCtx,
+  supplyId: Id<"supplies"> | null | undefined,
+) {
+  if (!supplyId) {
+    return { released: false, reason: "not_found" as const };
+  }
+
+  const supply = await ctx.db.get(supplyId);
+
+  if (!supply) {
+    return { released: false, reason: "not_found" as const };
+  }
+
+  const nextReservations = Math.max(0, (supply.activeReservations ?? 0) - 1);
+  await ctx.db.patch(supplyId, {
+    activeReservations: nextReservations,
+    updatedAt: Date.now(),
+  });
+
+  return {
+    activeReservations: nextReservations,
+    released: true,
+  };
 }
 
 function sanitizeOptionalText(value?: string) {

@@ -898,6 +898,7 @@ export default defineSchema({
     scenarioId: v.optional(v.string()),
     scenarioType: v.optional(transactionScenarioValidator),
     settlementStatus: v.optional(settlementStatusValidator),
+    supplyId: v.optional(v.id("supplies")),
     status: fulfillmentStatusValidator,
     transactionId: v.optional(v.id("transactions")),
   })

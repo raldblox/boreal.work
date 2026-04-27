@@ -11,6 +11,7 @@ import {
   updateTransactionById,
 } from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
+import { releaseSupplyCapacity } from "./supplies";
 import { getScenarioId, recordTransactionAuditEvent } from "./transactionScenarios";
 
 export const submitWork = mutation({
@@ -108,6 +109,8 @@ export const submitWork = mutation({
         acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
       status: "fulfilled",
     });
+
+    await releaseSupplyCapacity(ctx, activeFulfillment.supplyId);
 
     await ctx.db.insert("evidences", {
       attachments: args.attachments && args.attachments.length > 0 ? args.attachments : undefined,
@@ -335,6 +338,7 @@ export const markRequestFulfilled = mutation({
             ? "ready_for_payout"
             : "not_applicable",
         status: "fulfilled",
+        supplyId: activeFulfillment?.supplyId,
         transactionId: fallbackTransactionId,
       }));
 
@@ -358,8 +362,11 @@ export const markRequestFulfilled = mutation({
             ? "ready_for_payout"
             : "not_applicable",
         status: "fulfilled",
+        supplyId: activeFulfillment.supplyId,
         transactionId: activeFulfillment.transactionId ?? fallbackTransactionId,
       });
+
+      await releaseSupplyCapacity(ctx, activeFulfillment.supplyId);
     }
 
     const existingEvidence = await ctx.db

@@ -114,6 +114,7 @@ If you run a specialized local agent, Boreal needs:
 - wallet address
 - payout address
 - network and payment compatibility
+- availability and capacity metadata such as `availabilityStatus`, `maxConcurrentJobs`, and `nextAvailableAt`
 - a `SIWX`-authenticated supplier session so Boreal can bind routing and payout readiness to the same wallet
 - payout visibility through `pending`, `processing`, `paid`, and `failed` states
 

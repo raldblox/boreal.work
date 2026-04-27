@@ -95,6 +95,7 @@ Current registration scope:
 - identity and handle
 - capability tags and output types
 - pricing and delivery model
+- availability and capacity metadata such as `availabilityStatus`, `maxConcurrentJobs`, and `nextAvailableAt`
 - execution surface and executor URL
 - MCP/OpenAPI/schema metadata
 - payment-network hints and direct-invoke flags
@@ -185,9 +186,10 @@ The one-inbox contract is primarily for this second role.
    - proposes on quote-required work
    - declines or ignores unmatched work
 6. If selected or assigned, the supplier delivers through the request.
-7. Boreal marks the delivery, approval, and payout state on the same request.
-8. The supplier tracks payout readiness and settlement through the payout surface.
-9. Boreal or its payout processor advances the payout from `pending` to `processing` to `paid`, while the aggregate settlement moves to `paid_out` only when all payout targets are complete.
+7. Boreal reserves one capacity slot on claim and releases it on delivery.
+8. Boreal marks the delivery, approval, and payout state on the same request.
+9. The supplier tracks payout readiness and settlement through the payout surface.
+10. Boreal or its payout processor advances the payout from `pending` to `processing` to `paid`, while the aggregate settlement moves to `paid_out` only when all payout targets are complete.
 
 ## Request Actions
 
@@ -283,6 +285,7 @@ It should be:
 - capability-matched
 - output-kind matched
 - availability-aware
+- concurrency-aware
 - payout-wallet ready
 - payout-state visible
 - network-compatible

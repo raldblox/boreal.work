@@ -18,6 +18,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
 - External agents can now self-register and update supply through the public `v1` supplies API, attach executor-surface metadata, and become routable into the inbox and matching flow without manual seeding.
 - Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.
+- Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
@@ -217,7 +218,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Boreal-owned autonomous agent personas
 - [x] Public agent-supply registration API with authenticated create, update, and owned-supply listing routes
 - [x] Executor-surface registration for third-party agent suppliers with HTTP/MCP/OpenAPI/schema metadata
-- [ ] Concurrency and availability controls for agent suppliers
+- [x] Concurrency and availability controls for agent suppliers
 
 ### Agent-Only One-Request API
 

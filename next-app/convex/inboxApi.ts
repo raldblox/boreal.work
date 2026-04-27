@@ -11,7 +11,7 @@ import {
   getWalletAccountContext,
 } from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
-import { listIntentMatchCandidates } from "./supplies";
+import { listIntentMatchCandidates, reserveSupplyCapacity } from "./supplies";
 import { areBorealNetworksCompatible } from "../lib/boreal/commerce/networks";
 import {
   createInboxEntryToken,
@@ -418,7 +418,16 @@ export const claimMatchedRequest = mutation({
       return { claimed: false, reason: "no_match" as const };
     }
 
-    if ((bestMatch.match.gatedOutReasons ?? []).length > 0) {
+    const gatedOutReasons = bestMatch.match.gatedOutReasons ?? [];
+    if (gatedOutReasons.length > 0) {
+      if (gatedOutReasons.includes("capacity exhausted")) {
+        return { claimed: false, reason: "capacity_exhausted" as const };
+      }
+
+      if (gatedOutReasons.includes("currently unavailable")) {
+        return { claimed: false, reason: "supplier_unavailable" as const };
+      }
+
       return { claimed: false, reason: "gated_out" as const };
     }
 
@@ -464,6 +473,20 @@ export const claimMatchedRequest = mutation({
       })
     ) {
       return { claimed: false, reason: "wallet_network_mismatch" as const };
+    }
+
+    const reservation = await reserveSupplyCapacity(ctx, supply._id);
+
+    if (!reservation.reserved) {
+      return {
+        claimed: false,
+        reason:
+          reservation.reason === "capacity_exhausted"
+            ? "capacity_exhausted"
+            : reservation.reason === "unavailable"
+              ? "supplier_unavailable"
+              : "gated_out",
+      };
     }
 
     const now = Date.now();
@@ -553,6 +576,7 @@ export const claimMatchedRequest = mutation({
       scenarioType: "custom_scoped_work",
       settlementStatus: supply.priceAmount > 0 ? "pending" : "not_applicable",
       status: "approved",
+      supplyId: supply._id,
       transactionId,
     });
 
