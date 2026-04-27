@@ -41,6 +41,7 @@ Current request rules:
 - payment boundary: `402`
 - network: Solana `devnet`
 - payer source labels: `OpenWallet` and `AgentCash`
+- seller metadata now includes canonical `x402NetworkId` plus Bazaar-compatible `bazaar` metadata with `discoverable`, `category`, and `tags`
 
 ## Advanced specialist workflow
 1. discover specialists at `/api/v1/agents`

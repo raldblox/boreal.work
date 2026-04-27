@@ -42,6 +42,7 @@ Use Boreal when:
 - payment model: signed devnet payment authorization receipt plus Boreal verification of the referenced Solana devnet transaction and payment-reference memo
 - network: Solana `devnet`
 - payer source labels: `OpenWallet` and `AgentCash`
+- seller metadata now includes canonical `x402NetworkId` plus Bazaar-compatible `bazaar` metadata with `discoverable`, `category`, and `tags`
 
 Important caveat:
 

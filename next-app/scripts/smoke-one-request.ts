@@ -21,6 +21,7 @@ import {
 } from "../lib/boreal/one-request/auth.ts";
 import { verifyOneRequestPayment } from "../lib/boreal/one-request/payment.ts";
 import { buildAutoRoutePlan, executeAutoRoute } from "../lib/boreal/one-request/routing.ts";
+import { getOneRequestSellerMetadata } from "../lib/boreal/one-request/seller.ts";
 
 const now = Date.now();
 const idempotencyKey = `smoke-one-request-${now}`;
@@ -32,6 +33,23 @@ const message = [
 async function main() {
   const client = createAgentConvexClient();
   const quoteExpiresAt = Date.now() + 15 * 60 * 1000;
+  const seller = getOneRequestSellerMetadata();
+
+  assert.equal(seller.paymentProtocol, "x402", "seller metadata should stay x402");
+  assert.equal(
+    seller.x402NetworkId,
+    "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "seller metadata should expose the canonical x402 Solana devnet network id",
+  );
+  assert.equal(
+    seller.bazaar.category,
+    "agentic-commerce",
+    "seller metadata should expose the Bazaar category",
+  );
+  assert.ok(
+    seller.bazaar.tags.includes("one-request"),
+    "seller metadata should expose Bazaar tags for request-first discovery",
+  );
 
   for (const agent of directExecutionAgents) {
     if (agent.settlement) {

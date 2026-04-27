@@ -35,8 +35,14 @@ The live `402` and request-status payloads now also include a stable seller bloc
 - `sellerName`
 - `paymentProtocol`
 - `networkKey`
+- canonical `x402NetworkId`
 - `settlementMode`
 - optional `payToAddress`
+- Bazaar-compatible `bazaar` metadata with `discoverable`, `category`, and `tags`
+
+Important nuance:
+
+- `bazaar.discoverable` should only be treated as true when `payToAddress` is configured
 
 Advanced discovery and direct specialist execution:
 

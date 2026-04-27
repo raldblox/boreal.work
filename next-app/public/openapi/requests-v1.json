@@ -554,15 +554,20 @@
       "RequestSeller": {
         "type": "object",
         "required": [
+          "bazaar",
           "networkKey",
           "payToAddress",
           "payToAsset",
           "paymentProtocol",
           "sellerId",
           "sellerName",
-          "settlementMode"
+          "settlementMode",
+          "x402NetworkId"
         ],
         "properties": {
+          "bazaar": {
+            "$ref": "#/components/schemas/RequestSellerBazaar"
+          },
           "networkKey": {
             "type": "string",
             "const": "solana:devnet"
@@ -597,6 +602,33 @@
           "settlementMode": {
             "type": "string",
             "const": "devnet_quote_locked"
+          },
+          "x402NetworkId": {
+            "type": "string",
+            "const": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+          }
+        }
+      },
+      "RequestSellerBazaar": {
+        "type": "object",
+        "required": [
+          "category",
+          "discoverable",
+          "tags"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "const": "agentic-commerce"
+          },
+          "discoverable": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

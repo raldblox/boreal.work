@@ -43,7 +43,9 @@ Webhook surface:
 Seller metadata note:
 
 - the live `402` and request-status payloads now expose a stable seller block for Boreal's request-first surface
-- current fields are `sellerId`, `sellerName`, `paymentProtocol`, `networkKey`, `settlementMode`, and optional `payToAddress`
+- current fields are `sellerId`, `sellerName`, `paymentProtocol`, `networkKey`, canonical `x402NetworkId`, `settlementMode`, optional `payToAddress`, and a Bazaar-compatible `bazaar` extension block
+- the `bazaar` block currently carries `discoverable`, `category`, and `tags` using x402 Bazaar naming
+- `discoverable` should only be treated as true when the seller `payToAddress` is actually configured
 - `payToAddress` remains configuration-driven and should not be overclaimed as treasury-grade settlement proof by itself
 
 Advanced discovery and specialist surfaces:
