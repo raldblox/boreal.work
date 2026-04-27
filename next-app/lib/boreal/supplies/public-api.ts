@@ -42,6 +42,7 @@ type SupplySourceProviderKey =
   | "moonpay"
   | "solana-agent-kit";
 type SupplyType = "agent_tool" | "capability" | "collective" | "product";
+type ConnectorHealthStatus = "failing" | "healthy" | "unknown";
 
 export type PublicSupplyUpsertBody = {
   a2aEndpoint?: string | null;
@@ -67,6 +68,7 @@ export type PublicSupplyUpsertBody = {
   maxConcurrentJobs?: number | null;
   mcpServerUrl?: string | null;
   metadataJson?: string | null;
+  mcpToolName?: string | null;
   nextAvailableAt?: number | null;
   offerSlug?: string | null;
   openApiUrl?: string | null;
@@ -93,8 +95,10 @@ export type PublicSupplyUpsertBody = {
   sourceProviderKey?: SupplySourceProviderKey;
   sourceProviderUrl?: string | null;
   subtitle?: string | null;
+  supportsEvidencePush?: boolean;
   supportsDirectInvoke?: boolean;
   supportsPrivyWallet?: boolean;
+  supportsStatusUpdates?: boolean;
   supplyType?: SupplyType;
   title?: string | null;
   ucpCatalogUrl?: string | null;
@@ -115,6 +119,9 @@ export type OwnedSupplyRecord = {
   category?: string | null;
   checkoutProtocol?: SupplyCheckoutProtocol | null;
   checkoutProvider?: string | null;
+  connectorHealthStatus?: ConnectorHealthStatus | null;
+  connectorLastHeartbeatAt?: number | null;
+  connectorLastTestedAt?: number | null;
   currency?: string | null;
   deliveryType?: SupplyDeliveryType | null;
   description?: string | null;
@@ -129,6 +136,7 @@ export type OwnedSupplyRecord = {
   maxConcurrentJobs?: number | null;
   mcpServerUrl?: string | null;
   metadataJson?: string | null;
+  mcpToolName?: string | null;
   nextAvailableAt?: number | null;
   offerSlug?: string | null;
   openApiUrl?: string | null;
@@ -151,8 +159,10 @@ export type OwnedSupplyRecord = {
   sourceProviderKey?: SupplySourceProviderKey | null;
   sourceProviderUrl?: string | null;
   subtitle?: string | null;
+  supportsEvidencePush?: boolean;
   supportsDirectInvoke?: boolean;
   supportsPrivyWallet?: boolean;
+  supportsStatusUpdates?: boolean;
   supplyType?: SupplyType | null;
   title?: string | null;
   ucpCatalogUrl?: string | null;
@@ -232,6 +242,7 @@ export function buildPublicSupplyMutationArgs(input: {
       input.body.mcpServerUrl ?? existing?.mcpServerUrl,
     ),
     metadataJson: normalizeOptionalText(input.body.metadataJson ?? existing?.metadataJson),
+    mcpToolName: normalizeOptionalText(input.body.mcpToolName ?? existing?.mcpToolName),
     nextAvailableAt:
       normalizeOptionalNumber(input.body.nextAvailableAt) ??
       normalizeOptionalNumber(existing?.nextAvailableAt),
@@ -287,12 +298,16 @@ export function buildPublicSupplyMutationArgs(input: {
       input.body.sourceProviderUrl ?? existing?.sourceProviderUrl,
     ),
     subtitle: normalizeOptionalText(input.body.subtitle ?? existing?.subtitle),
+    supportsEvidencePush:
+      input.body.supportsEvidencePush ?? existing?.supportsEvidencePush ?? false,
     supportsDirectInvoke:
       input.body.supportsDirectInvoke ??
       existing?.supportsDirectInvoke ??
       Boolean(executorUrl),
     supportsPrivyWallet:
       input.body.supportsPrivyWallet ?? existing?.supportsPrivyWallet ?? false,
+    supportsStatusUpdates:
+      input.body.supportsStatusUpdates ?? existing?.supportsStatusUpdates ?? false,
     supplyId: existing?._id,
     supplyType,
     title,

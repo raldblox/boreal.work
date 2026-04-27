@@ -387,6 +387,9 @@ export const createSupplyEntry = mutation({
     category: v.string(),
     checkoutProtocol: v.optional(checkoutProtocolValidator),
     checkoutProvider: v.optional(v.string()),
+    connectorHealthStatus: v.optional(v.union(v.literal("healthy"), v.literal("failing"), v.literal("unknown"))),
+    connectorLastHeartbeatAt: v.optional(v.number()),
+    connectorLastTestedAt: v.optional(v.number()),
     currency: v.optional(v.string()),
     deliveryType: deliveryTypeValidator,
     description: v.string(),
@@ -401,6 +404,7 @@ export const createSupplyEntry = mutation({
     maxConcurrentJobs: v.optional(v.number()),
     metadataJson: v.optional(v.string()),
     mcpServerUrl: v.optional(v.string()),
+    mcpToolName: v.optional(v.string()),
     nextAvailableAt: v.optional(v.number()),
     offerSlug: v.optional(v.string()),
     openApiUrl: v.optional(v.string()),
@@ -427,8 +431,10 @@ export const createSupplyEntry = mutation({
     sourceProviderKey: v.optional(serviceProviderKeyValidator),
     sourceProviderUrl: v.optional(v.string()),
     subtitle: v.optional(v.string()),
+    supportsEvidencePush: v.optional(v.boolean()),
     supportsDirectInvoke: v.optional(v.boolean()),
     supportsPrivyWallet: v.optional(v.boolean()),
+    supportsStatusUpdates: v.optional(v.boolean()),
     supplyId: v.optional(v.id("supplies")),
     supplyType: v.union(
       v.literal("product"),
@@ -461,9 +467,22 @@ export const createSupplyEntry = mutation({
         queryBuilder.eq("supplierUserId", user._id),
       )
       .collect();
+    const normalizedTitle = args.title.trim().toLowerCase();
+    const normalizedSourceCapabilityId = sanitizeOptionalText(args.sourceCapabilityId);
+    const normalizedOfferSlug = sanitizeOptionalText(args.offerSlug);
     const matchingEntry = args.supplyId
       ? existing.find((supply) => supply._id === args.supplyId)
-      : existing.find((supply) => supply.title.toLowerCase() === args.title.trim().toLowerCase());
+      : existing.find(
+          (supply) =>
+            normalizedSourceCapabilityId &&
+            supply.sourceCapabilityId === normalizedSourceCapabilityId,
+        ) ??
+        existing.find(
+          (supply) =>
+            normalizedOfferSlug &&
+            supply.offerSlug?.toLowerCase() === normalizedOfferSlug.toLowerCase(),
+        ) ??
+        existing.find((supply) => supply.title.toLowerCase() === normalizedTitle);
 
     if (args.supplyId && !matchingEntry) {
       return {
@@ -547,6 +566,12 @@ export const createSupplyEntry = mutation({
       category: args.category.trim(),
       checkoutProtocol: args.checkoutProtocol,
       checkoutProvider: sanitizeOptionalText(args.checkoutProvider),
+      connectorHealthStatus:
+        args.connectorHealthStatus ?? matchingEntry?.connectorHealthStatus,
+      connectorLastHeartbeatAt:
+        args.connectorLastHeartbeatAt ?? matchingEntry?.connectorLastHeartbeatAt,
+      connectorLastTestedAt:
+        args.connectorLastTestedAt ?? matchingEntry?.connectorLastTestedAt ?? now,
       currency: args.currency?.trim() || "USD",
       createdAt: matchingEntry?.createdAt ?? now,
       deliveryType: args.deliveryType,
@@ -566,8 +591,9 @@ export const createSupplyEntry = mutation({
       matchCount: matchingEntry?.matchCount ?? 0,
       metadataJson: sanitizeOptionalText(args.metadataJson),
       mcpServerUrl: sanitizeOptionalText(args.mcpServerUrl),
+      mcpToolName: sanitizeOptionalText(args.mcpToolName),
       nextAvailableAt: args.nextAvailableAt ?? matchingEntry?.nextAvailableAt,
-      offerSlug: sanitizeOptionalText(args.offerSlug),
+      offerSlug: normalizedOfferSlug,
       openApiUrl: sanitizeOptionalText(args.openApiUrl),
       outputTypes: outputTypes.length > 0 ? outputTypes : matchingEntry?.outputTypes,
       paymentNetworkHints:
@@ -641,16 +667,20 @@ export const createSupplyEntry = mutation({
         trustScore: user.trustScore,
       }),
       status: "active" as const,
-      sourceCapabilityId: sanitizeOptionalText(args.sourceCapabilityId),
+      sourceCapabilityId: normalizedSourceCapabilityId,
       sourceListingUrl: sanitizeOptionalText(args.sourceListingUrl),
       sourceProviderKey: args.sourceProviderKey ?? matchingEntry?.sourceProviderKey,
       sourceProviderUrl: sanitizeOptionalText(args.sourceProviderUrl),
       subtitle: sanitizeOptionalText(args.subtitle),
       supplierUserId: user._id,
+      supportsEvidencePush:
+        args.supportsEvidencePush ?? matchingEntry?.supportsEvidencePush ?? false,
       supportsDirectInvoke:
         args.supportsDirectInvoke ?? matchingEntry?.supportsDirectInvoke,
       supportsPrivyWallet:
         args.supportsPrivyWallet ?? matchingEntry?.supportsPrivyWallet,
+      supportsStatusUpdates:
+        args.supportsStatusUpdates ?? matchingEntry?.supportsStatusUpdates ?? false,
       supplyType: args.supplyType,
       title: args.title.trim(),
       trustScore: user.trustScore,
@@ -859,6 +889,9 @@ async function mapOwnedSupplyRecord(
       category: supply.category,
       checkoutProtocol: supply.checkoutProtocol ?? null,
       checkoutProvider: supply.checkoutProvider ?? null,
+      connectorHealthStatus: supply.connectorHealthStatus ?? null,
+      connectorLastHeartbeatAt: supply.connectorLastHeartbeatAt ?? null,
+      connectorLastTestedAt: supply.connectorLastTestedAt ?? null,
       createdAt: supply.createdAt ?? null,
       currency: supply.currency,
       deliveryType: supply.deliveryType,
@@ -873,6 +906,7 @@ async function mapOwnedSupplyRecord(
       isCartEnabled: supply.isCartEnabled,
       maxConcurrentJobs: supply.maxConcurrentJobs ?? null,
       mcpServerUrl: supply.mcpServerUrl ?? null,
+      mcpToolName: supply.mcpToolName ?? null,
       metadataJson: supply.metadataJson ?? null,
       nextAvailableAt: supply.nextAvailableAt ?? null,
       offerSlug: supply.offerSlug ?? null,
@@ -897,8 +931,10 @@ async function mapOwnedSupplyRecord(
       sourceProviderUrl: supply.sourceProviderUrl ?? null,
       status: supply.status,
       subtitle: supply.subtitle ?? null,
+      supportsEvidencePush: supply.supportsEvidencePush ?? false,
       supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
       supportsPrivyWallet: supply.supportsPrivyWallet ?? false,
+      supportsStatusUpdates: supply.supportsStatusUpdates ?? false,
       title: supply.title,
       trustScore: supply.trustScore,
       ucpCatalogUrl: supply.ucpCatalogUrl ?? null,

@@ -7,6 +7,7 @@ import {
   listRegisteredAgents,
 } from "../agents/index.ts";
 import { buildDirectExecutionProtocolDescriptor } from "../agents/shared/registry.ts";
+import { buildAgentSupplyMutationArgs } from "../agents/shared/runtime.ts";
 
 const expectedDirectAgents = [
   "image-studio",
@@ -124,9 +125,58 @@ function main() {
     );
   }
 
+  for (const agent of autonomousAgents) {
+    const syncArgs = buildAgentSupplyMutationArgs(agent, 1_746_000_000_000);
+
+    assert.ok(
+      agent.settlement,
+      `autonomous agent ${agent.key} should define settlement metadata before it can serve paid work`,
+    );
+    assert.equal(
+      syncArgs.offerSlug,
+      agent.key,
+      `expected stable offer slug for ${agent.key}`,
+    );
+    assert.equal(
+      syncArgs.sourceCapabilityId,
+      `autonomous-agent:${agent.key}`,
+      `expected stable source capability id for ${agent.key}`,
+    );
+    assert.equal(
+      syncArgs.paymentNetworkHints?.includes(agent.settlement!.networkKey),
+      true,
+      `expected payment network hint for ${agent.key}`,
+    );
+
+    if (agent.directExecution) {
+      assert.equal(
+        syncArgs.executionSurface,
+        "http",
+        `expected direct agent execution surface to stay http for ${agent.key}`,
+      );
+      assert.equal(
+        syncArgs.supportsDirectInvoke,
+        true,
+        `expected direct invoke support for ${agent.key}`,
+      );
+    } else {
+      assert.equal(
+        syncArgs.executionSurface,
+        "handoff",
+        `expected worker agent execution surface to stay handoff for ${agent.key}`,
+      );
+      assert.equal(
+        syncArgs.supportsEvidencePush,
+        true,
+        `expected worker agent evidence push for ${agent.key}`,
+      );
+    }
+  }
+
   console.log(
     JSON.stringify(
       {
+        autonomousAgentCount: autonomousAgents.length,
         directAgentCount: directExecutionAgents.length,
         directAgentKeys: directKeys,
         registeredCount: registered.length,

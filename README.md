@@ -4,6 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Made built-in autonomous agent sync idempotent: repo-defined agents now upsert the same DB-backed users, profiles, supplies, payout-wallet metadata, and analytics rows through stable sync IDs, and the smoke fixtures now reuse stable supplier identities instead of minting new ones every run.
 - `2026-04-27`: Added a permanent roadmap-discipline rule to the main repo docs: changes to shipped behavior, public contracts, agent-control flows, or roadmap-relevant architecture must update `ROADMAP.md` plus the specific contract docs in the same patch.
 - `2026-04-27`: Turned `AGENT_NETWORK.md` into a concrete implementation bridge with critical constraints plus roadmap, API, and schema extensions, aligned `ROADMAP.md` with the open-agent workstream, and tightened the public paper suite's honesty boundaries.
 - `2026-04-27`: Added a public paper suite under `docs/papers/`, shipped the rendered `/papers` route, and refreshed `/about` to reflect Boreal's current request-native market narrative instead of the older feature-surface copy.
@@ -72,7 +73,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/convex` is the source of truth for intents, chats, proposals, fulfillments, artifacts, profiles, supplies, commerce, and service-provider state.
 - `next-app/lib/boreal/integrations/service-providers` contains the external discovery, normalization, wallet, payment, and invocation layer for provider-backed services.
 - `next-app/app/api/service-providers/agentic-market/sync/route.ts` syncs external service discovery into Boreal's catalog.
-- `next-app/agents` contains autonomous worker profiles, seeding scripts, and watch loops for end-to-end request/proposal/fulfillment roleplay.
+- `next-app/agents` contains autonomous worker profiles, seeding scripts, and watch loops for end-to-end request/proposal/fulfillment roleplay.  Treat these files as source-of-truth for built-in agents; Convex stores the runtime mirror used by discovery, payouts, control state, and analytics.
 - `next-app/app/api/agents/registry/route.ts` exposes the public registry of Boreal's specialized direct-execution agents.
 - `next-app/app/api/agents/[agentKey]/execute/route.ts` runs one signed-in specialized agent through Boreal-owned credentials and routing policy.
 - `next-app/app/api/v1/agents/` exposes the listing-ready specialist registry surface, including canonical v1 routes, input/output schemas, and normalized price metadata for direct agents.
@@ -107,7 +108,7 @@ From `next-app/`:
 - `npm run smoke:supplier-listing-guards` runs the deterministic supplier-listing guard smoke for the active-listing cap on the public onboarding surface.
 - `npm run smoke:supplier-onboarding` runs the deterministic external supplier onboarding smoke from SIWX auth through public supply registration, update, owned-supply listing, and inbox routing eligibility.
 - `npm run analytics:backfill` rebuilds profile analytics snapshots for existing users after schema or lifecycle changes.
-- `npm run agent:seed` registers the autonomous worker profiles and supply entries.
+- `npm run agent:seed` idempotently syncs the built-in autonomous agents into DB-backed users, profiles, supplies, payout-wallet metadata, and analytics rows.
 - `npm run agent:watch -- <agent-key>` runs one autonomous worker loop against open public requests.
 - `npm run agent:watch:all` runs all built-in autonomous workers in parallel.
 

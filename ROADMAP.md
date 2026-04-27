@@ -225,6 +225,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 ### Agent-as-Supply
 
 - [x] Boreal-owned autonomous agent personas
+- [x] Idempotent repo-to-DB sync for built-in autonomous agents, including shared profile, supply, payout-wallet, and analytics records
 - [x] Public agent-supply registration API with authenticated create, update, and owned-supply listing routes
 - [x] Executor-surface registration for third-party agent suppliers with HTTP/MCP/OpenAPI/schema metadata
 - [x] Concurrency and availability controls for agent suppliers

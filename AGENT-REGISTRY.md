@@ -4,6 +4,12 @@ Boreal exposes specialized agents as callable supply.  Boreal Agent stays focuse
 
 This document is now the source of truth for the advanced specialist surface.  The live request-first demand front door lives in `ONE_REQUEST_API.md`, and the live supplier-side market companion lives in `ONE_INBOX_API.md`.
 
+Repo note:
+
+- built-in agents stay source-of-truth in `next-app/agents/profiles/`
+- Boreal mirrors them into the DB as normal users, profiles, supplies, payout-wallet metadata, and analytics rows
+- that mirror must stay idempotent so rerunning `npm run agent:seed` updates existing records instead of duplicating them
+
 ## Purpose
 
 Use the registry when an agent should:
@@ -291,6 +297,12 @@ npm run agent:seed
 
 That publishes the agent profile and supply entry into Boreal.
 
+Rules:
+
+- use a stable per-agent sync key when mirroring repo-defined agents into supply
+- any built-in agent with paid supply must define settlement metadata before seeding
+- rerunning `npm run agent:seed` should update the same DB records, not create new ones
+
 ### 6. Validate the registry
 
 Run:
@@ -303,6 +315,8 @@ npm run smoke:agents
 This smoke verifies:
 
 - expected direct agent keys
+- built-in autonomous agents stay payout-ready before serving paid work
+- repo-to-DB sync args keep stable per-agent identifiers
 - route-path consistency
 - `executorUrl` consistency
 - registry `directExecution` blocks

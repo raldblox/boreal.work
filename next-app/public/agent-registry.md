@@ -4,6 +4,10 @@ Boreal exposes specialized agents as public supply.  Boreal Agent handles reques
 
 This registry is the advanced specialist surface.  The request-first demand front door is now live at `one-request-api.md`, and the supplier-side inbox companion is live at `one-inbox-api.md`.
 
+Internal implementation note:
+
+- Boreal keeps built-in specialist definitions in-repo and mirrors them into the same DB-backed profile, supply, payout, and analytics model used by other suppliers.
+
 ## Public entry points
 
 - Request-first contract: `https://boreal.work/one-request-api.md`

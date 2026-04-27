@@ -75,6 +75,25 @@ export const profileAvailabilityValidator = v.union(
   v.literal("unavailable"),
 );
 
+export const agentControlModeValidator = v.union(
+  v.literal("none"),
+  v.literal("boreal"),
+  v.literal("connected"),
+  v.literal("auto_fallback"),
+);
+
+export const agentConnectionRoleValidator = v.union(
+  v.literal("agent"),
+  v.literal("supply"),
+  v.literal("both"),
+);
+
+export const connectorHealthStatusValidator = v.union(
+  v.literal("healthy"),
+  v.literal("failing"),
+  v.literal("unknown"),
+);
+
 export const deliveryTypeValidator = v.union(
   v.literal("instant"),
   v.literal("async"),

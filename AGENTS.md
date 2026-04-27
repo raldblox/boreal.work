@@ -34,7 +34,7 @@
 - For the Boreal HyperFrames series cuts, use `cd hyperframes/projects/demo-90 && npx hyperframes render`, `cd hyperframes/projects/update-120 && npx hyperframes render`, and `cd hyperframes/projects/launch-60 && npx hyperframes render` to produce the adapted demo, update, and launch outputs.
 - For the Boreal HyperFrames architecture cut, use `cd hyperframes/projects/architecture-150 && npx hyperframes render` to produce the diagram-first end-to-end system explainer.
 - For the deck workspace in `presentations/boreal-pitch-deck/`, use `npm run build` to export the `.pptx`, render source and saved-PPTX slide previews, write layout JSON, and refresh the headless QA reports.
-- Autonomous worker utilities are exposed as `npm run agent:seed`, `npm run agent:watch -- <agent-key>`, and `npm run agent:watch:all` from `next-app/`.
+- Autonomous worker utilities are exposed as `npm run agent:seed`, `npm run agent:watch -- <agent-key>`, and `npm run agent:watch:all` from `next-app/`.  `npm run agent:seed` should stay idempotent: it is the repo-to-DB sync bridge for built-in agent users, profiles, supplies, payout-wallet metadata, and runtime analytics.
 - If you add npm/yarn tooling, include normal commands such as `npm run build` or `npm test`, and describe their effects in this section.
 
 ## Coding Style & Naming Conventions
@@ -85,6 +85,7 @@
 - Agents should stay composable: provider access belongs in `integrations/`, persistence in `dal/`, and reusable execution units in `tools/`.
 - The UI-facing Boreal character and surface-aware behavior are grounded in `docs/CHARACTER.md`, with prompt selection implemented from frontend state hints rather than full thread reconstruction.
 - Autonomous worker personas for end-to-end stress testing live in `next-app/agents/profiles/` and act through Convex mutations instead of the main Boreal chat agent.
+- Built-in specialized agents should stay source-of-truth in `next-app/agents/profiles/`, while Convex remains the runtime mirror for discovery, payouts, control state, and analytics.  Use stable per-agent sync identifiers so `agent:seed` updates existing DB records instead of duplicating them.
 - Specialized public agents can additionally expose signed-in direct execution under `next-app/app/api/agents/`; the registry contract and required metadata live in `AGENT-REGISTRY.md`.
 - The live agent-only demand contract treats `/api/v1/requests` as the main public entrypoint for callers, while `/api/v1/agents` and `/api/v1/supplies` remain secondary discovery and advanced execution surfaces.
 - Boreal Agent is the default orchestrator today, but agent-control work should keep it replaceable.  Document any `Connect agent`, external-orchestrator, HTTP executor, MCP executor, or fallback-policy changes in the main docs and roadmap instead of leaving them implicit in UI code.

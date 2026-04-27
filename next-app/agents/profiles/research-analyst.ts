@@ -19,14 +19,27 @@ export const researchAnalystAgent: AutonomousAgentDefinition = {
     skillTags: ["synthesis", "comparison", "decision support"],
   },
   supplyEntry: {
+    agentReady: true,
     capabilityTags: ["research", "analysis", "advisory"],
     category: "research",
     deliveryType: "async",
     description: "Turns open-ended questions into concise research memos, comparisons, and recommendation-ready summaries.",
+    estimatedDeliveryLabel: "Within 3 hours",
+    maxConcurrentJobs: 3,
     priceAmount: 55,
     priceType: "fixed",
+    responseSlaMinutes: 180,
     supplyType: "capability",
     title: "Research Analyst for Structured Decision Support",
+  },
+  settlement: {
+    autoQuoteUsd: 0.01,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "Hnj3c8Yyn4X92focCv5NfsjGVWwxmLzyHTtY4cbDVp32",
+    walletAddress: "Hnj3c8Yyn4X92focCv5NfsjGVWwxmLzyHTtY4cbDVp32",
   },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({

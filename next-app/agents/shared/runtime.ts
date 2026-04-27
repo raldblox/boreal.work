@@ -8,6 +8,7 @@ const MATCH_THRESHOLD = 30;
 
 export async function syncAgentPresence(agent: AutonomousAgentDefinition) {
   const client = createAgentConvexClient();
+  const now = Date.now();
 
   await client.mutation(api.profiles.upsertMyProfile, {
     availabilityStatus: agent.profile.availabilityStatus,
@@ -23,41 +24,6 @@ export async function syncAgentPresence(agent: AutonomousAgentDefinition) {
     skillTags: agent.profile.skillTags,
   });
 
-  await client.mutation(api.supplies.createSupplyEntry, {
-    agentReady:
-      agent.supplyEntry.agentReady ?? Boolean(agent.directExecution),
-    capabilityTags: agent.supplyEntry.capabilityTags,
-    category: agent.supplyEntry.category,
-    checkoutProtocol: agent.supplyEntry.checkoutProtocol,
-    deliveryType: agent.supplyEntry.deliveryType,
-    description: agent.supplyEntry.description,
-    executorUrl:
-      agent.supplyEntry.executorUrl ??
-      agent.directExecution?.routePath,
-    fulfillmentKind: agent.supplyEntry.fulfillmentKind,
-    isCartEnabled: agent.supplyEntry.isCartEnabled,
-    ownerActorKind: agent.identity.actorKind,
-    ownerDisplayName: agent.identity.displayName,
-    ownerExternalId: agent.identity.externalId,
-    ownerHandle: agent.identity.handle,
-    outputTypes: agent.supplyEntry.outputTypes,
-    priceAmount: agent.supplyEntry.priceAmount,
-    priceType: agent.supplyEntry.priceType,
-    protocolDescriptorJson:
-      agent.supplyEntry.protocolDescriptorJson ??
-      (agent.directExecution
-        ? JSON.stringify(
-            buildDirectExecutionProtocolDescriptor(
-              agent,
-              agent.directExecution,
-            ),
-          )
-        : undefined),
-    scenarioTypes: agent.supplyEntry.scenarioTypes,
-    supplyType: agent.supplyEntry.supplyType,
-    title: agent.supplyEntry.title,
-  });
-
   if (agent.settlement) {
     await client.mutation(api.wallets.syncWalletAccount, {
       chainFamily: agent.settlement.chainFamily,
@@ -71,6 +37,17 @@ export async function syncAgentPresence(agent: AutonomousAgentDefinition) {
       walletAddress: agent.settlement.payoutAddress,
       walletProvider: "manual",
     });
+  }
+
+  const supplyResult = await client.mutation(
+    api.supplies.createSupplyEntry,
+    buildAgentSupplyMutationArgs(agent, now),
+  );
+
+  if (!supplyResult.created || !supplyResult.supplyId) {
+    throw new Error(
+      `Could not sync agent "${agent.key}" into supply: ${supplyResult.reason ?? "unknown_error"}.`,
+    );
   }
 }
 
@@ -184,4 +161,117 @@ export async function watchAgent(
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function buildAgentSupplyMutationArgs(
+  agent: AutonomousAgentDefinition,
+  now = Date.now(),
+) {
+  const supportsDirectInvoke =
+    agent.supplyEntry.supportsDirectInvoke ?? Boolean(agent.directExecution);
+  const paymentNetworkHints = Array.from(
+    new Set([
+      ...(agent.supplyEntry.paymentNetworkHints ?? []),
+      ...(agent.settlement?.networkKey ? [agent.settlement.networkKey] : []),
+    ]),
+  );
+
+  return {
+    agentReady: agent.supplyEntry.agentReady ?? Boolean(agent.directExecution),
+    capabilityTags: agent.supplyEntry.capabilityTags,
+    category: agent.supplyEntry.category,
+    checkoutProtocol: agent.supplyEntry.checkoutProtocol,
+    connectorHealthStatus:
+      agent.supplyEntry.connectorHealthStatus ?? "healthy",
+    connectorLastHeartbeatAt: now,
+    connectorLastTestedAt: now,
+    deliveryType: agent.supplyEntry.deliveryType,
+    description: agent.supplyEntry.description,
+    estimatedDeliveryLabel:
+      agent.supplyEntry.estimatedDeliveryLabel ??
+      inferEstimatedDeliveryLabel(agent),
+    executionSurface:
+      agent.supplyEntry.executionSurface ??
+      (agent.directExecution ? "http" : "handoff"),
+    executorUrl:
+      agent.supplyEntry.executorUrl ?? agent.directExecution?.routePath,
+    fulfillmentKind: agent.supplyEntry.fulfillmentKind,
+    isCartEnabled: agent.supplyEntry.isCartEnabled,
+    maxConcurrentJobs:
+      agent.supplyEntry.maxConcurrentJobs ?? inferMaxConcurrentJobs(agent),
+    mcpServerUrl: agent.supplyEntry.mcpServerUrl,
+    mcpToolName: agent.supplyEntry.mcpToolName,
+    offerSlug: agent.supplyEntry.offerSlug ?? agent.key,
+    openApiUrl:
+      agent.supplyEntry.openApiUrl ??
+      (agent.directExecution ? "/openapi/agents-v1.json" : undefined),
+    ownerActorKind: agent.identity.actorKind,
+    ownerDisplayName: agent.identity.displayName,
+    ownerExternalId: agent.identity.externalId,
+    ownerHandle: agent.identity.handle,
+    outputTypes: agent.supplyEntry.outputTypes,
+    paymentNetworkHints:
+      paymentNetworkHints.length > 0 ? paymentNetworkHints : undefined,
+    paymentProtocol:
+      agent.supplyEntry.paymentProtocol ??
+      (supportsDirectInvoke && agent.settlement ? "x402" : undefined),
+    priceAmount: agent.supplyEntry.priceAmount,
+    priceType: agent.supplyEntry.priceType,
+    protocolDescriptorJson:
+      agent.supplyEntry.protocolDescriptorJson ??
+      (agent.directExecution
+        ? JSON.stringify(
+            buildDirectExecutionProtocolDescriptor(
+              agent,
+              agent.directExecution,
+            ),
+          )
+        : undefined),
+    responseSlaMinutes:
+      agent.supplyEntry.responseSlaMinutes ?? inferResponseSlaMinutes(agent),
+    scenarioTypes: agent.supplyEntry.scenarioTypes,
+    sourceCapabilityId:
+      agent.supplyEntry.sourceCapabilityId ?? `autonomous-agent:${agent.key}`,
+    sourceProviderKey:
+      agent.supplyEntry.sourceProviderKey ?? "manual",
+    supplyType: agent.supplyEntry.supplyType,
+    supportsEvidencePush:
+      agent.supplyEntry.supportsEvidencePush ?? !agent.directExecution,
+    supportsDirectInvoke,
+    supportsPrivyWallet: agent.supplyEntry.supportsPrivyWallet,
+    supportsStatusUpdates:
+      agent.supplyEntry.supportsStatusUpdates ??
+      Boolean(
+        agent.directExecution?.outputKinds.includes("video_generation"),
+      ),
+    title: agent.supplyEntry.title,
+  };
+}
+
+function inferEstimatedDeliveryLabel(agent: AutonomousAgentDefinition) {
+  switch (agent.supplyEntry.deliveryType) {
+    case "instant":
+      return "Instant";
+    case "scheduled":
+      return "Scheduled";
+    case "async":
+    default:
+      return "Within 4 hours";
+  }
+}
+
+function inferMaxConcurrentJobs(agent: AutonomousAgentDefinition) {
+  return agent.directExecution ? 6 : 3;
+}
+
+function inferResponseSlaMinutes(agent: AutonomousAgentDefinition) {
+  switch (agent.supplyEntry.deliveryType) {
+    case "instant":
+      return 5;
+    case "scheduled":
+      return 1440;
+    case "async":
+    default:
+      return 240;
+  }
 }

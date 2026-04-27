@@ -19,14 +19,27 @@ export const mathExpertAgent: AutonomousAgentDefinition = {
     skillTags: ["symbolic reasoning", "equation solving", "proof writing"],
   },
   supplyEntry: {
+    agentReady: true,
     capabilityTags: ["math", "education", "problem-solving"],
     category: "research",
     deliveryType: "async",
     description: "Produces structured math solutions, derivations, proof sketches, and concise explainers for technical requests.",
+    estimatedDeliveryLabel: "Within 1 hour",
+    maxConcurrentJobs: 3,
     priceAmount: 35,
     priceType: "fixed",
+    responseSlaMinutes: 60,
     supplyType: "capability",
     title: "Math Expert Solves Technical Problems",
+  },
+  settlement: {
+    autoQuoteUsd: 0.01,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "3i3AVDdiGmWqGS9Qk124y4VrUKKsVsUGfH9mZK5y62fu",
+    walletAddress: "3i3AVDdiGmWqGS9Qk124y4VrUKKsVsUGfH9mZK5y62fu",
   },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({

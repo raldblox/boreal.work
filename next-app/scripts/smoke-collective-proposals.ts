@@ -1,29 +1,26 @@
 import assert from "node:assert/strict";
-import { generateKeyPairSync, sign } from "node:crypto";
 
 import type { Id } from "../convex/_generated/dataModel.js";
 import { normalizeIntentExtraction } from "../lib/boreal/schemas/intent.ts";
 import { buildIntentPersistencePayload } from "../lib/boreal/tools/ui/build-intent-response.ts";
 import { api, createAgentConvexClient } from "../agents/shared/convex-client.ts";
 import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens.ts";
-import {
-  createSiwxChallenge,
-  getWalletDisplayName,
-  getWalletExternalId,
-  verifySessionToken,
-  verifySiwxChallenge,
-} from "../lib/boreal/one-request/auth.ts";
+import { verifySessionToken } from "../lib/boreal/one-request/auth.ts";
+import { createSmokeWalletIdentity } from "./lib/smoke-wallet-identities.ts";
+
+const LEAD_SUPPLY_TITLE = "Smoke Collective Lead Supply";
+const COLLABORATOR_SUPPLY_TITLE = "Smoke Collective Collaborator Supply";
 
 async function main() {
   const now = Date.now();
   const client = createAgentConvexClient();
 
-  const buyer = createWalletIdentity("buyer");
-  const lead = createWalletIdentity("lead");
-  const collaborator = createWalletIdentity("collab");
-  const buyerExternalId = getWalletExternalId(buyer.walletAddress);
-  const leadExternalId = getWalletExternalId(lead.walletAddress);
-  const collaboratorExternalId = getWalletExternalId(collaborator.walletAddress);
+  const buyer = createSmokeWalletIdentity("collective-buyer", "buyer");
+  const lead = createSmokeWalletIdentity("collective-lead", "lead");
+  const collaborator = createSmokeWalletIdentity("collective-collaborator", "collab");
+  const buyerExternalId = buyer.externalId;
+  const leadExternalId = lead.externalId;
+  const collaboratorExternalId = collaborator.externalId;
 
   assert.equal(verifySessionToken(buyer.sessionToken).walletAddress, buyer.walletAddress);
   assert.equal(verifySessionToken(lead.sessionToken).walletAddress, lead.walletAddress);
@@ -64,7 +61,7 @@ async function main() {
     externalId: leadExternalId,
     ownerDisplayName: lead.displayName,
     priceAmount: 100,
-    title: `Collective Lead Supply ${now}`,
+    title: LEAD_SUPPLY_TITLE,
   });
   const collaboratorSupply = await registerSupply(client, {
     capabilityTags: ["multi-agent", "research", "brief", "coordination"],
@@ -73,7 +70,7 @@ async function main() {
     externalId: collaboratorExternalId,
     ownerDisplayName: collaborator.displayName,
     priceAmount: 100,
-    title: `Collective Collaborator Supply ${now}`,
+    title: COLLABORATOR_SUPPLY_TITLE,
   });
 
   const message = [
@@ -366,63 +363,6 @@ async function registerSupply(
   assert.ok(result.supplyId, "expected supply id");
 
   return result;
-}
-
-function createWalletIdentity(label: string) {
-  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
-  const walletAddress = encodeBase58(
-    publicKey.export({ format: "der", type: "spki" }).subarray(-32),
-  );
-  const challenge = createSiwxChallenge({ walletAddress });
-  const signature = sign(
-    null,
-    Buffer.from(challenge.message, "utf8"),
-    privateKey,
-  ).toString("hex");
-  const verified = verifySiwxChallenge({
-    challengeToken: challenge.challengeToken,
-    signature,
-    walletAddress,
-  });
-
-  return {
-    displayName: `${label}-${getWalletDisplayName(walletAddress)}`,
-    sessionToken: verified.sessionToken,
-    walletAddress,
-  };
-}
-
-function encodeBase58(buffer: Uint8Array) {
-  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-  const digits = [0];
-
-  for (const byte of buffer) {
-    let carry = byte;
-
-    for (let index = 0; index < digits.length; index += 1) {
-      carry += digits[index] << 8;
-      digits[index] = carry % 58;
-      carry = (carry / 58) | 0;
-    }
-
-    while (carry > 0) {
-      digits.push(carry % 58);
-      carry = (carry / 58) | 0;
-    }
-  }
-
-  for (const byte of buffer) {
-    if (byte === 0) {
-      digits.push(0);
-    } else {
-      break;
-    }
-  }
-
-  return digits
-    .reverse()
-    .map((digit) => alphabet[digit])
-    .join("");
 }
 
 main();

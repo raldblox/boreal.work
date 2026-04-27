@@ -254,20 +254,40 @@ export type PublicProfilePreview = {
 
 export type ProfileSupplyEntry = {
   _id: string;
+  availabilityStatus: "available" | "limited" | "unavailable" | null;
+  capabilityTags: string[];
   category: string;
+  connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
+  connectorLastHeartbeatAt: number | null;
+  connectorLastTestedAt: number | null;
   deliveryType?: string;
   description: string;
+  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+  executorUrl: string | null;
+  maxConcurrentJobs: number | null;
+  mcpServerUrl: string | null;
+  mcpToolName: string | null;
+  openApiUrl: string | null;
+  outputTypes: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
   priceAmount: number | null;
   priceType: string;
+  responseSlaMinutes: number | null;
   status: string;
   supplyType: string;
+  supportsEvidencePush: boolean;
+  supportsDirectInvoke: boolean;
+  supportsStatusUpdates: boolean;
   title: string;
 };
 
 export type MyProfileRecord = {
+  analytics: ProfileAnalytics;
   profile: {
     _id: string | null;
+    activeAgentRole: "agent" | "both" | "supply" | null;
+    activeAgentSupplyId: string | null;
     actorKind: "agent" | "human" | "tool";
+    agentControlMode: "auto_fallback" | "boreal" | "connected" | "none";
     availabilityStatus: "available" | "limited" | "unavailable";
     avatarUrl: string | null;
     bio: string;
@@ -286,6 +306,28 @@ export type MyProfileRecord = {
     handle: string | null;
   };
 } | null;
+
+export type ConnectedAgentControlRecord = {
+  activeSupply: {
+    _id: string;
+    capabilityTags: string[];
+    connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
+    deliveryType: string;
+    executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+    executorUrl: string | null;
+    mcpServerUrl: string | null;
+    mcpToolName: string | null;
+    openApiUrl: string | null;
+    outputTypes: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
+    responseSlaMinutes: number | null;
+    supportsEvidencePush: boolean;
+    supportsDirectInvoke: boolean;
+    supportsStatusUpdates: boolean;
+    title: string;
+  } | null;
+  mode: "auto_fallback" | "boreal" | "connected" | "none";
+  role: "agent" | "both" | "supply" | null;
+};
 
 export type WalletAccountRecord = Array<{
   _id: string;
@@ -632,7 +674,11 @@ export const convexFunctionRefs = {
   recordConversationExchange: makeFunctionReference<
     "mutation",
     {
+      assistantDisplayName?: string;
+      assistantExternalId?: string;
+      assistantHandle?: string;
       assistantMessage: string;
+      assistantProvider?: string;
       conversationId?: string;
       ownerDisplayName?: string;
       ownerExternalId?: string;
@@ -649,7 +695,11 @@ export const convexFunctionRefs = {
   appendConversationAssistantMessage: makeFunctionReference<
     "mutation",
     {
+      assistantDisplayName?: string;
+      assistantExternalId?: string;
+      assistantHandle?: string;
       assistantMessage: string;
+      assistantProvider?: string;
       conversationId: string;
       ownerExternalId?: string;
     },
@@ -754,6 +804,11 @@ export const convexFunctionRefs = {
     { ownerExternalId?: string },
     MyProfileRecord
   >("profiles:getMyProfile"),
+  getConnectedAgentControl: makeFunctionReference<
+    "query",
+    { ownerExternalId?: string },
+    ConnectedAgentControlRecord
+  >("profiles:getConnectedAgentControl"),
   getMyWalletAccounts: makeFunctionReference<
     "query",
     { ownerExternalId?: string },
@@ -1008,28 +1063,42 @@ export const convexFunctionRefs = {
       brand?: string;
       capabilityTags: string[];
       category: string;
+      connectorHealthStatus?: "failing" | "healthy" | "unknown";
+      connectorLastHeartbeatAt?: number;
+      connectorLastTestedAt?: number;
+      currency?: string;
       deliveryType: "async" | "instant" | "scheduled";
       description: string;
       estimatedDeliveryLabel?: string;
       exampleIntents?: string[];
+      executionSurface?: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
       executorUrl?: string;
       exclusions?: string[];
       fulfillmentKind?: "digital" | "hybrid" | "physical" | "service";
       isCartEnabled?: boolean;
       maxConcurrentJobs?: number;
       metadataJson?: string;
+      mcpServerUrl?: string;
+      mcpToolName?: string;
       nextAvailableAt?: number;
+      ownerActorKind?: "agent" | "human" | "tool";
       ownerDisplayName?: string;
       ownerExternalId?: string;
       ownerHandle?: string;
       offerSlug?: string;
+      openApiUrl?: string;
       outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
+      paymentNetworkHints?: string[];
+      paymentProtocol?: "direct-solana" | "mpp" | "none" | "widget" | "x402";
       priceAmount?: number;
       priceMax?: number;
       priceMin?: number;
+      priceRawJson?: string;
       priceType: "fixed" | "hourly" | "scoped";
       protocolDescriptorJson?: string;
       responseSlaMinutes?: number;
+      requiresHumanApproval?: boolean;
+      routingTier?: "A-direct" | "B-ingest-handoff" | "C-marketplace" | "D-queue";
       scenarioTypes?: Array<
         | "chat_only_fulfillment"
         | "consultation"
@@ -1041,7 +1110,22 @@ export const convexFunctionRefs = {
         | "provider_paid_service"
         | "supply_publish"
       >;
+      schemaUrl?: string;
+      sourceCapabilityId?: string;
+      sourceListingUrl?: string;
+      sourceProviderKey?:
+        | "agentic-market"
+        | "agentcash"
+        | "frames"
+        | "manual"
+        | "moonpay"
+        | "solana-agent-kit";
+      sourceProviderUrl?: string;
       subtitle?: string;
+      supportsEvidencePush?: boolean;
+      supportsDirectInvoke?: boolean;
+      supportsPrivyWallet?: boolean;
+      supportsStatusUpdates?: boolean;
       supplyType: "agent_tool" | "capability" | "collective" | "product";
       title: string;
       ucpCatalogUrl?: string;
@@ -1049,6 +1133,21 @@ export const convexFunctionRefs = {
     },
     { created: boolean; reason?: string; supplyId: string | null }
   >("supplies:createSupplyEntry"),
+  setAgentControlState: makeFunctionReference<
+    "mutation",
+    {
+      activeAgentRole?: "agent" | "both" | "supply";
+      activeSupplyId?: string;
+      mode: "auto_fallback" | "boreal" | "connected" | "none";
+      ownerExternalId?: string;
+    },
+    {
+      activeAgentRole: "agent" | "both" | "supply" | null;
+      activeSupplyId: string | null;
+      mode: "auto_fallback" | "boreal" | "connected" | "none";
+      saved: boolean;
+    }
+  >("profiles:setAgentControlState"),
   postThreadMessage: makeFunctionReference<
     "mutation",
     {

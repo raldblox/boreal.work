@@ -47,6 +47,28 @@ export type AgentExecutionOutputKind =
   | "video_generation";
 
 export type AgentPaymentSource = "agentcash" | "openwallet";
+export type AgentConnectorHealthStatus = "failing" | "healthy" | "unknown";
+export type AgentExecutionSurface =
+  | "handoff"
+  | "http"
+  | "jsonrpc"
+  | "mcp"
+  | "registry"
+  | "sdk"
+  | "widget";
+export type AgentPaymentProtocol =
+  | "direct-solana"
+  | "mpp"
+  | "none"
+  | "widget"
+  | "x402";
+export type AgentSourceProviderKey =
+  | "agentic-market"
+  | "agentcash"
+  | "frames"
+  | "manual"
+  | "moonpay"
+  | "solana-agent-kit";
 
 export type AgentSettlementProfile = {
   autoQuoteUsd: number;
@@ -138,17 +160,28 @@ export type AutonomousAgentDefinition = {
     capabilityTags: string[];
     category: string;
     checkoutProtocol?: "acp" | "custom" | "ucp";
+    connectorHealthStatus?: AgentConnectorHealthStatus;
     deliveryType: "async" | "instant" | "scheduled";
     description: string;
+    estimatedDeliveryLabel?: string;
+    executionSurface?: AgentExecutionSurface;
     executorUrl?: string;
     fulfillmentKind?: "digital" | "hybrid" | "physical" | "service";
     isCartEnabled?: boolean;
+    maxConcurrentJobs?: number;
+    mcpServerUrl?: string;
+    mcpToolName?: string;
+    offerSlug?: string;
+    openApiUrl?: string;
     outputTypes?: Array<
       "image_generation" | "speech_generation" | "text" | "video_generation"
     >;
+    paymentNetworkHints?: string[];
+    paymentProtocol?: AgentPaymentProtocol;
     priceAmount: number;
     priceType: "fixed" | "hourly" | "scoped";
     protocolDescriptorJson?: string;
+    responseSlaMinutes?: number;
     scenarioTypes?: Array<
       | "chat_only_fulfillment"
       | "consultation"
@@ -160,7 +193,13 @@ export type AutonomousAgentDefinition = {
       | "provider_paid_service"
       | "supply_publish"
     >;
+    sourceCapabilityId?: string;
+    sourceProviderKey?: AgentSourceProviderKey;
     supplyType: "agent_tool" | "capability" | "collective" | "product";
+    supportsEvidencePush?: boolean;
+    supportsDirectInvoke?: boolean;
+    supportsPrivyWallet?: boolean;
+    supportsStatusUpdates?: boolean;
     title: string;
   };
   buildDelivery: (input: {

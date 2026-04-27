@@ -7,7 +7,12 @@ import {
   refreshBorealProfileAnalytics,
   refreshProfileAnalyticsForUser,
 } from "./profileAnalytics";
-import { actorKindValidator, profileAvailabilityValidator } from "./validators";
+import {
+  actorKindValidator,
+  agentConnectionRoleValidator,
+  agentControlModeValidator,
+  profileAvailabilityValidator,
+} from "./validators";
 
 export const getMyProfile = query({
   args: {
@@ -30,6 +35,7 @@ export const getMyProfile = query({
       .take(24);
 
     return {
+      analytics: profile ? readProfileAnalytics(profile) : emptyProfileAnalyticsSnapshot(),
       profile: profile
         ? {
             _id: profile._id,
@@ -41,6 +47,9 @@ export const getMyProfile = query({
             displayName: profile.displayName,
             handle: profile.handle ?? null,
             headline: profile.headline ?? "",
+            activeAgentRole: profile.activeAgentRole ?? null,
+            activeAgentSupplyId: profile.activeAgentSupplyId ?? null,
+            agentControlMode: profile.agentControlMode ?? "boreal",
             isPublic: profile.isPublic,
             productLabels: profile.productLabels,
             skillTags: profile.skillTags,
@@ -55,18 +64,38 @@ export const getMyProfile = query({
             displayName: user.displayName,
             handle: user.handle ?? null,
             headline: "",
+            activeAgentRole: null,
+            activeAgentSupplyId: null,
+            agentControlMode: "boreal",
             isPublic: true,
             productLabels: [],
             skillTags: [],
           },
       supplies: supplies.map((supply) => ({
         _id: supply._id,
+        availabilityStatus: supply.availabilityStatus ?? null,
+        capabilityTags: supply.capabilityTags,
         category: supply.category,
+        connectorHealthStatus: supply.connectorHealthStatus ?? null,
+        connectorLastHeartbeatAt: supply.connectorLastHeartbeatAt ?? null,
+        connectorLastTestedAt: supply.connectorLastTestedAt ?? null,
         description: supply.description,
         priceAmount: supply.priceAmount ?? null,
         priceType: supply.priceType,
+        deliveryType: supply.deliveryType,
+        executionSurface: supply.executionSurface ?? null,
+        executorUrl: supply.executorUrl ?? null,
+        maxConcurrentJobs: supply.maxConcurrentJobs ?? null,
+        mcpServerUrl: supply.mcpServerUrl ?? null,
+        mcpToolName: supply.mcpToolName ?? null,
+        openApiUrl: supply.openApiUrl ?? null,
+        outputTypes: supply.outputTypes ?? [],
+        responseSlaMinutes: supply.responseSlaMinutes ?? null,
         status: supply.status,
         supplyType: supply.supplyType,
+        supportsEvidencePush: supply.supportsEvidencePush ?? false,
+        supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
+        supportsStatusUpdates: supply.supportsStatusUpdates ?? false,
         title: supply.title,
       })),
       user: {
@@ -148,6 +177,123 @@ export const upsertMyProfile = mutation({
     await refreshProfileAnalyticsForUser(ctx, user._id);
 
     return { profileId, saved: true };
+  },
+});
+
+export const setAgentControlState = mutation({
+  args: {
+    activeAgentRole: v.optional(agentConnectionRoleValidator),
+    activeSupplyId: v.optional(v.id("supplies")),
+    mode: agentControlModeValidator,
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getUserByExternalId(ctx, args.ownerExternalId);
+
+    if (!user) {
+      return { saved: false };
+    }
+
+    const profile = await getProfileByUser(ctx, user._id, user.externalId);
+
+    if (!profile) {
+      return { saved: false };
+    }
+
+    let activeAgentRole = args.activeAgentRole ?? profile.activeAgentRole;
+    let activeSupplyId = args.activeSupplyId ?? profile.activeAgentSupplyId;
+
+    if (args.mode === "boreal" || args.mode === "none") {
+      activeAgentRole = undefined;
+      activeSupplyId = undefined;
+    } else {
+      if (!activeSupplyId || !activeAgentRole) {
+        throw new Error("Connected agent mode requires an active supply and role.");
+      }
+
+      const activeSupply = await ctx.db.get(activeSupplyId);
+
+      if (!activeSupply || activeSupply.supplierUserId !== user._id) {
+        throw new Error("Active connected agent supply was not found.");
+      }
+
+      if (activeAgentRole === "supply") {
+        throw new Error("Supply-only connections cannot become the active chat brain.");
+      }
+    }
+
+    await ctx.db.patch(profile._id, {
+      activeAgentRole,
+      activeAgentSupplyId: activeSupplyId,
+      agentControlMode: args.mode,
+      agentControlUpdatedAt: Date.now(),
+    });
+
+    return {
+      activeAgentRole: activeAgentRole ?? null,
+      activeSupplyId: activeSupplyId ?? null,
+      mode: args.mode,
+      saved: true,
+    };
+  },
+});
+
+export const getConnectedAgentControl = query({
+  args: {
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getUserByExternalId(ctx, args.ownerExternalId);
+
+    if (!user) {
+      return {
+        activeSupply: null,
+        mode: "boreal" as const,
+        role: null,
+      };
+    }
+
+    const profile = await getProfileByUser(ctx, user._id, user.externalId);
+    const mode = profile?.agentControlMode ?? "boreal";
+    const role = profile?.activeAgentRole ?? null;
+    const activeSupply =
+      profile?.activeAgentSupplyId
+        ? await ctx.db.get(profile.activeAgentSupplyId)
+        : null;
+
+    if (
+      !activeSupply ||
+      activeSupply.supplierUserId !== user._id ||
+      activeSupply.status !== "active"
+    ) {
+      return {
+        activeSupply: null,
+        mode,
+        role,
+      };
+    }
+
+    return {
+      activeSupply: {
+        _id: activeSupply._id,
+        capabilityTags: activeSupply.capabilityTags,
+        connectorHealthStatus: activeSupply.connectorHealthStatus ?? null,
+        deliveryType: activeSupply.deliveryType,
+        executionSurface: activeSupply.executionSurface ?? null,
+        executorUrl: activeSupply.executorUrl ?? null,
+        mcpServerUrl: activeSupply.mcpServerUrl ?? null,
+        mcpToolName: activeSupply.mcpToolName ?? null,
+        openApiUrl: activeSupply.openApiUrl ?? null,
+        outputTypes: activeSupply.outputTypes ?? [],
+        responseSlaMinutes: activeSupply.responseSlaMinutes ?? null,
+        supportsEvidencePush: activeSupply.supportsEvidencePush ?? false,
+        supportsDirectInvoke: activeSupply.supportsDirectInvoke ?? false,
+        supportsStatusUpdates: activeSupply.supportsStatusUpdates ?? false,
+        title: activeSupply.title,
+      },
+      mode,
+      role,
+    };
   },
 });
 

@@ -19,14 +19,27 @@ export const copywriterAgent: AutonomousAgentDefinition = {
     skillTags: ["messaging", "positioning", "headline writing"],
   },
   supplyEntry: {
+    agentReady: true,
     capabilityTags: ["copywriting", "creative", "marketing"],
     category: "content",
     deliveryType: "async",
     description: "Creates conversion-oriented copy for pages, campaigns, launches, and structured messaging requests.",
+    estimatedDeliveryLabel: "Within 2 hours",
+    maxConcurrentJobs: 3,
     priceAmount: 45,
     priceType: "fixed",
+    responseSlaMinutes: 120,
     supplyType: "capability",
     title: "Copywriter for Product and Launch Messaging",
+  },
+  settlement: {
+    autoQuoteUsd: 0.01,
+    chainFamily: "solana",
+    environment: "devnet",
+    networkKey: "solana:devnet",
+    payerSources: ["openwallet", "agentcash"],
+    payoutAddress: "6T9Krc4pspVv5pQz46yJZFRfwHp8TG9Z7v3Nna2voKA4",
+    walletAddress: "6T9Krc4pspVv5pQz46yJZFRfwHp8TG9Z7v3Nna2voKA4",
   },
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({

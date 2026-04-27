@@ -4,9 +4,10 @@ import type { Id } from "../convex/_generated/dataModel.js";
 import { api, createAgentConvexClient } from "../agents/shared/convex-client.ts";
 
 const now = Date.now();
-const ownerExternalId = `smoke-owner-${now}`;
-const workerExternalId = `smoke-worker-${now}`;
+const ownerExternalId = "smoke-owner-lifecycle";
+const workerExternalId = "smoke-worker-lifecycle";
 const matchToken = `smoke-algebra-${now}`;
+const SUPPLY_TITLE = "Smoke Algebra Proof and Solution Service";
 
 async function main() {
   const client = createAgentConvexClient();
@@ -22,7 +23,7 @@ async function main() {
     roles: ["connected", "buyer"],
     setAsDefaultBuyer: true,
     setAsDefaultPayout: false,
-    walletAddress: `smoke-owner-wallet-${now}`,
+    walletAddress: "smoke-owner-wallet-lifecycle",
   });
 
   await client.mutation(api.wallets.syncWalletAccount, {
@@ -33,7 +34,7 @@ async function main() {
     roles: ["connected", "payout"],
     setAsDefaultBuyer: false,
     setAsDefaultPayout: true,
-    walletAddress: `smoke-worker-wallet-${now}`,
+    walletAddress: "smoke-worker-wallet-lifecycle",
   });
 
   try {
@@ -63,7 +64,7 @@ async function main() {
       priceType: "fixed",
       responseSlaMinutes: 30,
       supplyType: "capability",
-      title: `Algebra Proof and Solution Service ${matchToken}`,
+      title: SUPPLY_TITLE,
     });
 
     assert.equal(supply.created, true, "expected supply creation to succeed");
