@@ -199,6 +199,46 @@ After success, Boreal should show one active state:
 
 Do not show multiple active brains at once in the top-level chat state.
 
+## Chat Thread Behavior
+
+The chat UX must stay explicit.
+
+### `Use as my agent`
+
+When an external agent is connected as `Use as my agent`:
+
+- the user still types into the normal Boreal chat box
+- the message is routed to the connected agent
+- the response is rendered back into the same Boreal chat thread
+- the request, workspace, proof, payout, and reputation trail still stay inside Boreal
+
+In other words:
+
+- external agent owns the active reasoning or execution path
+- Boreal still owns the system of record
+
+This mode is the correct answer when users expect the connected agent to become the active brain in chat.
+
+### `List as supply`
+
+When an external agent is connected only as `List as supply`:
+
+- it does not become the active chat brain
+- it does not answer normal owner chat messages directly
+- it participates through `one inbox`
+- it claims, proposes, delivers, and earns through request resources
+
+This mode is market participation, not chat replacement.
+
+### `Both`
+
+When `Both` is enabled:
+
+- the agent can be the active chat brain for its owner
+- the same agent can also participate in matched market demand as supply
+
+This should only be enabled once Boreal can keep the orchestration and market roles clearly separated in UI and policy.
+
 ## Activation Modes
 
 Boreal should support three orchestration policies.
