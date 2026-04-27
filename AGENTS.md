@@ -24,6 +24,7 @@
 - For the app in `next-app/`, use `npm run smoke:one-request` for the deterministic agent-only request-first lifecycle smoke from SIWX auth through `402`, signed payment receipt, Solana devnet transaction verification, specialist execution, delivery, settlement, and payout records.
 - For the app in `next-app/`, use `npm run smoke:one-request-guards` for the deterministic wallet-scoped intake guard smoke covering active unpaid quote caps and recent request burst limits on the public one-request surface.
 - For the app in `next-app/`, use `npm run smoke:connected-agents` for the deterministic connected-agent chat smoke covering HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
+- For the app in `next-app/`, use `npm run smoke:hermes-bridge` for the deterministic local Hermes bridge smoke covering the minimal Boreal HTTP executor contract.
 - For the app in `next-app/`, use `npm run smoke:request-callbacks` for the deterministic connected-agent callback smoke covering private one-request status, evidence, heartbeat, delivery, and payout-readiness progression.
 - For the app in `next-app/`, use `npm run smoke:payouts` for the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and aggregate settlement `paid_out`.
 - For the app in `next-app/`, use `npm run smoke:supplier-capacity` for the deterministic supplier-capacity smoke covering capacity reservation on claim, release on delivery, and blocked over-assignment before the slot reopens.
@@ -37,6 +38,7 @@
 - For the Boreal HyperFrames architecture cut, use `cd hyperframes/projects/architecture-150 && npx hyperframes render` to produce the diagram-first end-to-end system explainer.
 - For the deck workspace in `presentations/boreal-pitch-deck/`, use `npm run build` to export the `.pptx`, render source and saved-PPTX slide previews, write layout JSON, and refresh the headless QA reports.
 - Autonomous worker utilities are exposed as `npm run agent:seed`, `npm run agent:watch -- <agent-key>`, and `npm run agent:watch:all` from `next-app/`.  `npm run agent:seed` should stay idempotent: it is the repo-to-DB sync bridge for built-in agent users, profiles, supplies, payout-wallet metadata, and runtime analytics.
+- Local connected-agent helpers now also include `npm run agent:bridge:hermes`, which starts the minimal Boreal-compatible HTTP bridge for Hermes-style runtimes and prints the short quick-connect prompt.
 - If you add npm/yarn tooling, include normal commands such as `npm run build` or `npm test`, and describe their effects in this section.
 
 ## Coding Style & Naming Conventions
@@ -66,6 +68,7 @@
 - `AGENT_NETWORK.md` is the technical paper for Boreal's external-agent identity, portable reputation, connector adapters, request-native Swarm Workspace direction, and the concrete roadmap/API/schema extension plan for that layer.  Keep it honest about what is live versus target architecture.
 - `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the current request-side `Workboard`, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex collaboration split.  Keep UI labels and architecture docs aligned to this naming.
 - `CONNECT_AGENT_GUIDE.md` is the practical source of truth for Boreal's live and next `Connect agent` UX, connector choices, auth/session bootstrap, activation modes, and replaceable-agent control plane.
+- `HERMES_CONNECT_QUICKSTART.md` is the shortest current operator guide for getting a local Hermes-style runtime onto Boreal chat through the bridge helper and minimal prompt contract.
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `DISCOVERY_PLAN.md` is the execution plan for external discoverability across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces.
@@ -93,6 +96,7 @@
 - The live agent-only demand contract treats `/api/v1/requests` as the main public entrypoint for callers, while `/api/v1/agents` and `/api/v1/supplies` remain secondary discovery and advanced execution surfaces.
 - Boreal Agent is still the default orchestrator, but the chat surface now supports `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback`.  Document any connector, callback, or fallback-policy changes in the main docs and roadmap instead of leaving them implicit in UI code.
 - Connected HTTP and MCP agents can now become the active chat brain for their owner account.  Boreal stays the system of record, persists the same thread, and exposes one-request callback routes for status, evidence, and heartbeat updates.
+- The current low-friction local path is the Hermes bridge helper plus the short prompt contract, not a fully token-claimed quick-connect session yet.
 - `next-app/app/papers` is the public markdown-backed paper hub for Boreal's flagship article and specialized deep dives.
 - The supplier-side contract treats `/api/v1/inbox` as the personalized matched-demand watch surface for suppliers, while proposal, claim, delivery, and payout actions still resolve through underlying request resources.
 - The supplier-side contract now supports collective proposals: one supplier can submit `collectiveMembers`, `memberRoles`, and `splitPlan`, accepted collaborators can participate on the same request thread with named roles, request views derive per-participant contribution and trust summaries, and payout rows can split from one approved proposal.

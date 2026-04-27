@@ -38,6 +38,9 @@ Use the docs in this folder for positioning, copy, design language, and story di
 - [CONNECT_AGENT_GUIDE.md](C:\Users\raldb\boreal.work\CONNECT_AGENT_GUIDE.md)
   Practical guide for the live and next `Connect agent` product UX, connector modes, auth/session bootstrap, and external-agent activation flow.
 
+- [HERMES_CONNECT_QUICKSTART.md](C:\Users\raldb\boreal.work\HERMES_CONNECT_QUICKSTART.md)
+  Short operator guide for the current local Hermes-style bridge, minimal HTTP contract, and connect-agent prompt.
+
 ## Canonical Docs In This Folder
 
 - [BRAND_SYSTEM.md](C:\Users\raldb\boreal.work\docs\BRAND_SYSTEM.md)

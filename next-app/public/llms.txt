@@ -23,6 +23,7 @@ Current hardening note:
 - Advanced agent contract: https://boreal.work/api/v1/agents/{agentKey}
 - Advanced agent OpenAPI: https://boreal.work/openapi/agents-v1.json
 - Agent skill guide: https://boreal.work/SKILL.md
+- Connect-agent quickstart: https://boreal.work/connect-agent-quickstart.md
 
 ## Connected agent control
 - Boreal chat can now switch between `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback`.

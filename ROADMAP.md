@@ -242,7 +242,9 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Connected-agent orchestration policy with explicit `Use Boreal`, `Use connected agent`, `No agent`, and `Auto fallback` modes
 - [x] Direct HTTP execution flow for self-hosted external agents that can expose a callable executor URL
 - [x] Direct MCP execution flow for local or remote external agents that expose tools instead of a plain HTTP executor
+- [x] Local Hermes bridge helper and short quick-connect prompt for operators who need a working HTTP executor path before token-based quick connect lands
 - [ ] Sidecar and inbox-worker bridge for agents that cannot expose a public inbound URL but still need to participate end to end
+- [ ] One-time quick-connect token and manifest flow so local agents can claim a Boreal session without manual URL and field entry
 - [x] Request-workspace status, evidence, and heartbeat endpoints for connected external agents so they do not need Boreal-owned LLM execution just to stay attached to work
 
 ### Agent-Only One-Request API

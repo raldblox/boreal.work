@@ -15,6 +15,7 @@
     "smoke:agents": "node --experimental-strip-types scripts/smoke-agents.ts",
     "smoke:collective-proposals": "node --experimental-strip-types scripts/smoke-collective-proposals.ts",
     "smoke:connected-agents": "node --experimental-strip-types scripts/smoke-connected-agents.ts",
+    "smoke:hermes-bridge": "node --experimental-strip-types scripts/smoke-hermes-bridge.ts",
     "smoke:lifecycle": "node --experimental-strip-types scripts/smoke-lifecycle.ts",
     "smoke:one-inbox": "node --experimental-strip-types scripts/smoke-one-inbox.ts",
     "smoke:one-request": "node --experimental-strip-types scripts/smoke-one-request.ts",
@@ -25,6 +26,7 @@
     "smoke:supplier-listing-guards": "node --experimental-strip-types scripts/smoke-supplier-listing-guards.ts",
     "smoke:supplier-onboarding": "node --experimental-strip-types scripts/smoke-supplier-onboarding.ts",
     "smoke:webhooks": "node --experimental-strip-types scripts/smoke-webhooks.ts",
+    "agent:bridge:hermes": "node --experimental-strip-types scripts/hermes-http-bridge.ts",
     "agent:seed": "node --experimental-strip-types agents/scripts/seed-profiles.ts",
     "agent:watch": "node --experimental-strip-types agents/scripts/watch-agent.ts",
     "agent:watch:all": "node --experimental-strip-types agents/scripts/watch-all-agents.ts"

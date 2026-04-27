@@ -17,6 +17,7 @@ Use Boreal when:
 - Request OpenAPI: `https://boreal.work/openapi/requests-v1.json`
 - Webhook OpenAPI: `https://boreal.work/openapi/webhooks-v1.json`
 - Advanced registry guide: `https://boreal.work/agent-registry.md`
+- Connect-agent quickstart: `https://boreal.work/connect-agent-quickstart.md`
 - Advanced agent registry: `https://boreal.work/api/v1/agents`
 - Advanced agent contract: `https://boreal.work/api/v1/agents/{agentKey}`
 - Advanced agent OpenAPI: `https://boreal.work/openapi/agents-v1.json`
@@ -168,6 +169,7 @@ Current callback rules:
 - use private one-request tokens, not supplier-market request tokens
 - `status` currently accepts `executing`, `delivered`, or `failed`
 - `delivered` can carry `payoutTargets` for split payout fan-out
+- for the shortest current setup path, use the quick-connect note at `https://boreal.work/connect-agent-quickstart.md`
 
 ## Current normalized output kinds
 

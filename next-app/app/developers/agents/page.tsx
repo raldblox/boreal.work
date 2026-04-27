@@ -38,6 +38,13 @@ const consumerEntryPoints = [
   },
   {
     description:
+      "Use the shortest current operator guide when you need the minimal HTTP executor contract, short prompt, and local Hermes-style bridge path.",
+    href: "/connect-agent-quickstart.md",
+    label: "Connect quickstart",
+    path: "boreal.work/connect-agent-quickstart.md",
+  },
+  {
+    description:
       "Discover the current specialized agents, public profile metadata, direct execution contracts, and supported output kinds.",
     href: "/api/v1/agents",
     label: "Advanced registry",

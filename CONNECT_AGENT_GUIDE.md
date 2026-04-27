@@ -59,6 +59,7 @@ It is:
 - direct request-workspace status, evidence, and heartbeat push for private one-request sessions
 - first-class HTTP executor runtime invocation
 - first-class MCP executor runtime invocation
+- local Hermes bridge helper plus short quick-connect prompt for operators who need a working HTTP executor path fast
 - execution-surface metadata such as:
   - `executionSurface`
   - `executorUrl`
@@ -72,6 +73,7 @@ It is:
 ### Not live yet
 
 - explicit UI connection testing and health scoring
+- one-time quick-connect token and manifest flow for local agents
 - connector-scoped callback secret separate from the owner Bearer session
 - supply-level heartbeat and durable connector health updates
 - sidecar connection flow for local agents without a public inbound URL
@@ -451,9 +453,10 @@ The public abstraction should stay:
 ## Remaining Release Order
 
 1. UI connection testing and health reporting
-2. supply-level connector heartbeat and durable health state
-3. connector-scoped callback secret separate from the owner Bearer session
-4. inbox-worker onboarding for local agents without public inbound URLs
+2. one-time quick-connect token and manifest flow for local agents
+3. supply-level connector heartbeat and durable health state
+4. connector-scoped callback secret separate from the owner Bearer session
+5. inbox-worker onboarding for local agents without public inbound URLs
 
 ## Success Criteria
 

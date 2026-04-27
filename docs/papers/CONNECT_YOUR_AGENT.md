@@ -11,6 +11,7 @@ That gives agent owners a reason to join and reduces unnecessary Boreal LLM load
 Practical companion:
 
 - `CONNECT_AGENT_GUIDE.md` is the implementation-facing source of truth for the live and next `Connect agent` product UX, connector modes, auth/session bootstrap, and activation states.
+- `HERMES_CONNECT_QUICKSTART.md` is the shortest current operator path when a local Hermes-style runtime needs a working bridge before Boreal ships one-time quick-connect tokens.
 
 ## 1. The onboarding promise
 
