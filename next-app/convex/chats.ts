@@ -2,6 +2,11 @@ import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
+import {
+  normalizeIntentExtraction,
+  type RequestedOutputType,
+  type ToolRoute,
+} from "../lib/boreal/schemas/intent";
 import { proposalIncludesParticipant } from "./collectives";
 import { intentStatusValidator, persistedIntentValidator } from "./validators";
 import { persistIntentMatchCandidates } from "./matching";
@@ -9,6 +14,60 @@ import {
   refreshBorealProfileAnalytics,
   refreshProfileAnalyticsForUser,
 } from "./profileAnalytics";
+
+function sanitizeStoredIntentSummary(intent: {
+  body?: string | null;
+  catalogQuery?: string | null;
+  category?: string | null;
+  confidence?: number | null;
+  intentType?: "demand" | "informational" | "supply" | null;
+  keywords?: string[] | null;
+  missingDetails?: string[] | null;
+  needsClarification?: boolean | null;
+  requestedOutputTypes?: RequestedOutputType[] | null;
+  responseInstructions?: string | null;
+  routeTarget?: ToolRoute | null;
+  shouldSearchCatalog?: boolean | null;
+  suggestedReplies?: string[] | null;
+  summary?: string | null;
+  title?: string | null;
+  videoSeconds?: string | null;
+  videoSize?: string | null;
+}) {
+  const fallbackMessage =
+    intent.body?.trim() || intent.summary?.trim() || intent.title?.trim() || "";
+  const requestedOutputTypes =
+    (intent.requestedOutputTypes?.length
+      ? intent.requestedOutputTypes
+      : ["text"]) as RequestedOutputType[];
+
+  return normalizeIntentExtraction(
+    {
+      body: intent.body ?? fallbackMessage,
+      catalogQuery: intent.catalogQuery ?? "",
+      category: intent.category ?? "general",
+      confidence: intent.confidence ?? undefined,
+      intentType: intent.intentType ?? "demand",
+      keywords: intent.keywords ?? [],
+      missingDetails: intent.missingDetails ?? [],
+      needsClarification: intent.needsClarification ?? false,
+      requestedOutputTypes,
+      responseInstructions: intent.responseInstructions ?? "",
+      routeTarget: intent.routeTarget ?? "general_assistance",
+      shouldSearchCatalog: intent.shouldSearchCatalog ?? false,
+      suggestedReplies: intent.suggestedReplies ?? [],
+      summary: intent.summary ?? fallbackMessage,
+      title: intent.title?.trim() || fallbackMessage || "Boreal request",
+      videoSeconds: intent.videoSeconds ?? "",
+      videoSize: intent.videoSize ?? "",
+    },
+    fallbackMessage,
+    requestedOutputTypes.map((kind, index) => ({
+      kind,
+      score: index === 0 ? 1 : 0.5,
+    })),
+  );
+}
 
 export const recordIntentPipeline = mutation({
   args: {
@@ -1000,14 +1059,18 @@ export const listConversationSidebar = query({
           .collect();
         const linkedRequests = linkedIntent
           .sort((left, right) => right.createdAt - left.createdAt)
-          .map((intent) => ({
-            id: intent._id,
-            needsClarification: intent.needsClarification ?? false,
-            routeTarget: intent.routeTarget ?? "general_assistance",
-            status: intent.status,
-            title: intent.title,
-            updatedAt: intent.updatedAt ?? intent.createdAt,
-          }))
+          .map((intent) => {
+            const normalizedIntent = sanitizeStoredIntentSummary(intent)
+
+            return {
+              id: intent._id,
+              needsClarification: normalizedIntent.needsClarification,
+              routeTarget: normalizedIntent.routeTarget,
+              status: intent.status,
+              title: intent.title,
+              updatedAt: intent.updatedAt ?? intent.createdAt,
+            }
+          })
           .slice(0, 6);
 
         return {
@@ -1068,14 +1131,18 @@ export const listBorealChatSessions = query({
 
         const linkedRequests = linkedIntent
           .sort((left, right) => right.createdAt - left.createdAt)
-          .map((intent) => ({
-            id: intent._id,
-            needsClarification: intent.needsClarification ?? false,
-            routeTarget: intent.routeTarget ?? "general_assistance",
-            status: intent.status,
-            title: intent.title,
-            updatedAt: intent.updatedAt ?? intent.createdAt,
-          }))
+          .map((intent) => {
+            const normalizedIntent = sanitizeStoredIntentSummary(intent)
+
+            return {
+              id: intent._id,
+              needsClarification: normalizedIntent.needsClarification,
+              routeTarget: normalizedIntent.routeTarget,
+              status: intent.status,
+              title: intent.title,
+              updatedAt: intent.updatedAt ?? intent.createdAt,
+            }
+          })
           .slice(0, 6);
 
         return {
@@ -1156,14 +1223,18 @@ export const getConversationThread = query({
       .collect();
     const linkedRequests = linkedIntent
       .sort((left, right) => right.createdAt - left.createdAt)
-      .map((intent) => ({
-        id: intent._id,
-        needsClarification: intent.needsClarification ?? false,
-        routeTarget: intent.routeTarget ?? "general_assistance",
-        status: intent.status,
-        title: intent.title,
-        updatedAt: intent.updatedAt ?? intent.createdAt,
-      }))
+      .map((intent) => {
+        const normalizedIntent = sanitizeStoredIntentSummary(intent)
+
+        return {
+          id: intent._id,
+          needsClarification: normalizedIntent.needsClarification,
+          routeTarget: normalizedIntent.routeTarget,
+          status: intent.status,
+          title: intent.title,
+          updatedAt: intent.updatedAt ?? intent.createdAt,
+        }
+      })
       .slice(0, 6);
 
     return {

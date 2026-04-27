@@ -6,14 +6,11 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
-import Link from "next/link"
 import { useQuery } from "convex/react"
 import {
   BotIcon,
-  DownloadIcon,
   LoaderIcon,
   SearchIcon,
-  ShoppingCartIcon,
   UserIcon,
 } from "lucide-react"
 
@@ -35,20 +32,20 @@ export type WorkspaceTab = "requests" | "workers"
 
 type WorkspacePanelProps = {
   activeTab: WorkspaceTab
-  onAddToCart: (supplyId: string) => Promise<void>
   onSelectRequest: (
     request: SidebarIntentPreview,
     view?: RequestNavigationView
   ) => void
   onTabChange: (value: WorkspaceTab) => void
+  onViewProfile: (profileId: string) => void
   ownerExternalId?: string
 }
 
 export function WorkspacePanel({
   activeTab,
-  onAddToCart,
   onSelectRequest,
   onTabChange,
+  onViewProfile,
   ownerExternalId,
 }: WorkspacePanelProps) {
   const isMounted = useSyncExternalStore(
@@ -186,7 +183,7 @@ export function WorkspacePanel({
                     <SupplyCard
                       key={listing._id}
                       listing={listing}
-                      onAddToCart={onAddToCart}
+                      onViewProfile={onViewProfile}
                     />
                   ))
                 )}
@@ -250,10 +247,10 @@ function getMatchScoreTone(score: number | null) {
 
 function SupplyCard({
   listing,
-  onAddToCart,
+  onViewProfile,
 }: {
   listing: CatalogEntry
-  onAddToCart: (supplyId: string) => Promise<void>
+  onViewProfile: (profileId: string) => void
 }) {
   const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
 
@@ -324,27 +321,14 @@ function SupplyCard({
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {listing.isCartEnabled ? (
+            {listing.seller?.profileId ? (
               <Button
-                onClick={() => void onAddToCart(listing._id)}
+                onClick={() => onViewProfile(listing.seller!.profileId!)}
                 size="sm"
                 type="button"
+                variant="ghost"
               >
-                <ShoppingCartIcon />
-                Add to cart
-              </Button>
-            ) : null}
-            {listing.executorUrl && listing.fulfillmentKind === "digital" ? (
-              <Button asChild size="sm" type="button" variant="outline">
-                <a href={listing.executorUrl} rel="noreferrer" target="_blank">
-                  <DownloadIcon />
-                  Preview
-                </a>
-              </Button>
-            ) : null}
-            {listing.seller?.profileId ? (
-              <Button asChild size="sm" type="button" variant="ghost">
-                <Link href={`/p/${listing.seller.profileId}`}>View seller</Link>
+                View profile
               </Button>
             ) : null}
           </div>

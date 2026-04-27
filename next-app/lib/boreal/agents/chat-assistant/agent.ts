@@ -5,9 +5,11 @@ import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
 import {
   appendConversationAssistantMessage,
   appendRequestExecution,
+  approveMatchedSupply,
   approveRequestDraft,
   ensureCatalogSeeded,
   getMyProfileRecord,
+  getRequestDetailRecord,
   getRequestExecutionContext,
   saveConversationExchange,
   saveArtifactMetadata,
@@ -51,6 +53,13 @@ import { generateSpeechAsset } from "@/lib/boreal/tools/media/generate-speech-as
 import { startVideoGeneration } from "@/lib/boreal/tools/media/start-video-generation";
 import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-intent-response";
 import { withRetry } from "@/lib/boreal/utils/retry";
+import { isVideoProviderAccessUnavailableError } from "@/lib/boreal/request-route-errors";
+import {
+  buildInitialInteractiveFollowUpQuestion,
+  buildInteractiveExecutionMessage,
+  isInteractiveRequestAgentKey,
+  planInteractiveRequestThread,
+} from "../request-thread-specialists";
 
 type RequesterIdentity = {
   displayName?: string;
@@ -140,6 +149,16 @@ export const chatAssistantAgent: ComposableAgent<
   async run(input) {
     const runtimeConfig = getBorealRuntimeConfig();
     const provider = resolveProviderAdapter();
+
+    const interactiveThreadResult = await continueApprovedRequestThread({
+      input,
+      provider,
+      runtimeConfig,
+    });
+
+    if (interactiveThreadResult) {
+      return interactiveThreadResult;
+    }
 
     await ensureCatalogSeeded();
 
@@ -338,6 +357,165 @@ export const chatAssistantAgent: ComposableAgent<
   },
 };
 
+async function continueApprovedRequestThread(input: {
+  input: ChatAssistantAgentInput;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}): Promise<ChatAssistantResponse | null> {
+  const requestId = input.input.uiContext?.requestId;
+  const ownerExternalId = input.input.requester?.externalId;
+
+  if (
+    input.input.uiContext?.surface !== "request" ||
+    !requestId ||
+    !ownerExternalId
+  ) {
+    return null;
+  }
+
+  const requestDetail = await getRequestDetailRecord({
+    intentId: requestId,
+    ownerExternalId,
+  });
+
+  if (
+    !requestDetail.intent ||
+    !requestDetail.access?.isOwner ||
+    (requestDetail.intent.status !== "claimed" &&
+      requestDetail.intent.status !== "in_progress")
+  ) {
+    return null;
+  }
+
+  const threadPlan = planInteractiveRequestThread(requestDetail);
+
+  if (!threadPlan) {
+    return null;
+  }
+
+  const request = await getRequestExecutionContext({
+    intentId: requestId,
+    ownerExternalId,
+  });
+
+  if (!request) {
+    return null;
+  }
+
+  const persistedIntent = toPersistedExecutionIntent(
+    request,
+    input.runtimeConfig,
+    input.provider.key,
+  );
+
+  try {
+    if (threadPlan.kind === "ask") {
+      await appendRequestExecution({
+        activityPayload: JSON.stringify({
+          assignedAgent: threadPlan.agent.identity.displayName,
+          assignedToolNames: [threadPlan.agent.key],
+          awaitingUserReply: true,
+          routeTarget: request.routeTarget,
+        }),
+        activityType: "request.follow_up",
+        assignedAgent: threadPlan.agent.identity.displayName,
+        assignedToolNames: [threadPlan.agent.key],
+        assistantMessage: threadPlan.assistantMessage,
+        intentId: requestId,
+        ownerExternalId,
+        status: "in_progress",
+      });
+
+      return {
+        assistantMessage: threadPlan.assistantMessage,
+        conversationId: request.conversationId ?? crypto.randomUUID(),
+        intent: persistedIntent,
+        intentId: requestId,
+        persisted: false,
+        relatedCatalogItems: [],
+        requiresApproval: false,
+        workspace: {
+          kind: "empty",
+          subtitle:
+            "Reply in this request thread. The approved specialist now owns the next turn here.",
+          title: "Specialist follow-up",
+        },
+      };
+    }
+
+    const result = await threadPlan.agent.directExecution!.invoke({
+      modelId: input.runtimeConfig.assistantModel,
+      payload: threadPlan.payload,
+    });
+    const assistantMessage = buildInteractiveExecutionMessage(result);
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent: threadPlan.agent.identity.displayName,
+        assignedToolNames: [threadPlan.agent.key],
+        routeTarget: request.routeTarget,
+      }),
+      activityType: "request.delivered",
+      assignedAgent: threadPlan.agent.identity.displayName,
+      assignedToolNames: [threadPlan.agent.key],
+      assistantMessage,
+      intentId: requestId,
+      ownerExternalId,
+      status: "fulfilled",
+    });
+
+    return {
+      assistantMessage,
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intent: persistedIntent,
+      intentId: requestId,
+      persisted: false,
+      relatedCatalogItems: [],
+      requiresApproval: false,
+      workspace: {
+        kind: "empty",
+        subtitle:
+          "The specialist delivered in-thread. Request history stays attached here for review and payout follow-through.",
+        title: "Route complete",
+      },
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "The approved specialist could not continue this request.";
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent: threadPlan.agent.identity.displayName,
+        assignedToolNames: [threadPlan.agent.key],
+        error: message,
+        routeTarget: request.routeTarget,
+      }),
+      activityType: "request.blocked",
+      assignedAgent: threadPlan.agent.identity.displayName,
+      assignedToolNames: [threadPlan.agent.key],
+      assistantMessage:
+        `${threadPlan.agent.identity.displayName} could not continue this request automatically. Last error: ${message}. Retry it or reopen it for workers.`,
+      intentId: requestId,
+      ownerExternalId,
+      status: "blocked",
+    });
+
+    return {
+      assistantMessage:
+        `${threadPlan.agent.identity.displayName} could not continue this request automatically. Last error: ${message}. The request is blocked until you retry it or reopen it for workers.`,
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intent: persistedIntent,
+      intentId: requestId,
+      persisted: false,
+      relatedCatalogItems: [],
+      requiresApproval: false,
+      workspace: buildBlockedWorkspace(request.routeTarget, message),
+    };
+  }
+}
+
 export async function approvePersistedRequest(input: {
   intentId: string;
   ownerExternalId?: string;
@@ -401,18 +579,20 @@ export async function approvePersistedRequest(input: {
   }
 
   if (specialistRoutePlan) {
-    const specialistToolNames = specialistRoutePlan.selected.map(
+    const selectedRoutePlan = narrowSpecialistRoutePlanForExecution(
+      specialistRoutePlan,
+    );
+    const specialistToolNames = selectedRoutePlan.selected.map(
       (selection) => selection.agent.key,
     );
+    const assignedAgentLabel = selectedRoutePlan.selected
+      .map((selection) => selection.agent.identity.displayName)
+      .join(", ");
 
     await approveRequestDraft({
-      assignedAgent: specialistRoutePlan.selected
-        .map((selection) => selection.agent.identity.displayName)
-        .join(", "),
+      assignedAgent: assignedAgentLabel,
       assignedToolNames: specialistToolNames,
-      assistantMessage: `Request approved. Boreal locked the best route: ${specialistRoutePlan.selected
-        .map((selection) => selection.agent.identity.displayName)
-        .join(", ")}.`,
+      assistantMessage: `Request approved. Boreal locked the best route: ${assignedAgentLabel}.`,
       intentId: input.intentId,
       ownerExternalId: input.ownerExternalId,
       status: "claimed",
@@ -422,7 +602,7 @@ export async function approvePersistedRequest(input: {
       input,
       provider,
       request,
-      routePlan: specialistRoutePlan,
+      routePlan: selectedRoutePlan,
       runtimeConfig,
     });
   }
@@ -486,6 +666,46 @@ export async function openPersistedRequestForWorkers(input: {
   };
 }
 
+export async function approveMatchedSupplyForRequest(input: {
+  intentId: string;
+  ownerExternalId?: string;
+  supplyId: string;
+}) {
+  await ensureCatalogSeeded();
+
+  const request = await getRequestExecutionContext({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+
+  if (!request) {
+    throw new Error("Request not found.");
+  }
+
+  const result = await approveMatchedSupply({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+    supplyId: input.supplyId,
+  });
+
+  if (!result.approved) {
+    throw new Error(mapMatchedSupplyApprovalError(result.reason));
+  }
+
+  return {
+    approved: true as const,
+    assistantMessage:
+      "Boreal approved that match into the team. The request is now active and the worker can begin.",
+    intentId: input.intentId,
+    workspace: {
+      kind: "empty",
+      subtitle:
+        "The selected worker is now part of this request. Boreal kept the remaining matches attached so you can compare or add more collaborators later.",
+      title: "Worker approved",
+    } satisfies WorkspaceState,
+  };
+}
+
 export async function retryPersistedRequest(input: {
   intentId: string;
   ownerExternalId?: string;
@@ -513,13 +733,16 @@ export async function retryPersistedRequest(input: {
     intent: persistedExecutionIntent,
     message: request.body,
   });
+  const selectedRoutePlan = specialistRoutePlan
+    ? narrowSpecialistRoutePlanForExecution(specialistRoutePlan)
+    : null;
   const assignedToolNames = buildAssignedTools(request.routeTarget);
   const executionAgentId = getExecutionAgentId(request.routeTarget);
-  const retryToolNames = specialistRoutePlan
-    ? specialistRoutePlan.selected.map((selection) => selection.agent.key)
+  const retryToolNames = selectedRoutePlan
+    ? selectedRoutePlan.selected.map((selection) => selection.agent.key)
     : assignedToolNames;
-  const retryAgentLabel = specialistRoutePlan
-    ? specialistRoutePlan.selected
+  const retryAgentLabel = selectedRoutePlan
+    ? selectedRoutePlan.selected
         .map((selection) => selection.agent.identity.displayName)
         .join(", ")
     : executionAgentId;
@@ -533,7 +756,7 @@ export async function retryPersistedRequest(input: {
     activityType: "request.retrying",
     assignedAgent: retryAgentLabel,
     assignedToolNames: retryToolNames,
-    assistantMessage: specialistRoutePlan
+    assistantMessage: selectedRoutePlan
       ? `Retrying this request with ${retryAgentLabel}.`
       : `Retrying this request with ${getExecutionAgentDisplayName(request.routeTarget)}.`,
     intentId: input.intentId,
@@ -541,12 +764,12 @@ export async function retryPersistedRequest(input: {
     status: "in_progress",
   });
 
-  if (specialistRoutePlan) {
+  if (selectedRoutePlan) {
     return runApprovedSpecialistExecutionForRequest({
       input,
       provider,
       request,
-      routePlan: specialistRoutePlan,
+      routePlan: selectedRoutePlan,
       runtimeConfig,
     });
   }
@@ -558,6 +781,79 @@ export async function retryPersistedRequest(input: {
     request,
     runtimeConfig,
   });
+}
+
+async function reopenBlockedRequestForWorkers(input: {
+  assignedAgent: string;
+  assignedToolNames: string[];
+  input: {
+    input: {
+      intentId: string;
+      ownerExternalId?: string;
+    };
+    request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  };
+  message: string;
+  relatedCatalogItems: CatalogItem[];
+}) {
+  await approveRequestDraft({
+    assignedAgent: input.assignedAgent,
+    assignedToolNames: input.assignedToolNames,
+    assistantMessage:
+      "Motion Video Studio is unavailable under the current OpenAI project or key, so Boreal reopened this request for workers immediately. Matched offers and proposals stay attached here.",
+    intentId: input.input.input.intentId,
+    ownerExternalId: input.input.input.ownerExternalId,
+    status: "open",
+  });
+
+  return {
+    assistantMessage:
+      `Motion Video Studio is unavailable under the current OpenAI project or key. Boreal reopened this request for workers immediately so you can approve a team instead of waiting on the blocked route. Last error: ${input.message}`,
+    intentId: input.input.input.intentId,
+    relatedCatalogItems: input.relatedCatalogItems,
+    workspace: buildApprovedWorkerWorkspace(input.input.request),
+  };
+}
+
+function shouldAutoReopenRequestForWorkers(
+  routeTarget: ToolRoute,
+  message: string,
+) {
+  return (
+    routeTarget === "video_generation" &&
+    isVideoProviderAccessUnavailableError(message)
+  );
+}
+
+function mapMatchedSupplyApprovalError(
+  reason:
+    | "capacity_exhausted"
+    | "gated_out"
+    | "missing_buyer_wallet"
+    | "missing_payout_wallet"
+    | "request_not_open"
+    | "supplier_unavailable"
+    | "wallet_network_mismatch"
+    | undefined,
+) {
+  switch (reason) {
+    case "capacity_exhausted":
+      return "That worker is already at capacity right now.";
+    case "gated_out":
+      return "That worker no longer passes the current request gates.";
+    case "missing_buyer_wallet":
+      return "Connect a buyer wallet before approving paid work.";
+    case "missing_payout_wallet":
+      return "The selected worker needs a payout wallet before approval.";
+    case "request_not_open":
+      return "This request is not open for worker approval anymore.";
+    case "supplier_unavailable":
+      return "That worker is unavailable right now.";
+    case "wallet_network_mismatch":
+      return "Buyer and worker payout wallets must be on the same supported network for paid work.";
+    default:
+      return "Could not approve that worker into the team.";
+  }
 }
 
 async function executeIntent(input: {
@@ -834,6 +1130,10 @@ async function runApprovedExecutionForRequest(input: {
     const message =
       error instanceof Error ? error.message : "Boreal failed after retrying this request.";
     const executionAgentId = getExecutionAgentId(input.request.routeTarget);
+    const shouldAutoReopenForWorkers = shouldAutoReopenRequestForWorkers(
+      input.request.routeTarget,
+      message,
+    );
 
     await appendRequestExecution({
       activityPayload: JSON.stringify({
@@ -850,6 +1150,16 @@ async function runApprovedExecutionForRequest(input: {
       ownerExternalId: input.input.ownerExternalId,
       status: "blocked",
     });
+
+    if (shouldAutoReopenForWorkers) {
+      return reopenBlockedRequestForWorkers({
+        assignedAgent: executionAgentId,
+        assignedToolNames: input.assignedToolNames,
+        input,
+        message,
+        relatedCatalogItems,
+      });
+    }
 
     return {
       assistantMessage:
@@ -878,6 +1188,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     input.runtimeConfig,
     input.provider.key,
   );
+  const leadSelection = input.routePlan.selected[0] ?? null;
   const relatedCatalogItems = mergePreviewCatalogItems(
     input.request.catalogQuery.trim().length > 0
       ? await withRetry(
@@ -891,6 +1202,41 @@ async function runApprovedSpecialistExecutionForRequest(input: {
       : [],
     buildRoutePreviewCatalogItems(input.routePlan),
   );
+
+  if (leadSelection && isInteractiveRequestAgentKey(leadSelection.agent.key)) {
+    const assistantMessage = buildInitialInteractiveFollowUpQuestion(
+      leadSelection.agent.key,
+    );
+    const assignedAgent = leadSelection.agent.identity.displayName;
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent,
+        assignedToolNames: [leadSelection.agent.key],
+        awaitingUserReply: true,
+        routeTarget: input.request.routeTarget,
+      }),
+      activityType: "request.follow_up",
+      assignedAgent,
+      assignedToolNames: [leadSelection.agent.key],
+      assistantMessage,
+      intentId: input.input.intentId,
+      ownerExternalId: input.input.ownerExternalId,
+      status: "in_progress",
+    });
+
+    return {
+      assistantMessage,
+      intentId: input.input.intentId,
+      relatedCatalogItems,
+      workspace: {
+        kind: "empty",
+        subtitle:
+          "Reply in this request thread. The approved specialist now owns the next turn here.",
+        title: "Specialist follow-up",
+      } satisfies WorkspaceState,
+    };
+  }
 
   try {
     const results = await executeAutoRoute({
@@ -956,6 +1302,13 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     const assignedAgent = input.routePlan.selected
       .map((selection) => selection.agent.identity.displayName)
       .join(", ");
+    const assignedToolNames = input.routePlan.selected.map(
+      (selection) => selection.agent.key,
+    );
+    const shouldAutoReopenForWorkers = shouldAutoReopenRequestForWorkers(
+      input.request.routeTarget,
+      message,
+    );
 
     await appendRequestExecution({
       activityPayload: JSON.stringify({
@@ -968,15 +1321,23 @@ async function runApprovedSpecialistExecutionForRequest(input: {
       }),
       activityType: "request.blocked",
       assignedAgent,
-      assignedToolNames: input.routePlan.selected.map(
-        (selection) => selection.agent.key,
-      ),
+      assignedToolNames,
       assistantMessage:
         `The matched specialist route could not complete this request automatically. Last error: ${message}. Retry it or reopen it for workers.`,
       intentId: input.input.intentId,
       ownerExternalId: input.input.ownerExternalId,
       status: "blocked",
     });
+
+    if (shouldAutoReopenForWorkers) {
+      return reopenBlockedRequestForWorkers({
+        assignedAgent,
+        assignedToolNames,
+        input,
+        message,
+        relatedCatalogItems,
+      });
+    }
 
     return {
       assistantMessage:
@@ -1300,6 +1661,24 @@ function buildSpecialistRoutePlan(input: {
   } satisfies OneRequestRoutePlan;
 }
 
+function narrowSpecialistRoutePlanForExecution(routePlan: OneRequestRoutePlan) {
+  const leader =
+    routePlan.selected.find((selection) =>
+      selection.outputKinds.includes("text"),
+    ) ?? routePlan.selected[0];
+
+  if (!leader) {
+    return routePlan;
+  }
+
+  return {
+    ...routePlan,
+    selected: [leader],
+    summary: `Auto route locked to ${leader.agent.identity.displayName}.`,
+    totalQuoteUsd: leader.quoteUsd,
+  } satisfies OneRequestRoutePlan;
+}
+
 function buildRoutePreviewCatalogItems(
   routePlan: OneRequestRoutePlan | null | undefined,
 ): CatalogItem[] {
@@ -1467,14 +1846,16 @@ function buildApprovedWorkerWorkspace(
   if (request.catalogQuery.trim().length > 0) {
     return {
       kind: "empty",
-      subtitle: "This request is approved and waiting for proposals or matched workers to claim it.",
+      subtitle:
+        "This request is open for proposals and matched workers. Approve a team directly from the attached matches when you are ready.",
       title: "Waiting for workers",
     };
   }
 
   return {
     kind: "empty",
-    subtitle: "Boreal approved the request and opened it for workers instead of auto-executing it.",
+    subtitle:
+      "Boreal opened the request for workers instead of auto-executing it. Approve a team directly when the right match appears.",
     title: "Waiting for workers",
   };
 }

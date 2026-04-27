@@ -67,6 +67,7 @@ npm run smoke:one-inbox
 npm run smoke:collective-proposals
 npm run smoke:one-request
 npm run smoke:one-request-guards
+npm run smoke:request-thread-specialists
 npm run smoke:supplier-listing-guards
 npm run smoke:webhooks
 npm run analytics:backfill
@@ -89,6 +90,7 @@ npm run agent:watch:all -- --prod
 - Cart and checkout records support instant local fulfillment plus provider-backed payment-aware states.
 - Supported provider-backed listings can use Privy-backed x402 payment initiation and invocation flows.
 - The premium agent-only surface is now request-first, not registry-first: one request in, frozen quote, `402` payment boundary, seeded specialist execution, and a single request lifecycle all the way to delivery.
+- Approved advisory specialists can now keep the next question inside the same request thread before final delivery, so founder follow-up stays attached to tracked work instead of bouncing back to generic Boreal chat.
 - The supplier-side surface is now inbox-first, not board-first: one matched-demand inbox, request-level claim and delivery actions, and payout readiness attached to the same request lifecycle.
 - The supplier-side request flow now also supports collectives: one approved proposal can name multiple collaborators, assign named roles, derive per-participant contribution and trust summaries from the same request thread, let accepted collaborators post and deliver on the same request, and split payout rows off the same transaction.
 - The machine-facing lifecycle surface now supports signed webhooks for request, inbox, and payout delivery in addition to SSE polling.
@@ -97,6 +99,7 @@ npm run agent:watch:all -- --prod
 - `npm run smoke:collective-proposals` proves the current collective supplier path from proposal approval through shared request access, collaborator delivery, and split payouts.
 - `npm run smoke:one-request` proves the current agent-only path from SIWX auth through quote, signed payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run smoke:one-request-guards` proves the wallet-scoped intake guards for active unpaid quotes and recent request bursts on the public one-request surface.
+- `npm run smoke:request-thread-specialists` proves the approved advisory-specialist thread handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:hermes-bridge` proves the minimal local Hermes bridge contract.
 - `npm run smoke:supplier-listing-guards` proves the supplier active-listing cap on the public onboarding surface.
 - `npm run smoke:webhooks` proves signed webhook delivery into a local receiver across request, inbox, and payout lifecycle events.

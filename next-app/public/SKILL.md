@@ -430,6 +430,10 @@ Capability questions about Boreal agents, offers, or services should stay direct
 
 Qualified work asks should preview best-fit specialist routes before approval.  Approval should run the matched route instead of reopening a generic clarification loop.
 
+If a matched advisory specialist still needs one more scoped answer after approval, keep replying in the same request thread.  That next owner reply should be treated as follow-up to the approved specialist, not as a fresh Boreal intake.
+
+If a Boreal-owned video route fails because the current OpenAI project or key does not have working Sora access, Boreal should reopen the request for workers immediately and keep the ranked matches attached so the owner can approve a team.
+
 The private one-request callback routes still exist for controlled internal runtimes and legacy operator workflows:
 
 Current callback routes for private one-request sessions:
@@ -485,7 +489,8 @@ Treat this as an internal surface.  General agent-owner integrations should star
 - blocked video request with `Invalid URL (POST /platform/video_gen)`:
   - Boreal reached OpenAI's public `/v1/videos` route
   - the current OpenAI project or API key does not actually have working Sora video access enabled
-  - fix provider access, then retry or reopen the request for workers
+  - Boreal should reopen the request for workers immediately instead of leaving a dead-end retry state
+  - fix provider access if you want the Boreal-owned video route back
 - request seems stuck:
   - read `GET /api/v1/requests/{requestToken}`
   - read `GET /api/v1/requests/{requestToken}/events`

@@ -79,24 +79,20 @@ export function resolveVideoRequestSettings(input: {
   const invalidDetails: string[] = [];
   const messageSeconds = parseVideoSecondsFromText(input.message);
   const messageSize = parseVideoSizeFromText(input.message);
-  const rawSeconds = normalizeVideoSeconds(input.rawSeconds);
-  const rawSize = normalizeVideoSize(input.rawSize);
+  const hasExplicitRawSeconds = hasExplicitVideoValue(input.rawSeconds);
+  const hasExplicitRawSize = hasExplicitVideoValue(input.rawSize);
+  const rawSeconds = hasExplicitRawSeconds
+    ? normalizeVideoSeconds(input.rawSeconds)
+    : null;
+  const rawSize = hasExplicitRawSize ? normalizeVideoSize(input.rawSize) : null;
 
-  if (
-    input.rawSeconds !== undefined &&
-    input.rawSeconds !== null &&
-    rawSeconds === null
-  ) {
+  if (hasExplicitRawSeconds && rawSeconds === null) {
     invalidDetails.push(
       buildInvalidVideoSecondsMessage(String(input.rawSeconds)),
     );
   }
 
-  if (
-    input.rawSize !== undefined &&
-    input.rawSize !== null &&
-    rawSize === null
-  ) {
+  if (hasExplicitRawSize && rawSize === null) {
     invalidDetails.push(buildInvalidVideoSizeMessage(String(input.rawSize)));
   }
 
@@ -181,4 +177,29 @@ function parseVideoSizeFromText(text: string): {
   }
 
   return {};
+}
+
+function hasExplicitVideoValue(value: unknown) {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (
+      normalized.length === 0 ||
+      normalized === "default" ||
+      normalized === "auto" ||
+      normalized === "omit" ||
+      normalized === "omitted" ||
+      normalized === "unspecified" ||
+      normalized === "none" ||
+      normalized === "n/a"
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }

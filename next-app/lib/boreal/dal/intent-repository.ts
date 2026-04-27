@@ -136,6 +136,15 @@ export async function approveProposal(args: {
   return client.mutation(convexFunctionRefs.approveProposal, args);
 }
 
+export async function approveMatchedSupply(args: {
+  intentId: string;
+  ownerExternalId?: string;
+  supplyId: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.approveMatchedSupply, args);
+}
+
 export async function submitWork(args: {
   attachments?: Array<{
     fileName: string;

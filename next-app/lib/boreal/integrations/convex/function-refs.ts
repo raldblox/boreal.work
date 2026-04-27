@@ -901,6 +901,24 @@ export const convexFunctionRefs = {
         | "wallet_network_mismatch";
     }
   >("proposals:approveProposal"),
+  approveMatchedSupply: makeFunctionReference<
+    "mutation",
+    { intentId: string; ownerExternalId?: string; supplyId: string },
+    {
+      approved: boolean;
+      fulfillmentId?: string;
+      proposalId?: string;
+      reason?:
+        | "capacity_exhausted"
+        | "gated_out"
+        | "missing_buyer_wallet"
+        | "missing_payout_wallet"
+        | "request_not_open"
+        | "supplier_unavailable"
+        | "wallet_network_mismatch";
+      transactionId?: string;
+    }
+  >("proposals:approveMatchedSupply"),
   rateRequest: makeFunctionReference<
     "mutation",
     { comment?: string; intentId: string; ownerExternalId?: string; rating: number },

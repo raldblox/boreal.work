@@ -3,13 +3,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { openPersistedRequestForWorkers } from "@/lib/boreal/agents/chat-assistant/agent";
 
-type RouteContext = {
-  params: Promise<{
-    intentId: string;
-  }>;
-};
-
-export async function POST(_: Request, context: RouteContext) {
+export async function POST(
+  _: Request,
+  { params }: { params: Promise<{ intentId: string }> },
+) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -17,7 +14,7 @@ export async function POST(_: Request, context: RouteContext) {
   }
 
   try {
-    const { intentId } = await context.params;
+    const { intentId } = await params;
     const result = await openPersistedRequestForWorkers({
       intentId,
       ownerExternalId: session.user.id,

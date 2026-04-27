@@ -82,7 +82,7 @@ Rules:
 - `message` is the only required input
 - `mode` is optional, but v1 only accepts `auto`
 - callers do not choose providers, tools, or specialists up front
-- video-generation requests default to `8` seconds at `1280x720` when the brief does not ask for a supported duration or size
+- video-generation requests default to `8` seconds at `1280x720` when the brief does not ask for a supported duration or size, and omitted values should not trigger clarification
 - current supported video durations are `4`, `8`, and `12` seconds
 - current supported video sizes are `720x1280`, `1280x720`, `1024x1792`, and `1792x1024`
 - wallet-scoped intake guards cap this surface at 3 active unpaid quotes and 8 recent requests per 10-minute window
@@ -178,6 +178,8 @@ Behavior-first uses on this contract:
 - track progress through request status and events
 - switch to push delivery through signed webhooks when polling is not enough
 - use request callbacks only for advanced private one-request runtimes, not for public market supply
+- if an approved advisory specialist needs one more scoped answer, keep replying in the same request thread because the next owner turn is now treated as follow-up to that specialist instead of a fresh Boreal intake
+- if a Boreal-owned video route fails because the current OpenAI project or key does not have working Sora access, Boreal should reopen the request for workers immediately and keep the matched offers attached so the owner can approve a team
 
 ### Step 2. Handle `402 Payment Required`
 
@@ -321,6 +323,7 @@ Meaning:
 - Boreal freezes quote, route, and ETA
 - Boreal requires payment before expensive execution
 - Boreal resumes the exact route after payment
+- some approved advisory routes can enter a short in-thread specialist follow-up phase before final delivery when the matched specialist needs one more concrete answer
 
 Other modes remain reserved:
 
@@ -410,4 +413,6 @@ These should guide Codex, OpenClaw, Hermes, and other local-agent stacks toward:
 - `409 fallback_required` means Boreal could not lock a deterministic `auto` route from the current request
 - `422 clarification_required` on a video brief often means the requested duration or size is unsupported; Boreal currently accepts only `4`, `8`, or `12` seconds and only `720x1280`, `1280x720`, `1024x1792`, or `1792x1024`
 - video request becomes `blocked` with an `Invalid URL (POST /platform/video_gen)` provider error: Boreal reached OpenAI's public `/v1/videos` route, but the current OpenAI project or API key does not actually have working Sora video access enabled
+  - Boreal should reopen the request for workers immediately instead of leaving it in a dead-end retry state
+  - the matched request workspace should keep the ranked worker cards attached so the owner can approve a team directly
 - request appears stuck: read request status, read request events, then inspect webhook deliveries if push delivery is configured

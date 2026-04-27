@@ -32,7 +32,6 @@ import {
   PackageIcon,
   PanelLeftCloseIcon,
   PanelRightCloseIcon,
-  PinIcon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
@@ -63,6 +62,8 @@ import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
+import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
+import { ProfileView } from "@/components/profiles/profile-view"
 import { AgentDeveloperSurface } from "@/components/home/agent-developer-surface"
 import { AboutPage } from "@/components/home/about-page"
 import { PapersFocusBrowser } from "@/components/home/papers-focus-browser"
@@ -127,6 +128,7 @@ import type {
   RequestDetail,
   SidebarIntentPreview,
   WalletAccountRecord,
+  WorkerProfileDetail,
 } from "@/lib/boreal/integrations/convex/function-refs"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import type {
@@ -139,6 +141,7 @@ import {
   getRequestHandlingLabel,
   getRequestHandlingMode,
 } from "@/lib/boreal/routing/request-handling"
+import { isVideoProviderAccessUnavailableError } from "@/lib/boreal/request-route-errors"
 import {
   buildProfileBuilderDraftFromRecord,
   cloneProfileBuilderDraft,
@@ -359,7 +362,6 @@ export function ChatShell() {
     string | null
   >(null)
   const [matchQueryDraft, setMatchQueryDraft] = useState<string | null>(null)
-  const [pinningSupplyId, setPinningSupplyId] = useState<string | null>(null)
   const [proposalMessage, setProposalMessage] = useState("")
   const [proposalDraft, setProposalDraft] =
     useState<ProposalDraft>(emptyProposalDraft)
@@ -368,6 +370,9 @@ export function ChatShell() {
   const [approvingProposalId, setApprovingProposalId] = useState<string | null>(
     null
   )
+  const [approvingMatchedSupplyId, setApprovingMatchedSupplyId] = useState<
+    string | null
+  >(null)
   const [deliveryDraft, setDeliveryDraft] =
     useState<DeliveryDraft>(emptyDeliveryDraft)
   const [isSubmittingDelivery, setIsSubmittingDelivery] = useState(false)
@@ -394,6 +399,7 @@ export function ChatShell() {
     null
   )
   const [isCenterSheetOpen, setIsCenterSheetOpen] = useState(false)
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null)
 
   const { data: session, status: sessionStatus } = useSession()
   const ownerExternalId = session?.user?.id
@@ -449,6 +455,19 @@ export function ChatShell() {
     isXAuthenticated && activeIntentId
       ? { intentId: activeIntentId, ownerExternalId }
       : "skip"
+  )
+  const profileSheetDetail = useQuery(
+    convexFunctionRefs.getPublicProfile,
+    activeProfileId && activeProfileId !== "boreal-agent"
+      ? {
+        ownerExternalId,
+        profileId: activeProfileId,
+      }
+      : "skip"
+  ) as WorkerProfileDetail | undefined
+  const borealProfileStats = useQuery(
+    convexFunctionRefs.getBorealAgentStats,
+    activeProfileId === "boreal-agent" ? {} : "skip"
   )
   const activeCartResult = useQuery(
     convexFunctionRefs.getActiveCart,
@@ -528,10 +547,6 @@ export function ChatShell() {
   const refineRequestMatches = useMutation(
     convexFunctionRefs.refineRequestMatches
   )
-  const togglePinnedSupplyMatch = useMutation(
-    convexFunctionRefs.togglePinnedSupplyMatch
-  )
-  const addToCart = useMutation(convexFunctionRefs.addToCart)
   const updateCartLineQuantity = useMutation(
     convexFunctionRefs.updateCartLineQuantity
   )
@@ -944,35 +959,6 @@ export function ChatShell() {
       )
     } finally {
       setIsRefreshingVideo(false)
-    }
-  }
-
-  async function handleAddToCart(supplyId: string) {
-    if (!ownerExternalId) {
-      setErrorMessage("Sign in with X first before adding items to cart.")
-      return
-    }
-
-    setCartNotice(null)
-
-    try {
-      const result = await addToCart({
-        ownerDisplayName: session?.user?.name ?? undefined,
-        ownerExternalId,
-        sourceIntentId: activeIntentId ?? undefined,
-        supplyId,
-      })
-
-      if (!result.added) {
-        throw new Error("Could not add this listing to cart.")
-      }
-
-      setIsCartOpen(true)
-      setCartNotice("Added to cart.")
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Could not add to cart."
-      )
     }
   }
 
@@ -1545,35 +1531,6 @@ export function ChatShell() {
     }
   }
 
-  async function handleTogglePinnedMatch(supplyId: string) {
-    if (!activeIntentId || pinningSupplyId) {
-      return
-    }
-
-    setErrorMessage(null)
-    setPinningSupplyId(supplyId)
-
-    try {
-      const result = await togglePinnedSupplyMatch({
-        intentId: activeIntentId,
-        ownerExternalId,
-        supplyId,
-      })
-
-      if (!result.updated) {
-        throw new Error("Could not update pinned match.")
-      }
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not update pinned match."
-      )
-    } finally {
-      setPinningSupplyId(null)
-    }
-  }
-
   async function handleRetryRequest() {
     if (!activeIntentId || isRetryingRequest) {
       return
@@ -1861,6 +1818,66 @@ export function ChatShell() {
       )
     } finally {
       setApprovingProposalId(null)
+    }
+  }
+
+  async function handleApproveMatchedSupply(
+    supplyId: string,
+    intentId = activeIntentId ?? pendingApprovalIntentId
+  ) {
+    if (!intentId || approvingMatchedSupplyId) {
+      return
+    }
+
+    setErrorMessage(null)
+    setApprovingMatchedSupplyId(supplyId)
+
+    try {
+      const response = await fetch(`/api/requests/${intentId}/team`, {
+        body: JSON.stringify({ supplyId }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      })
+      const payload = (await response.json()) as
+        | {
+          approved?: boolean
+          assistantMessage?: string
+          intentId?: string
+          workspace?: WorkspaceState
+        }
+        | { error?: string }
+
+      if (!response.ok || !("approved" in payload) || !payload.approved) {
+        throw new Error(
+          "error" in payload && payload.error
+            ? payload.error
+            : "Failed to approve this worker."
+        )
+      }
+
+      updateWorkspaceUrl({
+        browse: "workers",
+        chat: null,
+        request: intentId,
+        view: "chat",
+      })
+      setPendingApprovalIntentId((current) =>
+        current === intentId ? null : current
+      )
+      setConversationId(undefined)
+      setMessages([])
+      if (payload.workspace) {
+        setWorkspace(payload.workspace)
+        setShowWorkspace(true)
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to approve this worker."
+      )
+    } finally {
+      setApprovingMatchedSupplyId(null)
     }
   }
 
@@ -2322,6 +2339,14 @@ export function ChatShell() {
     })
   }
 
+  function openProfileSheet(profileId: string) {
+    setActiveProfileId(profileId)
+  }
+
+  function closeProfileSheet() {
+    setActiveProfileId(null)
+  }
+
   function handleInlineNavSelect(href: string) {
     const nextView = centerSheetViewByHref[href as keyof typeof centerSheetViewByHref]
     if (!nextView) {
@@ -2520,6 +2545,48 @@ export function ChatShell() {
                 </FocusSheet>
               ) : null}
 
+              {activeProfileId ? (
+                <FocusSheet
+                  onClose={closeProfileSheet}
+                  open={Boolean(activeProfileId)}
+                  title={
+                    activeProfileId === "boreal-agent"
+                      ? "Boreal Agent"
+                      : profileSheetDetail?.profile.displayName ?? "Profile"
+                  }
+                >
+                  {activeProfileId === "boreal-agent" ? (
+                    <div className="min-h-full">
+                      <BorealProfileView
+                        showProfileLink={false}
+                        stats={borealProfileStats}
+                      />
+                    </div>
+                  ) : profileSheetDetail === undefined ? (
+                    <div className="flex min-h-[24rem] items-center justify-center text-sm text-muted-foreground">
+                      <LoaderIcon className="mr-2 size-4 animate-spin" />
+                      Loading profile
+                    </div>
+                  ) : !profileSheetDetail ? (
+                    <div className="flex min-h-[24rem] items-center justify-center px-6 text-center">
+                      <div className="space-y-2 border border-border p-8">
+                        <p className="text-lg font-medium">Profile not found</p>
+                        <p className="text-sm text-muted-foreground">
+                          This worker profile is not public or does not exist.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="min-h-full">
+                      <ProfileView
+                        detail={profileSheetDetail}
+                        showProfileLink={false}
+                      />
+                    </div>
+                  )}
+                </FocusSheet>
+              ) : null}
+
               {isPublicDiscoveryOnly ? (
                 <div className="min-h-0 flex-1 overflow-hidden">
                   <div className={HOME_PANEL_CLASS}>
@@ -2678,6 +2745,7 @@ export function ChatShell() {
                                 onBrowseWorkers={() => {
                                   openMarketplaceTab("workers")
                                 }}
+                                onViewProfile={openProfileSheet}
                                 requestDetail={requestDetail}
                                 shareUrl={selectedRequestShareUrl}
                               />
@@ -2692,6 +2760,9 @@ export function ChatShell() {
                           <ScrollArea className="h-full">
                             <div className={CONTENT_RAIL_CLASS}>
                               <ProposalViewerPanel
+                                approvingMatchedSupplyId={
+                                  approvingMatchedSupplyId
+                                }
                                 approvingProposalId={approvingProposalId}
                                 canSubmitDelivery={canSubmitDelivery}
                                 deliveryDraft={deliveryDraft}
@@ -2702,11 +2773,16 @@ export function ChatShell() {
                                 hasSubmittedProposal={hasSubmittedProposal}
                                 isDraftingProposal={isDraftingProposal}
                                 isRefiningMatches={isRefiningMatches}
+                                isApprovingMatchedSupply={Boolean(
+                                  approvingMatchedSupplyId
+                                )}
                                 isSubmittingDelivery={isSubmittingDelivery}
                                 isSubmittingProposal={isSubmittingProposal}
                                 key={activeIntentId}
                                 matchQueryDraft={resolvedMatchQueryDraft}
-                                onAddToCart={handleAddToCart}
+                                onApproveMatchedSupply={
+                                  handleApproveMatchedSupply
+                                }
                                 onApproveProposal={handleApproveProposal}
                                 onDeliveryFilesSelected={
                                   handleDeliveryFilesSelected
@@ -2719,11 +2795,10 @@ export function ChatShell() {
                                 }
                                 onSubmitDelivery={handleSubmitDelivery}
                                 onSubmitProposal={handleSubmitProposal}
-                                onTogglePinnedMatch={handleTogglePinnedMatch}
-                                pinningSupplyId={pinningSupplyId}
                                 proposalDraft={proposalDraft}
                                 proposalMessage={proposalMessage}
                                 requestDetail={requestDetail}
+                                onViewProfile={openProfileSheet}
                                 setDeliveryDraft={setDeliveryDraft}
                                 setMatchQueryDraft={setMatchQueryDraft}
                                 setProposalDraft={setProposalDraft}
@@ -2763,22 +2838,23 @@ export function ChatShell() {
                                   isApprovingRequest={isApprovingRequest}
                                   isArchivingRequest={isArchivingRequest}
                                   isCancellingRequest={isCancellingRequest}
-                                  isMarkingRequestFulfilled={
-                                    isMarkingRequestFulfilled
-                                  }
+                                isMarkingRequestFulfilled={
+                                  isMarkingRequestFulfilled
+                                }
                                   isRefreshingRequest={isRefreshingRequest}
+                                  isRetryingRequest={isRetryingRequest}
                                   isRefreshingVideo={isRefreshingVideo}
                                   isSubmittingReview={isSubmittingReview}
                                   liveMessages={messages}
-                                  onAddToCart={handleAddToCart}
+                                  approvingMatchedSupplyId={
+                                    approvingMatchedSupplyId
+                                  }
+                                  onApproveMatchedSupply={
+                                    handleApproveMatchedSupply
+                                  }
                                   onApproveProposal={handleApproveProposal}
                                   onApproveRequest={handleApproveRequest}
                                   onArchiveRequest={handleArchiveRequest}
-                                  onAskCatalogItem={(item) => {
-                                    void submitMessage(
-                                      `Tell me more about ${item.title}. Include best use cases, what it delivers, and whether it fits my request.`
-                                    )
-                                  }}
                                   onCancelRequest={handleCancelRequest}
                                   onDeleteIntent={() =>
                                     handleDeleteIntent(activeIntentId)
@@ -2806,6 +2882,7 @@ export function ChatShell() {
                                   }}
                                   onRetryRequest={handleRetryRequest}
                                   onSubmitReview={handleSubmitReview}
+                                  onViewProfile={openProfileSheet}
                                   requestDetail={requestDetail}
                                   review={effectiveReview}
                                   shouldPromptReview={shouldPromptReview}
@@ -3001,13 +3078,13 @@ export function ChatShell() {
                           <InlineWorkspaceCard
                             approvalIntentId={pendingApprovalIntentId}
                             isRefreshingVideo={isRefreshingVideo}
-                            onAddToCart={handleAddToCart}
+                            approvingMatchedSupplyId={
+                              approvingMatchedSupplyId
+                            }
                             onApproveRoute={handleApproveRequest}
-                            onAskCatalogItem={(item) => {
-                              void submitMessage(
-                                `Tell me more about ${item.title}. Include best use cases, what it delivers, and whether it fits my request.`
-                              )
-                            }}
+                            onApproveMatchedSupply={
+                              handleApproveMatchedSupply
+                            }
                             onDownloadVideo={handleDownloadVideo}
                             isApprovingRoute={isApprovingRequest}
                             onOpenProfileBuilder={openProfileBuilder}
@@ -3015,6 +3092,7 @@ export function ChatShell() {
                               setComposerText(value)
                             }}
                             onRefreshVideo={() => undefined}
+                            onViewProfile={openProfileSheet}
                             workspace={effectiveWorkspace}
                           />
                         ) : null}
@@ -3103,9 +3181,9 @@ export function ChatShell() {
             >
               <WorkspacePanel
                 activeTab={workspaceTab}
-                onAddToCart={handleAddToCart}
                 onSelectRequest={handleMarketplaceSelect}
                 onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
+                onViewProfile={openProfileSheet}
                 ownerExternalId={ownerExternalId}
               />
             </DesktopDiscoveryRail>
@@ -3151,9 +3229,9 @@ export function ChatShell() {
       >
         <WorkspacePanel
           activeTab={workspaceTab}
-          onAddToCart={handleAddToCart}
           onSelectRequest={handleMarketplaceSelect}
           onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
+          onViewProfile={openProfileSheet}
           ownerExternalId={ownerExternalId}
         />
       </MobileSidebarDrawer>
@@ -3212,6 +3290,7 @@ export function ChatShell() {
         onPayItem={handleExecuteCheckoutItemPayment}
         onRemoveItem={handleRemoveFromCart}
         onUpdateQuantity={handleUpdateCartQuantity}
+        onViewProfile={openProfileSheet}
       />
     </>
   )
@@ -3707,6 +3786,7 @@ function InlineRequestActionEvent({
   isCancellingRequest,
   isMarkingRequestFulfilled,
   isRefreshingRequest,
+  isRetryingRequest,
   isSubmittingReview,
   onArchiveRequest,
   onApproveProposal,
@@ -3719,6 +3799,7 @@ function InlineRequestActionEvent({
   onRefreshRequest,
   onRetryRequest,
   onSubmitReview,
+  onViewProfile,
   participants,
   proposals,
   shouldPromptReview,
@@ -3732,6 +3813,7 @@ function InlineRequestActionEvent({
   isCancellingRequest: boolean
   isMarkingRequestFulfilled: boolean
   isRefreshingRequest: boolean
+  isRetryingRequest: boolean
   isSubmittingReview: boolean
   onArchiveRequest: () => Promise<void>
   onApproveProposal: (proposalId: string) => Promise<void>
@@ -3744,11 +3826,17 @@ function InlineRequestActionEvent({
   onRefreshRequest: () => Promise<void>
   onRetryRequest: () => Promise<void>
   onSubmitReview: (rating: number) => void
+  onViewProfile: (profileId: string) => void
   participants: RequestDetail["participants"]
   proposals: RequestDetail["proposals"]
   shouldPromptReview: boolean
 }) {
-  const actionState = getRequestActionState(intent, access, shouldPromptReview)
+  const actionState = getRequestActionState(
+    intent,
+    access,
+    shouldPromptReview,
+    activity
+  )
   const submittedProposals = (proposals ?? []).filter(
     (proposal) => proposal.status === "submitted"
   )
@@ -3822,10 +3910,13 @@ function InlineRequestActionEvent({
                   Approve proposal
                 </Button>
                 {proposal.proposer.profileId ? (
-                  <Button asChild size="sm" type="button" variant="outline">
-                    <Link href={`/p/${proposal.proposer.profileId}`}>
-                      View profile
-                    </Link>
+                  <Button
+                    onClick={() => onViewProfile(proposal.proposer.profileId!)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    View profile
                   </Button>
                 ) : null}
                 <Button
@@ -4037,6 +4128,24 @@ function InlineRequestActionEvent({
             </Button>
           </>
         ) : null}
+        {actionState.kind === "awaiting_reply" ? (
+          <>
+            <Button
+              disabled={isRefreshingRequest}
+              onClick={() => void onRefreshRequest()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isRefreshingRequest ? (
+                <LoaderIcon className="animate-spin" />
+              ) : (
+                <RefreshCwIcon />
+              )}
+              Refresh
+            </Button>
+          </>
+        ) : null}
         {actionState.kind === "in_flight" ? (
           <>
             {isProfileUpdate ? (
@@ -4088,17 +4197,22 @@ function InlineRequestActionEvent({
               </Button>
             ) : null}
             <Button
-              disabled={isApprovingRequest || isCancellingRequest}
+              disabled={
+                isRetryingRequest ||
+                isCancellingRequest
+              }
               onClick={() => void onRetryRequest()}
               size="sm"
               type="button"
             >
-              {isApprovingRequest ? (
+              {isRetryingRequest ? (
                 <LoaderIcon className="animate-spin" />
               ) : (
                 <RefreshCwIcon />
               )}
-              Retry
+              {isVideoProviderAccessUnavailableError(blockedErrorMessage)
+                ? "Retry after fix"
+                : "Retry"}
             </Button>
             <Button
               disabled={isApprovingRequest}
@@ -4235,19 +4349,20 @@ type RequestTimelineItem =
 
 function RequestChatTimeline({
   approvingProposalId,
+  approvingMatchedSupplyId,
   liveMessages,
   isArchivingRequest,
   isApprovingRequest,
   isCancellingRequest,
   isMarkingRequestFulfilled,
   isRefreshingRequest,
+  isRetryingRequest,
   isRefreshingVideo,
   isSubmittingReview,
-  onAddToCart,
+  onApproveMatchedSupply,
   onArchiveRequest,
   onApproveProposal,
   onApproveRequest,
-  onAskCatalogItem,
   onCancelRequest,
   onDeleteIntent,
   onDownloadVideo,
@@ -4259,25 +4374,30 @@ function RequestChatTimeline({
   onRefreshVideo,
   onRetryRequest,
   onSubmitReview,
+  onViewProfile,
   requestDetail,
   review,
   shouldPromptReview,
   workspace,
 }: {
   approvingProposalId: string | null
+  approvingMatchedSupplyId: string | null
   liveMessages: ChatMessage[]
   isArchivingRequest: boolean
   isApprovingRequest: boolean
   isCancellingRequest: boolean
   isMarkingRequestFulfilled: boolean
   isRefreshingRequest: boolean
+  isRetryingRequest: boolean
   isRefreshingVideo: boolean
   isSubmittingReview: boolean
-  onAddToCart: (supplyId: string) => Promise<void>
+  onApproveMatchedSupply: (
+    supplyId: string,
+    intentId?: string | null
+  ) => Promise<void>
   onArchiveRequest: () => Promise<void>
   onApproveProposal: (proposalId: string) => Promise<void>
   onApproveRequest: (intentId?: string | null) => Promise<void>
-  onAskCatalogItem: (item: CatalogItem) => void
   onCancelRequest: (intentId?: string | null) => Promise<void>
   onDeleteIntent: () => void
   onDownloadVideo: (videoId: string) => void
@@ -4289,6 +4409,7 @@ function RequestChatTimeline({
   onRefreshVideo: () => void
   onRetryRequest: () => Promise<void>
   onSubmitReview: (rating: number) => void
+  onViewProfile: (profileId: string) => void
   requestDetail: RequestDetail
   review: RequestDetail["review"]
   shouldPromptReview: boolean
@@ -4298,7 +4419,8 @@ function RequestChatTimeline({
   const catalogApprovalIntentId =
     requestDetail.intent &&
     requestDetail.access?.isOwner &&
-    requestDetail.intent.status === "proposed" &&
+    (requestDetail.intent.status === "proposed" ||
+      requestDetail.intent.status === "open") &&
     !requestDetail.intent.needsClarification
       ? requestDetail.intent._id
       : null
@@ -4355,10 +4477,10 @@ function RequestChatTimeline({
             <InlineArtifactEvent
               artifact={entry.item}
               isRefreshingVideo={isRefreshingVideo}
-              onAddToCart={onAddToCart}
               onDownloadVideo={onDownloadVideo}
               onOpenProfileBuilder={onOpenProfileBuilder}
               onRefreshVideo={onRefreshVideo}
+              onViewProfile={onViewProfile}
               workspace={workspace}
               key={entry.key}
             />
@@ -4391,6 +4513,7 @@ function RequestChatTimeline({
           isCancellingRequest={isCancellingRequest}
           isMarkingRequestFulfilled={isMarkingRequestFulfilled}
           isRefreshingRequest={isRefreshingRequest}
+          isRetryingRequest={isRetryingRequest}
           isSubmittingReview={isSubmittingReview}
           onArchiveRequest={onArchiveRequest}
           onApproveProposal={onApproveProposal}
@@ -4405,6 +4528,7 @@ function RequestChatTimeline({
           onRetryRequest={onRetryRequest}
           participants={requestDetail.participants}
           onSubmitReview={onSubmitReview}
+          onViewProfile={onViewProfile}
           proposals={requestDetail.proposals}
           shouldPromptReview={shouldPromptReview}
         />
@@ -4416,14 +4540,15 @@ function RequestChatTimeline({
         <InlineWorkspaceCard
           approvalIntentId={catalogApprovalIntentId}
           isRefreshingVideo={isRefreshingVideo}
-          onAddToCart={onAddToCart}
+          approvingMatchedSupplyId={approvingMatchedSupplyId}
           onApproveRoute={onApproveRequest}
-          onAskCatalogItem={onAskCatalogItem}
+          onApproveMatchedSupply={onApproveMatchedSupply}
           onDownloadVideo={onDownloadVideo}
           isApprovingRoute={isApprovingRequest}
           onOpenProfileBuilder={onOpenProfileBuilder}
           onQuickReply={onQuickReply}
           onRefreshVideo={onRefreshVideo}
+          onViewProfile={onViewProfile}
           workspace={workspace}
         />
       ) : null}
@@ -4536,18 +4661,18 @@ function InlineActivityEvent({
 function InlineArtifactEvent({
   artifact,
   isRefreshingVideo,
-  onAddToCart,
   onDownloadVideo,
   onOpenProfileBuilder,
   onRefreshVideo,
+  onViewProfile,
   workspace,
 }: {
   artifact: NonNullable<RequestDetail["artifact"]>
   isRefreshingVideo: boolean
-  onAddToCart: (supplyId: string) => Promise<void>
   onDownloadVideo: (videoId: string) => void
   onOpenProfileBuilder: () => void
   onRefreshVideo: () => void
+  onViewProfile: (profileId: string) => void
   workspace: WorkspaceState
 }) {
   if (!hasRenderableInlineWorkspace(workspace)) {
@@ -4561,12 +4686,13 @@ function InlineArtifactEvent({
       </p>
       <InlineWorkspaceCard
         isRefreshingVideo={isRefreshingVideo}
-        onAddToCart={onAddToCart}
-        onAskCatalogItem={() => undefined}
+        approvingMatchedSupplyId={null}
+        onApproveMatchedSupply={() => Promise.resolve()}
         onDownloadVideo={onDownloadVideo}
         onOpenProfileBuilder={onOpenProfileBuilder}
         onQuickReply={() => undefined}
         onRefreshVideo={onRefreshVideo}
+        onViewProfile={onViewProfile}
         workspace={workspace}
       />
     </div>
@@ -4772,10 +4898,12 @@ function LoadingRequestPanel() {
 
 function RequestWorkersPanel({
   onBrowseWorkers,
+  onViewProfile,
   requestDetail,
   shareUrl,
 }: {
   onBrowseWorkers: () => void
+  onViewProfile: (profileId: string) => void
   requestDetail: RequestDetail | null
   shareUrl: string | null
 }) {
@@ -4875,10 +5003,13 @@ function RequestWorkersPanel({
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {participant.profileId ? (
-                      <Button asChild size="sm" type="button" variant="outline">
-                        <Link href={`/p/${participant.profileId}`}>
-                          View profile
-                        </Link>
+                      <Button
+                        onClick={() => onViewProfile(participant.profileId!)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        View profile
                       </Button>
                     ) : null}
                   </div>
@@ -4893,17 +5024,19 @@ function RequestWorkersPanel({
 }
 
 function ProposalViewerPanel({
+  approvingMatchedSupplyId,
   approvingProposalId,
   canSubmitDelivery,
   deliveryDraft,
   deliverySubmitted,
   hasSubmittedProposal,
+  isApprovingMatchedSupply,
   isDraftingProposal,
   isRefiningMatches,
   isSubmittingDelivery,
   isSubmittingProposal,
   matchQueryDraft,
-  onAddToCart,
+  onApproveMatchedSupply,
   onApproveProposal,
   onDeliveryFilesSelected,
   onDraftProposal,
@@ -4912,27 +5045,31 @@ function ProposalViewerPanel({
   onRemoveDeliveryAttachment,
   onSubmitDelivery,
   onSubmitProposal,
-  onTogglePinnedMatch,
-  pinningSupplyId,
   proposalDraft,
   proposalMessage,
   requestDetail,
+  onViewProfile,
   setDeliveryDraft,
   setMatchQueryDraft,
   setProposalDraft,
   setProposalMessage,
 }: {
+  approvingMatchedSupplyId: string | null
   approvingProposalId: string | null
   canSubmitDelivery: boolean
   deliveryDraft: DeliveryDraft
   deliverySubmitted: boolean
   hasSubmittedProposal: boolean
+  isApprovingMatchedSupply: boolean
   isDraftingProposal: boolean
   isRefiningMatches: boolean
   isSubmittingDelivery: boolean
   isSubmittingProposal: boolean
   matchQueryDraft: string
-  onAddToCart: (supplyId: string) => Promise<void>
+  onApproveMatchedSupply: (
+    supplyId: string,
+    intentId?: string | null
+  ) => Promise<void>
   onApproveProposal: (proposalId: string) => Promise<void>
   onDeliveryFilesSelected: (files: File[]) => Promise<void>
   onDraftProposal: () => Promise<void>
@@ -4941,11 +5078,10 @@ function ProposalViewerPanel({
   onRemoveDeliveryAttachment: (attachmentId: string) => void
   onSubmitDelivery: () => Promise<void>
   onSubmitProposal: () => Promise<void>
-  onTogglePinnedMatch: (supplyId: string) => Promise<void>
-  pinningSupplyId: string | null
   proposalDraft: ProposalDraft
   proposalMessage: string
   requestDetail: RequestDetail | null
+  onViewProfile: (profileId: string) => void
   setDeliveryDraft: Dispatch<SetStateAction<DeliveryDraft>>
   setMatchQueryDraft: Dispatch<SetStateAction<string | null>>
   setProposalDraft: Dispatch<SetStateAction<ProposalDraft>>
@@ -4975,15 +5111,16 @@ function ProposalViewerPanel({
     <div className="space-y-4">
       {hasMatchingWorkspace ? (
         <RequestMatchingPanel
+          approvingMatchedSupplyId={approvingMatchedSupplyId}
           isOwner={isOwner}
+          isApprovingMatchedSupply={isApprovingMatchedSupply}
           isRefiningMatches={isRefiningMatches}
           matchAttempts={requestDetail?.intent?.matchAttempts ?? 0}
           matchCandidates={matchCandidates}
           matchQueryDraft={matchQueryDraft}
-          onAddToCart={onAddToCart}
+          onApproveMatchedSupply={onApproveMatchedSupply}
           onRefineMatches={onRefineMatches}
-          onTogglePinnedMatch={onTogglePinnedMatch}
-          pinningSupplyId={pinningSupplyId}
+          onViewProfile={onViewProfile}
           setMatchQueryDraft={setMatchQueryDraft}
         />
       ) : null}
@@ -5169,14 +5306,17 @@ function ProposalViewerPanel({
                     <ProposalCardBody proposal={proposal} />
                   </div>
                   {proposal.proposer.profileId ? (
-                    <div className="mt-4">
-                      <Button asChild size="sm" type="button" variant="outline">
-                        <Link href={`/p/${proposal.proposer.profileId}`}>
-                          View profile
-                        </Link>
+                  <div className="mt-4">
+                      <Button
+                        onClick={() => onViewProfile(proposal.proposer.profileId!)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        View profile
                       </Button>
-                    </div>
-                  ) : null}
+                  </div>
+                ) : null}
                   {isOwner && proposal.status === "submitted" ? (
                     <div className="mt-4 flex gap-2">
                       <Button
@@ -5205,26 +5345,31 @@ function ProposalViewerPanel({
 }
 
 function RequestMatchingPanel({
+  approvingMatchedSupplyId,
   isOwner,
+  isApprovingMatchedSupply,
   isRefiningMatches,
   matchAttempts,
   matchCandidates,
   matchQueryDraft,
-  onAddToCart,
+  onApproveMatchedSupply,
   onRefineMatches,
-  onTogglePinnedMatch,
-  pinningSupplyId,
+  onViewProfile,
   setMatchQueryDraft,
 }: {
+  approvingMatchedSupplyId: string | null
   isOwner: boolean
+  isApprovingMatchedSupply: boolean
   isRefiningMatches: boolean
   matchAttempts: number
   matchCandidates: CatalogItem[]
   matchQueryDraft: string
-  onAddToCart: (supplyId: string) => Promise<void>
+  onApproveMatchedSupply: (
+    supplyId: string,
+    intentId?: string | null
+  ) => Promise<void>
   onRefineMatches: () => Promise<void>
-  onTogglePinnedMatch: (supplyId: string) => Promise<void>
-  pinningSupplyId: string | null
+  onViewProfile: (profileId: string) => void
   setMatchQueryDraft: Dispatch<SetStateAction<string | null>>
 }) {
   const feasibleMatches = matchCandidates.filter(
@@ -5243,8 +5388,8 @@ function RequestMatchingPanel({
         <div className="space-y-1">
           <p className="text-sm font-medium">Matching</p>
           <p className="text-xs text-muted-foreground">
-            Ranked supply stays attached to this request so discovery, pinning,
-            and checkout remain auditable in one place.
+            Ranked supply stays attached to this request so you can approve a
+            team without losing the request timeline.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
@@ -5306,19 +5451,20 @@ function RequestMatchingPanel({
           <div className="space-y-1">
             <p className="text-sm font-medium">Ready matches</p>
             <p className="text-xs text-muted-foreground">
-              These listings passed the current gates and can move into cart or
-              checkout now.
+              These listings passed the current gates and can be approved
+              directly into the team now.
             </p>
           </div>
           <div className="space-y-3">
             {feasibleMatches.map((item) => (
               <RequestMatchCard
+                approvingMatchedSupplyId={approvingMatchedSupplyId}
                 isOwner={isOwner}
+                isApprovingMatchedSupply={isApprovingMatchedSupply}
                 item={item}
                 key={item.id}
-                onAddToCart={onAddToCart}
-                onTogglePinnedMatch={onTogglePinnedMatch}
-                pinningSupplyId={pinningSupplyId}
+                onApproveMatchedSupply={onApproveMatchedSupply}
+                onViewProfile={onViewProfile}
               />
             ))}
           </div>
@@ -5342,12 +5488,13 @@ function RequestMatchingPanel({
           <div className="space-y-3">
             {blockedMatches.map((item) => (
               <RequestMatchCard
+                approvingMatchedSupplyId={approvingMatchedSupplyId}
                 isOwner={false}
+                isApprovingMatchedSupply={false}
                 item={item}
                 key={item.id}
-                onAddToCart={onAddToCart}
-                onTogglePinnedMatch={onTogglePinnedMatch}
-                pinningSupplyId={pinningSupplyId}
+                onApproveMatchedSupply={onApproveMatchedSupply}
+                onViewProfile={onViewProfile}
               />
             ))}
           </div>
@@ -5358,20 +5505,27 @@ function RequestMatchingPanel({
 }
 
 function RequestMatchCard({
+  approvingMatchedSupplyId,
   isOwner,
+  isApprovingMatchedSupply,
   item,
-  onAddToCart,
-  onTogglePinnedMatch,
-  pinningSupplyId,
+  onApproveMatchedSupply,
+  onViewProfile,
 }: {
+  approvingMatchedSupplyId: string | null
   isOwner: boolean
+  isApprovingMatchedSupply: boolean
   item: CatalogItem
-  onAddToCart: (supplyId: string) => Promise<void>
-  onTogglePinnedMatch: (supplyId: string) => Promise<void>
-  pinningSupplyId: string | null
+  onApproveMatchedSupply: (
+    supplyId: string,
+    intentId?: string | null
+  ) => Promise<void>
+  onViewProfile: (profileId: string) => void
 }) {
   const isBlocked = item.gatedOutReasons.length > 0
   const confidence = item.successProbability ?? item.matchScore ?? 0
+  const isApprovingThisMatch =
+    isApprovingMatchedSupply && approvingMatchedSupplyId === item.id
 
   return (
     <div
@@ -5420,21 +5574,10 @@ function RequestMatchCard({
             ) : null}
           </div>
         </div>
-        {isOwner && !isBlocked ? (
-          <Button
-            disabled={pinningSupplyId === item.id}
-            onClick={() => void onTogglePinnedMatch(item.id)}
-            size="sm"
-            type="button"
-            variant={item.isPinned ? "default" : "outline"}
-          >
-            {pinningSupplyId === item.id ? (
-              <LoaderIcon className="animate-spin" />
-            ) : (
-              <PinIcon />
-            )}
-            {item.isPinned ? "Pinned" : "Pin match"}
-          </Button>
+        {isOwner && item.isPinned ? (
+          <span className="inline-flex items-center border border-primary/30 px-2 py-1 text-[11px] tracking-[0.16em] text-primary uppercase">
+            pinned
+          </span>
         ) : null}
       </div>
 
@@ -5478,35 +5621,29 @@ function RequestMatchCard({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {!isBlocked && item.isCartEnabled ? (
+        {isOwner && !isBlocked ? (
           <Button
-            onClick={() => void onAddToCart(item.id)}
+            disabled={isApprovingThisMatch}
+            onClick={() => void onApproveMatchedSupply(item.id)}
             size="sm"
             type="button"
           >
-            <ShoppingCartIcon />
-            Add to cart
-          </Button>
-        ) : null}
-        {item.executorUrl ? (
-          <Button asChild size="sm" type="button" variant="outline">
-            <a href={item.executorUrl} rel="noreferrer" target="_blank">
-              <DownloadIcon />
-              {item.supportsDirectInvoke ? "Open endpoint" : "Preview"}
-            </a>
-          </Button>
-        ) : null}
-        {item.sourceListingUrl ? (
-          <Button asChild size="sm" type="button" variant="outline">
-            <a href={item.sourceListingUrl} rel="noreferrer" target="_blank">
-              <ExternalLinkIcon />
-              Provider page
-            </a>
+            {isApprovingThisMatch ? (
+              <LoaderIcon className="animate-spin" />
+            ) : (
+              <CheckIcon />
+            )}
+            Approve to team
           </Button>
         ) : null}
         {item.seller?.profileId ? (
-          <Button asChild size="sm" type="button" variant="outline">
-            <Link href={`/p/${item.seller.profileId}`}>View seller</Link>
+          <Button
+            onClick={() => onViewProfile(item.seller!.profileId!)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            View profile
           </Button>
         ) : null}
       </div>
@@ -5528,6 +5665,7 @@ function CartDialog({
   onPayItem,
   onRemoveItem,
   onUpdateQuantity,
+  onViewProfile,
 }: {
   activeCart: ActiveCart
   activePaymentItemId: string | null
@@ -5545,6 +5683,7 @@ function CartDialog({
   ) => Promise<void>
   onRemoveItem: (cartLineItemId: string) => Promise<void>
   onUpdateQuantity: (cartLineItemId: string, quantity: number) => Promise<void>
+  onViewProfile: (profileId: string) => void
 }) {
   const cartItems = activeCart?.items ?? []
   const hasCartItems = cartItems.length > 0
@@ -5748,50 +5887,14 @@ function CartDialog({
                                         : "Pay & invoke"}
                                   </Button>
                                 ) : null}
-                                {item.accessUrl ? (
-                                  <Button
-                                    asChild
-                                    size="sm"
-                                    type="button"
-                                    variant="outline"
-                                  >
-                                    <a
-                                      href={item.accessUrl}
-                                      rel="noreferrer"
-                                      target="_blank"
-                                    >
-                                      <DownloadIcon />
-                                      {item.accessLabel ?? "Open"}
-                                    </a>
-                                  </Button>
-                                ) : null}
-                                {item.sourceListingUrl && !item.accessUrl ? (
-                                  <Button
-                                    asChild
-                                    size="sm"
-                                    type="button"
-                                    variant="outline"
-                                  >
-                                    <a
-                                      href={item.sourceListingUrl}
-                                      rel="noreferrer"
-                                      target="_blank"
-                                    >
-                                      <ExternalLinkIcon />
-                                      Open provider
-                                    </a>
-                                  </Button>
-                                ) : null}
                                 {item.sellerProfileId ? (
                                   <Button
-                                    asChild
+                                    onClick={() => onViewProfile(item.sellerProfileId!)}
                                     size="sm"
                                     type="button"
                                     variant="ghost"
                                   >
-                                    <Link href={`/p/${item.sellerProfileId}`}>
-                                      View seller
-                                    </Link>
+                                    View profile
                                   </Button>
                                 ) : null}
                               </div>
@@ -6084,10 +6187,12 @@ function pickTxHash(receipt: Record<string, unknown> | null) {
 function getRequestActionState(
   intent: NonNullable<RequestDetail["intent"]>,
   access: RequestDetail["access"],
-  reviewPending: boolean
+  reviewPending: boolean,
+  activity: RequestDetail["activity"]
 ) {
   const status = intent.status
   const handlingMode = getRequestHandlingMode(intent)
+  const awaitingSpecialistReply = isAwaitingSpecialistReply(activity, intent)
 
   if (reviewPending) {
     return {
@@ -6095,6 +6200,17 @@ function getRequestActionState(
         "The work is delivered. Capture a quick rating inline before moving on.",
       kind: "review" as const,
       title: "Delivery finished",
+    }
+  }
+
+  if (intent.needsClarification && intent.missingDetails.length > 0) {
+    return {
+      description:
+        status === "proposed"
+          ? "This draft is still being scoped. Reply in chat or use the prompts below before Boreal opens it as tracked work."
+          : "This request is blocked on missing scope. Reply in thread to unblock it.",
+      kind: "clarification" as const,
+      title: "Needs scope",
     }
   }
 
@@ -6133,6 +6249,19 @@ function getRequestActionState(
     }
   }
 
+  if (
+    awaitingSpecialistReply &&
+    (status === "claimed" || status === "in_progress") &&
+    access?.isOwner
+  ) {
+    return {
+      description:
+        "The approved specialist is waiting on your reply in this same request thread.",
+      kind: "awaiting_reply" as const,
+      title: "Reply in thread",
+    }
+  }
+
   if ((status === "claimed" || status === "in_progress") && access?.isOwner) {
     return {
       description:
@@ -6144,8 +6273,11 @@ function getRequestActionState(
 
   if (status === "blocked" && access?.isOwner) {
     return {
-      description:
-        "Automatic execution hit an error. Retry it, or reopen it for workers if you want people or external agents to take over.",
+      description: isVideoProviderAccessUnavailableError(
+        getLatestBlockedErrorMessage(activity)
+      )
+        ? "Motion Video Studio cannot run under the current OpenAI project or key. Fix provider access, or reopen this request for workers now."
+        : "Automatic execution hit an error. Retry it, or reopen it for workers if you want people or external agents to take over.",
       kind: "blocked" as const,
       title: "Needs intervention",
     }
@@ -6352,27 +6484,32 @@ function hasRenderableInlineWorkspace(workspaceState: WorkspaceState) {
 
 function InlineWorkspaceCard({
   approvalIntentId,
+  approvingMatchedSupplyId,
   isApprovingRoute,
   isRefreshingVideo,
-  onAddToCart,
+  onApproveMatchedSupply,
   onApproveRoute,
-  onAskCatalogItem,
   onDownloadVideo,
   onOpenProfileBuilder,
   onQuickReply,
   onRefreshVideo,
+  onViewProfile,
   workspace,
 }: {
   approvalIntentId?: string | null
+  approvingMatchedSupplyId?: string | null
   isApprovingRoute?: boolean
   isRefreshingVideo: boolean
-  onAddToCart: (supplyId: string) => Promise<void>
+  onApproveMatchedSupply: (
+    supplyId: string,
+    intentId?: string | null
+  ) => Promise<void>
   onApproveRoute?: (intentId?: string | null) => Promise<void>
-  onAskCatalogItem: (item: CatalogItem) => void
   onDownloadVideo: (videoId: string) => void
   onOpenProfileBuilder: () => void
   onQuickReply: (value: string) => void
   onRefreshVideo: () => void
+  onViewProfile: (profileId: string) => void
   workspace: WorkspaceState
 }) {
   if (workspace.kind === "artifact") {
@@ -6460,13 +6597,14 @@ function InlineWorkspaceCard({
           {workspace.items.map((item) => (
             <CatalogWorkspaceCard
               approvalIntentId={approvalIntentId}
+              approvingMatchedSupplyId={approvingMatchedSupplyId ?? null}
               highlighted={item.id === highlightedId}
               isApprovingRoute={Boolean(isApprovingRoute)}
               item={item}
               key={item.id}
-              onAddToCart={onAddToCart}
+              onApproveMatchedSupply={onApproveMatchedSupply}
               onApproveRoute={onApproveRoute}
-              onAskCatalogItem={onAskCatalogItem}
+              onViewProfile={onViewProfile}
             />
           ))}
         </div>
@@ -6525,23 +6663,33 @@ function InlineWorkspaceCard({
 
 function CatalogWorkspaceCard({
   approvalIntentId,
+  approvingMatchedSupplyId,
   highlighted,
   isApprovingRoute,
   item,
-  onAddToCart,
+  onApproveMatchedSupply,
   onApproveRoute,
-  onAskCatalogItem,
+  onViewProfile,
 }: {
   approvalIntentId?: string | null
+  approvingMatchedSupplyId: string | null
   highlighted: boolean
   isApprovingRoute: boolean
   item: CatalogItem
-  onAddToCart: (supplyId: string) => Promise<void>
+  onApproveMatchedSupply: (
+    supplyId: string,
+    intentId?: string | null
+  ) => Promise<void>
   onApproveRoute?: (intentId?: string | null) => Promise<void>
-  onAskCatalogItem: (item: CatalogItem) => void
+  onViewProfile: (profileId: string) => void
 }) {
   const canApproveRoute =
     Boolean(approvalIntentId) && highlighted && typeof onApproveRoute === "function"
+  const canInviteMatchedSupply =
+    Boolean(approvalIntentId) &&
+    !isRoutePreviewCatalogItem(item) &&
+    item.gatedOutReasons.length === 0
+  const isInvitingMatchedSupply = approvingMatchedSupplyId === item.id
 
   return (
     <div className="space-y-4 border border-border p-4">
@@ -6605,7 +6753,23 @@ function CatalogWorkspaceCard({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        {canApproveRoute ? (
+        {canInviteMatchedSupply ? (
+          <Button
+            disabled={isInvitingMatchedSupply}
+            onClick={() =>
+              void onApproveMatchedSupply(item.id, approvalIntentId)
+            }
+            size="sm"
+            type="button"
+          >
+            {isInvitingMatchedSupply ? (
+              <LoaderIcon className="animate-spin" />
+            ) : (
+              <CheckIcon />
+            )}
+            Invite
+          </Button>
+        ) : canApproveRoute ? (
           <Button
             disabled={isApprovingRoute}
             onClick={() => void onApproveRoute?.(approvalIntentId)}
@@ -6617,48 +6781,19 @@ function CatalogWorkspaceCard({
             ) : (
               <CheckIcon />
             )}
-            Approve route
-          </Button>
-        ) : null}
-        {item.isCartEnabled ? (
-          <Button
-            onClick={() => void onAddToCart(item.id)}
-            size="sm"
-            type="button"
-          >
-            <ShoppingCartIcon />
-            Add to cart
-          </Button>
-        ) : null}
-        {item.executorUrl ? (
-          <Button asChild size="sm" type="button" variant="outline">
-            <a href={item.executorUrl} rel="noreferrer" target="_blank">
-              <DownloadIcon />
-              {item.supportsDirectInvoke ? "Open endpoint" : "Preview"}
-            </a>
-          </Button>
-        ) : null}
-        {item.sourceListingUrl ? (
-          <Button asChild size="sm" type="button" variant="outline">
-            <a href={item.sourceListingUrl} rel="noreferrer" target="_blank">
-              <ExternalLinkIcon />
-              Provider page
-            </a>
+            Invite
           </Button>
         ) : null}
         {item.seller?.profileId ? (
-          <Button asChild size="sm" type="button" variant="outline">
-            <Link href={`/p/${item.seller.profileId}`}>View seller</Link>
+          <Button
+            onClick={() => onViewProfile(item.seller!.profileId!)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            View profile
           </Button>
         ) : null}
-        <Button
-          onClick={() => onAskCatalogItem(item)}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
-          Ask more
-        </Button>
       </div>
     </div>
   )
@@ -6854,9 +6989,11 @@ function labelActivity(type: string) {
     "request.blocked": "Execution blocked",
     "request.delivered": "Route delivered",
     "request.execution_started": "Execution started",
+    "request.follow_up": "Specialist follow-up",
     "request.fulfilled": "Request fulfilled",
     "request.opened_for_workers": "Opened for workers",
     "request.retrying": "Retry started",
+    "request.team_assigned": "Team assigned",
   }
 
   return labels[type] ?? type.replace("request.", "").replaceAll("_", " ")
@@ -6909,6 +7046,22 @@ function getLatestBlockedErrorMessage(activity: RequestDetail["activity"]) {
   return typeof error === "string" && error.trim().length > 0
     ? error
     : null
+}
+
+function isAwaitingSpecialistReply(
+  activity: RequestDetail["activity"],
+  intent: NonNullable<RequestDetail["intent"]>
+) {
+  const latestActivity = [...activity].reverse()[0]
+
+  if (!latestActivity) {
+    return false
+  }
+
+  return (
+    (intent.status === "claimed" || intent.status === "in_progress") &&
+    latestActivity.type === "request.follow_up"
+  )
 }
 
 function buildWorkspaceFromRequestDetail(
@@ -7060,10 +7213,12 @@ function buildWorkspaceFromRequestDetail(
       highlightedId: detail.catalogItems[0]?._id,
       items: detail.catalogItems.map(mapCatalogEntryToItem),
       kind: "catalog",
-      subtitle:
-        detail.intent.status === "blocked"
+        subtitle:
+          detail.intent.status === "blocked"
           ? blockedErrorMessage
-            ? `Automatic route failed: ${blockedErrorMessage} You can retry it or reopen it for workers.`
+            ? isVideoProviderAccessUnavailableError(blockedErrorMessage)
+              ? `Motion Video Studio is unavailable under the current OpenAI project or key. Fix provider access, then retry, or reopen this request for workers now.`
+              : `Automatic route failed: ${blockedErrorMessage} You can retry it or reopen it for workers.`
             : "Automatic route failed. You can retry it or reopen it for workers."
           : detail.intent.status === "open" && blockedErrorMessage
             ? "This request was reopened for workers after an automatic route failed. The matched offers stay attached so you can compare and wait for proposals."
@@ -7202,4 +7357,8 @@ function normalizeVideoStatus(
   }
 
   return "failed"
+}
+
+function isRoutePreviewCatalogItem(item: CatalogItem) {
+  return item.id.startsWith("route-preview:")
 }

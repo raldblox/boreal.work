@@ -14,6 +14,7 @@ import {
   normalizeCollectiveProposalInput,
   resolveCollectiveParticipants,
 } from "./collectives";
+import { reserveSupplyCapacity } from "./supplies";
 import { areBorealNetworksCompatible } from "../lib/boreal/commerce/networks";
 import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
@@ -629,6 +630,381 @@ export const approveProposal = mutation({
   },
 });
 
+export const approveMatchedSupply = mutation({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+    supplyId: v.id("supplies"),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+    const supply = await ctx.db.get(args.supplyId);
+
+    if (
+      !intent ||
+      !supply ||
+      supply.status !== "active" ||
+      !supply.supplierUserId ||
+      !(await hasOwnerAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
+      return { approved: false as const };
+    }
+
+    if (!["open", "proposed", "blocked"].includes(intent.status)) {
+      return { approved: false as const, reason: "request_not_open" as const };
+    }
+
+    const reservation = await reserveSupplyCapacity(ctx, args.supplyId);
+
+    if (!reservation.reserved) {
+      return {
+        approved: false as const,
+        reason:
+          reservation.reason === "capacity_exhausted"
+            ? ("capacity_exhausted" as const)
+            : reservation.reason === "unavailable"
+              ? ("supplier_unavailable" as const)
+              : ("gated_out" as const),
+      };
+    }
+
+    const now = Date.now();
+    const priceAmount = supply.priceAmount ?? 0;
+    const supplierDisplayName =
+      (await getUserDisplayName(ctx, supply.supplierUserId)) ?? supply.title;
+    const supplierExternalId = await getUserExternalId(ctx, supply.supplierUserId);
+    const supplierProfileId = await getProfileIdForUser(ctx, supply.supplierUserId);
+    const ownerBuyerWalletAccountId = scenarioNeedsBuyerWallet(
+      "custom_scoped_work",
+      priceAmount,
+    )
+      ? await getDefaultBuyerWalletAccountId(ctx, intent.ownerUserId)
+      : undefined;
+    const supplierPayoutWalletAccountId = scenarioNeedsPayoutWallet(
+      "custom_scoped_work",
+      priceAmount,
+    )
+      ? await getDefaultPayoutWalletAccountId(ctx, supply.supplierUserId)
+      : undefined;
+    const ownerBuyerWalletContext = await getWalletAccountContext(
+      ctx,
+      ownerBuyerWalletAccountId,
+    );
+    const supplierPayoutWalletContext = await getWalletAccountContext(
+      ctx,
+      supplierPayoutWalletAccountId,
+    );
+
+    if (
+      scenarioNeedsBuyerWallet("custom_scoped_work", priceAmount) &&
+      !ownerBuyerWalletAccountId
+    ) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "The buyer needs a connected wallet before approving this matched worker.",
+        metadata: {
+          price: priceAmount,
+          supplyId: args.supplyId,
+        },
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "blocked",
+      });
+
+      return {
+        approved: false as const,
+        reason: "missing_buyer_wallet" as const,
+      };
+    }
+
+    if (
+      scenarioNeedsPayoutWallet("custom_scoped_work", priceAmount) &&
+      !supplierPayoutWalletAccountId
+    ) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "The selected matched worker needs a payout wallet before approval.",
+        metadata: {
+          supplyId: args.supplyId,
+          supplierUserId: supply.supplierUserId,
+        },
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "blocked",
+      });
+
+      return {
+        approved: false as const,
+        reason: "missing_payout_wallet" as const,
+      };
+    }
+
+    if (
+      priceAmount > 0 &&
+      !areBorealNetworksCompatible({
+        left: ownerBuyerWalletContext?.networkKey ?? null,
+        right: supplierPayoutWalletContext?.networkKey ?? null,
+      })
+    ) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "Buyer and matched worker payout wallets are on different networks. Cross-network settlement is not enabled yet.",
+        metadata: {
+          buyerNetworkKey: ownerBuyerWalletContext?.networkKey,
+          payoutNetworkKey: supplierPayoutWalletContext?.networkKey,
+          supplyId: args.supplyId,
+        },
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "blocked",
+      });
+
+      return {
+        approved: false as const,
+        reason: "wallet_network_mismatch" as const,
+      };
+    }
+
+    const relatedProposals = await ctx.db
+      .query("proposals")
+      .withIndex("by_intentKey_and_createdAt", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intent.intentKey),
+      )
+      .order("asc")
+      .take(32);
+
+    const existingProposal =
+      relatedProposals.find(
+        (proposal) => proposal.proposerUserId === supply.supplierUserId,
+      ) ?? null;
+    const proposalId =
+      existingProposal?._id ??
+      (await ctx.db.insert("proposals", {
+        createdAt: now,
+        currency: supply.currency,
+        deliverablesBody: [supply.title, "", supply.description].join("\n"),
+        deliverablesType: "markdown",
+        environment:
+          supplierPayoutWalletContext?.environment ??
+          ownerBuyerWalletContext?.environment,
+        etaAt: estimateClaimEtaAt(now, supply.estimatedDeliveryLabel, supply.deliveryType),
+        intentKey: intent.intentKey,
+        isCollective: false,
+        price: priceAmount,
+        proposerKind: supply.actorKind,
+        proposerUserId: supply.supplierUserId,
+        scenarioId: getScenarioId("custom_scoped_work"),
+        scenarioType: "custom_scoped_work",
+        status: "accepted",
+      }));
+
+    for (const proposal of relatedProposals) {
+      const nextStatus =
+        proposal._id === proposalId
+          ? "accepted"
+          : proposal.status === "accepted"
+            ? "declined"
+            : proposal.status;
+
+      if (nextStatus !== proposal.status) {
+        await ctx.db.patch(proposal._id, { status: nextStatus });
+      }
+    }
+
+    if (existingProposal) {
+      await ctx.db.patch(existingProposal._id, {
+        currency: supply.currency,
+        deliverablesBody: [supply.title, "", supply.description].join("\n"),
+        environment:
+          supplierPayoutWalletContext?.environment ??
+          ownerBuyerWalletContext?.environment,
+        etaAt: estimateClaimEtaAt(now, supply.estimatedDeliveryLabel, supply.deliveryType),
+        price: priceAmount,
+        status: "accepted",
+      });
+    }
+
+    await ctx.db.patch(args.intentId, {
+      approvedAt: intent.approvedAt ?? now,
+      assignedAgent: supply.title,
+      assignedToolNames: [supply.title, ...supply.capabilityTags.slice(0, 3)],
+      startedAt: intent.startedAt ?? now,
+      status: "claimed",
+      updatedAt: now,
+    });
+
+    const transactionId = await ensureWorkTransaction(ctx, {
+      amount: priceAmount,
+      buyerUserId: intent.ownerUserId,
+      buyerWalletAccountId: ownerBuyerWalletAccountId,
+      chainFamily:
+        supplierPayoutWalletContext?.chainFamily ??
+        ownerBuyerWalletContext?.chainFamily ??
+        undefined,
+      chainId:
+        supplierPayoutWalletContext?.chainId ??
+        ownerBuyerWalletContext?.chainId ??
+        undefined,
+      currency: supply.currency,
+      environment: getCommerceEnvironment(),
+      intentId: intent._id,
+      intentKey: intent.intentKey,
+      networkKey:
+        supplierPayoutWalletContext?.networkKey ??
+        ownerBuyerWalletContext?.networkKey ??
+        undefined,
+      proposalId,
+      sellerProfileId: supplierProfileId,
+      sellerUserId: supply.supplierUserId,
+      status: "active",
+      titleSnapshot: intent.title,
+    });
+
+    const fulfillmentId = await ctx.db.insert("fulfillments", {
+      acceptedProposalId: proposalId,
+      environment: getCommerceEnvironment(),
+      fulfillerUserId: supply.supplierUserId,
+      intentKey: intent.intentKey,
+      ownerUserId: intent.ownerUserId,
+      scenarioId: getScenarioId("custom_scoped_work"),
+      scenarioType: "custom_scoped_work",
+      settlementStatus: priceAmount > 0 ? "pending" : "not_applicable",
+      status: "approved",
+      supplyId: args.supplyId,
+      transactionId,
+    });
+
+    await ensureSettlementForTransaction(ctx, {
+      amount: priceAmount,
+      buyerWalletAccountId: ownerBuyerWalletAccountId,
+      chainFamily:
+        supplierPayoutWalletContext?.chainFamily ??
+        ownerBuyerWalletContext?.chainFamily ??
+        undefined,
+      currency: supply.currency,
+      environment: getCommerceEnvironment(),
+      networkKey:
+        supplierPayoutWalletContext?.networkKey ??
+        ownerBuyerWalletContext?.networkKey ??
+        undefined,
+      payoutWalletAccountId: supplierPayoutWalletAccountId,
+      protocol: null,
+      status: priceAmount > 0 ? "pending" : "not_applicable",
+      transactionId,
+    });
+
+    await ctx.db.patch(transactionId, {
+      fulfillmentId,
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("chatMessages", {
+      body: `${supplierDisplayName} was added to this request from matched supply at ${supply.priceAmount} ${supply.currency}.`,
+      conversationId: intent.conversationId ?? crypto.randomUUID(),
+      createdAt: now,
+      intentKey: intent.intentKey,
+      messageId: crypto.randomUUID(),
+      provider: intent.provider,
+      role: "system",
+      senderActorKind: "human",
+      senderDisplayName: "Owner",
+      senderExternalId: args.ownerExternalId,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        proposalId,
+        supplierUserId: supply.supplierUserId,
+        supplyId: args.supplyId,
+      }),
+      type: "request.team_assigned",
+    });
+
+    if (priceAmount > 0) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "Buyer and payout wallets are present for this matched worker approval.",
+        metadata: {
+          buyerWalletAccountId: ownerBuyerWalletAccountId,
+          payoutWalletAccountId: supplierPayoutWalletAccountId,
+          supplyId: args.supplyId,
+        },
+        proposalId,
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "passed",
+        transactionId,
+      });
+    }
+
+    await recordTransactionAuditEvent(ctx, {
+      fulfillmentId,
+      intentId: intent._id,
+      message: `${supplierDisplayName} was approved directly from matched supply and work is now active.`,
+      metadata: {
+          price: priceAmount,
+        proposalId,
+        supplyId: args.supplyId,
+      },
+      proposalId,
+      scenarioType: "custom_scoped_work",
+      source: "proposal",
+      stage: "approval",
+      status: "passed",
+      transactionId,
+    });
+
+    await recordTransactionAuditEvent(ctx, {
+      fulfillmentId,
+      intentId: intent._id,
+      message: "The request moved into active fulfillment with an approved matched worker.",
+      proposalId,
+      scenarioType: "custom_scoped_work",
+      source: "fulfillment",
+      stage: "fulfillment",
+      status: "info",
+      transactionId,
+    });
+
+    await queueWebhookDeliveries(ctx, {
+      data: {
+        fulfillmentId,
+        price: priceAmount,
+        proposalId,
+        supplyId: args.supplyId,
+        transactionId,
+      },
+      eventType: "inbox.claimed",
+      message: "Matched worker approved and work moved into fulfillment.",
+      ownerExternalId: supplierExternalId,
+      requestToken: createPublicRequestToken(intent._id),
+      status: "claimed",
+      stream: "inbox",
+    });
+
+    await refreshProfileAnalyticsForUser(ctx, supply.supplierUserId);
+    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
+
+    return {
+      approved: true as const,
+      fulfillmentId,
+      proposalId,
+      transactionId,
+    };
+  },
+});
+
 async function upsertProposalUser(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: any,
@@ -717,4 +1093,34 @@ async function getUserExternalId(
 
   const user = await ctx.db.get(userId);
   return user?.externalId ?? null;
+}
+
+function estimateClaimEtaAt(
+  now: number,
+  deliveryLabel: string | undefined,
+  deliveryType: "async" | "instant" | "scheduled",
+) {
+  if (deliveryType === "instant") {
+    return now + 60 * 60 * 1000;
+  }
+
+  const label = deliveryLabel?.toLowerCase() ?? "";
+  const match = label.match(/(\d+(?:\.\d+)?)/);
+  const value = match ? Number(match[1]) : null;
+
+  if (value !== null) {
+    if (label.includes("week")) {
+      return now + value * 7 * 24 * 60 * 60 * 1000;
+    }
+
+    if (label.includes("day")) {
+      return now + value * 24 * 60 * 60 * 1000;
+    }
+
+    if (label.includes("hour")) {
+      return now + value * 60 * 60 * 1000;
+    }
+  }
+
+  return now + (deliveryType === "scheduled" ? 7 : 3) * 24 * 60 * 60 * 1000;
 }

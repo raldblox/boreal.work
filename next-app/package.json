@@ -24,6 +24,7 @@
     "smoke:one-request-guards": "node --experimental-strip-types scripts/smoke-one-request-guards.ts",
     "smoke:payouts": "node --experimental-strip-types scripts/smoke-payouts.ts",
     "smoke:request-callbacks": "node --experimental-strip-types scripts/smoke-request-callbacks.ts",
+    "smoke:request-thread-specialists": "node --experimental-strip-types scripts/smoke-request-thread-specialists.ts",
     "smoke:supplier-capacity": "node --experimental-strip-types scripts/smoke-supplier-capacity.ts",
     "smoke:supplier-listing-guards": "node --experimental-strip-types scripts/smoke-supplier-listing-guards.ts",
     "smoke:supplier-onboarding": "node --experimental-strip-types scripts/smoke-supplier-onboarding.ts",

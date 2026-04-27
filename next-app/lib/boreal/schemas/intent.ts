@@ -124,7 +124,7 @@ export function normalizeIntentExtraction(
   );
   const primaryMode = requestedOutputTypes[0] ?? bestModality;
 
-  const routeTarget = routeValues.includes(
+  const extractedRouteTarget = routeValues.includes(
     rawIntent.routeTarget as ToolRoute,
   )
     ? (rawIntent.routeTarget as ToolRoute)
@@ -145,7 +145,7 @@ export function normalizeIntentExtraction(
   );
 
   const isVideoRequest =
-    routeTarget === "video_generation" ||
+    extractedRouteTarget === "video_generation" ||
     requestedOutputTypes.includes("video_generation");
   const videoSettings = isVideoRequest
     ? resolveVideoRequestSettings({
@@ -158,10 +158,28 @@ export function normalizeIntentExtraction(
         seconds: DEFAULT_BOREAL_VIDEO_SECONDS,
         size: DEFAULT_BOREAL_VIDEO_SIZE,
       };
-  const missingDetails = dedupePlainStrings([
+  const rawMissingDetails = dedupePlainStrings([
     ...(Array.isArray(rawIntent.missingDetails) ? rawIntent.missingDetails : []),
     ...videoSettings.invalidDetails,
   ]).slice(0, 4);
+  const missingDetails = resolveNormalizedMissingDetails({
+    extractedRouteTarget,
+    fallbackMessage,
+    missingDetails: rawMissingDetails,
+    primaryMode,
+    videoInvalidDetails: videoSettings.invalidDetails,
+  });
+  const routeTarget = resolveNormalizedRouteTarget({
+    extractedRouteTarget,
+    missingDetails,
+    primaryMode,
+  });
+  const needsClarification = resolveNormalizedClarificationState({
+    extractedRouteTarget,
+    missingDetails,
+    primaryMode,
+    rawNeedsClarification: Boolean(rawIntent.needsClarification),
+  });
 
   return {
     assetPrompt: normalizeString(rawIntent.assetPrompt, body, 1200),
@@ -191,12 +209,10 @@ export function normalizeIntentExtraction(
     ], "demand"),
     keywords: dedupePlainStrings(rawIntent.keywords).slice(0, 15),
     missingDetails,
-    needsClarification:
-      Boolean(rawIntent.needsClarification) || missingDetails.length > 0,
+    needsClarification,
     persistence: {
       isUnresolved:
-        rawIntent.persistence?.isUnresolved ??
-        (Boolean(rawIntent.needsClarification) || missingDetails.length > 0),
+        rawIntent.persistence?.isUnresolved ?? needsClarification,
       reason: normalizeString(
         rawIntent.persistence?.reason,
         "Persisted as a routed Boreal intent.",
@@ -228,7 +244,7 @@ export function normalizeIntentExtraction(
         false,
       shouldPersistToBoard:
         rawIntent.routing?.shouldPersistToBoard ??
-        Boolean(rawIntent.persistence?.isUnresolved),
+        (rawIntent.persistence?.isUnresolved ?? needsClarification),
     },
     shouldSearchCatalog:
       rawIntent.shouldSearchCatalog ??
@@ -245,6 +261,108 @@ export function normalizeIntentExtraction(
     voice: normalizeSpeechVoice(rawIntent.voice),
   };
 }
+
+function resolveNormalizedRouteTarget(input: {
+  extractedRouteTarget: ToolRoute;
+  missingDetails: string[];
+  primaryMode: RequestedOutputType;
+}): ToolRoute {
+  if (
+    input.extractedRouteTarget === "clarification" &&
+    input.missingDetails.length === 0 &&
+    isDirectGenerationMode(input.primaryMode)
+  ) {
+    return input.primaryMode;
+  }
+
+  return input.extractedRouteTarget;
+}
+
+function resolveNormalizedMissingDetails(input: {
+  extractedRouteTarget: ToolRoute;
+  fallbackMessage: string;
+  missingDetails: string[];
+  primaryMode: RequestedOutputType;
+  videoInvalidDetails: string[];
+}) {
+  if (
+    input.extractedRouteTarget === "video_generation" ||
+    input.primaryMode === "video_generation"
+  ) {
+    const derivedDetails = deriveVideoMissingDetails(input.fallbackMessage);
+
+    return dedupePlainStrings([
+      ...input.videoInvalidDetails,
+      ...derivedDetails,
+    ]).slice(0, 4);
+  }
+
+  return input.missingDetails;
+}
+
+function resolveNormalizedClarificationState(input: {
+  extractedRouteTarget: ToolRoute;
+  missingDetails: string[];
+  primaryMode: RequestedOutputType;
+  rawNeedsClarification: boolean;
+}) {
+  if (
+    input.missingDetails.length === 0 &&
+    input.extractedRouteTarget === "clarification" &&
+    isDirectGenerationMode(input.primaryMode)
+  ) {
+    return false;
+  }
+
+  return input.rawNeedsClarification || input.missingDetails.length > 0;
+}
+
+function isDirectGenerationMode(value: RequestedOutputType) {
+  return (
+    value === "image_generation" ||
+    value === "speech_generation" ||
+    value === "video_generation"
+  );
+}
+
+function deriveVideoMissingDetails(message: string) {
+  return hasMeaningfulGenerationSubject(message)
+    ? []
+    : ["What should the video show?"];
+}
+
+function hasMeaningfulGenerationSubject(message: string) {
+  const normalized = message
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => !generationStopwordSet.has(token));
+
+  return normalized.length > 0;
+}
+
+const generationStopwordSet = new Set([
+  "a",
+  "an",
+  "and",
+  "at",
+  "clip",
+  "create",
+  "for",
+  "generate",
+  "make",
+  "me",
+  "movie",
+  "of",
+  "please",
+  "render",
+  "short",
+  "some",
+  "the",
+  "this",
+  "video",
+]);
 
 function inferRouteTarget(
   primaryMode: RequestedOutputType,

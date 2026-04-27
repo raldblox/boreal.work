@@ -6,6 +6,11 @@ import {
   DEFAULT_BOREAL_VIDEO_SIZE,
 } from "../lib/boreal/media/video-contract";
 import {
+  normalizeIntentExtraction,
+  type RequestedOutputType,
+  type ToolRoute,
+} from "../lib/boreal/schemas/intent";
+import {
   buildCollectiveContributionSummary,
   buildCollectiveTrustSummary,
   getCollectiveMemberRole,
@@ -14,6 +19,68 @@ import {
 } from "./collectives";
 import { persistIntentMatchCandidates } from "./matching";
 import { listIntentMatchCandidates } from "./supplies";
+
+function sanitizeStoredIntentShape(intent: {
+  assetPrompt?: string | null;
+  body?: string | null;
+  capabilityTags?: string[] | null;
+  catalogQuery?: string | null;
+  category?: string | null;
+  confidence?: number | null;
+  intentType?: "demand" | "informational" | "supply" | null;
+  keywords?: string[] | null;
+  missingDetails?: string[] | null;
+  needsClarification?: boolean | null;
+  requestedOutputTypes?: RequestedOutputType[] | null;
+  responseInstructions?: string | null;
+  routeTarget?: ToolRoute | null;
+  shouldSearchCatalog?: boolean | null;
+  speechText?: string | null;
+  suggestedReplies?: string[] | null;
+  summary?: string | null;
+  title?: string | null;
+  videoSeconds?: string | null;
+  videoSize?: string | null;
+  voice?: string | null;
+}) {
+  const fallbackMessage =
+    intent.body?.trim() || intent.summary?.trim() || intent.title?.trim() || "";
+  const requestedOutputTypes =
+    (intent.requestedOutputTypes?.length
+      ? intent.requestedOutputTypes
+      : ["text"]) as RequestedOutputType[];
+
+  return normalizeIntentExtraction(
+    {
+      assetPrompt: intent.assetPrompt ?? "",
+      body: intent.body ?? fallbackMessage,
+      capabilityTags: intent.capabilityTags ?? [],
+      catalogQuery: intent.catalogQuery ?? "",
+      category: intent.category ?? "general",
+      confidence: intent.confidence ?? undefined,
+      intentType: intent.intentType ?? "demand",
+      keywords: intent.keywords ?? [],
+      missingDetails: intent.missingDetails ?? [],
+      needsClarification: intent.needsClarification ?? false,
+      requestedOutputTypes,
+      responseInstructions: intent.responseInstructions ?? "",
+      routeTarget: intent.routeTarget ?? "general_assistance",
+      shouldSearchCatalog: intent.shouldSearchCatalog ?? false,
+      speechText: intent.speechText ?? fallbackMessage,
+      suggestedReplies: intent.suggestedReplies ?? [],
+      summary: intent.summary ?? fallbackMessage,
+      title: intent.title?.trim() || fallbackMessage || "Boreal request",
+      videoSeconds: intent.videoSeconds ?? "",
+      videoSize: intent.videoSize ?? "",
+      voice: intent.voice ?? "alloy",
+    },
+    fallbackMessage,
+    requestedOutputTypes.map((kind, index) => ({
+      kind,
+      score: index === 0 ? 1 : 0.5,
+    })),
+  );
+}
 
 export const listSidebar = query({
   args: {
@@ -35,23 +102,26 @@ export const listSidebar = query({
             (!ownerUserId || intent.ownerUserId === ownerUserId) &&
             intent.status !== "proposed",
         )
-        .map(async (intent) => ({
+        .map(async (intent) => {
+        const normalizedIntent = sanitizeStoredIntentShape(intent);
+
+        return ({
         _creationTime: intent._creationTime,
         _id: intent._id,
         assignedAgent: intent.assignedAgent ?? null,
         category: intent.category,
         conversationId: intent.conversationId ?? null,
-        needsClarification: intent.needsClarification ?? false,
+        needsClarification: normalizedIntent.needsClarification,
         participants: await getIntentParticipantsPreview(ctx, intent),
         provider: intent.provider,
-        requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+        requestedOutputTypes: normalizedIntent.requestedOutputTypes,
         reviewRating: intent.reviewRating ?? null,
-        routeTarget: intent.routeTarget ?? "general_assistance",
+        routeTarget: normalizedIntent.routeTarget,
         status: intent.status,
         summary: intent.summary,
         title: intent.title,
         updatedAt: intent.updatedAt,
-      })),
+      })}),
     );
   },
 });
@@ -79,25 +149,28 @@ export const listMarketplace = query({
       intents
         .filter((intent) => intent.visibility === "public")
         .slice(0, args.limit)
-        .map(async (intent) => ({
+        .map(async (intent) => {
+        const normalizedIntent = sanitizeStoredIntentShape(intent);
+
+        return ({
         _creationTime: intent._creationTime,
         _id: intent._id,
         assignedAgent: intent.assignedAgent ?? null,
         category: intent.category,
         conversationId: intent.conversationId ?? null,
         isOwner: !!(ownerUserId && intent.ownerUserId === ownerUserId),
-        needsClarification: intent.needsClarification ?? false,
+        needsClarification: normalizedIntent.needsClarification,
         participants: await getIntentParticipantsPreview(ctx, intent),
         provider: intent.provider,
-        requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+        requestedOutputTypes: normalizedIntent.requestedOutputTypes,
         reviewRating: intent.reviewRating ?? null,
-        routeTarget: intent.routeTarget ?? "general_assistance",
+        routeTarget: normalizedIntent.routeTarget,
         status: intent.status,
         summary: intent.summary,
         title: intent.title,
         updatedAt: intent.updatedAt,
         visibility: intent.visibility,
-      })),
+      })}),
     );
   },
 });
@@ -241,6 +314,7 @@ export const getRequestDetail = query({
     const catalogItems = matchCandidates
       .filter((candidate) => candidate.gatedOutReasons.length === 0)
       .slice(0, 8);
+    const normalizedIntent = sanitizeStoredIntentShape(intent);
 
     return {
       access: {
@@ -293,25 +367,25 @@ export const getRequestDetail = query({
         closedReason: intent.closedReason ?? null,
         completedAt: intent.completedAt ?? null,
         confidence: intent.confidence,
-        missingDetails: intent.missingDetails ?? [],
+        missingDetails: normalizedIntent.missingDetails,
         matchAttempts: intent.matchAttempts ?? 0,
-        needsClarification: intent.needsClarification ?? false,
+        needsClarification: normalizedIntent.needsClarification,
         pinnedSupplyIds: (intent.pinnedSupplyIds ?? []).map(String),
         provider: intent.provider,
-        requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
-        responseInstructions: intent.responseInstructions ?? "",
+        requestedOutputTypes: normalizedIntent.requestedOutputTypes,
+        responseInstructions: normalizedIntent.responseInstructions,
         resolutionTier: intent.resolutionTier,
         reviewPending:
           intent.status === "fulfilled" && typeof intent.reviewRating !== "number",
-        routeTarget: intent.routeTarget ?? "general_assistance",
-        shouldSearchCatalog: intent.shouldSearchCatalog ?? false,
+        routeTarget: normalizedIntent.routeTarget,
+        shouldSearchCatalog: normalizedIntent.shouldSearchCatalog,
         startedAt: intent.startedAt ?? null,
         status: intent.status,
-        suggestedReplies: intent.suggestedReplies ?? [],
+        suggestedReplies: normalizedIntent.suggestedReplies,
         summary: intent.summary,
         title: intent.title,
-        videoSeconds: intent.videoSeconds ?? DEFAULT_BOREAL_VIDEO_SECONDS,
-        videoSize: intent.videoSize ?? DEFAULT_BOREAL_VIDEO_SIZE,
+        videoSeconds: normalizedIntent.videoSeconds ?? DEFAULT_BOREAL_VIDEO_SECONDS,
+        videoSize: normalizedIntent.videoSize ?? DEFAULT_BOREAL_VIDEO_SIZE,
       },
       matchCandidates,
       collectiveTrust,
@@ -364,10 +438,11 @@ export const getExecutionContext = query({
     ) {
       return null;
     }
+    const normalizedIntent = sanitizeStoredIntentShape(intent);
 
     return {
       _id: intent._id,
-      assetPrompt: intent.assetPrompt ?? intent.body,
+      assetPrompt: normalizedIntent.assetPrompt,
       body: intent.body,
       capabilityTags: intent.capabilityTags ?? [],
       catalogQuery: intent.catalogQuery ?? "",
@@ -376,20 +451,20 @@ export const getExecutionContext = query({
       generationSignals: intent.generationSignals,
       intentKey: intent.intentKey,
       keywords: intent.keywords ?? [],
-      missingDetails: intent.missingDetails ?? [],
-      needsClarification: intent.needsClarification ?? false,
+      missingDetails: normalizedIntent.missingDetails,
+      needsClarification: normalizedIntent.needsClarification,
       provider: intent.provider,
-      requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
-      responseInstructions: intent.responseInstructions ?? "",
-      routeTarget: intent.routeTarget ?? "general_assistance",
-      speechText: intent.speechText ?? intent.summary,
+      requestedOutputTypes: normalizedIntent.requestedOutputTypes,
+      responseInstructions: normalizedIntent.responseInstructions,
+      routeTarget: normalizedIntent.routeTarget,
+      speechText: normalizedIntent.speechText,
       status: intent.status,
-      suggestedReplies: intent.suggestedReplies ?? [],
+      suggestedReplies: normalizedIntent.suggestedReplies,
       summary: intent.summary,
       title: intent.title,
-      videoSeconds: intent.videoSeconds ?? DEFAULT_BOREAL_VIDEO_SECONDS,
-      videoSize: intent.videoSize ?? DEFAULT_BOREAL_VIDEO_SIZE,
-      voice: intent.voice ?? "alloy",
+      videoSeconds: normalizedIntent.videoSeconds ?? DEFAULT_BOREAL_VIDEO_SECONDS,
+      videoSize: normalizedIntent.videoSize ?? DEFAULT_BOREAL_VIDEO_SIZE,
+      voice: normalizedIntent.voice ?? "alloy",
     };
   },
 });

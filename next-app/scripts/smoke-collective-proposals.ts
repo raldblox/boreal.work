@@ -54,7 +54,7 @@ async function main() {
     walletAddress: collaborator.walletAddress,
   });
 
-  const leadSupply = await registerSupply(client, {
+  await registerSupply(client, {
     capabilityTags: ["multi-agent", "research", "brief", "coordination"],
     description:
       "Lead supplier for a coordinated research and synthesis request.",
@@ -63,7 +63,7 @@ async function main() {
     priceAmount: 100,
     title: LEAD_SUPPLY_TITLE,
   });
-  const collaboratorSupply = await registerSupply(client, {
+  await registerSupply(client, {
     capabilityTags: ["multi-agent", "research", "brief", "coordination"],
     description:
       "Collaborator supplier for the same coordinated research request.",

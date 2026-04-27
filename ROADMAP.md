@@ -170,8 +170,11 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Text, image, audio, and video intent detection
 - [x] Request approval before fulfillment
 - [x] Qualified advisory requests now preview best-fit specialist routes before approval, and approval runs the matched route instead of a generic clarification-first loop
+- [x] Approved advisory specialists can now own the next turn inside the same request thread, asking follow-up questions in-thread before final delivery instead of bouncing the owner back to generic Boreal chat
 - [x] Highlighted matched-route cards can approve tracked work inline, so route choice stays visible at the exact approval point instead of hiding behind a generic control
 - [x] Video requests now carry validated duration and size defaults, reject unsupported video settings before approval, and surface real provider-unavailable errors when the OpenAI video route is not enabled
+- [x] Provider-unavailable video routes now reopen for workers automatically instead of dead-ending in a blocked retry loop
+- [x] Matched supply can now be approved directly into the request team from Boreal request surfaces, including pending draft previews and reopened worker-mode requests
 - [x] Product-search intents that open a request workboard and render matched supply
 - [x] Public proposal board behavior through public requests
 - [x] Keyword generation stored and actively used in retrieval/routing
@@ -190,6 +193,8 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Owner and participant role differentiation
 - [x] Activity timeline and request transcript
 - [x] Blocked automatic routes surface their real execution error and can reopen directly for workers instead of forcing a blind retry loop
+- [x] Video-provider access failures now present as provider-fix or reopen-for-workers problems in the request UI, instead of reading like a normal retryable route bug
+- [x] Request and discovery profile actions now stay inside Boreal through a focus sheet instead of ejecting users to a separate profile page mid-flow
 - [x] Fulfillment evidence via stored submission text, uploads, and artifacts
 - [x] Reviews and ratings attached to the completed lifecycle
 - [x] Owner-side request workboard for proposals, delivery, and matching refinement
