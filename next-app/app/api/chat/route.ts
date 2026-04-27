@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { chatAssistantAgent } from "@/lib/boreal/agents/chat-assistant/agent";
+import {
+  appendConversationAssistantMessage,
+  saveConversationExchange,
+} from "@/lib/boreal/dal/intent-repository";
+import {
+  resolveConnectedAgent,
+  runConnectedAgentChat,
+} from "@/lib/boreal/external-agents/runtime";
 import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
 
 export async function POST(request: Request) {
@@ -20,9 +28,11 @@ export async function POST(request: Request) {
 
     void (async () => {
       try {
-        const result = await chatAssistantAgent.run({
+        const result = await runChatWithConnectedAgentFallback({
           conversationId: body.conversationId,
           message: body.message,
+          provider: body.provider,
+          requestUrl: request.url,
           requester: {
             displayName: user.name ?? undefined,
             externalId: user.id ?? undefined,
@@ -79,6 +89,101 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+async function runChatWithConnectedAgentFallback(input: {
+  conversationId?: string;
+  message: string;
+  provider?: string;
+  requestUrl: string;
+  requester?: {
+    displayName?: string;
+    externalId?: string;
+    handle?: string;
+  };
+  uiContext?: ChatUiContext;
+}) {
+  const connectedAgent = await resolveConnectedAgent({
+    ownerExternalId: input.requester?.externalId,
+  });
+  const mode = connectedAgent?.control.mode ?? "boreal";
+
+  if (mode === "none") {
+    throw new Error("No active agent is connected to this chat. Connect an agent or switch back to Boreal.");
+  }
+
+  if (
+    connectedAgent?.supply &&
+    (mode === "connected" || mode === "auto_fallback")
+  ) {
+    try {
+      const result = await runConnectedAgentChat({
+        connectedAgent: {
+          ...connectedAgent,
+          supply: connectedAgent.supply,
+        },
+        conversationId: input.conversationId,
+        message: input.message,
+        requestUrl: input.requestUrl,
+        requester: input.requester,
+        uiContext: input.uiContext,
+      });
+
+      if (input.uiContext?.surface === "request") {
+        if (!input.conversationId) {
+          throw new Error("Connected request-thread execution requires a live conversation.");
+        }
+
+        await appendConversationAssistantMessage({
+          assistantDisplayName: result.assistantDisplayName,
+          assistantExternalId: result.assistantExternalId,
+          assistantHandle: result.assistantHandle ?? undefined,
+          assistantMessage: result.assistantMessage,
+          assistantProvider: result.assistantProvider,
+          conversationId: input.conversationId,
+          ownerExternalId: input.requester?.externalId,
+        });
+
+        return {
+          ...result,
+          conversationId: input.conversationId,
+        };
+      }
+
+      const persistedExchange = await saveConversationExchange({
+        assistantDisplayName: result.assistantDisplayName,
+        assistantExternalId: result.assistantExternalId,
+        assistantHandle: result.assistantHandle ?? undefined,
+        assistantMessage: result.assistantMessage,
+        assistantProvider: result.assistantProvider,
+        conversationId: input.conversationId,
+        ownerDisplayName: input.requester?.displayName,
+        ownerExternalId: input.requester?.externalId,
+        ownerHandle: input.requester?.handle,
+        userMessage: input.message,
+      });
+
+      return {
+        ...result,
+        conversationId: persistedExchange.conversationId,
+      };
+    } catch (error) {
+      if (mode === "connected") {
+        throw error;
+      }
+    }
+  }
+
+  if (mode === "connected") {
+    throw new Error("Connected agent is not ready for direct Boreal chat execution.");
+  }
+
+  return chatAssistantAgent.run({
+    conversationId: input.conversationId,
+    message: input.message,
+    requester: input.requester,
+    uiContext: input.uiContext,
+  });
 }
 
 type ParsedChatRequest = {

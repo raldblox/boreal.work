@@ -17,7 +17,11 @@ export async function saveIntentPipelineRecord(args: RecordIntentPipelineArgs) {
 }
 
 export async function saveConversationExchange(args: {
+  assistantDisplayName?: string;
+  assistantExternalId?: string;
+  assistantHandle?: string;
   assistantMessage: string;
+  assistantProvider?: string;
   conversationId?: string;
   ownerDisplayName?: string;
   ownerExternalId?: string;
@@ -29,7 +33,11 @@ export async function saveConversationExchange(args: {
 }
 
 export async function appendConversationAssistantMessage(args: {
+  assistantDisplayName?: string;
+  assistantExternalId?: string;
+  assistantHandle?: string;
   assistantMessage: string;
+  assistantProvider?: string;
   conversationId: string;
   ownerExternalId?: string;
 }) {

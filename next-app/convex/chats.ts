@@ -443,7 +443,11 @@ export const postConversationMessage = mutation({
 
 export const recordConversationExchange = mutation({
   args: {
+    assistantDisplayName: v.optional(v.string()),
+    assistantExternalId: v.optional(v.string()),
+    assistantHandle: v.optional(v.string()),
     assistantMessage: v.string(),
+    assistantProvider: v.optional(v.string()),
     conversationId: v.optional(v.string()),
     ownerDisplayName: v.optional(v.string()),
     ownerExternalId: v.optional(v.string()),
@@ -511,7 +515,7 @@ export const recordConversationExchange = mutation({
         ownerExternalId,
         ownerHandle: args.ownerHandle,
         ownerUserId,
-        provider: "boreal-agent",
+        provider: args.assistantProvider ?? "boreal-agent",
         source: "chat",
         status: "active",
         title: buildConversationTitle(trimmedUserMessage),
@@ -528,7 +532,7 @@ export const recordConversationExchange = mutation({
       createdAt: now,
       intentKey: undefined,
       messageId: userMessageId,
-      provider: "boreal-agent",
+      provider: args.assistantProvider ?? "boreal-agent",
       role: "user",
       senderActorKind: "human",
       senderDisplayName: args.ownerDisplayName ?? "X user",
@@ -542,12 +546,12 @@ export const recordConversationExchange = mutation({
       createdAt: now,
       intentKey: undefined,
       messageId: assistantMessageId,
-      provider: "boreal-agent",
+      provider: args.assistantProvider ?? "boreal-agent",
       role: "assistant",
       senderActorKind: "agent",
-      senderDisplayName: "Boreal Agent",
-      senderExternalId: "agent:boreal",
-      senderHandle: "boreal",
+      senderDisplayName: args.assistantDisplayName ?? "Boreal Agent",
+      senderExternalId: args.assistantExternalId ?? "agent:boreal",
+      senderHandle: args.assistantHandle ?? "boreal",
     });
 
     return {
@@ -561,7 +565,11 @@ export const recordConversationExchange = mutation({
 
 export const appendConversationAssistantMessage = mutation({
   args: {
+    assistantDisplayName: v.optional(v.string()),
+    assistantExternalId: v.optional(v.string()),
+    assistantHandle: v.optional(v.string()),
     assistantMessage: v.string(),
+    assistantProvider: v.optional(v.string()),
     conversationId: v.string(),
     ownerExternalId: v.optional(v.string()),
   },
@@ -598,6 +606,7 @@ export const appendConversationAssistantMessage = mutation({
       lastMessageRole: "assistant",
       latestMessageAt: now,
       messageCount: (existingConversation.messageCount ?? 0) + 1,
+      provider: args.assistantProvider ?? existingConversation.provider,
       updatedAt: now,
     });
 
@@ -609,12 +618,12 @@ export const appendConversationAssistantMessage = mutation({
       createdAt: now,
       intentKey: undefined,
       messageId: assistantMessageId,
-      provider: "boreal-agent",
+      provider: args.assistantProvider ?? existingConversation.provider,
       role: "assistant",
       senderActorKind: "agent",
-      senderDisplayName: "Boreal Agent",
-      senderExternalId: "agent:boreal",
-      senderHandle: "boreal",
+      senderDisplayName: args.assistantDisplayName ?? "Boreal Agent",
+      senderExternalId: args.assistantExternalId ?? "agent:boreal",
+      senderHandle: args.assistantHandle ?? "boreal",
     });
 
     return {

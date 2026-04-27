@@ -65,6 +65,11 @@ import {
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
 import {
+  ConnectAgentDialog,
+  createEmptyConnectAgentDraft,
+  type ConnectAgentDraft,
+} from "@/components/chat/connect-agent-dialog"
+import {
   type DeliveryDraft,
   DeliverySubmissionDialog,
   ProposalSubmissionDialog,
@@ -344,6 +349,10 @@ export function ChatShell() {
   const [profileBuilderMessage, setProfileBuilderMessage] = useState("")
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
+  const [isConnectAgentOpen, setIsConnectAgentOpen] = useState(false)
+  const [connectAgentDraft, setConnectAgentDraft] =
+    useState<ConnectAgentDraft>(createEmptyConnectAgentDraft())
+  const [isSavingConnectAgent, setIsSavingConnectAgent] = useState(false)
 
   const { data: session, status: sessionStatus } = useSession()
   const ownerExternalId = session?.user?.id
@@ -469,19 +478,20 @@ export function ChatShell() {
   const hasSubmittedProposal = Boolean(myProposal)
   const canSubmitDelivery = requestDetail?.access?.canSubmitWork ?? false
   const canViewRequestChat = requestDetail?.access?.canViewChat ?? false
-  const isBorealAssignedToActiveRequest = Boolean(
-    activeIntentId &&
-    isBorealAssigned({
-      assignedAgent:
-        requestDetail?.assignment?.agent ??
-        selectedIntent?.assignedAgent ??
-        null,
-      participants: requestDetail?.participants,
-    })
-  )
-  const shouldShowHomeBorealButton = isXAuthenticated && !activeIntentId
-  const shouldShowAssignedBorealButton = Boolean(
-    isXAuthenticated && activeIntentId && isBorealAssignedToActiveRequest
+  const connectedAgentMode =
+    myProfileRecord?.profile.agentControlMode ?? "boreal"
+  const connectedAgentRole =
+    myProfileRecord?.profile.activeAgentRole ?? null
+  const activeConnectedSupply =
+    myProfileRecord?.profile.activeAgentSupplyId
+      ? myProfileRecord.supplies.find(
+        (entry) => entry._id === myProfileRecord.profile.activeAgentSupplyId
+      ) ?? null
+      : null
+  const hasConnectedChatAgent = Boolean(
+    activeConnectedSupply &&
+    connectedAgentRole &&
+    connectedAgentRole !== "supply"
   )
   const runtimeEnvironment = getBorealChainEnvironment()
   const runtimePrimaryChainFamily = getBorealPrimaryChainFamily()
@@ -489,13 +499,25 @@ export function ChatShell() {
     chainFamily: runtimePrimaryChainFamily,
     environment: runtimeEnvironment,
   })
-  const shouldShowBorealToolbarButton =
-    shouldShowHomeBorealButton || shouldShowAssignedBorealButton
+  const shouldShowBorealToolbarButton = isXAuthenticated
+  const agentToolbarLabel =
+    connectedAgentMode === "none"
+      ? "Connect agent"
+      : activeConnectedSupply?.title ??
+        (connectedAgentMode === "auto_fallback"
+          ? "Auto fallback"
+          : "Boreal Agent")
   const isChatSurfaceActive = !activeIntentId || activeCenterTab === "chat"
   const shouldShowChatComposer =
     isXAuthenticated && isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
-  const effectiveBorealEnabled =
-    isXAuthenticated && (!activeIntentId || isBorealAssignedToActiveRequest)
+  const effectiveBorealEnabled = Boolean(
+    isXAuthenticated &&
+    (
+      connectedAgentMode === "auto_fallback" ||
+      connectedAgentMode === "boreal" ||
+      (connectedAgentMode === "connected" && hasConnectedChatAgent)
+    )
+  )
   const isDiscoveryRailOpen = isPublicDiscoveryOnly
     ? !isPublicMarketDismissed
     : showWorkspace
@@ -537,6 +559,9 @@ export function ChatShell() {
   const upsertMyProfile = useMutation(convexFunctionRefs.upsertMyProfile)
   const createSupplyEntry = useMutation(convexFunctionRefs.createSupplyEntry)
   const syncWalletAccount = useMutation(convexFunctionRefs.syncWalletAccount)
+  const setAgentControlState = useMutation(
+    convexFunctionRefs.setAgentControlState
+  )
   const setDefaultPayoutWalletAccount = useMutation(
     convexFunctionRefs.setDefaultPayoutWalletAccount
   )
@@ -631,6 +656,206 @@ export function ChatShell() {
       activeProfileBuilderWorkspace?.sourceBrief ?? composerText.trim()
     )
     setIsProfileBuilderOpen(true)
+  }
+
+  function buildInitialConnectAgentDraft(): ConnectAgentDraft {
+    if (!activeConnectedSupply) {
+      return createEmptyConnectAgentDraft()
+    }
+
+    return {
+      capabilityTags: activeConnectedSupply.capabilityTags,
+      category: activeConnectedSupply.category,
+      connector:
+        activeConnectedSupply.executionSurface === "mcp"
+          ? "mcp"
+          : activeConnectedSupply.executionSurface === "http"
+            ? "http"
+            : "inbox",
+      description: activeConnectedSupply.description,
+      executorUrl: activeConnectedSupply.executorUrl ?? "",
+      mcpServerUrl: activeConnectedSupply.mcpServerUrl ?? "",
+      mcpToolName: activeConnectedSupply.mcpToolName ?? "process_boreal_message",
+      mode:
+        connectedAgentMode === "connected" ||
+        connectedAgentMode === "auto_fallback"
+          ? connectedAgentMode
+          : "connected",
+      role:
+        connectedAgentRole === "both" ||
+        connectedAgentRole === "supply"
+          ? connectedAgentRole
+          : "agent",
+      title: activeConnectedSupply.title,
+    }
+  }
+
+  function openConnectAgentDialog() {
+    setConnectAgentDraft(buildInitialConnectAgentDraft())
+    setIsConnectAgentOpen(true)
+  }
+
+  async function handleSwitchToBorealAgent() {
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X first before switching the active chat brain.")
+      return
+    }
+
+    setIsSavingConnectAgent(true)
+    setErrorMessage(null)
+
+    try {
+      await setAgentControlState({
+        mode: "boreal",
+        ownerExternalId,
+      })
+      setIsConnectAgentOpen(false)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Boreal could not switch the active agent mode."
+      )
+    } finally {
+      setIsSavingConnectAgent(false)
+    }
+  }
+
+  async function handleSwitchToNoAgent() {
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X first before changing agent control.")
+      return
+    }
+
+    setIsSavingConnectAgent(true)
+    setErrorMessage(null)
+
+    try {
+      await setAgentControlState({
+        mode: "none",
+        ownerExternalId,
+      })
+      setIsConnectAgentOpen(false)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Boreal could not clear the active chat brain."
+      )
+    } finally {
+      setIsSavingConnectAgent(false)
+    }
+  }
+
+  async function handleUseExistingConnectedSupply(input: {
+    mode: "auto_fallback" | "connected" | "none"
+    role: "agent" | "both" | "supply"
+    supplyId: string
+  }) {
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X first before connecting an agent.")
+      return
+    }
+
+    setIsSavingConnectAgent(true)
+    setErrorMessage(null)
+
+    try {
+      await setAgentControlState({
+        activeAgentRole: input.role,
+        activeSupplyId: input.supplyId,
+        mode: input.role === "supply" ? "none" : input.mode,
+        ownerExternalId,
+      })
+      setIsConnectAgentOpen(false)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Boreal could not activate this connected agent."
+      )
+    } finally {
+      setIsSavingConnectAgent(false)
+    }
+  }
+
+  async function handleSaveConnectedAgent() {
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X first before connecting an agent.")
+      return
+    }
+
+    setIsSavingConnectAgent(true)
+    setErrorMessage(null)
+
+    try {
+      const supplyResult = await createSupplyEntry({
+        agentReady: true,
+        availabilityStatus: "available",
+        capabilityTags: connectAgentDraft.capabilityTags,
+        category: connectAgentDraft.category.trim() || "services",
+        currency: "USD",
+        deliveryType: connectAgentDraft.connector === "inbox" ? "async" : "instant",
+        description: connectAgentDraft.description.trim(),
+        executionSurface:
+          connectAgentDraft.connector === "inbox"
+            ? "handoff"
+            : connectAgentDraft.connector,
+        fulfillmentKind: "service",
+        maxConcurrentJobs: connectAgentDraft.connector === "inbox" ? 2 : 1,
+        mcpServerUrl:
+          connectAgentDraft.connector === "mcp"
+            ? connectAgentDraft.mcpServerUrl.trim()
+            : undefined,
+        mcpToolName:
+          connectAgentDraft.connector === "mcp"
+            ? connectAgentDraft.mcpToolName.trim() || "process_boreal_message"
+            : undefined,
+        openApiUrl: undefined,
+        outputTypes: ["text"],
+        ownerActorKind: "agent",
+        ownerDisplayName: session?.user?.name ?? undefined,
+        ownerExternalId,
+        ownerHandle: session?.user?.name
+          ? session.user.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+          : undefined,
+        paymentProtocol: "x402",
+        priceAmount: 0.01,
+        priceType: "scoped",
+        responseSlaMinutes: connectAgentDraft.connector === "inbox" ? 60 : 5,
+        supplyType: "capability",
+        supportsDirectInvoke: connectAgentDraft.connector !== "inbox",
+        supportsEvidencePush: true,
+        supportsStatusUpdates: true,
+        title: connectAgentDraft.title.trim(),
+        executorUrl:
+          connectAgentDraft.connector === "http"
+            ? connectAgentDraft.executorUrl.trim()
+            : undefined,
+      })
+
+      if (!supplyResult.created || !supplyResult.supplyId) {
+        throw new Error("Boreal could not create this agent connection.")
+      }
+
+      await setAgentControlState({
+        activeAgentRole: connectAgentDraft.role,
+        activeSupplyId: supplyResult.supplyId,
+        mode: connectAgentDraft.role === "supply" ? "none" : connectAgentDraft.mode,
+        ownerExternalId,
+      })
+
+      setIsConnectAgentOpen(false)
+      setConnectAgentDraft(createEmptyConnectAgentDraft())
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Boreal could not save the connected agent."
+      )
+    } finally {
+      setIsSavingConnectAgent(false)
+    }
   }
 
   async function handleSetDefaultPayoutWallet(walletAccountId: string) {
@@ -2645,13 +2870,13 @@ export function ChatShell() {
                               <PromptInputTools className="flex-wrap gap-2">
                                 <Button
                                   className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                                  onClick={() => setIsBorealProfileOpen(true)}
+                                  onClick={openConnectAgentDialog}
                                   size="sm"
                                   type="button"
                                   variant="outline"
                                 >
                                   <BotIcon className="size-4" />
-                                  Boreal Agent
+                                  {agentToolbarLabel}
                                 </Button>
                               </PromptInputTools>
                               <PromptInputSubmit
@@ -2938,13 +3163,13 @@ export function ChatShell() {
                           <PromptInputTools className="flex-wrap gap-2">
                             <Button
                               className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                              onClick={() => setIsBorealProfileOpen(true)}
+                              onClick={openConnectAgentDialog}
                               size="sm"
                               type="button"
                               variant="outline"
                             >
                               <BotIcon className="size-4" />
-                              Boreal Agent
+                              {agentToolbarLabel}
                             </Button>
                           </PromptInputTools>
                         ) : null}
@@ -3052,6 +3277,20 @@ export function ChatShell() {
           </div>
         </DialogContent>
       </Dialog>
+      <ConnectAgentDialog
+        activeSupply={activeConnectedSupply}
+        currentMode={connectedAgentMode}
+        draft={connectAgentDraft}
+        isOpen={isConnectAgentOpen}
+        isSaving={isSavingConnectAgent}
+        myProfileRecord={myProfileRecord}
+        onCreateConnection={handleSaveConnectedAgent}
+        onOpenChange={setIsConnectAgentOpen}
+        onSetDraft={(updater) => setConnectAgentDraft((current) => updater(current))}
+        onSwitchToBoreal={handleSwitchToBorealAgent}
+        onSwitchToNone={handleSwitchToNoAgent}
+        onUseExistingSupply={handleUseExistingConnectedSupply}
+      />
       <ProfileBuilderDialog
         connectWalletLabel={
           runtimePrimaryChainFamily === "solana"
@@ -5795,27 +6034,6 @@ function normalizeCenterViewTab(value: string | null): CenterViewTab {
   }
 
   return "chat"
-}
-
-function isBorealAssigned(input: {
-  assignedAgent: string | null
-  participants?: RequestDetail["participants"]
-}) {
-  if (input.assignedAgent?.toLowerCase().includes("boreal")) {
-    return true
-  }
-
-  return (input.participants ?? []).some((participant) => {
-    const name = participant.displayName.toLowerCase()
-    const externalId = participant.externalId?.toLowerCase() ?? ""
-    const handle = participant.handle?.toLowerCase() ?? ""
-
-    return (
-      externalId === "agent:boreal" ||
-      handle === "boreal" ||
-      name.includes("boreal")
-    )
-  })
 }
 
 async function consumeChatStream(input: {
