@@ -64,6 +64,7 @@ Rules:
 - `message` is the only required field
 - `mode` is optional, but v1 only accepts `auto`
 - callers should not choose specialists up front
+- wallet-scoped intake guards cap this surface at 3 active unpaid quotes and 8 recent requests per 10-minute window
 
 Recommended header:
 
@@ -101,6 +102,7 @@ Supported payer-source labels:
 - `openwallet`
 
 Execution resumes only after Boreal verifies the referenced Solana devnet transaction and Boreal payment-reference memo.
+If the seller `payToAddress` is configured, Boreal also requires that verified transaction to mention the configured pay-to address.
 
 ## Response classes
 

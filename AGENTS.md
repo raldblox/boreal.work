@@ -20,6 +20,7 @@
 - For the app in `next-app/`, use `npm run smoke:lifecycle` for the deterministic request/proposal/approval/delivery/review smoke test against Convex.
 - For the app in `next-app/`, use `npm run smoke:one-inbox` for the deterministic supplier-side inbox smoke from `SIWX` auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
 - For the app in `next-app/`, use `npm run smoke:one-request` for the deterministic agent-only request-first lifecycle smoke from SIWX auth through `402`, signed payment receipt, Solana devnet transaction verification, specialist execution, delivery, settlement, and payout records.
+- For the app in `next-app/`, use `npm run smoke:one-request-guards` for the deterministic wallet-scoped intake guard smoke covering active unpaid quote caps and recent request burst limits on the public one-request surface.
 - For the app in `next-app/`, use `npm run smoke:payouts` for the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and aggregate settlement `paid_out`.
 - For the app in `next-app/`, use `npm run smoke:supplier-capacity` for the deterministic supplier-capacity smoke covering capacity reservation on claim, release on delivery, and blocked over-assignment before the slot reopens.
 - For the app in `next-app/`, use `npm run smoke:supplier-onboarding` for the deterministic external-supplier onboarding smoke from `SIWX` auth through public supply registration, update, owned-supply listing, and inbox match eligibility.

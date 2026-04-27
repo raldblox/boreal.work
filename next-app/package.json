@@ -16,6 +16,7 @@
     "smoke:lifecycle": "node --experimental-strip-types scripts/smoke-lifecycle.ts",
     "smoke:one-inbox": "node --experimental-strip-types scripts/smoke-one-inbox.ts",
     "smoke:one-request": "node --experimental-strip-types scripts/smoke-one-request.ts",
+    "smoke:one-request-guards": "node --experimental-strip-types scripts/smoke-one-request-guards.ts",
     "smoke:payouts": "node --experimental-strip-types scripts/smoke-payouts.ts",
     "smoke:supplier-capacity": "node --experimental-strip-types scripts/smoke-supplier-capacity.ts",
     "smoke:supplier-onboarding": "node --experimental-strip-types scripts/smoke-supplier-onboarding.ts",

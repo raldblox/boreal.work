@@ -17,6 +17,10 @@ import {
   parsePaymentReceiptHeader,
   requireAgentSession,
 } from "@/lib/boreal/one-request/http";
+import {
+  assertOneRequestIntakeAllowed,
+  ONE_REQUEST_GUARD_WINDOW_MS,
+} from "@/lib/boreal/one-request/guards";
 import { verifyOneRequestPayment } from "@/lib/boreal/one-request/payment";
 import { buildAutoRoutePlan } from "@/lib/boreal/one-request/routing";
 import { getOneRequestSellerMetadata } from "@/lib/boreal/one-request/seller";
@@ -99,6 +103,12 @@ export async function POST(request: Request) {
         request,
       });
     }
+
+    const guardState = await convex.query(api.requestApi.getRequestIntakeGuardState, {
+      ownerExternalId: caller.externalId,
+      windowStartedAt: Date.now() - ONE_REQUEST_GUARD_WINDOW_MS,
+    });
+    assertOneRequestIntakeAllowed(guardState);
 
     const prepared = await prepareOneRequest({ message });
     const conversationId = crypto.randomUUID();
@@ -324,6 +334,8 @@ export async function POST(request: Request) {
       message.includes("Signed token") ||
       message.includes("Wallet")
         ? 401
+        : message.includes("Too many")
+          ? 429
         : 400;
 
     return NextResponse.json(

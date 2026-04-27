@@ -4,6 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Added wallet-scoped one-request intake guards: max 3 active unpaid quotes, max 8 recent requests per 10-minute window, plus `npm run smoke:one-request-guards`.
 - `2026-04-27`: Hardened one-request payment verification again: when the seller pay-to address is configured, Boreal now requires the verified Solana devnet transaction to mention that pay-to address in addition to signer, confirmation, and memo checks.
 - `2026-04-27`: Added Bazaar-compatible seller metadata to the one-request contract: canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block, and strengthened `npm run smoke:one-request`.
 - `2026-04-27`: Enriched the specialized agent registry with listing-ready metadata: canonical `/api/v1/agents/*` routes, request-first route hints, machine-readable input/output schemas, normalized USD price labels, and stronger `npm run smoke:agents` coverage.
@@ -82,6 +83,7 @@ From `next-app/`:
 - `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
 - `npm run smoke:one-inbox` runs the deterministic supplier-side inbox smoke from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
 - `npm run smoke:one-request` runs the deterministic agent-only request-first smoke from SIWX auth through quote, payment receipt, specialist execution, delivery, settlement, and payout records.
+- `npm run smoke:one-request-guards` runs the deterministic wallet-scoped request-intake guard smoke for unpaid-quote caps and recent-request burst limits.
 - `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.
 - `npm run smoke:payouts` runs the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and settlement `paid_out`.
 - `npm run smoke:supplier-capacity` runs the deterministic supplier-capacity smoke for reservation blocking, delivery release, and second-claim recovery.

@@ -76,6 +76,7 @@ Rules:
 - `message` is the only required input
 - `mode` is optional, but v1 only accepts `auto`
 - callers do not choose providers, tools, or specialists up front
+- wallet-scoped intake guards cap this surface at 3 active unpaid quotes and 8 recent requests per 10-minute window
 
 Recommended header:
 
@@ -300,6 +301,8 @@ What is live today:
 - signed devnet payment authorization messages
 - independent Solana devnet transaction lookup before execution
 - signer, confirmation-status, and Boreal payment-reference memo verification
+- pay-to-address verification when the seller `payToAddress` is configured
+- wallet-scoped intake throttles for active unpaid quotes and recent request bursts
 - transaction records
 - settlement records
 - payout records for selected specialists

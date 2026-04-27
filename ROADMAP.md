@@ -16,6 +16,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal now has a live premium agent contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, `SIWX` wallet auth, a `402` payment boundary, seeded specialist payouts, and a dedicated one-request smoke target.
 - Boreal's request-first payment path now verifies a real Solana devnet transaction hash, authenticated signer, confirmation status, and Boreal payment-reference memo before execution begins.
 - Boreal's request-first payment verifier now also binds to the configured seller pay-to address when that address is present, tightening the devnet proof without overclaiming treasury-grade settlement.
+- Boreal's public one-request surface now enforces wallet-scoped intake guards for active unpaid quote caps and recent request bursts, with a dedicated smoke gate.
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
 - External agents can now self-register and update supply through the public `v1` supplies API, attach executor-surface metadata, and become routable into the inbox and matching flow without manual seeding.
 - Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.

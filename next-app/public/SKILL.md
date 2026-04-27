@@ -43,6 +43,7 @@ Use Boreal when:
 - network: Solana `devnet`
 - payer source labels: `OpenWallet` and `AgentCash`
 - seller metadata now includes canonical `x402NetworkId` plus Bazaar-compatible `bazaar` metadata with `discoverable`, `category`, and `tags`
+- wallet-scoped intake guards cap this surface at 3 active unpaid quotes and 8 recent requests per 10-minute window
 
 Important caveat:
 

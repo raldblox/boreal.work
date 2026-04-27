@@ -107,6 +107,35 @@ export const getRequestFinancials = query({
   },
 });
 
+export const getRequestIntakeGuardState = query({
+  args: {
+    ownerExternalId: v.string(),
+    windowStartedAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const sessions = await ctx.db
+      .query("agentRequestSessions")
+      .withIndex("by_ownerExternalId_and_updatedAt", (queryBuilder) =>
+        queryBuilder.eq("ownerExternalId", args.ownerExternalId),
+      )
+      .order("desc")
+      .take(64);
+
+    return {
+      activeUnpaidQuoteCount: sessions.filter(
+        (session) =>
+          session.status === "payment_required" &&
+          !session.paidAt &&
+          session.quoteExpiresAt > now,
+      ).length,
+      recentRequestCount: sessions.filter(
+        (session) => session.createdAt >= args.windowStartedAt,
+      ).length,
+    };
+  },
+});
+
 export const listRequestEvents = query({
   args: {
     limit: v.optional(v.number()),
