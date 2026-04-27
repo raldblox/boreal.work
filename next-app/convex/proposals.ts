@@ -38,6 +38,14 @@ export const submitProposal = mutation({
     ownerHandle: v.optional(v.string()),
     price: v.number(),
     proposerKind: v.optional(v.union(v.literal("human"), v.literal("agent"))),
+    memberRoles: v.optional(
+      v.array(
+        v.object({
+          memberId: v.string(),
+          role: v.string(),
+        }),
+      ),
+    ),
     splitPlan: v.optional(
       v.array(
         v.object({
@@ -61,6 +69,7 @@ export const submitProposal = mutation({
     });
     const collectiveInput = normalizeCollectiveProposalInput({
       collectiveMembers: args.collectiveMembers,
+      memberRoles: args.memberRoles,
       proposerExternalId: args.ownerExternalId,
       splitPlan: args.splitPlan,
     });
@@ -84,6 +93,7 @@ export const submitProposal = mutation({
       etaAt: args.etaAt,
       intentKey: intent.intentKey,
       isCollective: collectiveInput.collective?.isCollective ?? false,
+      memberRoles: collectiveInput.collective?.memberRoles,
       price: args.price,
       proposerKind: args.proposerKind ?? "human",
       proposerUserId,
@@ -113,6 +123,11 @@ export const submitProposal = mutation({
               .map((entry) => `${entry.memberId} ${entry.percent}%`)
               .join(", ")}`
           : null,
+        collectiveInput.collective && collectiveInput.collective.memberRoles.length > 0
+          ? `Collective roles: ${collectiveInput.collective.memberRoles
+              .map((entry) => `${entry.memberId} - ${entry.role}`)
+              .join(", ")}`
+          : null,
         "",
         args.deliverablesBody,
       ]
@@ -137,6 +152,7 @@ export const submitProposal = mutation({
       entityType: "intent",
       payload: JSON.stringify({
         collectiveMembers: collectiveInput.collective?.collectiveMembers ?? null,
+        memberRoles: collectiveInput.collective?.memberRoles ?? null,
         price: args.price,
         proposerUserId,
         proposalId,
@@ -166,6 +182,7 @@ export const submitProposal = mutation({
           collectiveMembers: collectiveInput.collective?.collectiveMembers ?? null,
           currency: args.currency,
           etaAt: args.etaAt,
+          memberRoles: collectiveInput.collective?.memberRoles ?? null,
           price: args.price,
           proposalId,
           splitPlan: collectiveInput.collective?.splitPlan ?? null,
@@ -506,6 +523,7 @@ export const approveProposal = mutation({
       payload: JSON.stringify({
         collectiveMembers: proposal.collectiveMembers ?? null,
         approvedProposalId: args.proposalId,
+        memberRoles: proposal.memberRoles ?? null,
         proposerUserId: proposal.proposerUserId,
         splitPlan: proposal.splitPlan ?? null,
       }),
@@ -562,6 +580,7 @@ export const approveProposal = mutation({
       data: {
         collectiveMembers: proposal.collectiveMembers ?? null,
         fulfillmentId,
+        memberRoles: proposal.memberRoles ?? null,
         price: proposal.price,
         proposalId: proposal._id,
         splitPlan: proposal.splitPlan ?? null,
@@ -587,6 +606,7 @@ export const approveProposal = mutation({
           data: {
             collectiveMembers: proposal.collectiveMembers ?? null,
             fulfillmentId,
+            memberRoles: proposal.memberRoles ?? null,
             price: proposal.price,
             proposalId: proposal._id,
             splitPlan: proposal.splitPlan ?? null,

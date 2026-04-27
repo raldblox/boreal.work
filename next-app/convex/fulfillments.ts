@@ -243,6 +243,7 @@ export const submitWork = mutation({
         data: {
           collectiveMembers: acceptedProposal.collectiveMembers ?? null,
           fulfillmentId: activeFulfillment._id,
+          memberRoles: acceptedProposal.memberRoles ?? null,
           settlementStatus:
             acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
           splitPlan: acceptedProposal.splitPlan ?? null,
@@ -259,6 +260,7 @@ export const submitWork = mutation({
       if (acceptedProposal.price > 0 && payoutTargets.length > 0) {
         await queuePayoutReadyWebhooks(ctx, {
           collectiveMembers: acceptedProposal.collectiveMembers ?? null,
+          memberRoles: acceptedProposal.memberRoles ?? null,
           payoutTargets,
           requestToken: createPublicRequestToken(intent._id),
           splitPlan: acceptedProposal.splitPlan ?? null,
@@ -545,6 +547,7 @@ export const markRequestFulfilled = mutation({
         data: {
           collectiveMembers: acceptedProposal?.collectiveMembers ?? null,
           fulfillmentId,
+          memberRoles: acceptedProposal?.memberRoles ?? null,
           settlementStatus:
             acceptedProposal && acceptedProposal.price > 0
               ? "ready_for_payout"
@@ -564,6 +567,7 @@ export const markRequestFulfilled = mutation({
         await queuePayoutReadyWebhooks(ctx, {
           collectiveMembers: acceptedProposal.collectiveMembers ?? null,
           fallbackExternalId: proposerExternalId,
+          memberRoles: acceptedProposal.memberRoles ?? null,
           payoutTargets,
           requestToken: createPublicRequestToken(intent._id),
           splitPlan: acceptedProposal.splitPlan ?? null,
@@ -647,6 +651,7 @@ async function ensurePayoutRecordsForProposal(
     networkKey?: CommerceNetworkKey;
     proposal: {
       collectiveMembers?: string[];
+      memberRoles?: Array<{ memberId: string; role: string }>;
       proposerUserId?: string;
       splitPlan?: Array<{ memberId: string; percent: number }>;
     };
@@ -702,6 +707,7 @@ async function queuePayoutReadyWebhooks(
   input: {
     collectiveMembers: string[] | null;
     fallbackExternalId?: string | null;
+    memberRoles: Array<{ memberId: string; role: string }> | null;
     payoutTargets: Array<{
       externalId: string | null;
       payoutId: Id<"payouts">;
@@ -717,6 +723,7 @@ async function queuePayoutReadyWebhooks(
     await queueWebhookDeliveries(ctx, {
       data: {
         collectiveMembers: input.collectiveMembers,
+        memberRoles: input.memberRoles,
         payoutToken,
         settlementStatus: "ready_for_payout",
         splitPlan: input.splitPlan,
@@ -733,6 +740,7 @@ async function queuePayoutReadyWebhooks(
     await queueWebhookDeliveries(ctx, {
       data: {
         collectiveMembers: input.collectiveMembers,
+        memberRoles: input.memberRoles,
         payoutToken,
         settlementStatus: "ready_for_payout",
         splitPlan: input.splitPlan,

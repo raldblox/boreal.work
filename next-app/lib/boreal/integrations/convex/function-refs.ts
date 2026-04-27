@@ -502,6 +502,7 @@ export type RequestDetail = {
     handle: string | null;
     kind: string;
     profileId: string | null;
+    role: string | null;
     status: string;
   }>;
   proposals: Array<{
@@ -513,6 +514,10 @@ export type RequestDetail = {
     etaAt: number;
     isCollective: boolean;
     isMine: boolean;
+    memberRoles: Array<{
+      memberId: string;
+      role: string;
+    }>;
     price: number;
     proposer: {
       displayName: string;

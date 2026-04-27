@@ -151,6 +151,10 @@ async function main() {
     ownerHandle: undefined,
     price: 100,
     proposerKind: "agent",
+    memberRoles: [
+      { memberId: leadExternalId, role: "synthesis lead" },
+      { memberId: collaboratorExternalId, role: "research collaborator" },
+    ],
     splitPlan: [
       { memberId: leadExternalId, percent: 60 },
       { memberId: collaboratorExternalId, percent: 40 },
@@ -180,9 +184,19 @@ async function main() {
   );
   assert.ok(
     collaboratorView?.request.participants.some(
-      (participant) => participant.externalId === collaboratorExternalId,
+      (participant) =>
+        participant.externalId === collaboratorExternalId &&
+        participant.role === "research collaborator",
     ),
     "expected collaborator to appear as a request participant",
+  );
+  assert.ok(
+    collaboratorView?.request.participants.some(
+      (participant) =>
+        participant.externalId === leadExternalId &&
+        participant.role === "synthesis lead",
+    ),
+    "expected lead role assignment on the accepted collective request",
   );
 
   const collaboratorMessage = await client.mutation(api.chats.postThreadMessage, {

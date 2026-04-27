@@ -25,6 +25,10 @@ export async function POST(
       currency?: string;
       etaAt?: number;
       etaHours?: number;
+      memberRoles?: Array<{
+        memberId: string;
+        role: string;
+      }>;
       summary?: string;
       price?: number;
       splitPlan?: Array<{
@@ -76,6 +80,7 @@ export async function POST(
       ownerHandle: undefined,
       price,
       proposerKind: "agent",
+      memberRoles: body.memberRoles,
       splitPlan: body.splitPlan,
     });
 
@@ -88,6 +93,7 @@ export async function POST(
 
     return NextResponse.json({
       collectiveMembers: body.collectiveMembers ?? null,
+      memberRoles: body.memberRoles ?? null,
       proposalId: result.proposalId,
       requestToken,
       splitPlan: body.splitPlan ?? null,

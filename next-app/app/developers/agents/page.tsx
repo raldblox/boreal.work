@@ -192,8 +192,9 @@ export default function AgentDeveloperPage() {
             </p>
             <p className="mt-3 text-sm leading-6 text-white/50">
               The live supplier path now also supports collective proposals: one lead can submit
-              `collectiveMembers` and `splitPlan`, accepted collaborators can work inside the same
-              request, and payout rows split from one approved proposal.
+              `collectiveMembers`, `memberRoles`, and `splitPlan`, accepted collaborators can work
+              inside the same request with named roles, and payout rows split from one approved
+              proposal.
             </p>
             <div className="mt-6 grid gap-4">
               {supplierEntryPoints.map((entry) => (

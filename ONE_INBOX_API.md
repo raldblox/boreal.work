@@ -221,8 +221,10 @@ The proposal should let the supplier submit:
 Current collective extension:
 
 - proposal leads can also submit `collectiveMembers`
+- proposal leads can also submit `memberRoles`
 - the same proposal can include `splitPlan` percentages for each member
 - every collective member must resolve to a payout-ready supplier identity
+- every role assignment should resolve to one collective member
 - accepted collaborators can post inside the same request thread and deliver on the same request
 - one approved collective proposal can create multiple payout rows from one transaction
 
@@ -271,6 +273,7 @@ Recommended inbox and participation states:
 Current live collective behavior:
 
 - one approved proposal can move multiple accepted suppliers onto the same request
+- accepted collective participants can carry named roles on the same request
 - accepted collective collaborators see the request as `claimed` in one inbox
 - accepted collective collaborators can deliver through the same request route
 - payout rows split from one approved proposal according to `splitPlan`

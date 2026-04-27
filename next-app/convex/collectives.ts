@@ -14,9 +14,15 @@ export type CollectiveSplitPlanEntry = {
   percent: number;
 };
 
+export type CollectiveRoleAssignmentEntry = {
+  memberId: string;
+  role: string;
+};
+
 export type NormalizedCollectiveProposal = {
   collectiveMembers: string[];
   isCollective: boolean;
+  memberRoles: CollectiveRoleAssignmentEntry[];
   splitPlan: CollectiveSplitPlanEntry[];
 };
 
@@ -35,6 +41,12 @@ export type ResolvedCollectiveParticipant = {
 
 export function normalizeCollectiveProposalInput(input: {
   collectiveMembers?: string[] | undefined;
+  memberRoles?:
+    | Array<{
+        memberId: string;
+        role: string;
+      }>
+    | undefined;
   proposerExternalId?: string | undefined;
   splitPlan?:
     | Array<{
@@ -45,9 +57,10 @@ export function normalizeCollectiveProposalInput(input: {
 }): { collective?: NormalizedCollectiveProposal; error?: string } {
   const proposerExternalId = input.proposerExternalId?.trim();
   const normalizedMembers = dedupeStringArray(input.collectiveMembers);
+  const normalizedRoles = normalizeRoleAssignments(input.memberRoles);
   const normalizedPlan = normalizeSplitPlan(input.splitPlan);
   const requestedCollective =
-    normalizedMembers.length > 0 || normalizedPlan.length > 0;
+    normalizedMembers.length > 0 || normalizedPlan.length > 0 || normalizedRoles.length > 0;
 
   if (!requestedCollective) {
     return {};
@@ -63,6 +76,9 @@ export function normalizeCollectiveProposalInput(input: {
   const memberSet = new Set<string>(normalizedMembers);
 
   for (const entry of normalizedPlan) {
+    memberSet.add(entry.memberId);
+  }
+  for (const entry of normalizedRoles) {
     memberSet.add(entry.memberId);
   }
 
@@ -102,13 +118,50 @@ export function normalizeCollectiveProposalInput(input: {
     };
   }
 
+  const roleMemberIds = new Set(normalizedRoles.map((entry) => entry.memberId));
+
+  if (
+    normalizedRoles.length > 0 &&
+    (roleMemberIds.size !== collectiveMembers.length ||
+      collectiveMembers.some((memberId) => !roleMemberIds.has(memberId)))
+  ) {
+    return {
+      error:
+        "collective role assignments must cover every collective member exactly once.",
+    };
+  }
+
   return {
     collective: {
       collectiveMembers,
       isCollective: true,
+      memberRoles: normalizedRoles,
       splitPlan,
     },
   };
+}
+
+export function getCollectiveMemberRole(
+  proposal:
+    | {
+        memberRoles?:
+          | Array<{
+              memberId: string;
+              role: string;
+            }>
+          | undefined;
+      }
+    | null
+    | undefined,
+  externalId?: string | null,
+) {
+  if (!proposal || !externalId) {
+    return null;
+  }
+
+  return (
+    proposal.memberRoles?.find((entry) => entry.memberId === externalId)?.role ?? null
+  );
 }
 
 export function proposalIncludesParticipant(
@@ -295,6 +348,39 @@ function normalizeSplitPlan(
     normalized.push({
       memberId,
       percent,
+    });
+  }
+
+  return normalized;
+}
+
+function normalizeRoleAssignments(
+  raw:
+    | Array<{
+        memberId: string;
+        role: string;
+      }>
+    | undefined,
+) {
+  if (!raw || raw.length === 0) {
+    return [];
+  }
+
+  const normalized: CollectiveRoleAssignmentEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of raw) {
+    const memberId = entry.memberId?.trim();
+    const role = entry.role?.trim();
+
+    if (!memberId || !role || seen.has(memberId)) {
+      continue;
+    }
+
+    seen.add(memberId);
+    normalized.push({
+      memberId,
+      role,
     });
   }
 

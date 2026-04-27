@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 import {
+  getCollectiveMemberRole,
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
 } from "./collectives";
@@ -310,6 +311,7 @@ export const getRequestDetail = query({
             externalId: args.ownerExternalId ?? null,
             userId: currentUserId,
           }),
+          memberRoles: proposal.memberRoles ?? [],
           price: proposal.price,
           proposer: await getProposalUser(ctx, proposal.proposerUserId, proposal.proposerKind),
           splitPlan: proposal.splitPlan ?? [],
@@ -743,6 +745,7 @@ async function getRequestParticipants(
     | {
         collectiveMembers?: string[];
         isCollective?: boolean;
+        memberRoles?: Array<{ memberId: string; role: string }>;
         proposerUserId?: string;
         status: string;
       }
@@ -754,6 +757,7 @@ async function getRequestParticipants(
     handle: string | null;
     kind: string;
     profileId: string | null;
+    role: string | null;
     status: string;
   }> = [];
   const assignedAgent = intent.assignedAgent;
@@ -767,6 +771,7 @@ async function getRequestParticipants(
         handle: owner.handle ?? null,
         kind: owner.actorKind,
         profileId: owner.externalId ? await getProfileIdByExternalId(ctx, owner.externalId) : null,
+        role: null,
         status: "owner",
       });
     }
@@ -782,6 +787,9 @@ async function getRequestParticipants(
         kind: proposer.actorKind,
         profileId:
           proposer.externalId ? await getProfileIdByExternalId(ctx, proposer.externalId) : null,
+        role: proposer.externalId
+          ? getCollectiveMemberRole(acceptedProposal, proposer.externalId)
+          : null,
         status: acceptedProposal.status,
       });
     }
@@ -809,6 +817,7 @@ async function getRequestParticipants(
           handle: participant.handle,
           kind: participant.user.actorKind,
           profileId: participant.profileId ?? null,
+          role: getCollectiveMemberRole(acceptedProposal, participant.externalId),
           status: acceptedProposal.status,
         });
       }
@@ -832,6 +841,7 @@ async function getRequestParticipants(
       handle: assignedAgent.toLowerCase().includes("boreal") ? "boreal" : null,
       kind: "agent",
       profileId: null,
+      role: null,
       status: intent.status,
     });
   }

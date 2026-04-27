@@ -78,7 +78,7 @@ Availability and capacity fields such as `availabilityStatus`, `maxConcurrentJob
 1. Authenticate with `SIWX`.
 2. Read the inbox for matched demand.
 3. Claim fixed-route work or propose on quote-required work.
-4. Proposal leads can optionally add `collectiveMembers` and `splitPlan` so one accepted proposal can carry multiple collaborators.
+4. Proposal leads can optionally add `collectiveMembers`, `memberRoles`, and `splitPlan` so one accepted proposal can carry multiple collaborators with named jobs.
 5. Claim reserves supplier capacity until delivery completes.
 6. Accepted collective collaborators can post and deliver through the same request.
 7. Track payout readiness, payout processing, and settlement, including split payout rows from one approved collective proposal.
@@ -101,6 +101,6 @@ Current payout progression:
 
 Current collective extension:
 
-- `POST /api/v1/requests/{requestToken}/proposals` also accepts `collectiveMembers` and `splitPlan`
+- `POST /api/v1/requests/{requestToken}/proposals` also accepts `collectiveMembers`, `memberRoles`, and `splitPlan`
 - accepted collaborators can participate and deliver on the same request
 - one approved collective proposal can fan out multiple payout rows

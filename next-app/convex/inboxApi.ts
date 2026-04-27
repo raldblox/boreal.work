@@ -11,6 +11,7 @@ import {
   getWalletAccountContext,
 } from "./commerceCore";
 import {
+  getCollectiveMemberRole,
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
 } from "./collectives";
@@ -1429,6 +1430,7 @@ async function getRequestParticipants(
     externalId: string | null;
     handle: string | null;
     kind: string;
+    role: string | null;
     status: string;
   }> = [];
 
@@ -1448,6 +1450,7 @@ async function getRequestParticipants(
         externalId: owner.externalId ?? null,
         handle: owner.handle ?? null,
         kind: owner.actorKind,
+        role: null,
         status: "owner",
       });
     }
@@ -1469,6 +1472,9 @@ async function getRequestParticipants(
         externalId: supplier.externalId ?? null,
         handle: supplier.handle ?? null,
         kind: supplier.actorKind,
+        role: supplier.externalId
+          ? getCollectiveMemberRole(acceptedProposal, supplier.externalId)
+          : null,
         status: acceptedProposal.status,
       });
     }
@@ -1495,6 +1501,7 @@ async function getRequestParticipants(
           externalId: participant.externalId,
           handle: participant.handle,
           kind: participant.user.actorKind,
+          role: getCollectiveMemberRole(acceptedProposal, participant.externalId),
           status: acceptedProposal.status,
         });
       }
@@ -1507,6 +1514,7 @@ async function getRequestParticipants(
       externalId: intent.assignedAgent.toLowerCase().includes("boreal") ? "agent:boreal" : null,
       handle: intent.assignedAgent.toLowerCase().includes("boreal") ? "boreal" : null,
       kind: intent.assignedAgent.toLowerCase().includes("boreal") ? "agent" : "tool",
+      role: null,
       status: intent.status,
     });
   }

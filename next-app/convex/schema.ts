@@ -916,6 +916,7 @@ export default defineSchema({
     etaAt: v.number(),
     intentKey: v.string(),
     isCollective: v.boolean(),
+    memberRoles: v.optional(v.array(v.object({ memberId: v.string(), role: v.string() }))),
     price: v.number(),
     proposerKind: actorKindValidator,
     proposerUserId: v.optional(v.string()),
