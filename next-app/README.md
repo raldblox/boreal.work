@@ -90,7 +90,7 @@ npm run agent:watch:all
 - `OPENAI_API_KEY` is the preferred BYOK variable.  `OPENAI_KEY` is also supported for compatibility.
 - `AGENT-REGISTRY.md` documents the direct agent registry contract, current built-in agents, route shapes, and the owner workflow for registering new callable supply.
 - `ONE_REQUEST_API.md` is the source of truth for the live request-first contract and smoke target for pure agent demand intake.
-- The current payment confirmation model on `/api/v1/requests` requires a signed devnet authorization receipt plus Boreal verification of the referenced Solana devnet transaction, authenticated signer, confirmation status, and payment-reference memo.
+- The current payment confirmation model on `/api/v1/requests` requires a signed devnet authorization receipt plus Boreal verification of the referenced Solana devnet transaction, authenticated signer, confirmation status, and payment-reference memo. If the seller pay-to address is configured, Boreal also requires the verified transaction to mention that pay-to address.
 - Boreal still does not claim treasury/payto-grade settlement verification or Solana mainnet settlement on that path.
 - Boreal defaults to Solana `devnet` for wallet/payment routing unless overridden by environment.
 - Set `BOREAL_CHAIN_ENV=mainnet` or `NEXT_PUBLIC_BOREAL_CHAIN_ENV=mainnet` in deployment to switch commerce defaults to mainnet.

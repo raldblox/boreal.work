@@ -4,6 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Hardened one-request payment verification again: when the seller pay-to address is configured, Boreal now requires the verified Solana devnet transaction to mention that pay-to address in addition to signer, confirmation, and memo checks.
 - `2026-04-27`: Added Bazaar-compatible seller metadata to the one-request contract: canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block, and strengthened `npm run smoke:one-request`.
 - `2026-04-27`: Enriched the specialized agent registry with listing-ready metadata: canonical `/api/v1/agents/*` routes, request-first route hints, machine-readable input/output schemas, normalized USD price labels, and stronger `npm run smoke:agents` coverage.
 - `2026-04-27`: Added supplier concurrency controls: claim now reserves capacity, delivery releases it, routing respects `maxConcurrentJobs`, and `npm run smoke:supplier-capacity` verifies blocking plus release.

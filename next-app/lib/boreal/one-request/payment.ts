@@ -55,10 +55,11 @@ export type OneRequestPaymentVerification = {
   confirmationStatus: string | null;
   memo: string;
   networkKey: "solana:devnet";
+  payToAddress: string | null;
   rpcUrl: string;
   slot: number | null;
   txHash: string;
-  verificationMethod: "solana_devnet_memo";
+  verificationMethod: "solana_devnet_memo" | "solana_devnet_memo_payto";
   verifiedAt: number;
   walletAddress: string;
 };
@@ -70,6 +71,7 @@ export async function verifyOneRequestPayment(input: {
   amount: number;
   authorizationMessage: string;
   currency: string;
+  payToAddress?: string | null;
   quoteExpiresAt: number;
   quoteToken: string;
   receipt: OneRequestPaymentReceipt;
@@ -132,6 +134,12 @@ export async function verifyOneRequestPayment(input: {
     throw new Error("Verified Solana transaction is missing Boreal's payment reference memo.");
   }
 
+  const payToAddress = input.payToAddress?.trim() || null;
+
+  if (payToAddress && !transactionMentionsAddress(transaction, payToAddress)) {
+    throw new Error("Verified Solana transaction is not linked to Boreal's configured pay-to address.");
+  }
+
   const confirmationStatus = await getConfirmationStatus({
     rpcUrl,
     txHash,
@@ -151,10 +159,13 @@ export async function verifyOneRequestPayment(input: {
     confirmationStatus,
     memo: matchedMemo,
     networkKey: "solana:devnet",
+    payToAddress,
     rpcUrl,
     slot: transaction.slot ?? null,
     txHash,
-    verificationMethod: "solana_devnet_memo",
+    verificationMethod: payToAddress
+      ? "solana_devnet_memo_payto"
+      : "solana_devnet_memo",
     verifiedAt: Date.now(),
     walletAddress: input.walletAddress,
   };
@@ -263,6 +274,43 @@ function extractMemoStrings(transaction: SolanaTransaction) {
   }
 
   return [...memos];
+}
+
+function transactionMentionsAddress(
+  transaction: SolanaTransaction,
+  address: string,
+) {
+  const normalizedAddress = address.trim();
+
+  if (!normalizedAddress) {
+    return false;
+  }
+
+  const accountKeyMatch = (transaction.transaction?.message?.accountKeys ?? []).some(
+    (accountKey) =>
+      typeof accountKey === "string"
+        ? accountKey === normalizedAddress
+        : accountKey.pubkey === normalizedAddress,
+  );
+
+  if (accountKeyMatch) {
+    return true;
+  }
+
+  const instructionMatch = (transaction.transaction?.message?.instructions ?? []).some(
+    (instruction) =>
+      collectInstructionStrings(instruction).some(
+        (value) => value === normalizedAddress || value.includes(normalizedAddress),
+      ),
+  );
+
+  if (instructionMatch) {
+    return true;
+  }
+
+  return (transaction.meta?.logMessages ?? []).some((logMessage) =>
+    logMessage.includes(normalizedAddress),
+  );
 }
 
 function collectInstructionStrings(value: unknown): string[] {

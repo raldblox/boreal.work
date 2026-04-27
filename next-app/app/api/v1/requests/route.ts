@@ -413,6 +413,7 @@ async function executePaidSession(
       amount: input.existing.quoteAmount,
       authorizationMessage: input.existing.quoteAuthorizationMessage,
       currency: input.existing.currency,
+      payToAddress: getOneRequestSellerMetadata().payToAddress,
       quoteExpiresAt: input.existing.quoteExpiresAt,
       quoteToken: input.existing.quoteToken,
       receipt: input.paymentReceipt,

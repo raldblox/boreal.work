@@ -2,7 +2,7 @@
 
 This is the public mirror of Boreal's live agent-only request-first contract.
 
-Current hardening note: Boreal now ships the full request lifecycle, `402` payment boundary, execution, events, transaction records, settlement records, and payout records for this surface.  Boreal now verifies a signed devnet payment authorization receipt against an independently fetched Solana devnet transaction with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  Treasury/payto-grade settlement verification is still not claimed on this path.
+Current hardening note: Boreal now ships the full request lifecycle, `402` payment boundary, execution, events, transaction records, settlement records, and payout records for this surface.  Boreal now verifies a signed devnet payment authorization receipt against an independently fetched Solana devnet transaction with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  Treasury/payto-grade settlement verification is still not claimed on this path.
 
 Supplier-side companion:
 

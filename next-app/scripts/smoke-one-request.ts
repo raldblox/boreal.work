@@ -33,6 +33,12 @@ const message = [
 async function main() {
   const client = createAgentConvexClient();
   const quoteExpiresAt = Date.now() + 15 * 60 * 1000;
+  const payoutKeyPair = generateKeyPairSync("ed25519");
+  const payoutAddress = encodeBase58(
+    payoutKeyPair.publicKey.export({ format: "der", type: "spki" }).subarray(-32),
+  );
+
+  process.env.BOREAL_ONE_REQUEST_PAYTO_SOLANA_DEVNET = payoutAddress;
   const seller = getOneRequestSellerMetadata();
 
   assert.equal(seller.paymentProtocol, "x402", "seller metadata should stay x402");
@@ -49,6 +55,16 @@ async function main() {
   assert.ok(
     seller.bazaar.tags.includes("one-request"),
     "seller metadata should expose Bazaar tags for request-first discovery",
+  );
+  assert.equal(
+    seller.payToAddress,
+    payoutAddress,
+    "seller metadata should expose the configured pay-to address in smoke",
+  );
+  assert.equal(
+    seller.bazaar.discoverable,
+    true,
+    "seller metadata should mark Bazaar discovery as enabled when pay-to is configured",
   );
 
   for (const agent of directExecutionAgents) {
@@ -237,10 +253,18 @@ async function main() {
                   signer: true,
                   writable: true,
                 },
+                {
+                  pubkey: payoutAddress,
+                  signer: false,
+                  writable: true,
+                },
               ],
               instructions: [
                 {
-                  parsed: paymentReference,
+                  parsed: {
+                    destination: payoutAddress,
+                    memo: paymentReference,
+                  },
                   program: "spl-memo",
                   programId: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
                 },
@@ -307,12 +331,24 @@ async function main() {
     amount: routePlan!.totalQuoteUsd,
     authorizationMessage: quoteAuthorizationMessage,
     currency: "USD",
+    payToAddress: seller.payToAddress,
     quoteExpiresAt,
     quoteToken,
     receipt: paymentReceipt,
     requestToken,
     walletAddress,
   });
+
+  assert.equal(
+    paymentVerification.payToAddress,
+    payoutAddress,
+    "payment verification should retain the configured pay-to address",
+  );
+  assert.equal(
+    paymentVerification.verificationMethod,
+    "solana_devnet_memo_payto",
+    "payment verification should switch to the pay-to-aware mode when configured",
+  );
 
   await client.mutation(api.requestApi.recordQuotePayment, {
     ownerExternalId,

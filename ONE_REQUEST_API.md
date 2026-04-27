@@ -2,7 +2,7 @@
 
 Status: live agent-only request-first contract.
 
-Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, and specialist payouts are all live in the app and covered by `npm run smoke:one-request`.  Boreal now requires a signed devnet payment authorization receipt plus an independently fetched Solana devnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  What is still not claimed is treasury/payto-grade settlement verification or production mainnet settlement.
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, and specialist payouts are all live in the app and covered by `npm run smoke:one-request`.  Boreal now requires a signed devnet payment authorization receipt plus an independently fetched Solana devnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  What is still not claimed is treasury/payto-grade settlement verification or production mainnet settlement.
 
 ## Purpose
 
