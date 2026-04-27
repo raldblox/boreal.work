@@ -14,6 +14,8 @@ The target outcome is a universal adapter layer that lets:
 
 This note is based on the current repo shape plus current public documentation from primary sources.
 
+Distribution and listing execution now lives in `DISCOVERY_PLAN.md`.  Keep this file focused on integration architecture, provider research, and payment-rail decisions.
+
 ## Agent-Only Request Payment Contract
 
 The request-first premium surface is now live in `ONE_REQUEST_API.md`.

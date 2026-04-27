@@ -56,7 +56,7 @@ export const researchAnalystAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will deliver a concise research memo for "${detail.title}" with findings, comparisons, and a recommendation in markdown.`,
       etaAt: Date.now() + 3 * 60 * 60 * 1000,
-      price: 55,
+      price: 0.01,
     };
   },
   match({ detail, request }) {

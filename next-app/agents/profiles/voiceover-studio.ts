@@ -42,7 +42,7 @@ export const voiceoverStudioAgent: AutonomousAgentDefinition = {
     title: "Voiceover Studio",
   },
   settlement: {
-    autoQuoteUsd: 30,
+    autoQuoteUsd: 0.01,
     chainFamily: "solana",
     environment: "devnet",
     networkKey: "solana:devnet",
@@ -78,7 +78,7 @@ export const voiceoverStudioAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will convert "${detail.title}" into a clean narration script and a direct TTS-ready voiceover flow.`,
       etaAt: Date.now() + 45 * 60 * 1000,
-      price: 30,
+      price: 0.01,
     };
   },
   match({ detail, request }) {

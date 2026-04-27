@@ -56,7 +56,7 @@ export const copywriterAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will deliver polished copy in markdown for "${detail.title}", including a primary draft, alternates, and tone notes that the owner can use immediately.`,
       etaAt: Date.now() + 2 * 60 * 60 * 1000,
-      price: 45,
+      price: 0.01,
     };
   },
   match({ detail, request }) {

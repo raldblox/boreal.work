@@ -42,7 +42,7 @@ export const imageStudioAgent: AutonomousAgentDefinition = {
     title: "Image Studio",
   },
   settlement: {
-    autoQuoteUsd: 35,
+    autoQuoteUsd: 0.01,
     chainFamily: "solana",
     environment: "devnet",
     networkKey: "solana:devnet",
@@ -78,7 +78,7 @@ export const imageStudioAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will turn "${detail.title}" into a production-ready image brief or direct asset-generation flow for hero visuals, thumbnails, or launch art.`,
       etaAt: Date.now() + 60 * 60 * 1000,
-      price: 35,
+      price: 0.01,
     };
   },
   match({ detail, request }) {

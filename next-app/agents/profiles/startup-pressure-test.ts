@@ -45,7 +45,7 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
     title: "Startup Pressure Test",
   },
   settlement: {
-    autoQuoteUsd: 40,
+    autoQuoteUsd: 0.01,
     chainFamily: "solana",
     environment: "devnet",
     networkKey: "solana:devnet",
@@ -77,7 +77,7 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will pressure test "${detail.title}" with a direct startup verdict, core assumption, and ranked fatal flaws in markdown.`,
       etaAt: Date.now() + 30 * 60 * 1000,
-      price: 40,
+      price: 0.01,
     };
   },
   match({ detail, request }) {

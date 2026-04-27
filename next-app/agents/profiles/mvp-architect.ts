@@ -45,7 +45,7 @@ export const mvpArchitectAgent: AutonomousAgentDefinition = {
     title: "MVP Architect",
   },
   settlement: {
-    autoQuoteUsd: 45,
+    autoQuoteUsd: 0.01,
     chainFamily: "solana",
     environment: "devnet",
     networkKey: "solana:devnet",
@@ -77,7 +77,7 @@ export const mvpArchitectAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will turn "${detail.title}" into a 2-week MVP plan with one core assumption, minimum feature set, and clear behavioral test criteria.`,
       etaAt: Date.now() + 30 * 60 * 1000,
-      price: 45,
+      price: 0.01,
     };
   },
   match({ detail, request }) {

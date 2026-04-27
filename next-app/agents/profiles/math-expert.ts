@@ -56,7 +56,7 @@ export const mathExpertAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will solve the math request in markdown, show the method, and provide a final answer with enough detail to audit the result for "${detail.title}".`,
       etaAt: Date.now() + 60 * 60 * 1000,
-      price: 35,
+      price: 0.01,
     };
   },
   match({ detail, request }) {

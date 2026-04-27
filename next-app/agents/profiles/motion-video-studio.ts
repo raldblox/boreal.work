@@ -42,7 +42,7 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
     title: "Motion Video Studio",
   },
   settlement: {
-    autoQuoteUsd: 60,
+    autoQuoteUsd: 0.01,
     chainFamily: "solana",
     environment: "devnet",
     networkKey: "solana:devnet",
@@ -78,7 +78,7 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
       currency: "USD",
       deliverablesBody: `I will turn "${detail.title}" into a motion-ready scene plan and a direct video-generation path for promo or explainer output.`,
       etaAt: Date.now() + 90 * 60 * 1000,
-      price: 60,
+      price: 0.01,
     };
   },
   match({ detail, request }) {
