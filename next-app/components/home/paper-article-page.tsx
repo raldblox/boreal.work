@@ -13,8 +13,8 @@ import {
   extractEditorialDocument,
   getEditorialLeadValue,
 } from "@/lib/boreal/editorial"
-import type { PublicPaperRecord } from "@/lib/boreal/papers"
-import { getPublicPaperHref } from "@/lib/boreal/papers"
+import type { PublicPaperRecord } from "@/lib/boreal/papers-data"
+import { getPublicPaperHref } from "@/lib/boreal/papers-data"
 
 const kindLabels = {
   deep_dive: "Deep dive",

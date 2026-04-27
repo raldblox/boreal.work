@@ -105,28 +105,38 @@ export function DesktopDiscoveryRail({
 }
 
 export function ChatShellHeader({
+  activeNavHref,
   hideIntentMenu = false,
   hideWorkspaceToggle = false,
+  inlineNavHrefs = [],
   isRequestSelected,
   isSubmitting,
   onOpenMobileDiscovery,
   onOpenMobileIntentSidebar,
+  onSelectInlineNav,
   onReturnHome,
   onToggleWorkspace,
   requestTitle,
   showWorkspace,
 }: {
+  activeNavHref?: string | null
   hideIntentMenu?: boolean
   hideWorkspaceToggle?: boolean
+  inlineNavHrefs?: readonly string[]
   isRequestSelected: boolean
   isSubmitting: boolean
   onOpenMobileDiscovery: () => void
   onOpenMobileIntentSidebar: () => void
+  onSelectInlineNav?: (href: string) => void
   onReturnHome: () => void
   onToggleWorkspace: () => void
   requestTitle?: string | null
   showWorkspace: boolean
 }) {
+  const inlineLinks = publicSiteLinks.filter((link) =>
+    inlineNavHrefs.includes(link.href)
+  )
+
   return (
     <div className="flex h-16 items-center border-b border-border px-4">
       <div className="flex w-full items-center justify-between gap-4">
@@ -147,26 +157,40 @@ export function ChatShellHeader({
               </div>
             </>
           ) : (
-            <div className="flex min-w-0 flex-1 items-center gap-4">
-              <Link className="shrink-0 text-sm font-medium" href="/">
-                Boreal chat
-              </Link>
+            <div className="flex min-w-0 flex-1 items-center">
               <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto lg:flex">
                 {publicSiteLinks.map((link) => (
-                  <Link
-                    className="shrink-0 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                    href={link.href}
-                    key={link.href}
-                  >
-                    {link.label}
-                  </Link>
+                  inlineNavHrefs.includes(link.href) && onSelectInlineNav ? (
+                    <button
+                      aria-pressed={activeNavHref === link.href}
+                      className={cn(
+                        "shrink-0 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                        activeNavHref === link.href
+                          ? "bg-muted/45 text-foreground"
+                          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                      )}
+                      key={link.href}
+                      onClick={() => onSelectInlineNav(link.href)}
+                      type="button"
+                    >
+                      {link.label}
+                    </button>
+                  ) : (
+                    <Link
+                      className="shrink-0 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                      href={link.href}
+                      key={link.href}
+                    >
+                      {link.label}
+                    </Link>
+                  )
                 ))}
               </nav>
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex min-w-0 items-center gap-2 lg:hidden">
             {!hideIntentMenu ? (
               <Button
                 aria-label="Open requests menu"
@@ -179,6 +203,24 @@ export function ChatShellHeader({
                 Menu
               </Button>
             ) : null}
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+              {inlineLinks.map((link) => (
+                <Button
+                  aria-pressed={activeNavHref === link.href}
+                  className={cn(
+                    "shrink-0",
+                    activeNavHref === link.href && "bg-muted text-foreground"
+                  )}
+                  key={link.href}
+                  onClick={() => onSelectInlineNav?.(link.href)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {link.label}
+                </Button>
+              ))}
+            </div>
             <Button
               aria-label="Open discovery drawer"
               onClick={onOpenMobileDiscovery}
@@ -280,34 +322,38 @@ export function CollapsedRequestsRail({
   const avatarInitial = accountName?.trim().charAt(0).toUpperCase() ?? "U"
 
   return (
-    <aside className="flex h-full w-full flex-col items-center border-r border-border bg-foreground/[0.05] px-3 py-4">
-      <button
-        aria-label="Expand requests sidebar"
-        className="group relative flex size-10 items-center justify-center rounded-xl border border-border bg-background p-2 transition-colors hover:bg-muted/40"
-        onClick={onExpand}
-        type="button"
-      >
-        <span className="flex size-full items-center justify-center rounded-lg bg-muted/30 transition-opacity duration-150 group-hover:opacity-0">
-          <Logo size={13} />
-        </span>
-        <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          <PanelLeftOpenIcon className="size-4" />
-        </span>
-      </button>
+    <aside className="flex h-full w-full flex-col bg-foreground/[0.05] text-foreground">
+      <div className="flex h-16 items-center justify-center border-b border-border px-4">
+        <button
+          aria-label="Expand requests sidebar"
+          className="group relative flex size-10 shrink-0 items-center justify-center rounded-lg border border-border text-foreground transition-colors hover:bg-background/70"
+          onClick={onExpand}
+          type="button"
+        >
+          <span className="flex size-full items-center justify-center rounded-lg transition-opacity duration-150 group-hover:opacity-0">
+            <Logo size={24} />
+          </span>
+          <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+            <PanelLeftOpenIcon className="size-4" />
+          </span>
+        </button>
+      </div>
 
-      <div className="mt-4 flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-2 px-4 py-4">
         <Button
           aria-label="Start new chat"
+          className="size-10 rounded-lg border border-border bg-background/70 text-foreground hover:bg-background"
           onClick={onNewChat}
           size="icon"
           type="button"
+          variant="outline"
         >
           <MessageSquarePlusIcon className="size-4" />
         </Button>
 
         <button
           aria-label={`Open requests sidebar with ${requestCount} tracked requests`}
-          className="relative flex size-10 items-center justify-center rounded-xl border border-border bg-background text-foreground transition-colors hover:bg-muted/40"
+          className="relative flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background/70 text-foreground transition-colors hover:bg-background"
           onClick={onExpand}
           type="button"
         >
@@ -318,14 +364,14 @@ export function CollapsedRequestsRail({
         </button>
       </div>
 
-      <div className="mt-auto flex flex-col items-center gap-3">
+      <div className="mt-auto border-t border-border px-4 py-4">
         <button
           aria-label="Open account settings"
-          className="flex size-10 items-center justify-center rounded-xl border border-border bg-background transition-colors hover:bg-muted/40"
+          className="flex size-10 items-center justify-center rounded-lg transition-colors hover:bg-background/70"
           onClick={onOpenAccount}
           type="button"
         >
-          <Avatar className="size-7 rounded-lg">
+          <Avatar className="size-10 rounded-lg border border-border bg-background">
             {accountImageUrl ? (
               <AvatarImage alt={accountName ?? "Account"} src={accountImageUrl} />
             ) : null}

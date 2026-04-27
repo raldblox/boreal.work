@@ -63,6 +63,9 @@ import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
+import { AgentDeveloperSurface } from "@/components/home/agent-developer-surface"
+import { AboutPage } from "@/components/home/about-page"
+import { PapersHubPage } from "@/components/home/papers-hub-page"
 import {
   type DeliveryDraft,
   DeliverySubmissionDialog,
@@ -163,6 +166,7 @@ import {
   inferInvocationAccess,
   parsePaymentResponseHeader,
 } from "@/lib/boreal/integrations/service-providers/payments/x402"
+import { listPublicPapers } from "@/lib/boreal/papers-data"
 
 import { IntentSidebar } from "./intent-sidebar"
 import {
@@ -188,7 +192,30 @@ type ChatMessage = {
 }
 
 type CenterViewTab = "activity" | "chat" | "participants" | "workspace"
-type CenterSheetView = "roadmap"
+type CenterSheetView = "about" | "developers" | "papers" | "roadmap"
+
+const centerSheetViewByHref = {
+  "/about": "about",
+  "/developers/agents": "developers",
+  "/papers": "papers",
+  "/roadmap": "roadmap",
+} as const satisfies Record<string, CenterSheetView>
+
+const centerSheetHrefByView: Record<CenterSheetView, string> = {
+  about: "/about",
+  developers: "/developers/agents",
+  papers: "/papers",
+  roadmap: "/roadmap",
+}
+
+const centerSheetTitleByView: Record<CenterSheetView, string> = {
+  about: "About",
+  developers: "Developers",
+  papers: "Papers",
+  roadmap: "Roadmap",
+}
+
+const centerSheetNavHrefs = Object.keys(centerSheetViewByHref)
 
 const sidebarIntentQuery = makeFunctionReference<
   "query",
@@ -2171,14 +2198,17 @@ export function ChatShell() {
   }
 
   function handleInlineNavSelect(href: string) {
-    if (href === "/roadmap") {
-      if (centerSheetView === "roadmap" && isCenterSheetOpen) {
-        closeCenterSheet()
-        return
-      }
-
-      openCenterSheet("roadmap")
+    const nextView = centerSheetViewByHref[href as keyof typeof centerSheetViewByHref]
+    if (!nextView) {
+      return
     }
+
+    if (centerSheetView === nextView && isCenterSheetOpen) {
+      closeCenterSheet()
+      return
+    }
+
+    openCenterSheet(nextView)
   }
 
   function openXSignIn() {
@@ -2231,6 +2261,7 @@ export function ChatShell() {
     displayedMessages.length === 0
   const shouldShowFooterComposer =
     isXAuthenticated && shouldShowChatComposer && !isHomeView
+  const publicPapers = useMemo(() => listPublicPapers(), [])
 
   return (
       <>
@@ -2294,13 +2325,13 @@ export function ChatShell() {
             >
               <ChatShellHeader
                 activeNavHref={
-                  isCenterSheetOpen && centerSheetView === "roadmap"
-                    ? "/roadmap"
+                  isCenterSheetOpen && centerSheetView
+                    ? centerSheetHrefByView[centerSheetView]
                     : null
                 }
                 hideIntentMenu={false}
                 hideWorkspaceToggle={false}
-                inlineNavHrefs={["/roadmap"]}
+                inlineNavHrefs={centerSheetNavHrefs}
                 isRequestSelected={isXAuthenticated && Boolean(activeIntentId)}
                 isSubmitting={isSubmitting}
                 onOpenMobileDiscovery={openMobileDiscovery}
@@ -2318,9 +2349,15 @@ export function ChatShell() {
                 <FocusSheet
                   onClose={closeCenterSheet}
                   open={isCenterSheetOpen}
-                  title={centerSheetView === "roadmap" ? "Roadmap" : "Panel"}
+                  title={centerSheetTitleByView[centerSheetView]}
                 >
-                  {centerSheetView === "roadmap" ? (
+                  {centerSheetView === "about" ? (
+                    <AboutPage embedded />
+                  ) : centerSheetView === "developers" ? (
+                    <AgentDeveloperSurface embedded />
+                  ) : centerSheetView === "papers" ? (
+                    <PapersHubPage embedded papers={publicPapers} />
+                  ) : centerSheetView === "roadmap" ? (
                     <RoadmapBoard embedded />
                   ) : null}
                 </FocusSheet>
