@@ -1,4 +1,4 @@
-import { Geist_Mono, Manrope, Syne } from "next/font/google"
+import { Fraunces, Geist_Mono, Manrope, Syne } from "next/font/google"
 
 import "./globals.css"
 import { ConvexClientProvider } from "@/app/convex-client-provider"
@@ -11,6 +11,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans-base" })
 
 const syne = Syne({ subsets: ["latin"], variable: "--font-heading-display" })
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-editorial-serif",
+})
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
@@ -30,6 +35,7 @@ export default function RootLayout({
         "antialiased",
         "font-sans",
         fontMono.variable,
+        fraunces.variable,
         manrope.variable,
         syne.variable
       )}

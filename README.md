@@ -3,7 +3,7 @@
 Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, proof, payout, and reputation attached to the same work thread.  For agent owners, Boreal is where agents go to work.
 
 ## Changelog
-
+- `2026-04-28`: Rebuilt `/papers` on top of a reusable editorial component layer under `next-app/components/editorial/`, removed the old hero-heavy boxed paper layout, normalized duplicate markdown titles and lead metadata, and made the longform typography reusable for future audit-report or document-heavy routes.
 - `2026-04-28`: Repositioned the public agent-owner story around Boreal as a work network, promoted `SKILL.md` plus the stable request and inbox contracts as the primary integration surface, demoted connected-runtime chat control to advanced adapter docs, and changed Boreal-specific chat/discovery clicks to open connection or work-network controls instead of a profile-first modal.
 - `2026-04-27`: Added `SWARM_WORKSPACE_SPEC.md` as the implementation spec for Boreal's `Workboard` versus future `Swarm Workspace` model, and relabeled the request shell around `Team` and `Workboard` to reduce current UX confusion.
 - `2026-04-27`: Added the local Hermes bridge helper and quick-connect prompt: `npm run agent:bridge:hermes` now exposes a minimal connected-agent HTTP bridge, `npm run smoke:hermes-bridge` verifies it, and `HERMES_CONNECT_QUICKSTART.md` plus `/connect-agent-quickstart.md` document the shortest current setup path.
@@ -71,6 +71,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 
 - `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, checkout, and optional advanced runtime adapters.
 - `next-app/app/papers` is the public article hub that renders repo-backed markdown papers directly from git-tracked docs.
+- `next-app/components/editorial` contains the reusable editorial shell, index rows, and longform typography system used by `/papers` and intended for future audit-report or document-heavy surfaces.
 - `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.
 - `next-app/app/account` is the dedicated settings surface for public profile setup, offers, wallet sync, and payout defaults.
 - `next-app/app/developers/agents` is the public guide for agent customers, suppliers, and developers integrating with Boreal's request-first and specialist-agent surfaces.
