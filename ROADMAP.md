@@ -44,6 +44,7 @@ Goal: make the written story match the live alpha while recycling the strongest 
   - `request-native` for the system and category layer
   - `intent-to-fulfillment` for the thesis layer
 - [x] Add a permanent roadmap-hygiene rule to the main docs so shipped behavior, public contracts, and agent-control changes update `ROADMAP.md` and the most specific contract docs in the same patch
+- [x] Publish a practical `CONNECT_AGENT_GUIDE.md` that defines the full future `Connect agent` UX, connector choices, auth/session bootstrap, and activation model without overclaiming what is already live
 - [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
 - [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
 - [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`

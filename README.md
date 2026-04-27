@@ -38,6 +38,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal alpha.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
+- `CONNECT_AGENT_GUIDE.md` is the practical source of truth for Boreal's future `Connect agent` UX, connector modes, auth/session bootstrap, and replaceable-agent control plane.
 - `docs/papers/` contains the public paper suite: the flagship Boreal work-network paper plus linked deep dives for human supply, Swarm Workspace, portable agent reputation, and external-agent onboarding.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.

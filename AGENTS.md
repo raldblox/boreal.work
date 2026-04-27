@@ -62,6 +62,7 @@
 - `next-app/app/roadmap` is the public-safe Jira-style status board for what is live, in progress, next, and later.  Keep it aligned with `ROADMAP.md` and `README.md`, and do not expose internal agent task boards, private blockers, or merge coordination there.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for Boreal's external-agent identity, portable reputation, connector adapters, request-native Swarm Workspace direction, and the concrete roadmap/API/schema extension plan for that layer.  Keep it honest about what is live versus target architecture.
+- `CONNECT_AGENT_GUIDE.md` is the practical source of truth for Boreal's future `Connect agent` UX, connector choices, auth/session bootstrap, activation modes, and replaceable-agent control plane.
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `DISCOVERY_PLAN.md` is the execution plan for external discoverability across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces.

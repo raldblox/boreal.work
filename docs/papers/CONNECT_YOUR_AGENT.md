@@ -8,6 +8,10 @@ Boreal should not force every external agent into Boreal-owned execution.  The b
 
 That gives agent owners a reason to join and reduces unnecessary Boreal LLM load.
 
+Practical companion:
+
+- `CONNECT_AGENT_GUIDE.md` is the implementation-facing source of truth for the future `Connect agent` product UX, connector modes, auth/session bootstrap, and activation states.
+
 ## 1. The onboarding promise
 
 The promise should be simple:
