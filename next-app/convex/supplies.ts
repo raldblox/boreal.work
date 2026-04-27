@@ -1,14 +1,19 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
 import {
   actorKindValidator,
+  capabilityRoutingTierValidator,
   checkoutProtocolValidator,
   deliveryTypeValidator,
+  evidenceModeValidator,
+  executionSurfaceValidator,
   fulfillmentKindValidator,
+  paymentProtocolValidator,
   profileAvailabilityValidator,
   requestedOutputTypeValidator,
+  serviceProviderKeyValidator,
   transactionScenarioValidator,
 } from "./validators";
 import {
@@ -272,6 +277,79 @@ export const searchCatalog = query({
   handler: (ctx, args) => searchCatalogListings(ctx, args.query, args.limit),
 });
 
+export const getSupply = query({
+  args: {
+    supplyId: v.id("supplies"),
+  },
+  handler: async (ctx, args) => {
+    const supply = await ctx.db.get(args.supplyId);
+
+    if (!supply || supply.status !== "active") {
+      return null;
+    }
+
+    return mapSupplyListing(ctx, supply, {
+      matchReasons: [],
+      matchScore: null,
+    });
+  },
+});
+
+export const listOwnedSupplies = query({
+  args: {
+    ownerExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_externalId", (queryBuilder) =>
+        queryBuilder.eq("externalId", args.ownerExternalId),
+      )
+      .unique();
+
+    if (!user) {
+      return [];
+    }
+
+    const supplies = await ctx.db
+      .query("supplies")
+      .withIndex("by_supplierUserId", (queryBuilder) =>
+        queryBuilder.eq("supplierUserId", user._id),
+      )
+      .order("desc")
+      .take(100);
+
+    return Promise.all(supplies.map((supply) => mapOwnedSupplyRecord(ctx, supply)));
+  },
+});
+
+export const getOwnedSupply = query({
+  args: {
+    ownerExternalId: v.string(),
+    supplyId: v.id("supplies"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_externalId", (queryBuilder) =>
+        queryBuilder.eq("externalId", args.ownerExternalId),
+      )
+      .unique();
+
+    if (!user) {
+      return null;
+    }
+
+    const supply = await ctx.db.get(args.supplyId);
+
+    if (!supply || supply.supplierUserId !== user._id) {
+      return null;
+    }
+
+    return mapOwnedSupplyRecord(ctx, supply);
+  },
+});
+
 export const createSupplyEntry = mutation({
   args: {
     acpCheckoutUrl: v.optional(v.string()),
@@ -286,29 +364,46 @@ export const createSupplyEntry = mutation({
     currency: v.optional(v.string()),
     deliveryType: deliveryTypeValidator,
     description: v.string(),
+    evidenceMode: v.optional(evidenceModeValidator),
     estimatedDeliveryLabel: v.optional(v.string()),
     exampleIntents: v.optional(v.array(v.string())),
+    executionSurface: v.optional(executionSurfaceValidator),
     executorUrl: v.optional(v.string()),
     exclusions: v.optional(v.array(v.string())),
     fulfillmentKind: v.optional(fulfillmentKindValidator),
     isCartEnabled: v.optional(v.boolean()),
     maxConcurrentJobs: v.optional(v.number()),
     metadataJson: v.optional(v.string()),
+    mcpServerUrl: v.optional(v.string()),
     nextAvailableAt: v.optional(v.number()),
+    offerSlug: v.optional(v.string()),
+    openApiUrl: v.optional(v.string()),
     ownerActorKind: v.optional(actorKindValidator),
     ownerDisplayName: v.optional(v.string()),
     ownerExternalId: v.optional(v.string()),
     ownerHandle: v.optional(v.string()),
-    offerSlug: v.optional(v.string()),
     outputTypes: v.optional(v.array(requestedOutputTypeValidator)),
+    paymentNetworkHints: v.optional(v.array(v.string())),
+    paymentProtocol: v.optional(paymentProtocolValidator),
     priceAmount: v.optional(v.number()),
     priceMax: v.optional(v.number()),
     priceMin: v.optional(v.number()),
+    priceRawJson: v.optional(v.string()),
     priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("scoped")),
     protocolDescriptorJson: v.optional(v.string()),
     responseSlaMinutes: v.optional(v.number()),
+    requiresHumanApproval: v.optional(v.boolean()),
+    routingTier: v.optional(capabilityRoutingTierValidator),
     scenarioTypes: v.optional(v.array(transactionScenarioValidator)),
+    schemaUrl: v.optional(v.string()),
+    sourceCapabilityId: v.optional(v.string()),
+    sourceListingUrl: v.optional(v.string()),
+    sourceProviderKey: v.optional(serviceProviderKeyValidator),
+    sourceProviderUrl: v.optional(v.string()),
     subtitle: v.optional(v.string()),
+    supportsDirectInvoke: v.optional(v.boolean()),
+    supportsPrivyWallet: v.optional(v.boolean()),
+    supplyId: v.optional(v.id("supplies")),
     supplyType: v.union(
       v.literal("product"),
       v.literal("capability"),
@@ -340,9 +435,17 @@ export const createSupplyEntry = mutation({
         queryBuilder.eq("supplierUserId", user._id),
       )
       .collect();
-    const matchingEntry = existing.find(
-      (supply) => supply.title.toLowerCase() === args.title.trim().toLowerCase(),
-    );
+    const matchingEntry = args.supplyId
+      ? existing.find((supply) => supply._id === args.supplyId)
+      : existing.find((supply) => supply.title.toLowerCase() === args.title.trim().toLowerCase());
+
+    if (args.supplyId && !matchingEntry) {
+      return {
+        created: false,
+        reason: "supply_not_found",
+        supplyId: null,
+      };
+    }
     const isCartEnabled =
       typeof args.isCartEnabled === "boolean"
         ? args.isCartEnabled
@@ -415,8 +518,10 @@ export const createSupplyEntry = mutation({
       deliveryType: args.deliveryType,
       description: args.description.trim(),
       embedding: [],
+      evidenceMode: args.evidenceMode ?? matchingEntry?.evidenceMode,
       estimatedDeliveryLabel: sanitizeOptionalText(args.estimatedDeliveryLabel),
       exampleIntents: sanitizeStringArray(args.exampleIntents) ?? matchingEntry?.exampleIntents,
+      executionSurface: args.executionSurface ?? matchingEntry?.executionSurface,
       exclusions: sanitizeStringArray(args.exclusions) ?? matchingEntry?.exclusions,
       executorUrl: sanitizeOptionalText(args.executorUrl),
       fulfillmentKind,
@@ -426,19 +531,29 @@ export const createSupplyEntry = mutation({
       maxConcurrentJobs: args.maxConcurrentJobs ?? matchingEntry?.maxConcurrentJobs,
       matchCount: matchingEntry?.matchCount ?? 0,
       metadataJson: sanitizeOptionalText(args.metadataJson),
+      mcpServerUrl: sanitizeOptionalText(args.mcpServerUrl),
       nextAvailableAt: args.nextAvailableAt ?? matchingEntry?.nextAvailableAt,
       offerSlug: sanitizeOptionalText(args.offerSlug),
+      openApiUrl: sanitizeOptionalText(args.openApiUrl),
       outputTypes: outputTypes.length > 0 ? outputTypes : matchingEntry?.outputTypes,
+      paymentNetworkHints:
+        sanitizeStringArray(args.paymentNetworkHints) ?? matchingEntry?.paymentNetworkHints,
+      paymentProtocol: args.paymentProtocol ?? matchingEntry?.paymentProtocol,
       priceAmount: args.priceAmount,
       priceMax: args.priceMax ?? matchingEntry?.priceMax,
       priceMin: args.priceMin ?? matchingEntry?.priceMin,
+      priceRawJson: sanitizeOptionalText(args.priceRawJson),
       priceType: args.priceType,
       protocolDescriptorJson: sanitizeOptionalText(args.protocolDescriptorJson),
       responseSlaMinutes: args.responseSlaMinutes ?? matchingEntry?.responseSlaMinutes,
+      requiresHumanApproval:
+        args.requiresHumanApproval ?? matchingEntry?.requiresHumanApproval,
+      routingTier: args.routingTier ?? matchingEntry?.routingTier,
       scenarioTypes:
         args.scenarioTypes && args.scenarioTypes.length > 0
           ? Array.from(new Set(args.scenarioTypes))
           : matchingEntry?.scenarioTypes,
+      schemaUrl: sanitizeOptionalText(args.schemaUrl),
       searchText: buildSupplySearchText({
         actorKind: user.actorKind ?? "human",
         availabilityStatus:
@@ -451,9 +566,11 @@ export const createSupplyEntry = mutation({
         currency: args.currency?.trim() || "USD",
         deliveryType: args.deliveryType,
         description: args.description.trim(),
+        evidenceMode: args.evidenceMode ?? matchingEntry?.evidenceMode,
         estimatedDeliveryLabel: args.estimatedDeliveryLabel,
         exampleIntents: args.exampleIntents ?? matchingEntry?.exampleIntents,
         exclusions: args.exclusions ?? matchingEntry?.exclusions,
+        executionSurface: args.executionSurface ?? matchingEntry?.executionSurface,
         executorUrl: args.executorUrl,
         fulfillmentKind,
         fulfillmentRate: 0.8,
@@ -464,20 +581,42 @@ export const createSupplyEntry = mutation({
         metadataJson: args.metadataJson,
         nextAvailableAt: args.nextAvailableAt ?? matchingEntry?.nextAvailableAt,
         outputTypes: outputTypes.length > 0 ? outputTypes : matchingEntry?.outputTypes,
+        paymentNetworkHints:
+          args.paymentNetworkHints ?? matchingEntry?.paymentNetworkHints,
+        paymentProtocol: args.paymentProtocol ?? matchingEntry?.paymentProtocol,
         priceAmount: args.priceAmount,
         priceMax: args.priceMax ?? matchingEntry?.priceMax,
         priceMin: args.priceMin ?? matchingEntry?.priceMin,
         priceType: args.priceType,
         responseSlaMinutes: args.responseSlaMinutes ?? matchingEntry?.responseSlaMinutes,
+        requiresHumanApproval:
+          args.requiresHumanApproval ?? matchingEntry?.requiresHumanApproval,
+        sourceCapabilityId:
+          sanitizeOptionalText(args.sourceCapabilityId) ?? matchingEntry?.sourceCapabilityId,
+        sourceListingUrl:
+          sanitizeOptionalText(args.sourceListingUrl) ?? matchingEntry?.sourceListingUrl,
+        sourceProviderKey: args.sourceProviderKey ?? matchingEntry?.sourceProviderKey,
         status: "active",
         subtitle: args.subtitle,
         supplyType: args.supplyType,
+        supportsDirectInvoke:
+          args.supportsDirectInvoke ?? matchingEntry?.supportsDirectInvoke,
+        supportsPrivyWallet:
+          args.supportsPrivyWallet ?? matchingEntry?.supportsPrivyWallet,
         title: args.title.trim(),
         trustScore: user.trustScore,
       }),
       status: "active" as const,
+      sourceCapabilityId: sanitizeOptionalText(args.sourceCapabilityId),
+      sourceListingUrl: sanitizeOptionalText(args.sourceListingUrl),
+      sourceProviderKey: args.sourceProviderKey ?? matchingEntry?.sourceProviderKey,
+      sourceProviderUrl: sanitizeOptionalText(args.sourceProviderUrl),
       subtitle: sanitizeOptionalText(args.subtitle),
       supplierUserId: user._id,
+      supportsDirectInvoke:
+        args.supportsDirectInvoke ?? matchingEntry?.supportsDirectInvoke,
+      supportsPrivyWallet:
+        args.supportsPrivyWallet ?? matchingEntry?.supportsPrivyWallet,
       supplyType: args.supplyType,
       title: args.title.trim(),
       trustScore: user.trustScore,
@@ -528,7 +667,11 @@ export async function mapSupplyListing(
   ctx: MutationCtx | QueryCtx,
   supply: {
     _id: string;
+    a2aEndpoint?: string;
+    acceptanceRate?: number;
     actorKind: "agent" | "human" | "tool";
+    agentReady?: boolean;
+    availabilityStatus?: "available" | "limited" | "unavailable";
     brand?: string;
     capabilityTags: string[];
     category: string;
@@ -543,13 +686,34 @@ export async function mapSupplyListing(
     executorUrl?: string;
     fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
     isCartEnabled: boolean;
+    mcpServerUrl?: string;
+    offerSlug?: string;
+    openApiUrl?: string;
+    outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
     paymentNetworkHints?: string[];
     paymentProtocol?: "x402" | "mpp" | "direct-solana" | "widget" | "none";
     priceAmount?: number;
+    priceMax?: number;
+    priceMin?: number;
     priceType: "fixed" | "hourly" | "scoped";
+    responseSlaMinutes?: number;
     requiresHumanApproval?: boolean;
+    scenarioTypes?: Array<
+      | "chat_only_fulfillment"
+      | "consultation"
+      | "custom_scoped_work"
+      | "instant_digital_purchase"
+      | "milestone_project"
+      | "physical_service"
+      | "provider_handoff_service"
+      | "provider_paid_service"
+      | "supply_publish"
+    >;
+    schemaUrl?: string;
+    sourceCapabilityId?: string;
     sourceListingUrl?: string;
     sourceProviderKey?: "agentic-market" | "agentcash" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
+    sourceProviderUrl?: string;
     subtitle?: string;
     supportsDirectInvoke?: boolean;
     supportsPrivyWallet?: boolean;
@@ -572,8 +736,12 @@ export async function mapSupplyListing(
 
   return {
     _id: supply._id,
+    a2aEndpoint: supply.a2aEndpoint ?? null,
+    acceptanceRate: supply.acceptanceRate ?? null,
     actorKind: supply.actorKind,
+    agentReady: supply.agentReady ?? false,
     averageRating: reviews.averageRating,
+    availabilityStatus: supply.availabilityStatus ?? null,
     brand: supply.brand ?? null,
     capabilityTags: supply.capabilityTags,
     category: supply.category,
@@ -591,12 +759,21 @@ export async function mapSupplyListing(
     matchReasons: ranking.matchReasons,
     matchScore: ranking.matchScore,
     matchStage: ranking.matchStage ?? null,
+    mcpServerUrl: supply.mcpServerUrl ?? null,
+    offerSlug: supply.offerSlug ?? null,
+    openApiUrl: supply.openApiUrl ?? null,
+    outputTypes: supply.outputTypes ?? [],
     paymentNetworkHints: supply.paymentNetworkHints ?? [],
     paymentProtocol: supply.paymentProtocol ?? null,
     priceAmount: supply.priceAmount ?? null,
+    priceMax: supply.priceMax ?? null,
+    priceMin: supply.priceMin ?? null,
     priceType: supply.priceType,
+    responseSlaMinutes: supply.responseSlaMinutes ?? null,
     requiresHumanApproval: supply.requiresHumanApproval ?? false,
     reviewCount: reviews.reviewCount,
+    scenarioTypes: supply.scenarioTypes ?? [],
+    schemaUrl: supply.schemaUrl ?? null,
     seller:
       seller ??
       (supply.brand === "Boreal"
@@ -607,8 +784,10 @@ export async function mapSupplyListing(
             profileId: "boreal-agent",
           }
         : null),
+    sourceCapabilityId: supply.sourceCapabilityId ?? null,
     sourceListingUrl: supply.sourceListingUrl ?? null,
     sourceProviderKey: supply.sourceProviderKey ?? null,
+    sourceProviderUrl: supply.sourceProviderUrl ?? null,
     subtitle: supply.subtitle ?? null,
     supplyType: supply.supplyType,
     supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
@@ -616,6 +795,74 @@ export async function mapSupplyListing(
     successProbability: ranking.successProbability ?? null,
     title: supply.title,
     trustScore: supply.trustScore,
+  };
+}
+
+async function mapOwnedSupplyRecord(
+  ctx: MutationCtx | QueryCtx,
+  supply: Doc<"supplies">,
+) {
+  const seller = await getSupplySeller(ctx, supply.supplierUserId);
+
+  return {
+    seller,
+    supply: {
+      _id: supply._id,
+      a2aEndpoint: supply.a2aEndpoint ?? null,
+      acpCheckoutUrl: supply.acpCheckoutUrl ?? null,
+      actorKind: supply.actorKind,
+      agentReady: supply.agentReady ?? false,
+      availabilityStatus: supply.availabilityStatus ?? null,
+      brand: supply.brand ?? null,
+      capabilityTags: supply.capabilityTags,
+      category: supply.category,
+      checkoutProtocol: supply.checkoutProtocol ?? null,
+      checkoutProvider: supply.checkoutProvider ?? null,
+      createdAt: supply.createdAt ?? null,
+      currency: supply.currency,
+      deliveryType: supply.deliveryType,
+      description: supply.description,
+      evidenceMode: supply.evidenceMode ?? null,
+      estimatedDeliveryLabel: supply.estimatedDeliveryLabel ?? null,
+      exampleIntents: supply.exampleIntents ?? [],
+      executionSurface: supply.executionSurface ?? null,
+      executorUrl: supply.executorUrl ?? null,
+      exclusions: supply.exclusions ?? [],
+      fulfillmentKind: supply.fulfillmentKind,
+      isCartEnabled: supply.isCartEnabled,
+      mcpServerUrl: supply.mcpServerUrl ?? null,
+      metadataJson: supply.metadataJson ?? null,
+      nextAvailableAt: supply.nextAvailableAt ?? null,
+      offerSlug: supply.offerSlug ?? null,
+      openApiUrl: supply.openApiUrl ?? null,
+      outputTypes: supply.outputTypes ?? [],
+      paymentNetworkHints: supply.paymentNetworkHints ?? [],
+      paymentProtocol: supply.paymentProtocol ?? null,
+      priceAmount: supply.priceAmount ?? null,
+      priceMax: supply.priceMax ?? null,
+      priceMin: supply.priceMin ?? null,
+      priceRawJson: supply.priceRawJson ?? null,
+      priceType: supply.priceType,
+      protocolDescriptorJson: supply.protocolDescriptorJson ?? null,
+      responseSlaMinutes: supply.responseSlaMinutes ?? null,
+      requiresHumanApproval: supply.requiresHumanApproval ?? false,
+      routingTier: supply.routingTier ?? null,
+      scenarioTypes: supply.scenarioTypes ?? [],
+      schemaUrl: supply.schemaUrl ?? null,
+      sourceCapabilityId: supply.sourceCapabilityId ?? null,
+      sourceListingUrl: supply.sourceListingUrl ?? null,
+      sourceProviderKey: supply.sourceProviderKey ?? null,
+      sourceProviderUrl: supply.sourceProviderUrl ?? null,
+      status: supply.status,
+      subtitle: supply.subtitle ?? null,
+      supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
+      supportsPrivyWallet: supply.supportsPrivyWallet ?? false,
+      title: supply.title,
+      trustScore: supply.trustScore,
+      ucpCatalogUrl: supply.ucpCatalogUrl ?? null,
+      ucpCheckoutUrl: supply.ucpCheckoutUrl ?? null,
+      updatedAt: supply.updatedAt ?? null,
+    },
   };
 }
 
@@ -875,7 +1122,9 @@ function buildSupplySearchText(input: {
   maxConcurrentJobs?: number;
   matchCount: number;
   metadataJson?: string;
+  mcpServerUrl?: string;
   nextAvailableAt?: number;
+  openApiUrl?: string;
   outputTypes?: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
   paymentNetworkHints?: string[];
   paymentProtocol?: "direct-solana" | "mpp" | "none" | "widget" | "x402";
@@ -888,11 +1137,13 @@ function buildSupplySearchText(input: {
   sourceCapabilityId?: string;
   sourceListingUrl?: string;
   sourceProviderKey?: "agentic-market" | "agentcash" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
+  sourceProviderUrl?: string;
   status: "active";
   subtitle?: string;
   supplyType: "agent_tool" | "capability" | "collective" | "product";
   supportsDirectInvoke?: boolean;
   supportsPrivyWallet?: boolean;
+  schemaUrl?: string;
   title: string;
   trustScore: number;
 }) {
@@ -914,6 +1165,8 @@ function buildSupplySearchText(input: {
     input.sourceListingUrl,
     input.estimatedDeliveryLabel,
     input.executorUrl,
+    input.mcpServerUrl,
+    input.openApiUrl,
     input.actorKind,
     input.priceType,
     input.executionSurface,
@@ -932,6 +1185,8 @@ function buildSupplySearchText(input: {
     String(input.fulfillmentRate),
     String(input.matchCount),
     input.sourceCapabilityId,
+    input.sourceProviderUrl,
+    input.schemaUrl,
     ...(input.paymentNetworkHints ?? []),
     ...(input.outputTypes ?? []),
     ...input.capabilityTags,

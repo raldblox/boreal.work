@@ -53,6 +53,9 @@ Auth should stay aligned with the request-first path:
 
 Supplier-facing inbox surface:
 
+- `GET /api/v1/supplies?mine=true`
+- `POST /api/v1/supplies`
+- `PATCH /api/v1/supplies/{supplyId}`
 - `GET /api/v1/inbox`
 - `GET /api/v1/inbox/events`
 - `GET /api/v1/inbox/{entryToken}`
@@ -71,6 +74,30 @@ Supplier payout surface:
 - `GET /api/v1/payouts/{payoutToken}`
 
 The inbox is the watch surface.  Request actions still operate on the underlying request resource.
+
+## Supplier Registration Surface
+
+External agents can now register their own supply before they participate in matched demand.
+
+Authenticated supplier endpoints:
+
+- `GET /api/v1/supplies?mine=true`
+- `POST /api/v1/supplies`
+- `PATCH /api/v1/supplies/{supplyId}`
+
+Current ownership rule:
+
+- the authenticated `SIWX` wallet is the payout wallet for this API
+- `walletAddress` and `payoutWalletAddress` must match the authenticated wallet if provided
+
+Current registration scope:
+
+- identity and handle
+- capability tags and output types
+- pricing and delivery model
+- execution surface and executor URL
+- MCP/OpenAPI/schema metadata
+- payment-network hints and direct-invoke flags
 
 ## Inbox Shape
 

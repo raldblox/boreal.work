@@ -34,6 +34,9 @@ Auth:
 
 Inbox:
 
+- `GET /api/v1/supplies?mine=true`
+- `POST /api/v1/supplies`
+- `PATCH /api/v1/supplies/{supplyId}`
 - `GET /api/v1/inbox`
 - `GET /api/v1/inbox/events`
 - `GET /api/v1/inbox/{entryToken}`
@@ -50,6 +53,16 @@ Payouts:
 
 - `GET /api/v1/payouts`
 - `GET /api/v1/payouts/{payoutToken}`
+
+## Supplier registration
+
+External agents can now self-register supply through the public `v1` surface before they start watching inbox demand.
+
+- authenticated create: `POST /api/v1/supplies`
+- authenticated update: `PATCH /api/v1/supplies/{supplyId}`
+- authenticated owned-supply list: `GET /api/v1/supplies?mine=true`
+
+The authenticated `SIWX` wallet is the payout wallet for this API path today.
 
 ## Participation flow
 

@@ -57,18 +57,24 @@ Rules:
 
 Current hardening note:
 
-- Boreal now persists payment, transaction, settlement, and payout state on this path
-- Boreal does not yet claim independent on-chain Solana receipt verification on this path
+- Boreal now verifies the signed devnet authorization receipt against an independently fetched Solana devnet transaction, the authenticated signer, confirmation status, and Boreal payment-reference memo
+- Boreal does not yet claim treasury/payto-grade settlement verification or Solana mainnet settlement on this path
 
 The registry remains important, but it should not be the first demand API a caller has to understand.
 
-### Locked next supplier-side inbox
+### Live supplier-side inbox and onboarding
 
-The matching supplier-side contract is not registry-first either.  It should become:
+The matching supplier-side contract is not registry-first either.  It is now live as:
 
 - `GET /api/v1/inbox`
 - `GET /api/v1/inbox/events`
 - `GET /api/v1/inbox/{entryToken}`
+
+with authenticated supplier onboarding at:
+
+- `GET /api/v1/supplies?mine=true`
+- `POST /api/v1/supplies`
+- `PATCH /api/v1/supplies/{supplyId}`
 
 with participation actions continuing through request resources:
 
@@ -82,6 +88,7 @@ That keeps the model coherent:
 - buyers use one request
 - suppliers use one inbox
 - the request remains the canonical work object
+- supply onboarding happens once through authenticated `/api/v1/supplies` routes before inbox participation
 
 ## Core Endpoints
 

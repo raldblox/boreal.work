@@ -88,6 +88,12 @@ export const fulfillmentKindValidator = v.union(
   v.literal("hybrid"),
 );
 
+export const evidenceModeValidator = v.union(
+  v.literal("none"),
+  v.literal("receipt"),
+  v.literal("response"),
+);
+
 export const checkoutProtocolValidator = v.union(
   v.literal("ucp"),
   v.literal("acp"),

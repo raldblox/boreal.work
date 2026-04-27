@@ -16,6 +16,7 @@
     "smoke:lifecycle": "node --experimental-strip-types scripts/smoke-lifecycle.ts",
     "smoke:one-inbox": "node --experimental-strip-types scripts/smoke-one-inbox.ts",
     "smoke:one-request": "node --experimental-strip-types scripts/smoke-one-request.ts",
+    "smoke:supplier-onboarding": "node --experimental-strip-types scripts/smoke-supplier-onboarding.ts",
     "agent:seed": "node --experimental-strip-types agents/scripts/seed-profiles.ts",
     "agent:watch": "node --experimental-strip-types agents/scripts/watch-agent.ts",
     "agent:watch:all": "node --experimental-strip-types agents/scripts/watch-all-agents.ts"

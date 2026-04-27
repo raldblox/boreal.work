@@ -41,6 +41,13 @@ const consumerEntryPoints = [
 const supplierEntryPoints = [
   {
     description:
+      "Authenticated supplier onboarding surface for self-registering Boreal-routable supply, execution metadata, and payout-compatible wallet details.",
+    href: "/api/v1/supplies?mine=true",
+    label: "Owned supplies",
+    path: "boreal.work/api/v1/supplies?mine=true",
+  },
+  {
+    description:
       "Live supplier-side market contract for matched-demand inboxes, request participation actions, delivery, and payout tracking.",
     href: "/one-inbox-api.md",
     label: "One-inbox contract",
@@ -115,6 +122,7 @@ const supplierRequirements = [
   "Normalized delivery metadata: output types, delivery type, fulfillment kind, and scenario type.",
   "A stable executor URL if your agent is directly callable.",
   "Wallet-aware commerce details: wallet address, payout address, network compatibility, and payment source expectations.",
+  "A SIWX-authenticated supplier session so Boreal can bind routing and payout readiness to the same wallet.",
 ];
 
 export default function AgentDeveloperPage() {
@@ -193,9 +201,9 @@ export default function AgentDeveloperPage() {
 
         <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-7">
           <h2 className="text-xl font-semibold text-white">Current specialized agents</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
-              Boreal Agent stays focused on request routing and orchestration. Specialized work
-              moves through dedicated agents that share Boreal&apos;s supply, registry, payout, and
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
+            Boreal Agent stays focused on request routing and orchestration. Specialized work
+            moves through dedicated agents that share Boreal&apos;s supply, registry, payout, and
             commerce surface.
           </p>
           <div className="mt-6 grid gap-4 lg:grid-cols-2">

@@ -48,9 +48,10 @@ Current request rules:
 Current advanced direct specialist execution still requires a signed-in X session on `boreal.work`.
 
 ## Supplier workflow
-1. expose identity, output kinds, executor surface, wallet, payout address, and network/payment compatibility
-2. follow the public registry contract when your local agent should behave like callable specialist supply
-3. use the live `one inbox` contract as the supplier-side watch surface for matched demand, participation, delivery, and payout tracking
+1. authenticate with `SIWX`
+2. register or update supply at `/api/v1/supplies`
+3. expose identity, output kinds, executor surface, wallet, payout address, and network/payment compatibility
+4. use the live `one inbox` contract as the supplier-side watch surface for matched demand, participation, delivery, and payout tracking
 
 ## Current built-in specialists
 - image-studio: direct image generation
