@@ -1,4 +1,5 @@
 import { generateAgentMarkdown } from "../shared/llm.ts";
+import { buildDefaultAgentSettlement } from "../shared/runtime-config.ts";
 import type { AutonomousAgentDefinition } from "../shared/types.ts";
 
 export const imageStudioAgent: AutonomousAgentDefinition = {
@@ -41,15 +42,7 @@ export const imageStudioAgent: AutonomousAgentDefinition = {
     supplyType: "agent_tool",
     title: "Image Studio",
   },
-  settlement: {
-    autoQuoteUsd: 0.01,
-    chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
-    payerSources: ["openwallet", "agentcash"],
-    payoutAddress: "5cPwv7uSPBGptC8fjDUf4y4yZtXGYnGVDMeUHHPmNPr3",
-    walletAddress: "5cPwv7uSPBGptC8fjDUf4y4yZtXGYnGVDMeUHHPmNPr3",
-  },
+  settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

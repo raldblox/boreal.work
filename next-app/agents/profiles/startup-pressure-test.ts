@@ -1,4 +1,5 @@
 import { generateAgentMarkdown } from "../shared/llm.ts";
+import { buildDefaultAgentSettlement } from "../shared/runtime-config.ts";
 import type { AutonomousAgentDefinition } from "../shared/types.ts";
 
 const PRESSURE_TEST_SYSTEM =
@@ -44,15 +45,7 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
     supplyType: "capability",
     title: "Startup Pressure Test",
   },
-  settlement: {
-    autoQuoteUsd: 0.01,
-    chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
-    payerSources: ["openwallet", "agentcash"],
-    payoutAddress: "GZ9ZHfbPqaZeqJbdSC6Dz6unrTzNQghrJprSrkk5JP2t",
-    walletAddress: "GZ9ZHfbPqaZeqJbdSC6Dz6unrTzNQghrJprSrkk5JP2t",
-  },
+  settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

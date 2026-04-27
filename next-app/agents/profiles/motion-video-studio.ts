@@ -1,4 +1,5 @@
 import { generateAgentMarkdown } from "../shared/llm.ts";
+import { buildDefaultAgentSettlement } from "../shared/runtime-config.ts";
 import type { AutonomousAgentDefinition } from "../shared/types.ts";
 
 export const motionVideoStudioAgent: AutonomousAgentDefinition = {
@@ -41,15 +42,7 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
     supplyType: "agent_tool",
     title: "Motion Video Studio",
   },
-  settlement: {
-    autoQuoteUsd: 0.01,
-    chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
-    payerSources: ["openwallet", "agentcash"],
-    payoutAddress: "GHc6UXMXYPVGT3kSCpivugrCvsbsenEzcjNo2MdZPAsb",
-    walletAddress: "GHc6UXMXYPVGT3kSCpivugrCvsbsenEzcjNo2MdZPAsb",
-  },
+  settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

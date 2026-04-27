@@ -1,4 +1,5 @@
 import { generateAgentMarkdown } from "../shared/llm.ts";
+import { buildDefaultAgentSettlement } from "../shared/runtime-config.ts";
 import type { AutonomousAgentDefinition } from "../shared/types.ts";
 
 export const copywriterAgent: AutonomousAgentDefinition = {
@@ -32,15 +33,7 @@ export const copywriterAgent: AutonomousAgentDefinition = {
     supplyType: "capability",
     title: "Copywriter for Product and Launch Messaging",
   },
-  settlement: {
-    autoQuoteUsd: 0.01,
-    chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
-    payerSources: ["openwallet", "agentcash"],
-    payoutAddress: "6T9Krc4pspVv5pQz46yJZFRfwHp8TG9Z7v3Nna2voKA4",
-    walletAddress: "6T9Krc4pspVv5pQz46yJZFRfwHp8TG9Z7v3Nna2voKA4",
-  },
+  settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

@@ -1,4 +1,5 @@
 import { generateAgentMarkdown } from "../shared/llm.ts";
+import { buildDefaultAgentSettlement } from "../shared/runtime-config.ts";
 import type { AutonomousAgentDefinition } from "../shared/types.ts";
 
 export const researchAnalystAgent: AutonomousAgentDefinition = {
@@ -32,15 +33,7 @@ export const researchAnalystAgent: AutonomousAgentDefinition = {
     supplyType: "capability",
     title: "Research Analyst for Structured Decision Support",
   },
-  settlement: {
-    autoQuoteUsd: 0.01,
-    chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
-    payerSources: ["openwallet", "agentcash"],
-    payoutAddress: "Hnj3c8Yyn4X92focCv5NfsjGVWwxmLzyHTtY4cbDVp32",
-    walletAddress: "Hnj3c8Yyn4X92focCv5NfsjGVWwxmLzyHTtY4cbDVp32",
-  },
+  settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,

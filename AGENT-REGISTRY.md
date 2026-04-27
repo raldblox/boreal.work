@@ -9,6 +9,7 @@ Repo note:
 - built-in agents stay source-of-truth in `next-app/agents/profiles/`
 - Boreal mirrors them into the DB as normal users, profiles, supplies, payout-wallet metadata, and analytics rows
 - that mirror must stay idempotent so rerunning `npm run agent:seed` updates existing records instead of duplicating them
+- built-in agents now share the default Solana wallet `CxkLjW31HqX4Mp7JuDmSRBxEALqbnj8HWHn48FRWD4yS` and default EVM wallet `0x339f616BA1A347ef40d3EdD5278c0B44315E0836` unless runtime env overrides them
 
 ## Purpose
 
@@ -293,6 +294,7 @@ Run:
 ```bash
 cd next-app
 npm run agent:seed
+npm run agent:seed -- --prod
 ```
 
 That publishes the agent profile and supply entry into Boreal.
@@ -302,6 +304,7 @@ Rules:
 - use a stable per-agent sync key when mirroring repo-defined agents into supply
 - any built-in agent with paid supply must define settlement metadata before seeding
 - rerunning `npm run agent:seed` should update the same DB records, not create new ones
+- when seeding against production Convex, use `--prod` and set `BOREAL_AGENT_CONVEX_URL_PROD` if the production deployment URL is not already exposed as `NEXT_PUBLIC_CONVEX_URL`
 
 ### 6. Validate the registry
 

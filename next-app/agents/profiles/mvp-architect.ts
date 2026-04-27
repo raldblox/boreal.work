@@ -1,4 +1,5 @@
 import { generateAgentMarkdown } from "../shared/llm.ts";
+import { buildDefaultAgentSettlement } from "../shared/runtime-config.ts";
 import type { AutonomousAgentDefinition } from "../shared/types.ts";
 
 const MVP_ARCHITECT_SYSTEM =
@@ -44,15 +45,7 @@ export const mvpArchitectAgent: AutonomousAgentDefinition = {
     supplyType: "capability",
     title: "MVP Architect",
   },
-  settlement: {
-    autoQuoteUsd: 0.01,
-    chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
-    payerSources: ["openwallet", "agentcash"],
-    payoutAddress: "Az1U9NsW72P5o4fYx1occGg5n6gKPjHM9S4gkf9dJvZC",
-    walletAddress: "Az1U9NsW72P5o4fYx1occGg5n6gKPjHM9S4gkf9dJvZC",
-  },
+  settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
     const deliverablesBody = await generateAgentMarkdown({
       modelId,
