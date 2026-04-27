@@ -56,7 +56,7 @@ export function refineIntentForRequestLifecycle(
   const workerLed = isLikelyWorkerLedRequest(text);
   const textOnly = isTextOnlyIntent(intent.requestedOutputTypes);
 
-  if (shouldStayDirect(text, intent, uiContext)) {
+  if (shouldStayDirect(text, message, intent, uiContext)) {
     return {
       ...intent,
       intentType: "informational",
@@ -224,14 +224,20 @@ function isLikelySupplyOnboardingRequest(text: string) {
 
 function shouldStayDirect(
   text: string,
+  message: string,
   intent: IntentExtraction,
   uiContext?: ChatUiContext,
 ) {
+  const rawMessage = message.trim();
+
   if (uiContext?.surface === "request") {
     return true;
   }
 
-  if (lowSignalConversationPattern.test(text.trim())) {
+  if (
+    lowSignalConversationPattern.test(rawMessage) ||
+    lowSignalConversationPattern.test(text.trim())
+  ) {
     return true;
   }
 

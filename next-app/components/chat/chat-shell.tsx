@@ -546,8 +546,26 @@ export function ChatShell() {
         message.role === "user" ? ("user" as const) : ("assistant" as const),
     })) ?? []
 
+  const mergedRequestMessages = activeIntentId
+    ? [
+      ...requestMessages,
+      ...messages.slice(
+        getMessageSequenceOverlap(
+          requestMessages.map((message) => ({
+            content: message.content,
+            role: message.role,
+          })),
+          messages.map((message) => ({
+            content: message.content,
+            role: message.role,
+          }))
+        )
+      ),
+    ]
+    : messages
+
   const displayedMessages: ChatMessage[] = activeIntentId
-    ? [...requestMessages, ...messages]
+    ? mergedRequestMessages
     : messages
 
   const activeConversationId =
@@ -562,16 +580,6 @@ export function ChatShell() {
           session.conversation.conversationId === activeConversationId
       ) ?? null
       : null
-  const latestLiveMessage = messages[messages.length - 1] ?? null
-  const persistedSessionIncludesLatestLiveMessage = Boolean(
-    latestLiveMessage &&
-    persistedCurrentSession?.messages.some(
-      (message) =>
-        message.body === latestLiveMessage.content &&
-        message.createdAt === latestLiveMessage.createdAt &&
-        message.role === latestLiveMessage.role
-    )
-  )
   const archivedBorealSessions = useMemo(() => {
     const withoutCurrentLiveSession =
       !activeIntentId && messages.length > 0 && activeConversationId
@@ -612,24 +620,10 @@ export function ChatShell() {
             Date.now(),
         },
         linkedRequests: persistedCurrentSession?.linkedRequests ?? [],
-        messages: persistedSessionIncludesLatestLiveMessage
-          ? (persistedCurrentSession?.messages ?? [])
-          : [
-            ...(persistedCurrentSession?.messages ?? []),
-            ...messages.map((message) => ({
-              _id: message.id,
-              body: message.content,
-              createdAt: message.createdAt,
-              role: message.role,
-              sender: {
-                actorKind:
-                  message.role === "user" ? ("human" as const) : ("agent" as const),
-                displayName: message.role === "user" ? "You" : "Boreal",
-                externalId: null,
-                handle: null,
-              },
-            })),
-          ],
+        messages: mergeOptimisticSessionMessages(
+          persistedCurrentSession?.messages ?? [],
+          messages
+        ),
       }
       : null
   const borealTimelineSessions = liveBorealSession
@@ -2795,9 +2789,16 @@ export function ChatShell() {
                           ? displayedMessages.map((message) => (
                             <Message from={message.role} key={message.id}>
                               <MessageContent>
-                                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
-                                  {message.content}
-                                </MessageResponse>
+                                {message.content.trim().length > 0 ? (
+                                  <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
+                                    {message.content}
+                                  </MessageResponse>
+                                ) : (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <LoaderIcon className="size-4 animate-spin" />
+                                    <span>Routing request</span>
+                                  </div>
+                                )}
                               </MessageContent>
                             </Message>
                           ))
@@ -2843,16 +2844,6 @@ export function ChatShell() {
                           />
                         ) : null}
 
-                        {isSubmitting ? (
-                          <Message from="assistant">
-                            <MessageContent>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <LoaderIcon className="size-4 animate-spin" />
-                                <span>Routing request</span>
-                              </div>
-                            </MessageContent>
-                          </Message>
-                        ) : null}
                       </ConversationContent>
                       <ConversationScrollButton />
                     </Conversation>
@@ -3332,6 +3323,69 @@ function formatBorealSessionTime(value: number) {
     minute: "2-digit",
     month: "short",
   }).format(new Date(value))
+}
+
+function mergeOptimisticSessionMessages(
+  persistedMessages: BorealTimelineSession["messages"],
+  optimisticMessages: ChatMessage[]
+) {
+  const overlapCount = getMessageSequenceOverlap(
+    persistedMessages.map((message) => ({
+      content: message.body,
+      role:
+        message.role === "user" ? ("user" as const) : ("assistant" as const),
+    })),
+    optimisticMessages.map((message) => ({
+      content: message.content,
+      role: message.role,
+    }))
+  )
+
+  return [
+    ...persistedMessages,
+    ...optimisticMessages.slice(overlapCount).map((message) => ({
+      _id: message.id,
+      body: message.content,
+      createdAt: message.createdAt,
+      role: message.role,
+      sender: {
+        actorKind: message.role === "user" ? ("human" as const) : ("agent" as const),
+        displayName: message.role === "user" ? "You" : "Boreal",
+        externalId: null,
+        handle: null,
+      },
+    })),
+  ]
+}
+
+function getMessageSequenceOverlap(
+  persistedMessages: Array<{ content: string; role: ChatMessage["role"] }>,
+  optimisticMessages: Array<{ content: string; role: ChatMessage["role"] }>
+) {
+  if (persistedMessages.length === 0 || optimisticMessages.length === 0) {
+    return 0
+  }
+
+  const maxOverlap = Math.min(persistedMessages.length, optimisticMessages.length)
+
+  for (let overlap = maxOverlap; overlap >= 1; overlap -= 1) {
+    const persistedSlice = persistedMessages.slice(-overlap)
+    const optimisticSlice = optimisticMessages.slice(0, overlap)
+    const matches = optimisticSlice.every((message, index) => {
+      const persisted = persistedSlice[index]
+
+      return (
+        persisted?.role === message.role &&
+        persisted.content.trim() === message.content.trim()
+      )
+    })
+
+    if (matches) {
+      return overlap
+    }
+  }
+
+  return 0
 }
 
 function RequestViewTabTrigger({
