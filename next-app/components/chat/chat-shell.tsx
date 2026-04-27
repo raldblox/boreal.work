@@ -2591,12 +2591,12 @@ export function ChatShell() {
                             />
                             <RequestViewTabTrigger
                               count={requestNotificationCounts.participants}
-                              label="Participants"
+                              label="Team"
                               value="participants"
                             />
                             <RequestViewTabTrigger
                               count={requestNotificationCounts.workspace}
-                              label="Workspace"
+                              label="Workboard"
                               value="workspace"
                             />
                           </TabsList>
@@ -2632,16 +2632,16 @@ export function ChatShell() {
                           "h-full items-center py-8"
                         )}
                       >
-                        <div className="w-full rounded-xl border border-border p-6">
-                          <p className="text-sm font-medium">
-                            Request workspace unavailable
-                          </p>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            This request is not available in the current session
-                            yet. Use a valid shared workspace link or browse
-                            from your request list.
-                          </p>
-                        </div>
+                          <div className="w-full rounded-xl border border-border p-6">
+                            <p className="text-sm font-medium">
+                              Request workboard unavailable
+                            </p>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              This request is not available in the current session
+                              yet. Use a valid shared request link or browse
+                              from your request list.
+                            </p>
+                          </div>
                       </div>
                     ) : (
                       <>
@@ -2741,7 +2741,7 @@ export function ChatShell() {
                                 </p>
                                 <p className="mt-2 text-xs text-muted-foreground">
                                   Only the owner and accepted participants can
-                                  use the request chat thread. Use the workspace
+                                  use the request chat thread. Use the workboard
                                   tab to submit or review proposals first.
                                 </p>
                               </div>
@@ -4634,10 +4634,10 @@ function RequestWorkersPanel({
     <div className="space-y-4">
       {isWaitingForWorkers ? (
         <div className="space-y-3 border border-border p-4">
-          <p className="text-sm font-medium">Waiting for workers</p>
+          <p className="text-sm font-medium">Waiting for team</p>
           <p className="text-xs text-muted-foreground">
-            No worker is assigned yet. Share this workspace so human or agent
-            talent can review it and start a proposal flow.
+            No collaborator is assigned yet. Share this request so human or
+            agent talent can review it and start a proposal flow.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -4646,7 +4646,7 @@ function RequestWorkersPanel({
               type="button"
               variant="outline"
             >
-              View workers
+              Find collaborators
             </Button>
             <Button
               disabled={!shareUrl}
@@ -4668,15 +4668,15 @@ function RequestWorkersPanel({
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            Workers can review this request from the public directory and submit
-            proposals into the same workspace.
+            Collaborators can review this request from the public directory and
+            submit proposals into the same workboard.
           </p>
         </div>
       ) : null}
 
       <div className="space-y-3 border border-border p-4">
         <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-          Participants
+          Team
         </p>
         <div className="space-y-3">
           {participants.map((participant) => (
@@ -4824,7 +4824,7 @@ function ProposalViewerPanel({
       {isProfileUpdateRequest ? (
         <div className="space-y-4 border border-border p-4">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Profile onboarding workspace</p>
+            <p className="text-sm font-medium">Profile onboarding</p>
             <p className="text-xs text-muted-foreground">
               Use the builder to save your public profile and publish the first
               listing. Boreal drafting is optional and only runs when you ask
@@ -4850,7 +4850,7 @@ function ProposalViewerPanel({
       ) : !isProfileUpdateRequest && canSubmitDelivery ? (
         <div className="space-y-4 border border-border p-4">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Delivery workspace</p>
+            <p className="text-sm font-medium">Delivery</p>
             <p className="text-xs text-muted-foreground">
               Your proposal was accepted. Submit the finished work here so the
               owner can review it.
@@ -4891,7 +4891,7 @@ function ProposalViewerPanel({
         !hasSubmittedProposal ? (
         <div className="space-y-4 border border-border p-4">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Proposal workspace</p>
+            <p className="text-sm font-medium">Proposal</p>
             <p className="text-xs text-muted-foreground">
               Build your proposal in a form, refine it if useful, then send only
               when you are ready.
@@ -4942,7 +4942,7 @@ function ProposalViewerPanel({
           <div className="space-y-1">
             <p className="text-sm font-medium">Proposal submitted</p>
             <p className="text-xs text-muted-foreground">
-              Your proposal is now in review. This workspace will update when
+              Your proposal is now in review. This workboard will update when
               the owner accepts or declines it.
             </p>
           </div>
@@ -4951,7 +4951,7 @@ function ProposalViewerPanel({
         <div className="space-y-3 border border-border p-4">
           <p className="text-sm font-medium">Proposal submission unavailable</p>
           <p className="text-xs text-muted-foreground">
-            This workspace is not accepting proposals right now.
+            This workboard is not accepting proposals right now.
           </p>
         </div>
       ) : null}
@@ -5074,7 +5074,7 @@ function RequestMatchingPanel({
     <div className="space-y-4 border border-border p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-medium">Matching workspace</p>
+          <p className="text-sm font-medium">Matching</p>
           <p className="text-xs text-muted-foreground">
             Ranked supply stays attached to this request so discovery, pinning,
             and checkout remain auditable in one place.
@@ -5954,14 +5954,14 @@ function getRequestActionState(
       description:
         "This request is approved and waiting for proposals or matches. Share it, browse supply, or keep refining the scope.",
       kind: "waiting_workers" as const,
-      title: "Waiting for workers",
+      title: "Waiting for team",
     }
   }
 
   if ((status === "claimed" || status === "in_progress") && access?.isOwner) {
     return {
       description:
-        "Work is active. Refresh the workspace when you need the latest state, or mark it fulfilled when the final delivery happened in chat.",
+        "Work is active. Refresh the workboard when you need the latest state, or mark it fulfilled when the final delivery happened in chat.",
       kind: "in_flight" as const,
       title: "Work in flight",
     }
@@ -6535,7 +6535,7 @@ function ActivityThreadPanel({
           </p>
           <div className="space-y-2 text-sm">
             <p>
-              Agent: {requestDetail.assignment.agent ?? "Waiting for workers"}
+              Agent: {requestDetail.assignment.agent ?? "Waiting for team"}
             </p>
             <p>Provider: {requestDetail.assignment.provider}</p>
             <p>

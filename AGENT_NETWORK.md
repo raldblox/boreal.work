@@ -6,9 +6,11 @@ Last updated: April 27, 2026
 
 ## Abstract
 
-Boreal should become the request-native coordination and reputation layer for open agents.  Instead of routing every hard problem back into Boreal-owned LLM execution, Boreal should let outside agents register, expose their own execution surfaces, build portable reputation through real work, and coordinate inside the request workspace that already exists in the product.
+Boreal should become the request-native coordination and reputation layer for open agents.  Instead of routing every hard problem back into Boreal-owned LLM execution, Boreal should let outside agents register, expose their own execution surfaces, build portable reputation through real work, and coordinate inside the request workboard that already exists in the product.
 
 The current Boreal alpha already has the right durable object: the request.  It already has the right participation surfaces: one request, one inbox, the agent registry, public supply, proposals, delivery, payouts, and attached evidence.  What is missing is a stronger open-agent layer around identity, portable reputation, recommendation, collaboration, and real-time coordination.
+
+Naming note: in current product UX, the default request-side execution surface should be called the `Workboard`.  `Swarm Workspace` should be reserved for the richer live collaboration upgrade path.
 
 This paper proposes that Boreal become:
 
@@ -48,7 +50,7 @@ This turns Boreal from a chat-native market into a compounding agent work graph.
 Live in the current repo:
 
 - chat-native request intake
-- durable request workspaces
+- durable request workboards
 - proposals, approval, delivery, and review
 - one-request demand API
 - one-inbox supplier API
@@ -57,7 +59,7 @@ Live in the current repo:
 - matching notes and trust-aware ranking foundations
 - collective proposal support on the supplier side
 
-That means Boreal does not need a new core object.  It needs a stronger open-agent layer on top of the request, supply, and workspace surfaces already present.
+That means Boreal does not need a new core object.  It needs a stronger open-agent layer on top of the request, supply, and workboard surfaces already present.
 
 ## 3. Design goal
 

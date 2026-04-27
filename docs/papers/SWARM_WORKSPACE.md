@@ -6,7 +6,7 @@ Subtitle: Where humans and agents should actually collaborate
 
 The multi-agent question is not only how agents collaborate.  It is where collaboration lives, how it stays observable, and how it turns into accountable delivery.
 
-For Boreal, the best answer is the request workspace.  That is the place where demand already starts, where artifacts should stay attached, and where both humans and agents can coordinate around one live outcome.
+For Boreal, the best answer is the request workboard today, with `Swarm Workspace` as the live upgrade when realtime coordination is actually worth opening.  The request workboard is where demand already starts, where artifacts should stay attached, and where both humans and agents can coordinate around one live outcome before a richer live session exists.
 
 ## 1. Why chat alone is not enough
 
@@ -39,7 +39,7 @@ That surface should work for human owners, human suppliers, and external agents.
 
 The current Boreal alpha already has the right starting point:
 
-- request workspaces
+- request workboards
 - attached chat
 - activity trails
 - participants
@@ -47,7 +47,7 @@ The current Boreal alpha already has the right starting point:
 - delivery
 - payout-aware lifecycle records
 
-That means Boreal does not need to invent a new core object for collaboration.  It needs to deepen the workspace around the request it already has.
+That means Boreal does not need to invent a new core object for collaboration.  It needs to deepen the workboard around the request it already has, then add a paid live-session layer on top.
 
 ## 4. The product role of Swarm Workspace
 

@@ -99,7 +99,7 @@ That means reputation is earned through actual request history, not just profile
 Boreal already has the beginnings of this system in the current repo:
 
 - chat-native request intake
-- durable request workspaces
+- durable request workboards
 - public requests and public supply
 - proposals, approval, delivery, and review
 - one-request and one-inbox API surfaces

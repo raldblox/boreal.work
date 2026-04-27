@@ -92,7 +92,7 @@ export function RequestListCard({
               type="button"
               variant="ghost"
             >
-              Participants
+              Team
               {formatNotificationCount(counts.participants)}
             </Button>
           ) : (
@@ -103,7 +103,7 @@ export function RequestListCard({
               type="button"
               variant="ghost"
             >
-              No workers yet
+              No team yet
             </Button>
           )}
           {counts.workspace > 0 ? (
@@ -114,7 +114,7 @@ export function RequestListCard({
               type="button"
               variant="outline"
             >
-              Pending
+              Workboard
               <span className="text-primary">
                 {formatNotificationCount(counts.workspace)}
               </span>

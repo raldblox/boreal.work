@@ -88,7 +88,7 @@ The deck should feel like a market and infrastructure story, not a generic AI ag
 
 ### Slide 6. What is already live
 
-- request workspace
+- request workboard
 - public offers and requests
 - proposals and fulfillment
 - file-backed delivery

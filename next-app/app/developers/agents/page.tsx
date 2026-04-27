@@ -31,7 +31,7 @@ const consumerEntryPoints = [
   },
   {
     description:
-      "Use the private one-request callback routes when a connected HTTP or MCP runtime needs to push status, evidence, or heartbeat back into the same Boreal request workspace.",
+      "Use the private one-request callback routes when a connected HTTP or MCP runtime needs to push status, evidence, or heartbeat back into the same Boreal request workboard.",
     href: "/one-request-api.md",
     label: "Connected callbacks",
     path: "boreal.work/api/v1/requests/{requestToken}/{status|evidence|heartbeat}",

@@ -144,7 +144,7 @@ Keep:
 - `Requests`
 - `Request`
 - `Proposal`
-- `Workspace`
+- `Workboard`
 - `work, products, and services`
 - `request-native commerce`
 - `intent-to-fulfillment`

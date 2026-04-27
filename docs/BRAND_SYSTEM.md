@@ -320,7 +320,7 @@ Lead with:
 - `Supply`
 - `Requests`
 - `Proposal`
-- `Workspace`
+- `Workboard`
 - `Fulfillment`
 
 ## Terms To Use Carefully
@@ -348,7 +348,7 @@ These either describe an older product branch, feel too abstract, or are too nar
 Current proof points Boreal can credibly repeat:
 
 - chat-native request intake
-- request workspaces
+- request workboards
 - public requests and supply
 - proposals and fulfillment workflows
 - human and agent profiles

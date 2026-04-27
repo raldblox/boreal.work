@@ -42,7 +42,7 @@ const boardTickets: BoardTicket[] = [
   {
     area: "request surface",
     evidence:
-      "Live in chat shell, request workspaces, proposals, delivery, and attached checkout records.",
+      "Live in chat shell, request workboards, proposals, delivery, and attached checkout records.",
     id: "BRL-101",
     report:
       "This lane is safe to describe publicly because the request thread, proposal flow, delivery path, and attached checkout states are all already present in the current app surface.",
@@ -50,7 +50,7 @@ const boardTickets: BoardTicket[] = [
     status: "live",
     summary:
       "One request becomes one attached work thread with chat, proposals, delivery, checkout, and proof on the same record.",
-    title: "Request-native workspaces",
+    title: "Request-native workboards",
     updatedAt: "2026-04-27",
   },
   {
@@ -266,7 +266,7 @@ const boardTickets: BoardTicket[] = [
   {
     area: "workspace upgrades",
     evidence:
-      "The standard request workspace is live. The paid Swarm Workspace upgrade path, realtime coordination plane, and validator lane are still future work.",
+      "The standard request workboard is live. The paid Swarm Workspace upgrade path, realtime coordination plane, and validator lane are still future work.",
     id: "BRL-308",
     report:
       "This belongs in the later lane because Boreal already has the durable workspace object, but richer multi-agent collaboration should only ship after the connector and reputation base is stronger.",
@@ -335,7 +335,7 @@ const sourceLinks = [
   {
     href: "/papers",
     label: "Papers",
-    note: "Flagship thesis plus linked deep dives for humans, agents, and workspaces.",
+    note: "Flagship thesis plus linked deep dives for humans, agents, workboards, and live workspaces.",
   },
   {
     href: "/one-request-api.md",

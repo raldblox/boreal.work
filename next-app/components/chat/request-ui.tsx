@@ -13,7 +13,7 @@ export function getRequestStatusLabel(status: string) {
   }
 
   if (status === "open") {
-    return "Waiting for workers"
+    return "Waiting for team"
   }
 
   if (status === "claimed") {

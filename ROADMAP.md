@@ -4,9 +4,9 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 
 ## Current Readout
 
-- Boreal is already a real public alpha for request-native commerce, delivered through a chat-native interface: chat intake, request workspaces, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
+- Boreal is already a real public alpha for request-native commerce, delivered through a chat-native interface: chat intake, request workboards, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
 - Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Privy-backed x402 payment initiation, and Agentic Market discovery sync.
-- Boreal now also has a real matching layer in the product surface: persisted match candidates, request-level score breakdowns, gated-out reasons, refinement actions, and pinned matches inside the request workspace.
+- Boreal now also has a real matching layer in the product surface: persisted match candidates, request-level score breakdowns, gated-out reasons, refinement actions, and pinned matches inside the request workboard.
 - Public profiles are no longer just static identity cards; they now carry cached analytics snapshots for activity, fulfillment, ratings, listings, buyer/seller behavior, and recent handled work.
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
@@ -45,6 +45,7 @@ Goal: make the written story match the live alpha while recycling the strongest 
   - `intent-to-fulfillment` for the thesis layer
 - [x] Add a permanent roadmap-hygiene rule to the main docs so shipped behavior, public contracts, and agent-control changes update `ROADMAP.md` and the most specific contract docs in the same patch
 - [x] Publish a practical `CONNECT_AGENT_GUIDE.md` that defines the full future `Connect agent` UX, connector choices, auth/session bootstrap, and activation model without overclaiming what is already live
+- [x] Publish `SWARM_WORKSPACE_SPEC.md` to lock the current `Workboard` naming, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex split before deeper collaboration work lands
 - [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
 - [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
 - [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`
@@ -117,12 +118,12 @@ Goal: build the protocol-native commerce substrate first, then layer market UX a
 - [ ] Solana escrow on proposal acceptance
 - [ ] Automatic settlement on approval
 - [ ] Partial and split settlement support
-- [ ] Escrow lifecycle visible in request workspace
+- [ ] Escrow lifecycle visible in request workboard
 
 ### Transaction Scenario Matrix and Verification
 
-- [x] Product-search request that opens a store-like request workspace
-- [x] Instant digital supply purchase from directory or request workspace
+- [x] Product-search request that opens a store-like request workboard
+- [x] Instant digital supply purchase from directory or request workboard
 - [x] Provider-backed paid service purchase for supported direct-invoke listings
 - [x] Human or agent custom work through proposal -> approval -> delivery -> review
 - [x] Chat-only fulfillment where the owner manually marks the request fulfilled
@@ -144,7 +145,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] `/` now acts as the chat-native landing state, while `/about` carries the feature/spec narrative and `/roadmap` carries the public-safe Jira-style status board
 - [x] Signed-in owner request tracking in the left sidebar
 - [x] Public browsing of supply and public requests in the right rail
-- [x] Request workspace with `Chat`, `Activity`, `Participants`, and `Workspace`
+- [x] Request workboard with `Chat`, `Activity`, `Team`, and `Workboard`
 - [x] Public profile pages at `/p/[id]`
 - [x] Proposal submission flow with explicit `Improve proposal` and `Send now`
 - [x] Work submission flow with explicit submission form and file uploads
@@ -163,7 +164,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Structured intent persistence
 - [x] Text, image, audio, and video intent detection
 - [x] Request approval before fulfillment
-- [x] Product-search intents that open a request workspace and render matched supply
+- [x] Product-search intents that open a request workboard and render matched supply
 - [x] Public proposal board behavior through public requests
 - [x] Keyword generation stored and actively used in retrieval/routing
 - [x] Request-level persisted match candidates with score breakdowns and workspace attachment
@@ -176,13 +177,13 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [ ] Tier 2 fast-route to known solvers based on empirical score thresholds
 - [ ] Tier 4 pending/rematch scheduler
 
-### Workspace and Fulfillment
+### Workboard and Fulfillment
 
 - [x] Owner and participant role differentiation
 - [x] Activity timeline and request transcript
 - [x] Fulfillment evidence via stored submission text, uploads, and artifacts
 - [x] Reviews and ratings attached to the completed lifecycle
-- [x] Owner-side request workspace for proposals, delivery, and matching refinement
+- [x] Owner-side request workboard for proposals, delivery, and matching refinement
 - [x] Manual mark-fulfilled path for chat-native work that does not produce a formal asset
 - [ ] Revision-request loop between owner and fulfiller
 - [x] Stronger request-to-supply recommendation UX
@@ -190,7 +191,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 
 ### Messaging Guardrails
 
-- [x] Can claim: chat-native request intake, request workspaces, proposals, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
+- [x] Can claim: chat-native request intake, request workboards, proposals, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
 - [x] Can claim: Boreal is a chat-native interface for request-native commerce
 - [x] Can claim: Boreal is building intent-to-fulfillment infrastructure, as long as the live alpha boundary stays explicit
 - [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, trust-score routing, or generalized autonomous settlement
@@ -344,8 +345,8 @@ Goal: extend Boreal from core protocol-facing commerce into deeper agent-native 
 
 ### Swarm Workspace
 
-- [ ] Explicit workspace-upgrade event from a normal request into a paid Swarm Workspace session
-- [ ] Assignment and decomposition primitives inside one request workspace
+- [ ] Explicit workboard-upgrade event from a normal request into a paid Swarm Workspace session
+- [ ] Assignment and decomposition primitives inside one request workboard
 - [ ] Validator lane and richer progress-event surfaces inside the workspace
 - [ ] Relay-backed real-time collaboration plane for upgraded requests
 - [ ] Owner-visible live coordination state, not only artifact and activity replay
@@ -360,7 +361,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Supply ranking updates from acceptance and fulfillment rate
 - [ ] Urgency scoring with deadline decay
 - [ ] Automatic promotion of repeated fulfillment patterns into routable supply
-- [ ] Recommendation engine for open requests and product-search workspaces
+- [ ] Recommendation engine for open requests and product-search workboards
 - [ ] Agent affinity edges for suppliers or specialists that succeed together
 - [ ] Collaborative filtering over accepted collectives, repeat hires, and request similarity
 - [ ] Recommendation features that combine capability fit, runtime quality, dispute history, owner preference, and payout reliability
@@ -408,7 +409,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Expand smoke coverage beyond the current lifecycle script into product search, cart/checkout, profile builder, provider-backed service flows, and wallet-required scenarios
 - [ ] Execute the documentation and positioning consolidation workstream
 - [ ] Finish the matching engine quality layer: BM25, historical analog retrieval, reranking, and rematch scheduling
-- [ ] Build revision-request loops and richer deadline/SLA signals into the request workspace
+- [ ] Build revision-request loops and richer deadline/SLA signals into the request workboard
 - [ ] Deepen supply and product metadata plus merchant-grade listing pages on top of the new protocol base
 - [ ] Add a Boreal Agent capability explorer and prompt-starter surface so users can discover real supported flows directly from the Boreal profile
 - [ ] Build the replaceable-agent control plane on top of `/api/v1/supplies`, then land the first direct HTTP and MCP external-agent execution paths

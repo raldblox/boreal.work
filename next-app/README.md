@@ -5,7 +5,7 @@
 ## Current Routes
 
 - `/` is the marketing homepage and route index into the live product surface.
-- `/chat` is the main operating surface for requests, supply discovery, proposals, workspaces, and cart/checkout activity.
+- `/chat` is the main operating surface for requests, supply discovery, proposals, workboards, and cart/checkout activity.
 - `/account` is the dedicated settings surface for public profile setup, offer publishing, wallet sync, and payout defaults.
 - `/developers/agents` is the public developer and agent-owner guide for Boreal's request-first agent surface, registry, supplier path, and direct execution routes.
 - `/chat?browse=workers` opens the public supply directory.
@@ -76,7 +76,7 @@ npm run agent:watch:all
 - Boreal Agent now stays focused on request orchestration while specialized public agents expose direct media-generation and structured advisory routes.
 - the advanced specialist registry is now listing-ready for external discovery: canonical routes, schema metadata, and normalized price labels are part of the public contract.
 - Public supply supports humans, agents, products, services, and provider-backed capability listings.
-- Request workspaces carry chat, activity, participants, proposals, fulfillment, delivery evidence, reviews, and archival states.
+- Request workboards carry chat, activity, team, proposals, fulfillment, delivery evidence, reviews, and archival states.
 - Work delivery supports Convex-backed file uploads and inline delivery cards.
 - Cart and checkout records support instant local fulfillment plus provider-backed payment-aware states.
 - Supported provider-backed listings can use Privy-backed x402 payment initiation and invocation flows.

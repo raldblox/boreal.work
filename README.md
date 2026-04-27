@@ -4,7 +4,8 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
-- `2026-04-27`: Added connected-agent chat control: Boreal chat can now switch between Boreal, no brain, and connected HTTP or MCP agents, connected runtimes can push request status, evidence, and heartbeat into one-request workspaces, and `npm run smoke:connected-agents` plus `npm run smoke:request-callbacks` verify the path.
+- `2026-04-27`: Added `SWARM_WORKSPACE_SPEC.md` as the implementation spec for Boreal's `Workboard` versus future `Swarm Workspace` model, and relabeled the request shell around `Team` and `Workboard` to reduce current UX confusion.
+- `2026-04-27`: Added connected-agent chat control: Boreal chat can now switch between Boreal, no brain, and connected HTTP or MCP agents, connected runtimes can push request status, evidence, and heartbeat into one-request workboards, and `npm run smoke:connected-agents` plus `npm run smoke:request-callbacks` verify the path.
 - `2026-04-27`: Made built-in autonomous agent sync idempotent: repo-defined agents now upsert the same DB-backed users, profiles, supplies, payout-wallet metadata, and analytics rows through stable sync IDs, and the smoke fixtures now reuse stable supplier identities instead of minting new ones every run.
 - `2026-04-27`: Added a permanent roadmap-discipline rule to the main repo docs: changes to shipped behavior, public contracts, agent-control flows, or roadmap-relevant architecture must update `ROADMAP.md` plus the specific contract docs in the same patch.
 - `2026-04-27`: Turned `AGENT_NETWORK.md` into a concrete implementation bridge with critical constraints plus roadmap, API, and schema extensions, aligned `ROADMAP.md` with the open-agent workstream, and tightened the public paper suite's honesty boundaries.
@@ -40,6 +41,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal alpha.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
+- `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the request-side `Workboard`, the later `Swarm Workspace` upgrade path, the shell IA, and the libp2p-versus-Convex responsibility split.
 - `CONNECT_AGENT_GUIDE.md` is the practical source of truth for Boreal's live and next `Connect agent` UX, connector modes, auth/session bootstrap, and replaceable-agent control plane.
 - `docs/papers/` contains the public paper suite: the flagship Boreal work-network paper plus linked deep dives for human supply, Swarm Workspace, portable agent reputation, and external-agent onboarding.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
@@ -79,7 +81,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/app/api/agents/[agentKey]/execute/route.ts` runs one signed-in specialized agent through Boreal-owned credentials and routing policy.
 - `next-app/app/api/v1/agents/` exposes the listing-ready specialist registry surface, including canonical v1 routes, input/output schemas, and normalized price metadata for direct agents.
 - `next-app/app/api/v1/auth/siwx/challenge/route.ts`, `next-app/app/api/v1/auth/siwx/verify/route.ts`, and `next-app/app/api/v1/requests/` expose Boreal's live request-first agent contract.
-- `next-app/app/api/v1/requests/[requestToken]/status/route.ts`, `next-app/app/api/v1/requests/[requestToken]/evidence/route.ts`, and `next-app/app/api/v1/requests/[requestToken]/heartbeat/route.ts` let connected external runtimes report progress, evidence, and liveness back into the same private one-request workspace.
+- `next-app/app/api/v1/requests/[requestToken]/status/route.ts`, `next-app/app/api/v1/requests/[requestToken]/evidence/route.ts`, and `next-app/app/api/v1/requests/[requestToken]/heartbeat/route.ts` let connected external runtimes report progress, evidence, and liveness back into the same private one-request workboard.
 - `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.
 - `ONE_REQUEST_API.md` is the live source of truth for the pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
 - `ONE_INBOX_API.md` is the live supplier-side companion contract, where matched suppliers watch demand, claim or propose on work, deliver through requests, and track payout readiness.

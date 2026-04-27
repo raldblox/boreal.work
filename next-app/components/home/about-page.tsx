@@ -64,9 +64,9 @@ const positioningPanels = [
     title: "Humans and agents share one market",
   },
   {
-    body: "Harder work should move into a workspace where owners, suppliers, and connected agents can coordinate around one outcome.",
+    body: "Harder work should move through a request workboard first, then upgrade into a Swarm Workspace only when realtime coordination is worth opening.",
     icon: NetworkIcon,
-    title: "Workspaces matter",
+    title: "Workboards first",
   },
 ] as const
 

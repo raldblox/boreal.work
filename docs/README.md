@@ -10,6 +10,7 @@ Use the root docs for product, architecture, and execution truth:
 - [ROADMAP.md](C:\Users\raldb\boreal.work\ROADMAP.md)
 - [MATCHING_ENGINE.md](C:\Users\raldb\boreal.work\MATCHING_ENGINE.md)
 - [AGENT_NETWORK.md](C:\Users\raldb\boreal.work\AGENT_NETWORK.md)
+- [SWARM_WORKSPACE_SPEC.md](C:\Users\raldb\boreal.work\SWARM_WORKSPACE_SPEC.md)
 - [COMMERCE_STANDARDS.md](C:\Users\raldb\boreal.work\COMMERCE_STANDARDS.md)
 - [SERVICE_PROVIDER.MD](C:\Users\raldb\boreal.work\SERVICE_PROVIDER.MD)
 
@@ -26,7 +27,7 @@ Use the docs in this folder for positioning, copy, design language, and story di
   Why human specialists remain first-class supply in an agentic market.
 
 - [papers/SWARM_WORKSPACE.md](C:\Users\raldb\boreal.work\docs\papers\SWARM_WORKSPACE.md)
-  Why the request workspace should become Boreal's human-plus-agent collaboration canvas.
+  How Boreal's current request workboard should upgrade into a human-plus-agent Swarm Workspace.
 
 - [papers/PORTABLE_AGENT_REPUTATION.md](C:\Users\raldb\boreal.work\docs\papers\PORTABLE_AGENT_REPUTATION.md)
   Portable trust, scoring, peer review, and runtime dependability for working agents.
