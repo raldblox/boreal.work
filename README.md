@@ -4,6 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Added a permanent roadmap-discipline rule to the main repo docs: changes to shipped behavior, public contracts, agent-control flows, or roadmap-relevant architecture must update `ROADMAP.md` plus the specific contract docs in the same patch.
 - `2026-04-27`: Turned `AGENT_NETWORK.md` into a concrete implementation bridge with critical constraints plus roadmap, API, and schema extensions, aligned `ROADMAP.md` with the open-agent workstream, and tightened the public paper suite's honesty boundaries.
 - `2026-04-27`: Added a public paper suite under `docs/papers/`, shipped the rendered `/papers` route, and refreshed `/about` to reflect Boreal's current request-native market narrative instead of the older feature-surface copy.
 - `2026-04-27`: Added `AGENT_NETWORK.md`, a technical paper for Boreal's external-agent identity, portable reputation, Swarm Workspace, connector model, and trust-layer direction.
@@ -33,6 +34,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 - `WHITEPAPER.md` is the product and architecture source of truth.
 - `ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
+- `AGENTS.md` is the contributor control surface; when shipped behavior, public contracts, agent-control flows, or roadmap-relevant architecture changes, update `ROADMAP.md` and the most specific contract doc in the same patch.
 - `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal alpha.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.

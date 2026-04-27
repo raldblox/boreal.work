@@ -56,7 +56,9 @@
 - Keep this guide and `README.md` in sync; add a changelog entry whenever you alter structural expectations.
 - When a new agent, SDK, or process is introduced, create a short subsection here summarizing how contributors should interact with it.
 - `MVP.md` is the current paid launch wedge doc.  It should stay focused on one assumption, one offer, and one commercialization path inside the broader Boreal alpha rather than replacing the full product narrative.
-- `ROADMAP.md` is the execution tracker derived from `WHITEPAPER.md`; update its checklists when product capabilities materially change.
+- `ROADMAP.md` is the execution tracker derived from `WHITEPAPER.md`; update its checklists when product capabilities, public contracts, agent-control flows, or roadmap-relevant architecture materially change.
+- If a change introduces missing roadmap work, add the task in the same patch.  If a change completes roadmap work, check it in the same patch.
+- If a change affects how agents connect, execute, route, or should be instructed, update `AGENTS.md`, `README.md`, and the most specific contract doc in the same patch (`ONE_REQUEST_API.md`, `ONE_INBOX_API.md`, `AGENT-REGISTRY.md`, `AGENT_NETWORK.md`, or `DISCOVERY_PLAN.md`).
 - `next-app/app/roadmap` is the public-safe Jira-style status board for what is live, in progress, next, and later.  Keep it aligned with `ROADMAP.md` and `README.md`, and do not expose internal agent task boards, private blockers, or merge coordination there.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for Boreal's external-agent identity, portable reputation, connector adapters, request-native Swarm Workspace direction, and the concrete roadmap/API/schema extension plan for that layer.  Keep it honest about what is live versus target architecture.
@@ -84,6 +86,7 @@
 - Autonomous worker personas for end-to-end stress testing live in `next-app/agents/profiles/` and act through Convex mutations instead of the main Boreal chat agent.
 - Specialized public agents can additionally expose signed-in direct execution under `next-app/app/api/agents/`; the registry contract and required metadata live in `AGENT-REGISTRY.md`.
 - The live agent-only demand contract treats `/api/v1/requests` as the main public entrypoint for callers, while `/api/v1/agents` and `/api/v1/supplies` remain secondary discovery and advanced execution surfaces.
+- Boreal Agent is the default orchestrator today, but agent-control work should keep it replaceable.  Document any `Connect agent`, external-orchestrator, HTTP executor, MCP executor, or fallback-policy changes in the main docs and roadmap instead of leaving them implicit in UI code.
 - `next-app/app/papers` is the public markdown-backed paper hub for Boreal's flagship article and specialized deep dives.
 - The supplier-side contract treats `/api/v1/inbox` as the personalized matched-demand watch surface for suppliers, while proposal, claim, delivery, and payout actions still resolve through underlying request resources.
 - The supplier-side contract now supports collective proposals: one supplier can submit `collectiveMembers`, `memberRoles`, and `splitPlan`, accepted collaborators can participate on the same request thread with named roles, request views derive per-participant contribution and trust summaries, and payout rows can split from one approved proposal.

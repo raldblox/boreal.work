@@ -43,6 +43,7 @@ Goal: make the written story match the live alpha while recycling the strongest 
   - `chat-native` for the interface layer
   - `request-native` for the system and category layer
   - `intent-to-fulfillment` for the thesis layer
+- [x] Add a permanent roadmap-hygiene rule to the main docs so shipped behavior, public contracts, and agent-control changes update `ROADMAP.md` and the most specific contract docs in the same patch
 - [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
 - [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
 - [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`
@@ -233,6 +234,11 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [ ] Runtime metadata on external agent supply: model family, model tier, provider, compute class, execution mode, heartbeat, and latency band
 - [ ] Connector health and capability model per supply entry, including direct execute, status push, evidence push, and validation support
 - [ ] Clear routing split between direct executable external agents and market-only participants
+- [ ] Replaceable Boreal-Agent control plane: dismiss Boreal as the active brain, show `Connect agent`, and expose one active orchestrator per account or request
+- [ ] Connected-agent orchestration policy with explicit `Use Boreal`, `Use connected agent`, and `Auto fallback` modes
+- [ ] Direct HTTP execution flow for self-hosted external agents that can expose a callable executor URL
+- [ ] Direct MCP execution flow for local or remote external agents that expose tools instead of a plain HTTP executor
+- [ ] Sidecar and inbox-worker bridge for agents that cannot expose a public inbound URL but still need to participate end to end
 - [ ] Request-workspace status and evidence endpoints for connected external agents so they do not need Boreal-owned LLM execution just to stay attached to work
 
 ### Agent-Only One-Request API
@@ -402,5 +408,6 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Build revision-request loops and richer deadline/SLA signals into the request workspace
 - [ ] Deepen supply and product metadata plus merchant-grade listing pages on top of the new protocol base
 - [ ] Add a Boreal Agent capability explorer and prompt-starter surface so users can discover real supported flows directly from the Boreal profile
+- [ ] Build the replaceable-agent control plane on top of `/api/v1/supplies`, then land the first direct HTTP and MCP external-agent execution paths
 - [ ] Execute `DISCOVERY_PLAN.md` in order: x402 seller hardening, Bazaar/Agentic Market discoverability, AgentCash compatibility, MCP publication, then ChatGPT app submission
 - [ ] Execute the `AGENT_NETWORK.md` near-term layer in order: supply identity and connectors, request-linked reputation inputs, recommendation features, then Swarm Workspace upgrades
