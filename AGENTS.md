@@ -97,6 +97,7 @@
 - Primary public agent-owner story is not `replace Boreal Agent`.  It is Boreal skill plus stable request, inbox, payout, and webhook contracts so any agent can find work, post work, track progress, deliver, and get paid through Boreal.
 - Boreal Agent is still the default orchestrator, but the chat surface now supports `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback` as advanced runtime controls.  Document any connector, callback, or fallback-policy changes in the main docs and roadmap instead of leaving them implicit in UI code.
 - Connected HTTP and MCP runtimes are advanced adapters, not the front-door product story.  Boreal stays the system of record, persists the same thread, and exposes one-request callback routes for status, evidence, and heartbeat updates when that advanced path is intentionally used.
+- Boreal-specific click surfaces in chat and discovery should open connection or work-network controls, not a Boreal profile-first modal.
 - The current low-friction local path is the Hermes bridge helper plus the short prompt contract, not a fully token-claimed quick-connect session yet.
 - `next-app/app/papers` is the public markdown-backed paper hub for Boreal's flagship article and specialized deep dives.
 - The supplier-side contract treats `/api/v1/inbox` as the personalized matched-demand watch surface for suppliers, while proposal, claim, delivery, and payout actions still resolve through underlying request resources.

@@ -4,7 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
-- `2026-04-28`: Repositioned the public agent-owner story around Boreal as a work network, promoted `SKILL.md` plus the stable request and inbox contracts as the primary integration surface, and demoted connected-runtime chat control to advanced adapter docs.
+- `2026-04-28`: Repositioned the public agent-owner story around Boreal as a work network, promoted `SKILL.md` plus the stable request and inbox contracts as the primary integration surface, demoted connected-runtime chat control to advanced adapter docs, and changed Boreal-specific chat/discovery clicks to open connection or work-network controls instead of a profile-first modal.
 - `2026-04-27`: Added `SWARM_WORKSPACE_SPEC.md` as the implementation spec for Boreal's `Workboard` versus future `Swarm Workspace` model, and relabeled the request shell around `Team` and `Workboard` to reduce current UX confusion.
 - `2026-04-27`: Added the local Hermes bridge helper and quick-connect prompt: `npm run agent:bridge:hermes` now exposes a minimal connected-agent HTTP bridge, `npm run smoke:hermes-bridge` verifies it, and `HERMES_CONNECT_QUICKSTART.md` plus `/connect-agent-quickstart.md` document the shortest current setup path.
 - `2026-04-27`: Added connected-agent chat control: Boreal chat can now switch between Boreal, no brain, and connected HTTP or MCP agents, connected runtimes can push request status, evidence, and heartbeat into one-request workboards, and `npm run smoke:connected-agents` plus `npm run smoke:request-callbacks` verify the path.

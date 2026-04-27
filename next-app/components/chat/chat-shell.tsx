@@ -58,7 +58,6 @@ import {
   AudioPlayerTimeRange,
   AudioPlayerVolumeRange,
 } from "@/components/ai-elements/audio-player"
-import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
 import {
   ProfileBuilderDialog,
@@ -320,7 +319,6 @@ export function ChatShell() {
   const [composerText, setComposerText] = useState(() => seededPrompt ?? "")
   const [matchQueryDraft, setMatchQueryDraft] = useState<string | null>(null)
   const [pinningSupplyId, setPinningSupplyId] = useState<string | null>(null)
-  const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false)
   const [proposalMessage, setProposalMessage] = useState("")
   const [proposalDraft, setProposalDraft] =
     useState<ProposalDraft>(emptyProposalDraft)
@@ -501,12 +499,12 @@ export function ChatShell() {
   })
   const shouldShowBorealToolbarButton = isXAuthenticated
   const agentToolbarLabel =
-    connectedAgentMode === "none"
+    connectedAgentMode === "none" || connectedAgentMode === "boreal"
       ? "Connect agent"
       : activeConnectedSupply?.title ??
         (connectedAgentMode === "auto_fallback"
           ? "Auto fallback"
-          : "Boreal Agent")
+          : "Connected agent")
   const isChatSurfaceActive = !activeIntentId || activeCenterTab === "chat"
   const shouldShowChatComposer =
     isXAuthenticated && isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
@@ -538,10 +536,6 @@ export function ChatShell() {
   )
   const togglePinnedSupplyMatch = useMutation(
     convexFunctionRefs.togglePinnedSupplyMatch
-  )
-  const borealAgentStats = useQuery(
-    convexFunctionRefs.getBorealAgentStats,
-    isBorealProfileOpen ? {} : "skip"
   )
   const addToCart = useMutation(convexFunctionRefs.addToCart)
   const updateCartLineQuantity = useMutation(
@@ -3190,7 +3184,10 @@ export function ChatShell() {
             >
               <WorkspacePanel
                 activeTab={workspaceTab}
+                connectedAgentMode={connectedAgentMode}
+                connectedSupplyTitle={activeConnectedSupply?.title ?? null}
                 onAddToCart={handleAddToCart}
+                onOpenBorealConnection={openConnectAgentDialog}
                 onSelectRequest={handleMarketplaceSelect}
                 onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
                 ownerExternalId={ownerExternalId}
@@ -3240,7 +3237,10 @@ export function ChatShell() {
       >
         <WorkspacePanel
           activeTab={workspaceTab}
+          connectedAgentMode={connectedAgentMode}
+          connectedSupplyTitle={activeConnectedSupply?.title ?? null}
           onAddToCart={handleAddToCart}
+          onOpenBorealConnection={openConnectAgentDialog}
           onSelectRequest={handleMarketplaceSelect}
           onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
           ownerExternalId={ownerExternalId}
@@ -3267,16 +3267,6 @@ export function ChatShell() {
         runtimePrimaryChainFamily={runtimePrimaryChainFamily}
         walletAccounts={walletAccounts}
       />
-      <Dialog onOpenChange={setIsBorealProfileOpen} open={isBorealProfileOpen}>
-        <DialogContent className="h-[min(88svh,54rem)] max-w-[min(72rem,calc(100vw-2rem))] gap-0 overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(72rem,calc(100vw-2rem))]">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Boreal Agent</DialogTitle>
-          </DialogHeader>
-          <div className="h-full overflow-auto bg-background">
-            <BorealProfileView stats={borealAgentStats} />
-          </div>
-        </DialogContent>
-      </Dialog>
       <ConnectAgentDialog
         activeSupply={activeConnectedSupply}
         currentMode={connectedAgentMode}

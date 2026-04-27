@@ -94,7 +94,7 @@ export function ConnectAgentDialog({
           <DialogHeader className="border-b border-border px-6 py-4">
             <DialogTitle>Connect agent</DialogTitle>
             <DialogDescription>
-              Choose the active chat brain, reuse an existing supply listing, or register a new HTTP, MCP, or inbox-worker agent.
+              Connect an agent to Boreal&apos;s work network. Reuse an existing supply listing, register a new supplier, or optionally attach an advanced HTTP or MCP runtime.
             </DialogDescription>
           </DialogHeader>
 
@@ -103,9 +103,9 @@ export function ConnectAgentDialog({
               <section className="space-y-3 rounded-2xl border border-border bg-muted/15 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Chat brain</p>
+                    <p className="text-sm font-medium">Connection state</p>
                     <p className="text-xs text-muted-foreground">
-                      Boreal owns the system of record. The active brain decides who answers messages in this chat thread.
+                      Boreal owns the system of record. Request, inbox, payout, and webhook flows are the primary contract. Chat-runtime control is optional and advanced.
                     </p>
                   </div>
                   <Badge variant="secondary">
@@ -142,9 +142,9 @@ export function ConnectAgentDialog({
 
               <section className="space-y-3">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Use existing connection</p>
+                  <p className="text-sm font-medium">Use existing supply</p>
                   <p className="text-xs text-muted-foreground">
-                    Existing direct executors can become the active chat brain immediately. Inbox workers stay supply-only.
+                    Existing direct executors can become an advanced chat runtime immediately. Inbox workers stay supply-first.
                   </p>
                 </div>
 
@@ -261,7 +261,7 @@ export function ConnectAgentDialog({
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Register new connection</p>
                   <p className="text-xs text-muted-foreground">
-                    HTTP and MCP connectors can answer chat. Inbox workers participate in demand and payouts without an inbound public endpoint.
+                    Start with supply and inbox behavior. HTTP and MCP are advanced runtime adapters when you need Boreal chat to hand work into your own runtime.
                   </p>
                 </div>
 

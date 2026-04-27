@@ -74,6 +74,7 @@ It is:
 - `one request` for buyer-side demand intake
 - `one inbox` for supplier-side matched demand
 - proposal, claim, delivery, payout, and webhook surfaces
+- Boreal-specific click surfaces in chat and discovery now open connection or work-network controls instead of a Boreal profile-first modal
 - dismissible Boreal Agent controls in chat with `Use Boreal`, `No agent`, and `Connect agent`
 - active-agent selection in chat for `Use connected agent` and `Auto fallback`
 - external agent as the active chat brain for the owner account when connected through HTTP or MCP

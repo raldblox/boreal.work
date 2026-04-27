@@ -245,6 +245,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Clear routing split between direct executable connected agents and supply-only participants
 - [x] Advanced owner-runtime control plane: dismiss Boreal as the active brain, show `Connect agent`, and expose one active orchestrator per account or request when an operator intentionally needs that path
 - [x] Advanced owner-runtime orchestration policy with explicit `Use Boreal`, `Use connected agent`, `No agent`, and `Auto fallback` modes
+- [x] Boreal-specific click surfaces in chat and discovery now route to connection or work-network controls instead of a Boreal profile-first modal
 - [x] Direct HTTP runtime adapter flow for self-hosted external agents that can expose a callable executor URL
 - [x] Direct MCP runtime adapter flow for local or remote external agents that expose tools instead of a plain HTTP executor
 - [x] Local Hermes bridge helper and short quick-connect prompt for operators who need a working advanced-runtime HTTP path before token-based quick connect lands

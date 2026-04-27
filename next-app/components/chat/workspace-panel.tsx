@@ -16,7 +16,7 @@ import {
   UserIcon,
 } from "lucide-react"
 
-import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
+import { BorealConnectionView } from "@/components/chat/boreal-connection-view"
 import { ProfileView } from "@/components/profiles/profile-view"
 import { Button } from "@/components/ui/button"
 import {
@@ -43,7 +43,10 @@ export type WorkspaceTab = "requests" | "workers"
 
 type WorkspacePanelProps = {
   activeTab: WorkspaceTab
+  connectedAgentMode?: "auto_fallback" | "boreal" | "connected" | "none"
+  connectedSupplyTitle?: string | null
   onAddToCart: (supplyId: string) => Promise<void>
+  onOpenBorealConnection?: () => void
   onSelectRequest: (
     request: SidebarIntentPreview,
     view?: RequestNavigationView
@@ -52,61 +55,12 @@ type WorkspacePanelProps = {
   ownerExternalId?: string
 }
 
-const staticBorealProfile: NonNullable<WorkerProfileDetail> = {
-  analytics: {
-    activeCount: 0,
-    activeSupplyCount: 0,
-    activityBuckets: Array.from({ length: 10 }).map((_, index) => ({
-      count: 0,
-      label: `${index + 1}`,
-    })),
-    averageCompletionHours: null,
-    averageRating: null,
-    blockedCount: 0,
-    buyerCheckoutCount: 0,
-    fulfilledCount: 0,
-    grossEarned: 0,
-    grossSpend: 0,
-    openCount: 0,
-    productSupplyCount: 0,
-    recentRequests: [],
-    requestCount: 0,
-    reviewCount: 0,
-    sellerOrderCount: 0,
-    supplyCount: 0,
-    totalHandledCount: 0,
-    totalProposalCount: 0,
-    updatedAt: 0,
-  },
-  profile: {
-    _id: "boreal-agent",
-    actorKind: "agent",
-    availabilityStatus: "available",
-    avatarUrl: null,
-    bio: "Boreal Agent is the default orchestration worker. It turns chat into live requests, routes the best path to fulfillment, manages approvals, and keeps work moving inside one accountable thread.",
-    capabilityTags: [
-      "intent extraction",
-      "request routing",
-      "approval coordination",
-      "chat assistance",
-      "catalog search",
-      "proposal drafting",
-      "request tracking",
-    ],
-    displayName: "Boreal Agent",
-    handle: "boreal",
-    headline: "Core request orchestration agent",
-    isMine: false,
-    isPublic: true,
-    productLabels: ["request routing", "approval flow", "work thread ops"],
-    skillTags: ["llm routing", "market orchestration", "thread coordination"],
-  },
-  supplies: [],
-}
-
 export function WorkspacePanel({
   activeTab,
+  connectedAgentMode = "boreal",
+  connectedSupplyTitle = null,
   onAddToCart,
+  onOpenBorealConnection,
   onSelectRequest,
   onTabChange,
   ownerExternalId,
@@ -121,7 +75,6 @@ export function WorkspacePanel({
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
     null
   )
-  const [isBorealProfileOpen, setIsBorealProfileOpen] = useState(false)
 
   const searchedSupplyListings = useQuery(
     convexFunctionRefs.searchCatalog,
@@ -171,21 +124,13 @@ export function WorkspacePanel({
   )
   const isRequestsLoading =
     activeTab === "requests" && publicRequestsResult === undefined
-  const borealStats = useQuery(convexFunctionRefs.getBorealAgentStats, {})
   const selectedProfile = useQuery(
     convexFunctionRefs.getPublicProfile,
     selectedProfileId && selectedProfileId !== "boreal-agent"
       ? { ownerExternalId, profileId: selectedProfileId }
       : "skip"
   ) as WorkerProfileDetail | undefined
-
-  const selectedProfileDetail = useMemo(() => {
-    if (selectedProfileId === "boreal-agent") {
-      return staticBorealProfile
-    }
-
-    return selectedProfile
-  }, [selectedProfile, selectedProfileId])
+  const isBorealConnectionSelected = selectedProfileId === "boreal-agent"
 
   if (!isMounted) {
     return (
@@ -269,7 +214,6 @@ export function WorkspacePanel({
                       onAddToCart={onAddToCart}
                       onOpenSellerProfile={(profileId) => {
                         setSelectedProfileId(profileId)
-                        setIsBorealProfileOpen(profileId === "boreal-agent")
                       }}
                     />
                   ))
@@ -314,25 +258,28 @@ export function WorkspacePanel({
         onOpenChange={(open) => {
           if (!open) {
             setSelectedProfileId(null)
-            setIsBorealProfileOpen(false)
           }
         }}
         open={Boolean(selectedProfileId)}
       >
         <DialogContent className="h-[min(88svh,54rem)] max-w-[min(68rem,calc(100vw-2rem))] gap-0 overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(68rem,calc(100vw-2rem))]">
           <DialogHeader className="sr-only">
-            <DialogTitle>Worker profile</DialogTitle>
+            <DialogTitle>
+              {isBorealConnectionSelected ? "Boreal connection" : "Worker profile"}
+            </DialogTitle>
           </DialogHeader>
           <div className="h-full overflow-auto bg-background">
-            {selectedProfileDetail ? (
-              isBorealProfileOpen ? (
-                <BorealProfileView stats={borealStats} />
-              ) : (
-                <ProfileView
-                  detail={selectedProfileDetail}
-                  showProfileLink={!isBorealProfileOpen}
-                />
-              )
+            {isBorealConnectionSelected ? (
+              <BorealConnectionView
+                activeSupplyTitle={connectedSupplyTitle}
+                mode={connectedAgentMode}
+                onOpenConnectAgent={() => {
+                  onOpenBorealConnection?.()
+                  setSelectedProfileId(null)
+                }}
+              />
+            ) : selectedProfile ? (
+              <ProfileView detail={selectedProfile} showProfileLink={true} />
             ) : (
               <ProfileDialogLoader />
             )}
