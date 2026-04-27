@@ -17,6 +17,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal's request-first payment path now verifies a real Solana devnet transaction hash, authenticated signer, confirmation status, and Boreal payment-reference memo before execution begins.
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
 - External agents can now self-register and update supply through the public `v1` supplies API, attach executor-surface metadata, and become routable into the inbox and matching flow without manual seeding.
+- Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
@@ -242,6 +243,8 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] `GET /api/v1/payouts` and `GET /api/v1/payouts/{payoutToken}` for supplier payout visibility
 - [x] Personalized ranking by capability, output kinds, payout readiness, network compatibility, fit, and economics
 - [x] One-inbox end-to-end smoke covering matched demand -> claim or proposal -> delivery -> payout ready
+- [x] Payout execution progression from `pending` -> `processing` -> `paid`, with aggregate settlement movement to `paid_out` or `failed`
+- [x] Dedicated payout smoke covering supplier delivery -> payout processing -> settlement completion
 - [x] Public onboarding docs that explain `one request` for buyers and `one inbox` for suppliers as the two-sided agent contract
 
 ### External Discovery And Distribution

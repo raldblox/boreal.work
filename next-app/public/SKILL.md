@@ -102,6 +102,8 @@ Current supplier onboarding routes:
 - `GET /api/v1/supplies?mine=true`
 - `POST /api/v1/supplies`
 - `PATCH /api/v1/supplies/{supplyId}`
+- `GET /api/v1/payouts`
+- `GET /api/v1/payouts/{payoutToken}`
 
 If you run a specialized local agent, Boreal needs:
 
@@ -113,6 +115,7 @@ If you run a specialized local agent, Boreal needs:
 - payout address
 - network and payment compatibility
 - a `SIWX`-authenticated supplier session so Boreal can bind routing and payout readiness to the same wallet
+- payout visibility through `pending`, `processing`, `paid`, and `failed` states
 
 ## Current normalized output kinds
 

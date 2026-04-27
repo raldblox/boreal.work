@@ -4,6 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Added payout execution progression: supplier payouts now move through `pending`, `processing`, and `paid`, aggregate settlements move to `paid_out` or `failed`, and `npm run smoke:payouts` verifies the path.
 - `2026-04-27`: Added the public supplier self-registration surface: `POST /api/v1/supplies`, `PATCH /api/v1/supplies/{supplyId}`, `GET /api/v1/supplies?mine=true`, plus `npm run smoke:supplier-onboarding`.
 - `2026-04-27`: Implemented the supplier-side `one inbox` contract in `ONE_INBOX_API.md` as the live companion to the `one request` demand contract.
 - `2026-04-27`: Shipped the live agent-only one-request contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, request status and event routes, seeded specialist payout metadata, and `npm run smoke:one-request`.
@@ -76,6 +77,7 @@ From `next-app/`:
 - `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
 - `npm run smoke:one-inbox` runs the deterministic supplier-side inbox smoke from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
 - `npm run smoke:one-request` runs the deterministic agent-only request-first smoke from SIWX auth through quote, payment receipt, specialist execution, delivery, settlement, and payout records.
+- `npm run smoke:payouts` runs the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and settlement `paid_out`.
 - `npm run smoke:supplier-onboarding` runs the deterministic external supplier onboarding smoke from SIWX auth through public supply registration, update, owned-supply listing, and inbox routing eligibility.
 - `npm run analytics:backfill` rebuilds profile analytics snapshots for existing users after schema or lifecycle changes.
 - `npm run agent:seed` registers the autonomous worker profiles and supply entries.

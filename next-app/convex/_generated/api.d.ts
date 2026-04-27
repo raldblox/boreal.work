@@ -16,6 +16,7 @@ import type * as fulfillments from "../fulfillments.js";
 import type * as inboxApi from "../inboxApi.js";
 import type * as intents from "../intents.js";
 import type * as matching from "../matching.js";
+import type * as payouts from "../payouts.js";
 import type * as profileAnalytics from "../profileAnalytics.js";
 import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   inboxApi: typeof inboxApi;
   intents: typeof intents;
   matching: typeof matching;
+  payouts: typeof payouts;
   profileAnalytics: typeof profileAnalytics;
   profiles: typeof profiles;
   proposals: typeof proposals;

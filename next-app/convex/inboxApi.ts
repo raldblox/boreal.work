@@ -266,15 +266,40 @@ export const listSupplierRequestEvents = query({
 
     if (payouts.some((payout) => payout.payeeUserId === supplier.user._id)) {
       const payout = payouts.find((candidate) => candidate.payeeUserId === supplier.user._id)!;
+      const payoutStatus =
+        payout.status === "paid"
+          ? "settled"
+          : payout.status === "processing"
+            ? "payout_processing"
+            : payout.status === "failed"
+              ? "payout_failed"
+              : "payout_ready";
+      const payoutMessage =
+        payout.status === "paid"
+          ? "Payout has been completed for the supplier."
+          : payout.status === "processing"
+            ? "Payout is being processed for the supplier."
+            : payout.status === "failed"
+              ? "Payout failed and needs operator attention."
+              : "Payout is ready for the supplier.";
       events.push({
         createdAt: payout.updatedAt,
         data: {
+          failureReason: payout.failureReason ?? null,
           payoutToken: createPayoutToken(payout._id),
           status: payout.status,
+          txHash: payout.txHash ?? null,
         },
-        eventType: "request.payout_ready",
-        message: "Payout is ready for the supplier.",
-        status: "payout_ready",
+        eventType:
+          payout.status === "paid"
+            ? "request.payout_paid"
+            : payout.status === "processing"
+              ? "request.payout_processing"
+              : payout.status === "failed"
+                ? "request.payout_failed"
+                : "request.payout_ready",
+        message: payoutMessage,
+        status: payoutStatus,
       });
     }
 
@@ -988,6 +1013,27 @@ function deriveSupplierRequestState(input: {
   supplierUserId: string;
 }) {
   if (input.myPayout) {
+    if (input.myPayout.status === "paid") {
+      return {
+        status: "settled" as const,
+        updatedAt: input.myPayout.updatedAt,
+      };
+    }
+
+    if (input.myPayout.status === "processing") {
+      return {
+        status: "payout_processing" as const,
+        updatedAt: input.myPayout.updatedAt,
+      };
+    }
+
+    if (input.myPayout.status === "failed") {
+      return {
+        status: "payout_failed" as const,
+        updatedAt: input.myPayout.updatedAt,
+      };
+    }
+
     return {
       status: "payout_ready" as const,
       updatedAt: input.myPayout.updatedAt,
@@ -1206,8 +1252,12 @@ async function mapPayoutRecord(ctx: QueryCtx, payout: Doc<"payouts">) {
     amount: payout.amount,
     createdAt: payout.createdAt,
     currency: payout.currency,
+    failureReason: payout.failureReason ?? null,
     networkKey: payout.networkKey ?? null,
+    paidAt: payout.paidAt ?? null,
     payoutToken: createPayoutToken(payout._id),
+    processingStartedAt: payout.processingStartedAt ?? null,
+    processor: payout.processor ?? null,
     request: intent
       ? {
           requestToken: createPublicRequestToken(intent._id),
@@ -1219,6 +1269,7 @@ async function mapPayoutRecord(ctx: QueryCtx, payout: Doc<"payouts">) {
     settlementStatus: settlement?.status ?? null,
     status: payout.status,
     transactionStatus: transaction?.status ?? null,
+    txHash: payout.txHash ?? null,
     updatedAt: payout.updatedAt,
     walletAccountId: payout.walletAccountId ?? null,
   };
@@ -1245,6 +1296,12 @@ function compareInboxEntries(
 
 function getInboxStatusPriority(status: string) {
   switch (status) {
+    case "settled":
+      return 120;
+    case "payout_processing":
+      return 110;
+    case "payout_failed":
+      return 105;
     case "claimed":
       return 100;
     case "matched":
@@ -1264,6 +1321,12 @@ function getInboxStatusPriority(status: string) {
 
 function buildInboxEventMessage(status: string, title: string) {
   switch (status) {
+    case "settled":
+      return `Payout settled for ${title}.`;
+    case "payout_processing":
+      return `Payout is processing for ${title}.`;
+    case "payout_failed":
+      return `Payout failed for ${title}.`;
     case "claimed":
       return `You are assigned to ${title}.`;
     case "proposed":

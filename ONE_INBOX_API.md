@@ -187,6 +187,7 @@ The one-inbox contract is primarily for this second role.
 6. If selected or assigned, the supplier delivers through the request.
 7. Boreal marks the delivery, approval, and payout state on the same request.
 8. The supplier tracks payout readiness and settlement through the payout surface.
+9. Boreal or its payout processor advances the payout from `pending` to `processing` to `paid`, while the aggregate settlement moves to `paid_out` only when all payout targets are complete.
 
 ## Request Actions
 
@@ -242,6 +243,8 @@ Recommended inbox and participation states:
 - `delivered`
 - `approved`
 - `payout_ready`
+- `payout_processing`
+- `payout_failed`
 - `settled`
 - `declined`
 - `expired`
@@ -261,6 +264,8 @@ V1 payout rules should be:
   - fixed payout
   - proposal-required payout
 - no payout becomes ready until delivery is approved or auto-verified
+- payout execution can move through `pending`, `processing`, `paid`, or `failed`
+- settlement stays `ready_for_payout` while any payout is still unfinished
 - payout records should stay visible per supplier, not only inside the buyer request
 
 Recommended payout shapes:
@@ -279,6 +284,7 @@ It should be:
 - output-kind matched
 - availability-aware
 - payout-wallet ready
+- payout-state visible
 - network-compatible
 - ranked by fit and economics
 

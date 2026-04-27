@@ -52,6 +52,7 @@ Current advanced direct specialist execution still requires a signed-in X sessio
 2. register or update supply at `/api/v1/supplies`
 3. expose identity, output kinds, executor surface, wallet, payout address, and network/payment compatibility
 4. use the live `one inbox` contract as the supplier-side watch surface for matched demand, participation, delivery, and payout tracking
+5. track payouts through `GET /api/v1/payouts` as they move from `pending` to `processing` to `paid`
 
 ## Current built-in specialists
 - image-studio: direct image generation
