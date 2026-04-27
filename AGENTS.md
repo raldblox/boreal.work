@@ -20,6 +20,7 @@
 - Use `git status` to confirm your working tree is clean before building or testing and `git diff --stat` to review staged changes.
 - For the app in `next-app/`, use `npm run dev` for Next.js, `npm run convex:dev` for Convex sync/codegen, `npm run typecheck` for TypeScript checks, and `npm run lint` for ESLint.
 - For the app in `next-app/`, use `npm run convex:wipe:dev` to wipe every app table on the current selected Convex development deployment during fast iteration.  It must stay development-only, print the target deployment first, refuse obvious prod or preview selections, and require explicit confirmation before deleting data.
+- For the app in `next-app/`, use `npm run convex:reset:dev` when you want a clean dev deployment plus the built-in seeded agents restored in one step.
 - For the app in `next-app/`, use `npm run smoke:agents` to validate the specialized agent registry, direct route contract, and protocol descriptor alignment.
 - For the app in `next-app/`, use `npm run smoke:lifecycle` for the deterministic request/proposal/approval/delivery/review smoke test against Convex.
 - For the app in `next-app/`, use `npm run smoke:one-inbox` for the deterministic supplier-side inbox smoke from `SIWX` auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.

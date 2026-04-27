@@ -2,16 +2,13 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { spawnSync } from "node:child_process";
 
-import { loadAgentEnv } from "../agents/shared/env.ts";
-
 const CONFIRMATION_PROMPT = "WIPE";
 const CONVEX_CONFIRMATION = "WIPE DEVELOPMENT DATA";
 const DEFAULT_BATCH_SIZE = 128;
 
 async function main() {
-  loadAgentEnv();
-
   const args = process.argv.slice(2);
+  const dryRun = args.includes("--dry-run");
 
   if (args.includes("--prod")) {
     throw new Error(
@@ -21,7 +18,7 @@ async function main() {
 
   const batchSize = parseBatchSize(args);
   const autoConfirm = args.includes("--yes");
-  const deploymentInfo = runConvexCommand(["convex", "deployments"], {
+  const deploymentInfo = runConvexCommand(["deployments"], {
     captureOutput: true,
   });
   const deploymentText = `${deploymentInfo.stdout}${deploymentInfo.stderr}`;
@@ -43,13 +40,17 @@ async function main() {
     }
   }
 
+  if (dryRun) {
+    console.log("Dry run only. No Convex data was deleted.");
+    return;
+  }
+
   console.log("Wiping all app tables from the current Convex development deployment...");
 
   runConvexCommand([
-    "convex",
     "run",
     "internal.devTools.wipeDevelopmentData",
-    JSON.stringify({
+    formatConvexArgs({
       batchSize,
       confirm: CONVEX_CONFIRMATION,
     }),
@@ -101,6 +102,15 @@ function normalizeBatchSize(value: number) {
   return Math.max(1, Math.min(512, Math.floor(value)));
 }
 
+function formatConvexArgs(input: {
+  batchSize: number;
+  confirm: string;
+}) {
+  const confirm = input.confirm.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+  return `{batchSize:${input.batchSize},confirm:'${confirm}'}`;
+}
+
 function runConvexCommand(
   args: string[],
   options?: {
@@ -108,11 +118,24 @@ function runConvexCommand(
   },
 ) {
   const command = process.platform === "win32" ? "npx.cmd" : "npx";
-  const result = spawnSync(command, args, {
-    cwd: process.cwd(),
-    encoding: "utf8",
-    stdio: options?.captureOutput ? "pipe" : "inherit",
-  });
+  const commandArgs = ["convex", ...args];
+  const result =
+    process.platform === "win32"
+      ? spawnSync(buildWindowsShellCommand(command, commandArgs), {
+          cwd: process.cwd(),
+          encoding: "utf8",
+          shell: true,
+          stdio: options?.captureOutput ? "pipe" : "inherit",
+        })
+      : spawnSync(command, commandArgs, {
+          cwd: process.cwd(),
+          encoding: "utf8",
+          stdio: options?.captureOutput ? "pipe" : "inherit",
+        });
+
+  if (result.error) {
+    throw result.error;
+  }
 
   if (result.status !== 0) {
     if (options?.captureOutput) {
@@ -120,10 +143,22 @@ function runConvexCommand(
       process.stderr.write(result.stderr ?? "");
     }
 
-    throw new Error(`Failed to run: ${[command, ...args].join(" ")}`);
+    throw new Error(`Failed to run: ${[command, ...commandArgs].join(" ")}`);
   }
 
   return result;
+}
+
+function buildWindowsShellCommand(command: string, args: string[]) {
+  return [command, ...args].map(quoteWindowsShellToken).join(" ");
+}
+
+function quoteWindowsShellToken(token: string) {
+  if (/^[A-Za-z0-9_./:-]+$/.test(token)) {
+    return token;
+  }
+
+  return `"${token.replace(/"/g, '\\"')}"`;
 }
 
 void main().catch((error) => {
