@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "analytics:backfill": "node --experimental-strip-types scripts/backfill-profile-analytics.ts",
     "smoke:agents": "node --experimental-strip-types scripts/smoke-agents.ts",
+    "smoke:collective-proposals": "node --experimental-strip-types scripts/smoke-collective-proposals.ts",
     "smoke:lifecycle": "node --experimental-strip-types scripts/smoke-lifecycle.ts",
     "smoke:one-inbox": "node --experimental-strip-types scripts/smoke-one-inbox.ts",
     "smoke:one-request": "node --experimental-strip-types scripts/smoke-one-request.ts",

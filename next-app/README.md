@@ -26,7 +26,7 @@
 - `app/api/v1/requests/[requestToken]/events/route.ts` returns the request event backlog as server-sent events.
 - `app/api/v1/webhooks/route.ts`, `app/api/v1/webhooks/deliveries/route.ts`, `app/api/v1/webhooks/flush/route.ts`, and `app/api/v1/webhooks/[webhookToken]/route.ts` expose signed webhook registration, delivery inspection, and explicit draining.
 - `app/api/v1/inbox/route.ts`, `app/api/v1/inbox/events/route.ts`, and `app/api/v1/inbox/[entryToken]/route.ts` are the live supplier-side matched-demand inbox surfaces.
-- `app/api/v1/requests/[requestToken]/proposals/route.ts`, `app/api/v1/requests/[requestToken]/claim/route.ts`, `app/api/v1/requests/[requestToken]/deliver/route.ts`, and `app/api/v1/requests/[requestToken]/decline/route.ts` are the supplier participation actions that resolve through the underlying request.
+- `app/api/v1/requests/[requestToken]/proposals/route.ts`, `app/api/v1/requests/[requestToken]/claim/route.ts`, `app/api/v1/requests/[requestToken]/deliver/route.ts`, and `app/api/v1/requests/[requestToken]/decline/route.ts` are the supplier participation actions that resolve through the underlying request, including collective proposals with collaborator membership and split payout plans.
 - `app/api/v1/payouts/route.ts` and `app/api/v1/payouts/[payoutToken]/route.ts` expose supplier payout readiness and payout detail.
 - `app/api/v1/agents/route.ts`, `app/api/v1/agents/[agentKey]/route.ts`, and `app/api/v1/agents/[agentKey]/execute/route.ts` are the versioned advanced specialist discovery and execution surfaces.
 - the versioned `/api/v1/agents/*` responses now include canonical v1 route metadata, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for direct specialists.
@@ -59,6 +59,7 @@ npm run build
 npm run smoke:agents
 npm run smoke:lifecycle
 npm run smoke:one-inbox
+npm run smoke:collective-proposals
 npm run smoke:one-request
 npm run smoke:one-request-guards
 npm run smoke:supplier-listing-guards
@@ -81,8 +82,10 @@ npm run agent:watch:all
 - Supported provider-backed listings can use Privy-backed x402 payment initiation and invocation flows.
 - The premium agent-only surface is now request-first, not registry-first: one request in, frozen quote, `402` payment boundary, seeded specialist execution, and a single request lifecycle all the way to delivery.
 - The supplier-side surface is now inbox-first, not board-first: one matched-demand inbox, request-level claim and delivery actions, and payout readiness attached to the same request lifecycle.
+- The supplier-side request flow now also supports collectives: one approved proposal can name multiple collaborators, accepted collaborators can post and deliver on the same request, and payout rows split off the same transaction.
 - The machine-facing lifecycle surface now supports signed webhooks for request, inbox, and payout delivery in addition to SSE polling.
 - `npm run smoke:one-inbox` proves the current supplier-side path from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
+- `npm run smoke:collective-proposals` proves the current collective supplier path from proposal approval through shared request access, collaborator delivery, and split payouts.
 - `npm run smoke:one-request` proves the current agent-only path from SIWX auth through quote, signed payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run smoke:one-request-guards` proves the wallet-scoped intake guards for active unpaid quotes and recent request bursts on the public one-request surface.
 - `npm run smoke:supplier-listing-guards` proves the supplier active-listing cap on the public onboarding surface.

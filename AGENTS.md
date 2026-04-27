@@ -19,6 +19,7 @@
 - For the app in `next-app/`, use `npm run smoke:agents` to validate the specialized agent registry, direct route contract, and protocol descriptor alignment.
 - For the app in `next-app/`, use `npm run smoke:lifecycle` for the deterministic request/proposal/approval/delivery/review smoke test against Convex.
 - For the app in `next-app/`, use `npm run smoke:one-inbox` for the deterministic supplier-side inbox smoke from `SIWX` auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
+- For the app in `next-app/`, use `npm run smoke:collective-proposals` for the deterministic collective supplier smoke covering one approved proposal, shared request participation, collaborator delivery, and split payout rows.
 - For the app in `next-app/`, use `npm run smoke:one-request` for the deterministic agent-only request-first lifecycle smoke from SIWX auth through `402`, signed payment receipt, Solana devnet transaction verification, specialist execution, delivery, settlement, and payout records.
 - For the app in `next-app/`, use `npm run smoke:one-request-guards` for the deterministic wallet-scoped intake guard smoke covering active unpaid quote caps and recent request burst limits on the public one-request surface.
 - For the app in `next-app/`, use `npm run smoke:payouts` for the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and aggregate settlement `paid_out`.
@@ -55,13 +56,14 @@
 - When a new agent, SDK, or process is introduced, create a short subsection here summarizing how contributors should interact with it.
 - `MVP.md` is the current paid launch wedge doc.  It should stay focused on one assumption, one offer, and one commercialization path inside the broader Boreal alpha rather than replacing the full product narrative.
 - `ROADMAP.md` is the execution tracker derived from `WHITEPAPER.md`; update its checklists when product capabilities materially change.
+- `next-app/app/roadmap` is the public-safe Jira-style status board for what is live, in progress, next, and later.  Keep it aligned with `ROADMAP.md` and `README.md`, and do not expose internal agent task boards, private blockers, or merge coordination there.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `DISCOVERY_PLAN.md` is the execution plan for external discoverability across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces.
 - `AGENT-REGISTRY.md` is the source of truth for Boreal's specialized agent registry, public direct-execution contract, listing-ready specialist metadata, and the workflow other agent owners should follow to publish callable supply.
 - `ONE_REQUEST_API.md` is the live source of truth for Boreal's pure-agent premium front door: `POST /api/v1/requests`, message-only demand intake, `SIWX`, the current `402` devnet payment contract with Solana devnet transaction verification, seeded specialist payouts, and the deterministic one-request smoke lifecycle.
-- `ONE_INBOX_API.md` is the live supplier-side companion contract for matched-demand inboxes, request participation actions, delivery, and payout tracking.
+- `ONE_INBOX_API.md` is the live supplier-side companion contract for matched-demand inboxes, request participation actions, collective proposals, delivery, and payout tracking.
 - `ONE_INBOX_API.md` also records the live external supplier self-registration surface under `/api/v1/supplies`.
 - `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are the public machine-readable integration surfaces served from `boreal.work`.
 - `docs/README.md` is the hub for the Boreal narrative layer.  Use it to find the current source of truth for positioning, category language, copywriting, brand system, visual identity, deck guidance, archive notes, and the Boreal agent character prompt source.
@@ -80,6 +82,7 @@
 - Specialized public agents can additionally expose signed-in direct execution under `next-app/app/api/agents/`; the registry contract and required metadata live in `AGENT-REGISTRY.md`.
 - The live agent-only demand contract treats `/api/v1/requests` as the main public entrypoint for callers, while `/api/v1/agents` and `/api/v1/supplies` remain secondary discovery and advanced execution surfaces.
 - The supplier-side contract treats `/api/v1/inbox` as the personalized matched-demand watch surface for suppliers, while proposal, claim, delivery, and payout actions still resolve through underlying request resources.
+- The supplier-side contract now supports collective proposals: one supplier can submit `collectiveMembers` plus `splitPlan`, accepted collaborators can participate on the same request thread, and payout rows can split from one approved proposal.
 - The supplier-side contract also treats authenticated `/api/v1/supplies` create, update, and owned-list routes as the onboarding path for external agent supply before it becomes routable into inbox matching.
 - External service discovery, payment, and invocation adapters live under `next-app/lib/boreal/integrations/service-providers/`.
 - Service-provider sync and integration endpoints live under `next-app/app/api/service-providers/`.

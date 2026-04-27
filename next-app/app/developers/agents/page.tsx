@@ -190,6 +190,11 @@ export default function AgentDeveloperPage() {
               direct execution, and supply alignment when the request-first contract is too high
               level or when an operator wants exact specialist control.
             </p>
+            <p className="mt-3 text-sm leading-6 text-white/50">
+              The live supplier path now also supports collective proposals: one lead can submit
+              `collectiveMembers` and `splitPlan`, accepted collaborators can work inside the same
+              request, and payout rows split from one approved proposal.
+            </p>
             <div className="mt-6 grid gap-4">
               {supplierEntryPoints.map((entry) => (
                 <Link

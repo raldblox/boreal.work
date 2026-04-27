@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
+import { proposalIncludesParticipant } from "./collectives";
 import { intentStatusValidator, persistedIntentValidator } from "./validators";
 import { persistIntentMatchCandidates } from "./matching";
 import {
@@ -901,7 +902,11 @@ export const postThreadMessage = mutation({
       .unique();
 
     const canPost =
-      sender === intent.ownerUserId || acceptedProposal?.proposerUserId === sender;
+      sender === intent.ownerUserId ||
+      proposalIncludesParticipant(acceptedProposal, {
+        externalId: args.ownerExternalId,
+        userId: sender,
+      });
 
     if (!canPost) {
       return { sent: false };

@@ -1,6 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+import {
+  proposalIncludesParticipant,
+  resolveCollectiveParticipants,
+} from "./collectives";
 import { persistIntentMatchCandidates } from "./matching";
 import { listIntentMatchCandidates } from "./supplies";
 
@@ -295,14 +299,20 @@ export const getRequestDetail = query({
       participants,
       proposals: await Promise.all(
         proposals.map(async (proposal) => ({
+          collectiveMembers: proposal.collectiveMembers ?? [],
           _id: proposal._id,
           createdAt: proposal.createdAt,
           currency: proposal.currency,
           deliverablesBody: proposal.deliverablesBody,
           etaAt: proposal.etaAt,
-          isMine: !!(currentUserId && proposal.proposerUserId === currentUserId),
+          isCollective: proposal.isCollective,
+          isMine: proposalIncludesParticipant(proposal, {
+            externalId: args.ownerExternalId ?? null,
+            userId: currentUserId,
+          }),
           price: proposal.price,
           proposer: await getProposalUser(ctx, proposal.proposerUserId, proposal.proposerKind),
+          splitPlan: proposal.splitPlan ?? [],
           status: proposal.status,
         })),
       ),
@@ -731,6 +741,8 @@ async function getRequestParticipants(
   },
   acceptedProposal:
     | {
+        collectiveMembers?: string[];
+        isCollective?: boolean;
         proposerUserId?: string;
         status: string;
       }
@@ -772,6 +784,34 @@ async function getRequestParticipants(
           proposer.externalId ? await getProfileIdByExternalId(ctx, proposer.externalId) : null,
         status: acceptedProposal.status,
       });
+    }
+  }
+
+  if (acceptedProposal?.isCollective) {
+    const collectiveParticipants = await resolveCollectiveParticipants(
+      ctx,
+      acceptedProposal,
+    );
+
+    if (!collectiveParticipants.error) {
+      for (const participant of collectiveParticipants.participants) {
+        if (
+          participants.some(
+            (current) => current.externalId === participant.externalId,
+          )
+        ) {
+          continue;
+        }
+
+        participants.push({
+          displayName: participant.displayName,
+          externalId: participant.externalId,
+          handle: participant.handle,
+          kind: participant.user.actorKind,
+          profileId: participant.profileId ?? null,
+          status: acceptedProposal.status,
+        });
+      }
     }
   }
 

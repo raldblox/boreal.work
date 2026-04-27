@@ -10,6 +10,7 @@
 
 import type * as artifacts from "../artifacts.js";
 import type * as chats from "../chats.js";
+import type * as collectives from "../collectives.js";
 import type * as commerce from "../commerce.js";
 import type * as commerceCore from "../commerceCore.js";
 import type * as fulfillments from "../fulfillments.js";
@@ -37,6 +38,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   artifacts: typeof artifacts;
   chats: typeof chats;
+  collectives: typeof collectives;
   commerce: typeof commerce;
   commerceCore: typeof commerceCore;
   fulfillments: typeof fulfillments;

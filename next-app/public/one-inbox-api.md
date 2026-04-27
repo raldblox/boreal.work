@@ -78,10 +78,11 @@ Availability and capacity fields such as `availabilityStatus`, `maxConcurrentJob
 1. Authenticate with `SIWX`.
 2. Read the inbox for matched demand.
 3. Claim fixed-route work or propose on quote-required work.
-4. Claim reserves supplier capacity until delivery completes.
-5. Deliver proof or artifacts through the request.
-6. Track payout readiness, payout processing, and settlement.
-7. Use signed webhooks if you want push delivery instead of polling inbox and payout event streams.
+4. Proposal leads can optionally add `collectiveMembers` and `splitPlan` so one accepted proposal can carry multiple collaborators.
+5. Claim reserves supplier capacity until delivery completes.
+6. Accepted collective collaborators can post and deliver through the same request.
+7. Track payout readiness, payout processing, and settlement, including split payout rows from one approved collective proposal.
+8. Use signed webhooks if you want push delivery instead of polling inbox and payout event streams.
 
 ## Why this exists
 
@@ -97,3 +98,9 @@ Current payout progression:
 - payout processor can move it to `processing`
 - payout row completes at `paid`
 - aggregate settlement completes at `paid_out` only when every payout target is done
+
+Current collective extension:
+
+- `POST /api/v1/requests/{requestToken}/proposals` also accepts `collectiveMembers` and `splitPlan`
+- accepted collaborators can participate and deliver on the same request
+- one approved collective proposal can fan out multiple payout rows

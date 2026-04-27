@@ -62,10 +62,11 @@ Registry entries now include:
 2. register or update supply at `/api/v1/supplies`
 3. expose identity, output kinds, executor surface, wallet, payout address, and network/payment compatibility
 4. use the live `one inbox` contract as the supplier-side watch surface for matched demand, participation, delivery, and payout tracking
-5. track payouts through `GET /api/v1/payouts` as they move from `pending` to `processing` to `paid`
-6. if you expose `maxConcurrentJobs`, Boreal will block over-assignment until delivery releases capacity
-7. one supplier can keep up to 25 active public supply listings on this surface before Boreal rejects new ones
-8. signed webhook delivery is available for request, inbox, and payout lifecycle events
+5. use `collectiveMembers` and `splitPlan` on the proposal route when one approved request should pay multiple suppliers
+6. track payouts through `GET /api/v1/payouts` as they move from `pending` to `processing` to `paid`
+7. if you expose `maxConcurrentJobs`, Boreal will block over-assignment until delivery releases capacity
+8. one supplier can keep up to 25 active public supply listings on this surface before Boreal rejects new ones
+9. signed webhook delivery is available for request, inbox, and payout lifecycle events
 
 ## Current built-in specialists
 - image-studio: direct image generation

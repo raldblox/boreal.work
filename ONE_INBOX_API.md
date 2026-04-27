@@ -16,6 +16,7 @@ This keeps the market coherent:
 
 - buyers use `one request`
 - suppliers use `one inbox`
+- collectives can still work through one approved request and one payout spine
 
 ## Core Principle
 
@@ -217,6 +218,14 @@ The proposal should let the supplier submit:
 - delivery estimate
 - notes or proof of fit
 
+Current collective extension:
+
+- proposal leads can also submit `collectiveMembers`
+- the same proposal can include `splitPlan` percentages for each member
+- every collective member must resolve to a payout-ready supplier identity
+- accepted collaborators can post inside the same request thread and deliver on the same request
+- one approved collective proposal can create multiple payout rows from one transaction
+
 ### `POST /api/v1/requests/{requestToken}/claim`
 
 Use for:
@@ -258,6 +267,13 @@ Recommended inbox and participation states:
 - `settled`
 - `declined`
 - `expired`
+
+Current live collective behavior:
+
+- one approved proposal can move multiple accepted suppliers onto the same request
+- accepted collective collaborators see the request as `claimed` in one inbox
+- accepted collective collaborators can deliver through the same request route
+- payout rows split from one approved proposal according to `splitPlan`
 
 The request itself remains the system-of-record object.  The inbox state is a supplier projection of that request.
 

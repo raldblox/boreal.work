@@ -3,6 +3,9 @@ import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 import {
+  type CommerceChainFamily,
+  type CommerceEnvironment,
+  type CommerceNetworkKey,
   ensureSettlementForTransaction,
   ensureWorkTransaction,
   getDefaultPayoutWalletAccountId,
@@ -10,6 +13,11 @@ import {
   getProfileIdForUser,
   updateTransactionById,
 } from "./commerceCore";
+import {
+  buildCollectivePayoutAllocations,
+  proposalIncludesParticipant,
+  resolveCollectiveParticipants,
+} from "./collectives";
 import { createPayoutToken, createPublicRequestToken } from "../lib/boreal/one-inbox/tokens";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 import { releaseSupplyCapacity } from "./supplies";
@@ -59,7 +67,11 @@ export const submitWork = mutation({
       .collect();
 
     const acceptedProposal = proposals.find(
-      (proposal) => proposal.proposerUserId === worker._id,
+      (proposal) =>
+        proposalIncludesParticipant(proposal, {
+          externalId: args.workerExternalId,
+          userId: worker._id,
+        }),
     );
 
     if (!acceptedProposal) {
@@ -73,7 +85,9 @@ export const submitWork = mutation({
       )
       .collect();
     const activeFulfillment = fulfillments.find(
-      (fulfillment) => fulfillment.fulfillerUserId === worker._id,
+      (fulfillment) =>
+        fulfillment.acceptedProposalId === acceptedProposal._id ||
+        fulfillment.fulfillerUserId === worker._id,
     );
 
     if (!activeFulfillment) {
@@ -91,7 +105,7 @@ export const submitWork = mutation({
         intentId: intent._id,
         intentKey: intent.intentKey,
         proposalId: acceptedProposal._id as never,
-        sellerUserId: worker._id,
+        sellerUserId: acceptedProposal.proposerUserId,
         status: "active",
         titleSnapshot: intent.title,
       }));
@@ -159,7 +173,6 @@ export const submitWork = mutation({
     await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
 
     if (transactionId) {
-      let payoutId: Id<"payouts"> | undefined;
       await updateTransactionById(ctx, transactionId, {
         fulfillmentId: activeFulfillment._id,
         settlementStatus:
@@ -180,18 +193,19 @@ export const submitWork = mutation({
         transactionId,
       });
 
-      if (acceptedProposal.price > 0) {
-        payoutId = await ensurePayoutRecord(ctx, {
-          amount: transaction?.amount ?? acceptedProposal.price,
-          chainFamily: transaction?.chainFamily,
-          currency: transaction?.currency ?? acceptedProposal.currency,
-          environment: transaction?.environment ?? getCommerceEnvironment(),
-          networkKey: transaction?.networkKey,
-          settlementId,
-          transactionId,
-          userId: worker._id,
-        });
-      }
+      const payoutTargets =
+        acceptedProposal.price > 0
+          ? await ensurePayoutRecordsForProposal(ctx, {
+              amount: transaction?.amount ?? acceptedProposal.price,
+              chainFamily: transaction?.chainFamily,
+              currency: transaction?.currency ?? acceptedProposal.currency,
+              environment: transaction?.environment ?? getCommerceEnvironment(),
+              networkKey: transaction?.networkKey,
+              proposal: acceptedProposal,
+              settlementId,
+              transactionId,
+            })
+          : [];
 
       await recordTransactionAuditEvent(ctx, {
         fulfillmentId: activeFulfillment._id,
@@ -227,9 +241,11 @@ export const submitWork = mutation({
 
       await queueWebhookDeliveries(ctx, {
         data: {
+          collectiveMembers: acceptedProposal.collectiveMembers ?? null,
           fulfillmentId: activeFulfillment._id,
           settlementStatus:
             acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+          splitPlan: acceptedProposal.splitPlan ?? null,
           transactionId,
         },
         eventType: "inbox.delivered",
@@ -240,36 +256,13 @@ export const submitWork = mutation({
         stream: "inbox",
       });
 
-      if (acceptedProposal.price > 0 && payoutId) {
-        const payoutToken = createPayoutToken(payoutId);
-
-        await queueWebhookDeliveries(ctx, {
-          data: {
-            payoutToken,
-            settlementStatus: "ready_for_payout",
-            transactionId,
-          },
-          eventType: "inbox.payout_ready",
-          message: "Payout is ready for the supplier.",
-          ownerExternalId: args.workerExternalId,
-          payoutToken,
+      if (acceptedProposal.price > 0 && payoutTargets.length > 0) {
+        await queuePayoutReadyWebhooks(ctx, {
+          collectiveMembers: acceptedProposal.collectiveMembers ?? null,
+          payoutTargets,
           requestToken: createPublicRequestToken(intent._id),
-          status: "payout_ready",
-          stream: "inbox",
-        });
-        await queueWebhookDeliveries(ctx, {
-          data: {
-            payoutToken,
-            settlementStatus: "ready_for_payout",
-            transactionId,
-          },
-          eventType: "payout.ready",
-          message: "Payout is ready for processing.",
-          ownerExternalId: args.workerExternalId,
-          payoutToken,
-          requestToken: createPublicRequestToken(intent._id),
-          status: "pending",
-          stream: "payouts",
+          splitPlan: acceptedProposal.splitPlan ?? null,
+          transactionId,
         });
       }
     }
@@ -461,7 +454,6 @@ export const markRequestFulfilled = mutation({
     const transactionId = fulfillment?.transactionId;
 
     if (transactionId) {
-      let payoutId: Id<"payouts"> | undefined;
       await updateTransactionById(ctx, transactionId, {
         fulfillmentId,
         settlementStatus:
@@ -486,18 +478,19 @@ export const markRequestFulfilled = mutation({
         transactionId,
       });
 
-      if (acceptedProposal && acceptedProposal.price > 0 && acceptedProposal.proposerUserId) {
-        payoutId = await ensurePayoutRecord(ctx, {
-          amount: transaction?.amount ?? acceptedProposal.price,
-          chainFamily: transaction?.chainFamily,
-          currency: transaction?.currency ?? acceptedProposal.currency,
-          environment: transaction?.environment ?? getCommerceEnvironment(),
-          networkKey: transaction?.networkKey,
-          settlementId,
-          transactionId,
-          userId: acceptedProposal.proposerUserId,
-        });
-      }
+      const payoutTargets =
+        acceptedProposal && acceptedProposal.price > 0
+          ? await ensurePayoutRecordsForProposal(ctx, {
+              amount: transaction?.amount ?? acceptedProposal.price,
+              chainFamily: transaction?.chainFamily,
+              currency: transaction?.currency ?? acceptedProposal.currency,
+              environment: transaction?.environment ?? getCommerceEnvironment(),
+              networkKey: transaction?.networkKey,
+              proposal: acceptedProposal,
+              settlementId,
+              transactionId,
+            })
+          : [];
 
       await recordTransactionAuditEvent(ctx, {
         fulfillmentId,
@@ -550,11 +543,13 @@ export const markRequestFulfilled = mutation({
 
       await queueWebhookDeliveries(ctx, {
         data: {
+          collectiveMembers: acceptedProposal?.collectiveMembers ?? null,
           fulfillmentId,
           settlementStatus:
             acceptedProposal && acceptedProposal.price > 0
               ? "ready_for_payout"
               : "not_applicable",
+          splitPlan: acceptedProposal?.splitPlan ?? null,
           transactionId,
         },
         eventType: "inbox.delivered",
@@ -565,36 +560,14 @@ export const markRequestFulfilled = mutation({
         stream: "inbox",
       });
 
-      if (acceptedProposal && acceptedProposal.price > 0 && payoutId) {
-        const payoutToken = createPayoutToken(payoutId);
-
-        await queueWebhookDeliveries(ctx, {
-          data: {
-            payoutToken,
-            settlementStatus: "ready_for_payout",
-            transactionId,
-          },
-          eventType: "inbox.payout_ready",
-          message: "Payout is ready after owner confirmation.",
-          ownerExternalId: proposerExternalId,
-          payoutToken,
+      if (acceptedProposal && acceptedProposal.price > 0 && payoutTargets.length > 0) {
+        await queuePayoutReadyWebhooks(ctx, {
+          collectiveMembers: acceptedProposal.collectiveMembers ?? null,
+          fallbackExternalId: proposerExternalId,
+          payoutTargets,
           requestToken: createPublicRequestToken(intent._id),
-          status: "payout_ready",
-          stream: "inbox",
-        });
-        await queueWebhookDeliveries(ctx, {
-          data: {
-            payoutToken,
-            settlementStatus: "ready_for_payout",
-            transactionId,
-          },
-          eventType: "payout.ready",
-          message: "Payout is ready for processing.",
-          ownerExternalId: proposerExternalId,
-          payoutToken,
-          requestToken: createPublicRequestToken(intent._id),
-          status: "pending",
-          stream: "payouts",
+          splitPlan: acceptedProposal.splitPlan ?? null,
+          transactionId,
         });
       }
     }
@@ -607,24 +580,16 @@ async function ensurePayoutRecord(
   ctx: MutationCtx,
   input: {
     amount: number;
-    chainFamily?: "evm" | "solana";
+    chainFamily?: CommerceChainFamily;
     currency: string;
-    environment: "devnet" | "mainnet" | "testnet";
-    networkKey?:
-      | "base:mainnet"
-      | "base:sepolia"
-      | "ethereum:mainnet"
-      | "ethereum:sepolia"
-      | "polygon:amoy"
-      | "polygon:mainnet"
-      | "solana:devnet"
-      | "solana:mainnet"
-      | "solana:testnet";
+    environment: CommerceEnvironment;
+    networkKey?: CommerceNetworkKey;
     settlementId: Id<"settlements">;
     transactionId: Id<"transactions">;
     userId: string;
   },
 ) {
+  const now = Date.now();
   const existing = await ctx.db
     .query("payouts")
     .withIndex("by_transactionId", (queryBuilder) =>
@@ -635,10 +600,22 @@ async function ensurePayoutRecord(
   const matched = existing.find((payout) => payout.payeeUserId === input.userId);
 
   if (matched) {
+    const walletAccountId = await getDefaultPayoutWalletAccountId(ctx, input.userId);
+
+    await ctx.db.patch(matched._id, {
+      amount: input.amount,
+      chainFamily: input.chainFamily,
+      currency: input.currency,
+      environment: input.environment,
+      networkKey: input.networkKey,
+      settlementId: input.settlementId,
+      updatedAt: now,
+      walletAccountId,
+    });
+
     return matched._id;
   }
 
-  const now = Date.now();
   const payeeProfileId = await getProfileIdForUser(ctx, input.userId);
   const walletAccountId = await getDefaultPayoutWalletAccountId(ctx, input.userId);
 
@@ -658,6 +635,118 @@ async function ensurePayoutRecord(
     updatedAt: now,
     walletAccountId,
   });
+}
+
+async function ensurePayoutRecordsForProposal(
+  ctx: MutationCtx,
+  input: {
+    amount: number;
+    chainFamily?: CommerceChainFamily;
+    currency: string;
+    environment: CommerceEnvironment;
+    networkKey?: CommerceNetworkKey;
+    proposal: {
+      collectiveMembers?: string[];
+      proposerUserId?: string;
+      splitPlan?: Array<{ memberId: string; percent: number }>;
+    };
+    settlementId: Id<"settlements">;
+    transactionId: Id<"transactions">;
+  },
+) {
+  const collectiveParticipants = await resolveCollectiveParticipants(
+    ctx,
+    input.proposal,
+  );
+
+  if (collectiveParticipants.error) {
+    return [];
+  }
+
+  const allocations = buildCollectivePayoutAllocations({
+    amount: input.amount,
+    participants: collectiveParticipants.participants.map((participant) => ({
+      externalId: participant.externalId,
+      userId: participant.userId,
+    })),
+    splitPlan: input.proposal.splitPlan,
+  });
+  const payoutTargets: Array<{
+    externalId: string | null;
+    payoutId: Id<"payouts">;
+  }> = [];
+
+  for (const allocation of allocations) {
+    const payoutId = await ensurePayoutRecord(ctx, {
+      amount: allocation.amount,
+      chainFamily: input.chainFamily,
+      currency: input.currency,
+      environment: input.environment,
+      networkKey: input.networkKey,
+      settlementId: input.settlementId,
+      transactionId: input.transactionId,
+      userId: allocation.userId,
+    });
+
+    payoutTargets.push({
+      externalId: allocation.externalId,
+      payoutId,
+    });
+  }
+
+  return payoutTargets;
+}
+
+async function queuePayoutReadyWebhooks(
+  ctx: MutationCtx,
+  input: {
+    collectiveMembers: string[] | null;
+    fallbackExternalId?: string | null;
+    payoutTargets: Array<{
+      externalId: string | null;
+      payoutId: Id<"payouts">;
+    }>;
+    requestToken: string;
+    splitPlan: Array<{ memberId: string; percent: number }> | null;
+    transactionId: Id<"transactions">;
+  },
+) {
+  for (const target of input.payoutTargets) {
+    const payoutToken = createPayoutToken(target.payoutId);
+
+    await queueWebhookDeliveries(ctx, {
+      data: {
+        collectiveMembers: input.collectiveMembers,
+        payoutToken,
+        settlementStatus: "ready_for_payout",
+        splitPlan: input.splitPlan,
+        transactionId: input.transactionId,
+      },
+      eventType: "inbox.payout_ready",
+      message: "Payout is ready for the supplier.",
+      ownerExternalId: target.externalId ?? input.fallbackExternalId ?? null,
+      payoutToken,
+      requestToken: input.requestToken,
+      status: "payout_ready",
+      stream: "inbox",
+    });
+    await queueWebhookDeliveries(ctx, {
+      data: {
+        collectiveMembers: input.collectiveMembers,
+        payoutToken,
+        settlementStatus: "ready_for_payout",
+        splitPlan: input.splitPlan,
+        transactionId: input.transactionId,
+      },
+      eventType: "payout.ready",
+      message: "Payout is ready for processing.",
+      ownerExternalId: target.externalId ?? input.fallbackExternalId ?? null,
+      payoutToken,
+      requestToken: input.requestToken,
+      status: "pending",
+      stream: "payouts",
+    });
+  }
 }
 
 async function getUserExternalId(

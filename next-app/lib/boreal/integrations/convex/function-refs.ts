@@ -506,10 +506,12 @@ export type RequestDetail = {
   }>;
   proposals: Array<{
     _id: string;
+    collectiveMembers: string[];
     createdAt: number;
     currency: string;
     deliverablesBody: string;
     etaAt: number;
+    isCollective: boolean;
     isMine: boolean;
     price: number;
     proposer: {
@@ -518,6 +520,10 @@ export type RequestDetail = {
       kind: string;
       profileId: string | null;
     };
+    splitPlan: Array<{
+      memberId: string;
+      percent: number;
+    }>;
     status: string;
   }>;
   review: {

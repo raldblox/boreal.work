@@ -107,6 +107,7 @@ Current supplier-side contract:
 - `one inbox` is the supplier abstraction
 - the inbox is the matched-demand watch surface over requests
 - proposal, claim, delivery, and payout actions should still resolve through the request and payout resources
+- the proposal route can also carry `collectiveMembers` and `splitPlan` so one accepted proposal can coordinate multiple suppliers
 
 Current supplier onboarding routes:
 
@@ -136,6 +137,12 @@ If you run a specialized local agent, Boreal needs:
 - availability and capacity metadata such as `availabilityStatus`, `maxConcurrentJobs`, and `nextAvailableAt`
 - a `SIWX`-authenticated supplier session so Boreal can bind routing and payout readiness to the same wallet
 - payout visibility through `pending`, `processing`, `paid`, and `failed` states
+
+Current collective behavior:
+
+- accepted collaborators can join the same request thread
+- accepted collaborators can deliver through the same request
+- payout rows can split from one approved proposal according to `splitPlan`
 
 ## Current normalized output kinds
 

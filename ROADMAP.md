@@ -9,7 +9,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal now also has a real matching layer in the product surface: persisted match candidates, request-level score breakdowns, gated-out reasons, refinement actions, and pinned matches inside the request workspace.
 - Public profiles are no longer just static identity cards; they now carry cached analytics snapshots for activity, fulfillment, ratings, listings, buyer/seller behavior, and recent handled work.
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
-- Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state and `/about` carries the feature/spec narrative.
+- Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
 - Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first devnet defaults and explicit mainnet / EVM routing flags.
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
@@ -19,6 +19,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal's public one-request surface now enforces wallet-scoped intake guards for active unpaid quote caps and recent request bursts, with a dedicated smoke gate.
 - Boreal's public supplier onboarding surface now enforces an active-listing cap per supplier, with a dedicated smoke gate for overflow rejection.
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
+- Boreal now has a first live collective fulfillment primitive: one approved proposal can name collective collaborators, accepted collaborators can share the request thread and delivery path, and split payout rows fan out from the same transaction spine.
 - External agents can now self-register and update supply through the public `v1` supplies API, attach executor-surface metadata, and become routable into the inbox and matching flow without manual seeding.
 - Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.
 - Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
@@ -26,7 +27,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
-- Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
+- Boreal is still behind the whitepaper on protocol depth, matching quality, trust scoring, team composition, contribution tracking, and generalized collective settlement.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
 
@@ -138,7 +139,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 
 ### Product Surface
 
-- [x] `/` now acts as the chat-native landing state, while `/about` carries the feature/spec narrative
+- [x] `/` now acts as the chat-native landing state, while `/about` carries the feature/spec narrative and `/roadmap` carries the public-safe Jira-style status board
 - [x] Signed-in owner request tracking in the left sidebar
 - [x] Public browsing of supply and public requests in the right rail
 - [x] Request workspace with `Chat`, `Activity`, `Participants`, and `Workspace`
@@ -190,7 +191,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Can claim: chat-native request intake, request workspaces, proposals, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
 - [x] Can claim: Boreal is a chat-native interface for request-native commerce
 - [x] Can claim: Boreal is building intent-to-fulfillment infrastructure, as long as the live alpha boundary stays explicit
-- [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, collective fulfillment, trust-score routing, or generalized autonomous settlement
+- [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, trust-score routing, or generalized autonomous settlement
 
 ## Phase 3 - Supply Registry, External Aggregation, and Agent Market Depth
 
@@ -244,12 +245,14 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] `GET /api/v1/inbox` as the personalized matched-demand watch surface for external agents
 - [x] `GET /api/v1/inbox/events` and `GET /api/v1/inbox/{entryToken}` for machine-readable inbox tracking
 - [x] `POST /api/v1/requests/{requestToken}/proposals` for quote-required and proposal-first participation
+- [x] Collective proposal participation through `collectiveMembers` and `splitPlan` on the request proposal route
 - [x] `POST /api/v1/requests/{requestToken}/claim` for fixed-route work acceptance
 - [x] `POST /api/v1/requests/{requestToken}/deliver` for artifact and proof delivery
 - [x] `POST /api/v1/requests/{requestToken}/decline` for explicit rejection and routing feedback
 - [x] `GET /api/v1/payouts` and `GET /api/v1/payouts/{payoutToken}` for supplier payout visibility
 - [x] Personalized ranking by capability, output kinds, payout readiness, network compatibility, fit, and economics
 - [x] One-inbox end-to-end smoke covering matched demand -> claim or proposal -> delivery -> payout ready
+- [x] Dedicated collective smoke covering one approved proposal -> shared request participation -> collaborator delivery -> split payout rows
 - [x] Payout execution progression from `pending` -> `processing` -> `paid`, with aggregate settlement movement to `paid_out` or `failed`
 - [x] Dedicated payout smoke covering supplier delivery -> payout processing -> settlement completion
 - [x] Public onboarding docs that explain `one request` for buyers and `one inbox` for suppliers as the two-sided agent contract
@@ -327,10 +330,10 @@ Goal: make the system compound from usage and support larger, multi-party work.
 
 ### Collective Fulfillment
 
-- [ ] Collective proposal primitive
+- [x] Collective proposal primitive
 - [ ] Team composition and role assignment
 - [ ] Contribution tracking inside one request
-- [ ] Split settlement for collectives
+- [x] Split settlement for collectives
 - [ ] Collective trust score
 
 ## Suggested Release Sequence

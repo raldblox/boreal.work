@@ -4,6 +4,8 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Added collective proposal participation on one request: proposal leads can submit `collectiveMembers` plus `splitPlan`, accepted collaborators can join the same request thread and deliver, split payout rows fan out from one approved proposal, and `npm run smoke:collective-proposals` verifies the path.
+- `2026-04-27`: Added the public `/roadmap` route as Boreal's public-safe Jira-style status board for what is live, in progress, next, and later, and aligned contributor guidance to keep internal agent ops off that page.
 - `2026-04-27`: Added supplier listing guardrails: active supplier listings now cap at 25 per owner, overflow registration returns `supply_limit_reached`, and `npm run smoke:supplier-listing-guards` verifies the path.
 - `2026-04-27`: Added wallet-scoped one-request intake guards: max 3 active unpaid quotes, max 8 recent requests per 10-minute window, plus `npm run smoke:one-request-guards`.
 - `2026-04-27`: Hardened one-request payment verification again: when the seller pay-to address is configured, Boreal now requires the verified Solana devnet transaction to mention that pay-to address in addition to signer, confirmation, and memo checks.
@@ -50,6 +52,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 ## Current Product Surface
 
 - `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, and checkout.
+- `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.
 - `next-app/app/account` is the dedicated settings surface for public profile setup, offers, wallet sync, and payout defaults.
 - `next-app/app/developers/agents` is the public guide for agent customers, suppliers, and developers integrating with Boreal's request-first and specialist-agent surfaces.
 - `next-app/app/p/[id]` exposes public profile pages for humans and agents, including `boreal-agent`.
@@ -83,6 +86,7 @@ From `next-app/`:
 - `npm run smoke:agents` validates the specialized agent registry, route alignment, and protocol descriptor contract.
 - `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
 - `npm run smoke:one-inbox` runs the deterministic supplier-side inbox smoke from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
+- `npm run smoke:collective-proposals` runs the deterministic collective supplier smoke from one approved proposal through shared request participation, collaborator delivery, and split payout rows.
 - `npm run smoke:one-request` runs the deterministic agent-only request-first smoke from SIWX auth through quote, payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run smoke:one-request-guards` runs the deterministic wallet-scoped request-intake guard smoke for unpaid-quote caps and recent-request burst limits.
 - `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.
@@ -141,6 +145,7 @@ Boreal can already support:
 - cart persistence and payment-aware checkout records
 - provider-backed invocation for supported x402-style services
 - autonomous worker participation in request lifecycles
+- collective proposal participation with shared request access, collaborator delivery, and split payout rows on one approved request
 - specialized direct agents for image generation, voiceover generation, motion-video jobs, startup pressure tests, and MVP scoping
 - listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels
 
@@ -182,4 +187,4 @@ That can mean:
 - `BOREAL_PRIMARY_CHAIN_FAMILY=solana` is the default chain-family policy.
 - Set `BOREAL_PRIMARY_CHAIN_FAMILY=evm` to make the default wallet/payment path EVM-first; Base mainnet and Base Sepolia are the primary supported EVM defaults today.
 
-Boreal should not yet be described as complete protocol-native commerce infrastructure.  On-chain escrow, full ACP/UCP interoperability, trust-score routing, libp2p presence, and collective settlement are still roadmap work.
+Boreal should not yet be described as complete protocol-native commerce infrastructure.  On-chain escrow, full ACP/UCP interoperability, trust-score routing, libp2p presence, and generalized collective settlement are still roadmap work.

@@ -21,11 +21,16 @@ export async function POST(
     }
 
     const body = (await request.json()) as {
+      collectiveMembers?: string[];
       currency?: string;
       etaAt?: number;
       etaHours?: number;
       summary?: string;
       price?: number;
+      splitPlan?: Array<{
+        memberId: string;
+        percent: number;
+      }>;
     };
     const summary = body.summary?.trim();
     const price = body.price;
@@ -60,6 +65,7 @@ export async function POST(
     }
 
     const result = await convex.mutation(api.proposals.submitProposal, {
+      collectiveMembers: body.collectiveMembers,
       currency: body.currency?.trim() || "USD",
       deliverablesBody: summary,
       deliverablesType: "markdown",
@@ -70,11 +76,21 @@ export async function POST(
       ownerHandle: undefined,
       price,
       proposerKind: "agent",
+      splitPlan: body.splitPlan,
     });
 
+    if (!result.submitted) {
+      return NextResponse.json(
+        { error: result.error ?? "Unable to submit proposal." },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json({
+      collectiveMembers: body.collectiveMembers ?? null,
       proposalId: result.proposalId,
       requestToken,
+      splitPlan: body.splitPlan ?? null,
       submitted: result.submitted,
       version: "boreal-inbox/v1",
     });

@@ -10,6 +10,10 @@ import {
   getProfileIdForUser,
   getWalletAccountContext,
 } from "./commerceCore";
+import {
+  proposalIncludesParticipant,
+  resolveCollectiveParticipants,
+} from "./collectives";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 import { listIntentMatchCandidates, reserveSupplyCapacity } from "./supplies";
 import { areBorealNetworksCompatible } from "../lib/boreal/commerce/networks";
@@ -26,6 +30,51 @@ import { queueWebhookDeliveries } from "./webhooks";
 
 const DEFAULT_LIMIT = 24;
 const MARKET_OPEN_STATUSES = new Set(["open", "proposed", "claimed", "in_progress", "fulfilled"]);
+
+type InboxEntryRecord = {
+  actions: {
+    canClaim: boolean;
+    canDecline: boolean;
+    canDeliver: boolean;
+    canPropose: boolean;
+  };
+  delivery: {
+    deadlineAt: number | null;
+    kind: string;
+    outputKinds: string[];
+  };
+  economics: {
+    amount: number | null;
+    currency: string;
+    networkKey: string | null;
+    payoutType: "fixed" | "proposal_locked" | "proposal_required";
+  };
+  entryToken: string;
+  match: {
+    matchedSupplyId: Id<"supplies">;
+    matchedSupplyTitle: string;
+    reasons: string[];
+    score: number;
+  };
+  requestToken: string;
+  status:
+    | "matched"
+    | "proposed"
+    | "claimed"
+    | "delivered"
+    | "declined"
+    | "payout_ready"
+    | "payout_processing"
+    | "payout_failed"
+    | "settled";
+  summary: string;
+  title: string;
+  tracking: {
+    eventsUrl: string;
+    requestUrl: string;
+  };
+  updatedAt: number;
+};
 
 export const listInbox = query({
   args: {
@@ -67,10 +116,18 @@ export const getInboxEntry = query({
       return null;
     }
 
+    const requestToken = createPublicRequestToken(intent._id);
+    const resolvedDetail = await buildSupplierRequestDetail(ctx, {
+      intent,
+      requestToken,
+      supplier,
+    });
+
     return buildInboxEntryForIntent(ctx, {
       includeDeclined: true,
       intent,
       requestedSupplyId: parsed.supplyId,
+      resolvedDetail,
       supplier,
     });
   },
@@ -159,21 +216,21 @@ export const getSupplierRequestView = query({
       return null;
     }
 
+    const detail = await buildSupplierRequestDetail(ctx, {
+      intent,
+      requestToken: args.requestToken,
+      supplier,
+    });
     const bestEntry = await buildInboxEntryForIntent(ctx, {
       includeDeclined: true,
       intent,
+      resolvedDetail: detail,
       supplier,
     });
 
     if (!bestEntry) {
       return null;
     }
-
-    const detail = await buildSupplierRequestDetail(ctx, {
-      intent,
-      requestToken: args.requestToken,
-      supplier,
-    });
 
     return {
       inbox: bestEntry,
@@ -343,7 +400,12 @@ export const recordRequestDecline = mutation({
 
     const acceptedProposal = await getAcceptedProposalForIntent(ctx, intent.intentKey);
 
-    if (acceptedProposal?.proposerUserId === supplier.user._id) {
+    if (
+      proposalIncludesParticipant(acceptedProposal, {
+        externalId: supplier.user.externalId ?? null,
+        userId: supplier.user._id,
+      })
+    ) {
       return { declined: false, reason: "already_claimed" as const };
     }
 
@@ -454,11 +516,23 @@ export const claimMatchedRequest = mutation({
     const supply = bestMatch.supply;
     const acceptedProposal = await getAcceptedProposalForIntent(ctx, intent.intentKey);
 
-    if (acceptedProposal && acceptedProposal.proposerUserId !== supplier.user._id) {
+    if (
+      acceptedProposal &&
+      !proposalIncludesParticipant(acceptedProposal, {
+        externalId: supplier.user.externalId ?? null,
+        userId: supplier.user._id,
+      })
+    ) {
       return { claimed: false, reason: "already_claimed" as const };
     }
 
-    if (acceptedProposal && acceptedProposal.proposerUserId === supplier.user._id) {
+    if (
+      acceptedProposal &&
+      proposalIncludesParticipant(acceptedProposal, {
+        externalId: supplier.user.externalId ?? null,
+        userId: supplier.user._id,
+      })
+    ) {
       return {
         claimed: true,
         proposalId: acceptedProposal._id,
@@ -768,13 +842,22 @@ async function listInboxEntriesForSupplier(
 ) {
   const intents = await listMarketIntents(ctx, input.limit);
   const entries = await Promise.all(
-    intents.map((intent) =>
-      buildInboxEntryForIntent(ctx, {
+    intents.map(async (intent) => {
+      const resolvedDetail = ["claimed", "in_progress", "fulfilled"].includes(intent.status)
+        ? await buildSupplierRequestDetail(ctx, {
+            intent,
+            requestToken: createPublicRequestToken(intent._id),
+            supplier: input.supplier,
+          })
+        : undefined;
+
+      return buildInboxEntryForIntent(ctx, {
         includeDeclined: input.includeDeclined,
         intent,
+        resolvedDetail,
         supplier: input.supplier,
-      }),
-    ),
+      });
+    }),
   );
 
   return entries
@@ -813,9 +896,10 @@ async function buildInboxEntryForIntent(
     includeDeclined: boolean;
     intent: Doc<"intents">;
     requestedSupplyId?: Id<"supplies">;
+    resolvedDetail?: Awaited<ReturnType<typeof buildSupplierRequestDetail>>;
     supplier: Awaited<ReturnType<typeof getSupplierContext>>;
   },
-) {
+): Promise<InboxEntryRecord | null> {
   const supplier = input.supplier;
 
   if (!supplier || input.intent.ownerUserId === supplier.user._id) {
@@ -834,7 +918,13 @@ async function buildInboxEntryForIntent(
 
   const acceptedProposal = await getAcceptedProposalForIntent(ctx, input.intent.intentKey);
 
-  if (acceptedProposal && acceptedProposal.proposerUserId !== supplier.user._id) {
+  if (
+    acceptedProposal &&
+    !proposalIncludesParticipant(acceptedProposal, {
+      externalId: supplier.user.externalId ?? null,
+      userId: supplier.user._id,
+    })
+  ) {
     return null;
   }
 
@@ -869,10 +959,26 @@ async function buildInboxEntryForIntent(
     intent: input.intent,
     myPayout,
     proposal: myProposal,
+    supplierExternalId: supplier.user.externalId ?? null,
     supplierUserId: supplier.user._id,
   });
+  const isAcceptedCollectiveParticipant = proposalIncludesParticipant(
+    acceptedProposal,
+    {
+      externalId: supplier.user.externalId ?? null,
+      userId: supplier.user._id,
+    },
+  );
+  const normalizedStatus =
+    derived.status === "matched" && isAcceptedCollectiveParticipant
+      ? input.intent.status === "fulfilled"
+        ? "delivered"
+        : input.intent.status === "claimed" || input.intent.status === "in_progress"
+          ? "claimed"
+          : derived.status
+      : derived.status;
 
-  if (!input.includeDeclined && derived.status === "declined") {
+  if (!input.includeDeclined && normalizedStatus === "declined") {
     return null;
   }
 
@@ -886,16 +992,15 @@ async function buildInboxEntryForIntent(
     supplyId: bestMatch.supply._id,
   });
   const requestToken = createPublicRequestToken(input.intent._id);
-
-  return {
+  const entry = {
     actions: {
       canClaim:
-        derived.status === "matched" &&
+        normalizedStatus === "matched" &&
         economics.payoutType === "fixed" &&
         typeof economics.amount === "number",
-      canDecline: derived.status === "matched" || derived.status === "proposed",
-      canDeliver: derived.status === "claimed",
-      canPropose: derived.status === "matched" && input.intent.acceptsProposals,
+      canDecline: normalizedStatus === "matched" || normalizedStatus === "proposed",
+      canDeliver: normalizedStatus === "claimed",
+      canPropose: normalizedStatus === "matched" && input.intent.acceptsProposals,
     },
     delivery: {
       deadlineAt: input.intent.deadlineAt ?? null,
@@ -914,7 +1019,7 @@ async function buildInboxEntryForIntent(
       score: bestMatch.match.matchScore ?? 0,
     },
     requestToken,
-    status: derived.status,
+    status: normalizedStatus,
     summary: input.intent.summary,
     title: input.intent.title,
     tracking: {
@@ -923,6 +1028,14 @@ async function buildInboxEntryForIntent(
     },
     updatedAt: derived.updatedAt,
   };
+
+  return normalizeInboxEntryFromRequestAccess(ctx, {
+    entry,
+    intent: input.intent,
+    requestToken,
+    resolvedDetail: input.resolvedDetail,
+    supplier,
+  });
 }
 
 async function buildSupplierRequestDetail(
@@ -946,7 +1059,10 @@ async function buildSupplierRequestDetail(
     access: {
       canClaim: !acceptedProposal,
       canDeliver:
-        acceptedProposal?.proposerUserId === supplier.user._id &&
+        proposalIncludesParticipant(acceptedProposal, {
+          externalId: supplier.user.externalId ?? null,
+          userId: supplier.user._id,
+        }) &&
         fulfillment?.status !== "fulfilled",
       canPropose: input.intent.acceptsProposals && !acceptedProposal,
       visibility: input.intent.visibility,
@@ -1028,6 +1144,58 @@ async function getBestSupplyMatchForIntent(
   };
 }
 
+async function normalizeInboxEntryFromRequestAccess(
+  ctx: QueryCtx,
+  input: {
+    entry: InboxEntryRecord;
+    intent: Doc<"intents">;
+    requestToken: string;
+    resolvedDetail?: Awaited<ReturnType<typeof buildSupplierRequestDetail>>;
+    supplier: NonNullable<Awaited<ReturnType<typeof getSupplierContext>>>;
+  },
+): Promise<InboxEntryRecord> {
+  if (
+    input.entry.status !== "matched" ||
+    !["claimed", "in_progress", "fulfilled"].includes(input.intent.status)
+  ) {
+    return input.entry;
+  }
+
+  const detail =
+    input.resolvedDetail ??
+    (await buildSupplierRequestDetail(ctx, {
+      intent: input.intent,
+      requestToken: input.requestToken,
+      supplier: input.supplier,
+    }));
+  const supplierExternalId = input.supplier.user.externalId ?? null;
+  const isAcceptedParticipant =
+    detail.access.canDeliver ||
+    detail.participants.some(
+      (participant) =>
+        participant.externalId === supplierExternalId &&
+        participant.status === "accepted",
+    );
+
+  if (!isAcceptedParticipant) {
+    return input.entry;
+  }
+
+  const status = input.intent.status === "fulfilled" ? "delivered" : "claimed";
+
+  return {
+    ...input.entry,
+    actions: {
+      canClaim: false,
+      canDecline: false,
+      canDeliver: status === "claimed",
+      canPropose: false,
+    },
+    status,
+    updatedAt: Math.max(input.entry.updatedAt, input.intent.updatedAt),
+  };
+}
+
 function buildInboxEconomics(input: {
   acceptedProposal:
     | Doc<"proposals">
@@ -1074,6 +1242,7 @@ function deriveSupplierRequestState(input: {
   intent: Doc<"intents">;
   myPayout: Doc<"payouts"> | null;
   proposal: Doc<"proposals"> | null;
+  supplierExternalId: string | null;
   supplierUserId: string;
 }) {
   if (input.myPayout) {
@@ -1106,7 +1275,10 @@ function deriveSupplierRequestState(input: {
 
   if (
     input.fulfillment?.status === "fulfilled" ||
-    (input.acceptedProposal?.proposerUserId === input.supplierUserId &&
+    (proposalIncludesParticipant(input.acceptedProposal, {
+      externalId: input.supplierExternalId,
+      userId: input.supplierUserId,
+    }) &&
       input.intent.status === "fulfilled")
   ) {
     return {
@@ -1116,8 +1288,13 @@ function deriveSupplierRequestState(input: {
   }
 
   if (
-    input.acceptedProposal?.proposerUserId === input.supplierUserId &&
-    input.fulfillment
+    proposalIncludesParticipant(input.acceptedProposal, {
+      externalId: input.supplierExternalId,
+      userId: input.supplierUserId,
+    }) &&
+    (input.fulfillment ||
+      input.intent.status === "claimed" ||
+      input.intent.status === "in_progress")
   ) {
     return {
       status: "claimed" as const,
@@ -1149,12 +1326,15 @@ async function getAcceptedProposalForIntent(
   ctx: QueryCtx | MutationCtx,
   intentKey: string,
 ) {
-  return ctx.db
+  const proposals = await ctx.db
     .query("proposals")
-    .withIndex("by_intentKey_and_status", (queryBuilder) =>
-      queryBuilder.eq("intentKey", intentKey).eq("status", "accepted"),
+    .withIndex("by_intentKey_and_createdAt", (queryBuilder) =>
+      queryBuilder.eq("intentKey", intentKey),
     )
-    .unique();
+    .order("desc")
+    .take(16);
+
+  return proposals.find((proposal) => proposal.status === "accepted") ?? null;
 }
 
 async function getSupplierProposalForIntent(
@@ -1291,6 +1471,33 @@ async function getRequestParticipants(
         kind: supplier.actorKind,
         status: acceptedProposal.status,
       });
+    }
+  }
+
+  if (acceptedProposal?.isCollective) {
+    const collectiveParticipants = await resolveCollectiveParticipants(
+      ctx,
+      acceptedProposal,
+    );
+
+    if (!collectiveParticipants.error) {
+      for (const participant of collectiveParticipants.participants) {
+        if (
+          participants.some(
+            (current) => current.externalId === participant.externalId,
+          )
+        ) {
+          continue;
+        }
+
+        participants.push({
+          displayName: participant.displayName,
+          externalId: participant.externalId,
+          handle: participant.handle,
+          kind: participant.user.actorKind,
+          status: acceptedProposal.status,
+        });
+      }
     }
   }
 

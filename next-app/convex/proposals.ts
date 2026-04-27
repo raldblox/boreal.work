@@ -10,6 +10,10 @@ import {
   getProfileIdForUser,
   getWalletAccountContext,
 } from "./commerceCore";
+import {
+  normalizeCollectiveProposalInput,
+  resolveCollectiveParticipants,
+} from "./collectives";
 import { areBorealNetworksCompatible } from "../lib/boreal/commerce/networks";
 import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
@@ -23,6 +27,7 @@ import { queueWebhookDeliveries } from "./webhooks";
 
 export const submitProposal = mutation({
   args: {
+    collectiveMembers: v.optional(v.array(v.string())),
     currency: v.string(),
     deliverablesBody: v.string(),
     deliverablesType: v.union(v.literal("markdown"), v.literal("file"), v.literal("link")),
@@ -33,6 +38,14 @@ export const submitProposal = mutation({
     ownerHandle: v.optional(v.string()),
     price: v.number(),
     proposerKind: v.optional(v.union(v.literal("human"), v.literal("agent"))),
+    splitPlan: v.optional(
+      v.array(
+        v.object({
+          memberId: v.string(),
+          percent: v.number(),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const intent = await ctx.db.get(args.intentId);
@@ -46,9 +59,23 @@ export const submitProposal = mutation({
       externalId: args.ownerExternalId,
       handle: args.ownerHandle,
     });
+    const collectiveInput = normalizeCollectiveProposalInput({
+      collectiveMembers: args.collectiveMembers,
+      proposerExternalId: args.ownerExternalId,
+      splitPlan: args.splitPlan,
+    });
+
+    if (collectiveInput.error) {
+      return {
+        error: collectiveInput.error,
+        proposalId: null,
+        submitted: false,
+      };
+    }
     const now = Date.now();
 
     const proposalId = await ctx.db.insert("proposals", {
+      collectiveMembers: collectiveInput.collective?.collectiveMembers,
       createdAt: now,
       currency: args.currency,
       deliverablesBody: args.deliverablesBody,
@@ -56,12 +83,13 @@ export const submitProposal = mutation({
       environment: getCommerceEnvironment(),
       etaAt: args.etaAt,
       intentKey: intent.intentKey,
-      isCollective: false,
+      isCollective: collectiveInput.collective?.isCollective ?? false,
       price: args.price,
       proposerKind: args.proposerKind ?? "human",
       proposerUserId,
       scenarioId: getScenarioId("custom_scoped_work"),
       scenarioType: "custom_scoped_work",
+      splitPlan: collectiveInput.collective?.splitPlan,
       status: "submitted",
     });
 
@@ -80,9 +108,16 @@ export const submitProposal = mutation({
           dateStyle: "medium",
           timeStyle: "short",
         })}`,
+        collectiveInput.collective
+          ? `Collective split: ${collectiveInput.collective.splitPlan
+              .map((entry) => `${entry.memberId} ${entry.percent}%`)
+              .join(", ")}`
+          : null,
         "",
         args.deliverablesBody,
-      ].join("\n"),
+      ]
+        .filter((line): line is string => typeof line === "string")
+        .join("\n"),
       conversationId: intent.conversationId ?? crypto.randomUUID(),
       createdAt: now,
       intentKey: intent.intentKey,
@@ -101,9 +136,11 @@ export const submitProposal = mutation({
       entityId: intent.intentKey,
       entityType: "intent",
       payload: JSON.stringify({
+        collectiveMembers: collectiveInput.collective?.collectiveMembers ?? null,
         price: args.price,
         proposerUserId,
         proposalId,
+        splitPlan: collectiveInput.collective?.splitPlan ?? null,
       }),
       type: "proposal.submitted",
     });
@@ -126,10 +163,12 @@ export const submitProposal = mutation({
     if (args.ownerExternalId) {
       await queueWebhookDeliveries(ctx, {
         data: {
+          collectiveMembers: collectiveInput.collective?.collectiveMembers ?? null,
           currency: args.currency,
           etaAt: args.etaAt,
           price: args.price,
           proposalId,
+          splitPlan: collectiveInput.collective?.splitPlan ?? null,
         },
         eventType: "inbox.proposed",
         message: "Supplier submitted a proposal.",
@@ -172,6 +211,31 @@ export const approveProposal = mutation({
       ctx,
       proposal.proposerUserId,
     );
+    const collectiveParticipants = proposal.isCollective
+      ? await resolveCollectiveParticipants(ctx, proposal)
+      : null;
+
+    if (collectiveParticipants?.error) {
+      await recordTransactionAuditEvent(ctx, {
+        intentId: intent._id,
+        message:
+          "The selected collective proposal references a member that Boreal cannot resolve.",
+        metadata: {
+          memberId: collectiveParticipants.memberId,
+          proposalId: args.proposalId,
+        },
+        proposalId: proposal._id,
+        scenarioType: "custom_scoped_work",
+        source: "wallet",
+        stage: "wallet",
+        status: "blocked",
+      });
+
+      return {
+        approved: false,
+        reason: "collective_member_not_found" as const,
+      };
+    }
     const ownerBuyerWalletAccountId = scenarioNeedsBuyerWallet(
       "custom_scoped_work",
       proposal.price,
@@ -217,6 +281,7 @@ export const approveProposal = mutation({
 
     if (
       scenarioNeedsPayoutWallet("custom_scoped_work", proposal.price) &&
+      !proposal.isCollective &&
       !proposerPayoutWalletAccountId
     ) {
       await recordTransactionAuditEvent(ctx, {
@@ -238,6 +303,37 @@ export const approveProposal = mutation({
         approved: false,
         reason: "missing_payout_wallet" as const,
       };
+    }
+
+    if (
+      scenarioNeedsPayoutWallet("custom_scoped_work", proposal.price) &&
+      proposal.isCollective
+    ) {
+      const missingPayoutMember = collectiveParticipants?.participants.find(
+        (participant) => !participant.payoutWalletAccountId,
+      );
+
+      if (missingPayoutMember) {
+        await recordTransactionAuditEvent(ctx, {
+          intentId: intent._id,
+          message:
+            "A collective member needs a payout wallet before approval.",
+          metadata: {
+            memberExternalId: missingPayoutMember.externalId,
+            proposalId: args.proposalId,
+          },
+          proposalId: proposal._id,
+          scenarioType: "custom_scoped_work",
+          source: "wallet",
+          stage: "wallet",
+          status: "blocked",
+        });
+
+        return {
+          approved: false,
+          reason: "missing_collective_payout_wallet" as const,
+        };
+      }
     }
 
     if (
@@ -267,6 +363,40 @@ export const approveProposal = mutation({
         approved: false,
         reason: "wallet_network_mismatch" as const,
       };
+    }
+
+    if (proposal.price > 0 && proposal.isCollective) {
+      const mismatchedMember = collectiveParticipants?.participants.find(
+        (participant) =>
+          !areBorealNetworksCompatible({
+            left: ownerBuyerWalletContext?.networkKey ?? null,
+            right: participant.payoutWalletContext?.networkKey ?? null,
+          }),
+      );
+
+      if (mismatchedMember) {
+        await recordTransactionAuditEvent(ctx, {
+          intentId: intent._id,
+          message:
+            "One collective payout wallet is on a different network than the buyer wallet.",
+          metadata: {
+            buyerNetworkKey: ownerBuyerWalletContext?.networkKey,
+            memberExternalId: mismatchedMember.externalId,
+            payoutNetworkKey: mismatchedMember.payoutWalletContext?.networkKey,
+            proposalId: args.proposalId,
+          },
+          proposalId: proposal._id,
+          scenarioType: "custom_scoped_work",
+          source: "wallet",
+          stage: "wallet",
+          status: "blocked",
+        });
+
+        return {
+          approved: false,
+          reason: "collective_wallet_network_mismatch" as const,
+        };
+      }
     }
 
     const relatedProposals = await ctx.db
@@ -374,8 +504,10 @@ export const approveProposal = mutation({
       entityId: intent.intentKey,
       entityType: "intent",
       payload: JSON.stringify({
+        collectiveMembers: proposal.collectiveMembers ?? null,
         approvedProposalId: args.proposalId,
         proposerUserId: proposal.proposerUserId,
+        splitPlan: proposal.splitPlan ?? null,
       }),
       type: "proposal.approved",
     });
@@ -428,9 +560,11 @@ export const approveProposal = mutation({
 
     await queueWebhookDeliveries(ctx, {
       data: {
+        collectiveMembers: proposal.collectiveMembers ?? null,
         fulfillmentId,
         price: proposal.price,
         proposalId: proposal._id,
+        splitPlan: proposal.splitPlan ?? null,
         transactionId,
       },
       eventType: "inbox.claimed",
@@ -440,6 +574,33 @@ export const approveProposal = mutation({
       status: "claimed",
       stream: "inbox",
     });
+
+    if (proposal.isCollective && collectiveParticipants) {
+      const proposerExternalId = await getUserExternalId(ctx, proposal.proposerUserId);
+
+      for (const participant of collectiveParticipants.participants) {
+        if (!participant.externalId || participant.externalId === proposerExternalId) {
+          continue;
+        }
+
+        await queueWebhookDeliveries(ctx, {
+          data: {
+            collectiveMembers: proposal.collectiveMembers ?? null,
+            fulfillmentId,
+            price: proposal.price,
+            proposalId: proposal._id,
+            splitPlan: proposal.splitPlan ?? null,
+            transactionId,
+          },
+          eventType: "inbox.claimed",
+          message: "Collective proposal approved and work moved into fulfillment.",
+          ownerExternalId: participant.externalId,
+          requestToken: createPublicRequestToken(intent._id),
+          status: "claimed",
+          stream: "inbox",
+        });
+      }
+    }
 
     await refreshProfileAnalyticsForUser(ctx, proposal.proposerUserId);
     await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
