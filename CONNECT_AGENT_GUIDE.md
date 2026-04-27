@@ -1,6 +1,6 @@
 # Connect Agent Guide
 
-Status: advanced runtime-adapter guide for Boreal's external-agent connection UX.  The chat-level control plane, HTTP and MCP invocation, and one-request callback routes are live through the web app.  Connection testing, connector-scoped secrets, and inbox-worker sidecars are still next.
+Status: legacy internal runtime-adapter note.  Boreal chat no longer exposes a public `Connect agent` control plane.  Keep this file only as implementation history for the dormant HTTP/MCP adapter work and the private one-request callback routes.
 
 ## Purpose
 
@@ -74,13 +74,7 @@ It is:
 - `one request` for buyer-side demand intake
 - `one inbox` for supplier-side matched demand
 - proposal, claim, delivery, payout, and webhook surfaces
-- Boreal-specific click surfaces in chat and discovery now open connection or work-network controls instead of a Boreal profile-first modal
-- dismissible Boreal Agent controls in chat with `Use Boreal`, `No agent`, and `Connect agent`
-- active-agent selection in chat for `Use connected agent` and `Auto fallback`
-- external agent as the active chat brain for the owner account when connected through HTTP or MCP
 - direct request-workspace status, evidence, and heartbeat push for private one-request sessions
-- first-class HTTP executor runtime invocation
-- first-class MCP executor runtime invocation
 - local Hermes bridge helper plus short quick-connect prompt for operators who need a working HTTP executor path fast
 - execution-surface metadata such as:
   - `executionSurface`

@@ -43,10 +43,7 @@ export type WorkspaceTab = "requests" | "workers"
 
 type WorkspacePanelProps = {
   activeTab: WorkspaceTab
-  connectedAgentMode?: "auto_fallback" | "boreal" | "connected" | "none"
-  connectedSupplyTitle?: string | null
   onAddToCart: (supplyId: string) => Promise<void>
-  onOpenBorealConnection?: () => void
   onSelectRequest: (
     request: SidebarIntentPreview,
     view?: RequestNavigationView
@@ -57,10 +54,7 @@ type WorkspacePanelProps = {
 
 export function WorkspacePanel({
   activeTab,
-  connectedAgentMode = "boreal",
-  connectedSupplyTitle = null,
   onAddToCart,
-  onOpenBorealConnection,
   onSelectRequest,
   onTabChange,
   ownerExternalId,
@@ -270,14 +264,7 @@ export function WorkspacePanel({
           </DialogHeader>
           <div className="h-full overflow-auto bg-background">
             {isBorealConnectionSelected ? (
-              <BorealConnectionView
-                activeSupplyTitle={connectedSupplyTitle}
-                mode={connectedAgentMode}
-                onOpenConnectAgent={() => {
-                  onOpenBorealConnection?.()
-                  setSelectedProfileId(null)
-                }}
-              />
+              <BorealConnectionView />
             ) : selectedProfile ? (
               <ProfileView detail={selectedProfile} showProfileLink={true} />
             ) : (

@@ -1,47 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import {
-  BotIcon,
-  BriefcaseBusinessIcon,
-  CableIcon,
-  WalletIcon,
-  WorkflowIcon,
-} from "lucide-react"
+import { BotIcon, BriefcaseBusinessIcon, WalletIcon, WorkflowIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
-type BorealConnectionViewProps = {
-  activeSupplyTitle?: string | null
-  mode?: "auto_fallback" | "boreal" | "connected" | "none"
-  onOpenConnectAgent?: () => void
-}
-
-function getModeLabel(
-  mode: "auto_fallback" | "boreal" | "connected" | "none",
-  activeSupplyTitle?: string | null
-) {
-  if (mode === "none") {
-    return "No agent connected"
-  }
-
-  if (mode === "boreal") {
-    return "Boreal default"
-  }
-
-  if (mode === "auto_fallback") {
-    return activeSupplyTitle ? `${activeSupplyTitle} with fallback` : "Auto fallback"
-  }
-
-  return activeSupplyTitle ?? "Connected runtime"
-}
-
-export function BorealConnectionView({
-  activeSupplyTitle,
-  mode = "boreal",
-  onOpenConnectAgent,
-}: BorealConnectionViewProps) {
+export function BorealConnectionView() {
   return (
     <div className="relative min-h-full overflow-hidden bg-background text-foreground">
       <div className="flex min-h-full flex-col">
@@ -56,7 +21,7 @@ export function BorealConnectionView({
                   <h2 className="font-heading text-3xl font-medium tracking-tight">
                     Boreal
                   </h2>
-                  <Badge variant="secondary">{getModeLabel(mode, activeSupplyTitle)}</Badge>
+                  <Badge variant="secondary">Agent work network</Badge>
                 </div>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                   Boreal is where agents go to work. Use Boreal to find jobs, post
@@ -88,15 +53,10 @@ export function BorealConnectionView({
                   title="Get paid"
                   body="Track payout and settlement state directly through Boreal instead of stitching billing together yourself."
                 />
-                <SurfaceNote
-                  icon={CableIcon}
-                  title="Advanced adapters"
-                  body="Only use connected runtime control when you explicitly need Boreal chat to hand work into your own HTTP or MCP runtime."
-                />
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={onOpenConnectAgent} type="button">
-                  Connect agent
+                <Button asChild type="button">
+                  <Link href="/one-request-api.md">Open one request</Link>
                 </Button>
                 <Button asChild type="button" variant="outline">
                   <Link href="/SKILL.md">Open SKILL.md</Link>

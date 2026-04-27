@@ -64,16 +64,12 @@ import {
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
 import {
-  ConnectAgentDialog,
-  createEmptyConnectAgentDraft,
-  type ConnectAgentDraft,
-} from "@/components/chat/connect-agent-dialog"
-import {
   type DeliveryDraft,
   DeliverySubmissionDialog,
   ProposalSubmissionDialog,
 } from "@/components/chat/request-workflow-dialogs"
 import { HomeChatSurface } from "@/components/chat/chat-home-surface"
+import { RoadmapBoard } from "@/components/roadmap/roadmap-board"
 import {
   Conversation,
   ConversationContent,
@@ -182,6 +178,7 @@ import {
   RequestStatusBadge,
 } from "./request-ui"
 import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel"
+import { FocusSheet } from "@/components/workboard/focus-sheet"
 
 type ChatMessage = {
   content: string
@@ -191,6 +188,7 @@ type ChatMessage = {
 }
 
 type CenterViewTab = "activity" | "chat" | "participants" | "workspace"
+type CenterSheetView = "roadmap"
 
 const sidebarIntentQuery = makeFunctionReference<
   "query",
@@ -254,7 +252,7 @@ const emptyWorkspace: WorkspaceState = {
 
 const REQUEST_SIDEBAR_WIDTH = "clamp(15.5rem, 18vw, 18rem)"
 const DISCOVERY_SIDEBAR_WIDTH = "clamp(21rem, 24vw, 25rem)"
-const COLLAPSED_SIDEBAR_WIDTH = "4.25rem"
+const COLLAPSED_SIDEBAR_WIDTH = "4.5rem"
 const CENTER_PANEL_CLASS = "mx-auto w-full max-w-4xl px-4"
 const CONTENT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 py-6`
 const CHAT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 pt-6 pb-6`
@@ -347,10 +345,9 @@ export function ChatShell() {
   const [profileBuilderMessage, setProfileBuilderMessage] = useState("")
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
-  const [isConnectAgentOpen, setIsConnectAgentOpen] = useState(false)
-  const [connectAgentDraft, setConnectAgentDraft] =
-    useState<ConnectAgentDraft>(createEmptyConnectAgentDraft())
-  const [isSavingConnectAgent, setIsSavingConnectAgent] = useState(false)
+  const [centerSheetView, setCenterSheetView] =
+    useState<CenterSheetView | null>(null)
+  const [isCenterSheetOpen, setIsCenterSheetOpen] = useState(false)
 
   const { data: session, status: sessionStatus } = useSession()
   const ownerExternalId = session?.user?.id
@@ -476,46 +473,16 @@ export function ChatShell() {
   const hasSubmittedProposal = Boolean(myProposal)
   const canSubmitDelivery = requestDetail?.access?.canSubmitWork ?? false
   const canViewRequestChat = requestDetail?.access?.canViewChat ?? false
-  const connectedAgentMode =
-    myProfileRecord?.profile.agentControlMode ?? "boreal"
-  const connectedAgentRole =
-    myProfileRecord?.profile.activeAgentRole ?? null
-  const activeConnectedSupply =
-    myProfileRecord?.profile.activeAgentSupplyId
-      ? myProfileRecord.supplies.find(
-        (entry) => entry._id === myProfileRecord.profile.activeAgentSupplyId
-      ) ?? null
-      : null
-  const hasConnectedChatAgent = Boolean(
-    activeConnectedSupply &&
-    connectedAgentRole &&
-    connectedAgentRole !== "supply"
-  )
   const runtimeEnvironment = getBorealChainEnvironment()
   const runtimePrimaryChainFamily = getBorealPrimaryChainFamily()
   const runtimeDefaultNetworkKey = getDefaultBorealNetworkKey({
     chainFamily: runtimePrimaryChainFamily,
     environment: runtimeEnvironment,
   })
-  const shouldShowBorealToolbarButton = isXAuthenticated
-  const agentToolbarLabel =
-    connectedAgentMode === "none" || connectedAgentMode === "boreal"
-      ? "Connect agent"
-      : activeConnectedSupply?.title ??
-        (connectedAgentMode === "auto_fallback"
-          ? "Auto fallback"
-          : "Connected agent")
   const isChatSurfaceActive = !activeIntentId || activeCenterTab === "chat"
   const shouldShowChatComposer =
     isXAuthenticated && isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
-  const effectiveBorealEnabled = Boolean(
-    isXAuthenticated &&
-    (
-      connectedAgentMode === "auto_fallback" ||
-      connectedAgentMode === "boreal" ||
-      (connectedAgentMode === "connected" && hasConnectedChatAgent)
-    )
-  )
+  const effectiveBorealEnabled = Boolean(isXAuthenticated)
   const isDiscoveryRailOpen = isPublicDiscoveryOnly
     ? !isPublicMarketDismissed
     : showWorkspace
@@ -553,9 +520,6 @@ export function ChatShell() {
   const upsertMyProfile = useMutation(convexFunctionRefs.upsertMyProfile)
   const createSupplyEntry = useMutation(convexFunctionRefs.createSupplyEntry)
   const syncWalletAccount = useMutation(convexFunctionRefs.syncWalletAccount)
-  const setAgentControlState = useMutation(
-    convexFunctionRefs.setAgentControlState
-  )
   const setDefaultPayoutWalletAccount = useMutation(
     convexFunctionRefs.setDefaultPayoutWalletAccount
   )
@@ -652,206 +616,6 @@ export function ChatShell() {
     setIsProfileBuilderOpen(true)
   }
 
-  function buildInitialConnectAgentDraft(): ConnectAgentDraft {
-    if (!activeConnectedSupply) {
-      return createEmptyConnectAgentDraft()
-    }
-
-    return {
-      capabilityTags: activeConnectedSupply.capabilityTags,
-      category: activeConnectedSupply.category,
-      connector:
-        activeConnectedSupply.executionSurface === "mcp"
-          ? "mcp"
-          : activeConnectedSupply.executionSurface === "http"
-            ? "http"
-            : "inbox",
-      description: activeConnectedSupply.description,
-      executorUrl: activeConnectedSupply.executorUrl ?? "",
-      mcpServerUrl: activeConnectedSupply.mcpServerUrl ?? "",
-      mcpToolName: activeConnectedSupply.mcpToolName ?? "process_boreal_message",
-      mode:
-        connectedAgentMode === "connected" ||
-        connectedAgentMode === "auto_fallback"
-          ? connectedAgentMode
-          : "connected",
-      role:
-        connectedAgentRole === "both" ||
-        connectedAgentRole === "supply"
-          ? connectedAgentRole
-          : "agent",
-      title: activeConnectedSupply.title,
-    }
-  }
-
-  function openConnectAgentDialog() {
-    setConnectAgentDraft(buildInitialConnectAgentDraft())
-    setIsConnectAgentOpen(true)
-  }
-
-  async function handleSwitchToBorealAgent() {
-    if (!ownerExternalId) {
-      setErrorMessage("Sign in with X first before switching the active chat brain.")
-      return
-    }
-
-    setIsSavingConnectAgent(true)
-    setErrorMessage(null)
-
-    try {
-      await setAgentControlState({
-        mode: "boreal",
-        ownerExternalId,
-      })
-      setIsConnectAgentOpen(false)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Boreal could not switch the active agent mode."
-      )
-    } finally {
-      setIsSavingConnectAgent(false)
-    }
-  }
-
-  async function handleSwitchToNoAgent() {
-    if (!ownerExternalId) {
-      setErrorMessage("Sign in with X first before changing agent control.")
-      return
-    }
-
-    setIsSavingConnectAgent(true)
-    setErrorMessage(null)
-
-    try {
-      await setAgentControlState({
-        mode: "none",
-        ownerExternalId,
-      })
-      setIsConnectAgentOpen(false)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Boreal could not clear the active chat brain."
-      )
-    } finally {
-      setIsSavingConnectAgent(false)
-    }
-  }
-
-  async function handleUseExistingConnectedSupply(input: {
-    mode: "auto_fallback" | "connected" | "none"
-    role: "agent" | "both" | "supply"
-    supplyId: string
-  }) {
-    if (!ownerExternalId) {
-      setErrorMessage("Sign in with X first before connecting an agent.")
-      return
-    }
-
-    setIsSavingConnectAgent(true)
-    setErrorMessage(null)
-
-    try {
-      await setAgentControlState({
-        activeAgentRole: input.role,
-        activeSupplyId: input.supplyId,
-        mode: input.role === "supply" ? "none" : input.mode,
-        ownerExternalId,
-      })
-      setIsConnectAgentOpen(false)
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Boreal could not activate this connected agent."
-      )
-    } finally {
-      setIsSavingConnectAgent(false)
-    }
-  }
-
-  async function handleSaveConnectedAgent() {
-    if (!ownerExternalId) {
-      setErrorMessage("Sign in with X first before connecting an agent.")
-      return
-    }
-
-    setIsSavingConnectAgent(true)
-    setErrorMessage(null)
-
-    try {
-      const supplyResult = await createSupplyEntry({
-        agentReady: true,
-        availabilityStatus: "available",
-        capabilityTags: connectAgentDraft.capabilityTags,
-        category: connectAgentDraft.category.trim() || "services",
-        currency: "USD",
-        deliveryType: connectAgentDraft.connector === "inbox" ? "async" : "instant",
-        description: connectAgentDraft.description.trim(),
-        executionSurface:
-          connectAgentDraft.connector === "inbox"
-            ? "handoff"
-            : connectAgentDraft.connector,
-        fulfillmentKind: "service",
-        maxConcurrentJobs: connectAgentDraft.connector === "inbox" ? 2 : 1,
-        mcpServerUrl:
-          connectAgentDraft.connector === "mcp"
-            ? connectAgentDraft.mcpServerUrl.trim()
-            : undefined,
-        mcpToolName:
-          connectAgentDraft.connector === "mcp"
-            ? connectAgentDraft.mcpToolName.trim() || "process_boreal_message"
-            : undefined,
-        openApiUrl: undefined,
-        outputTypes: ["text"],
-        ownerActorKind: "agent",
-        ownerDisplayName: session?.user?.name ?? undefined,
-        ownerExternalId,
-        ownerHandle: session?.user?.name
-          ? session.user.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-          : undefined,
-        paymentProtocol: "x402",
-        priceAmount: 0.01,
-        priceType: "scoped",
-        responseSlaMinutes: connectAgentDraft.connector === "inbox" ? 60 : 5,
-        supplyType: "capability",
-        supportsDirectInvoke: connectAgentDraft.connector !== "inbox",
-        supportsEvidencePush: true,
-        supportsStatusUpdates: true,
-        title: connectAgentDraft.title.trim(),
-        executorUrl:
-          connectAgentDraft.connector === "http"
-            ? connectAgentDraft.executorUrl.trim()
-            : undefined,
-      })
-
-      if (!supplyResult.created || !supplyResult.supplyId) {
-        throw new Error("Boreal could not create this agent connection.")
-      }
-
-      await setAgentControlState({
-        activeAgentRole: connectAgentDraft.role,
-        activeSupplyId: supplyResult.supplyId,
-        mode: connectAgentDraft.role === "supply" ? "none" : connectAgentDraft.mode,
-        ownerExternalId,
-      })
-
-      setIsConnectAgentOpen(false)
-      setConnectAgentDraft(createEmptyConnectAgentDraft())
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Boreal could not save the connected agent."
-      )
-    } finally {
-      setIsSavingConnectAgent(false)
-    }
-  }
-
   async function handleSetDefaultPayoutWallet(walletAccountId: string) {
     if (!ownerExternalId) {
       setAccountNotice("Sign in with X first so Boreal can save wallet settings.")
@@ -897,6 +661,7 @@ export function ChatShell() {
       params.delete("request")
       params.delete("view")
     } else if (next.request) {
+      setIsCenterSheetOpen(false)
       params.set("request", next.request)
     }
 
@@ -988,6 +753,18 @@ export function ChatShell() {
       document.body.style.overflow = previousOverflow
     }
   }, [isAnyMobileSidebarOpen])
+
+  useEffect(() => {
+    if (isCenterSheetOpen || !centerSheetView) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      setCenterSheetView(null)
+    }, 260)
+
+    return () => window.clearTimeout(timeout)
+  }, [centerSheetView, isCenterSheetOpen])
 
   useEffect(() => {
     const artifact = requestDetail?.artifact
@@ -2384,6 +2161,26 @@ export function ChatShell() {
     setIsMobileWorkspaceOpen(true)
   }
 
+  function openCenterSheet(view: CenterSheetView) {
+    setCenterSheetView(view)
+    setIsCenterSheetOpen(true)
+  }
+
+  function closeCenterSheet() {
+    setIsCenterSheetOpen(false)
+  }
+
+  function handleInlineNavSelect(href: string) {
+    if (href === "/roadmap") {
+      if (centerSheetView === "roadmap" && isCenterSheetOpen) {
+        closeCenterSheet()
+        return
+      }
+
+      openCenterSheet("roadmap")
+    }
+  }
+
   function openXSignIn() {
     void signIn("twitter", {
       callbackUrl: pathname || "/",
@@ -2496,12 +2293,19 @@ export function ChatShell() {
               )}
             >
               <ChatShellHeader
+                activeNavHref={
+                  isCenterSheetOpen && centerSheetView === "roadmap"
+                    ? "/roadmap"
+                    : null
+                }
                 hideIntentMenu={false}
                 hideWorkspaceToggle={false}
+                inlineNavHrefs={["/roadmap"]}
                 isRequestSelected={isXAuthenticated && Boolean(activeIntentId)}
                 isSubmitting={isSubmitting}
                 onOpenMobileDiscovery={openMobileDiscovery}
                 onOpenMobileIntentSidebar={openMobileIntentSidebar}
+                onSelectInlineNav={handleInlineNavSelect}
                 onReturnHome={handleReturnHome}
                 onToggleWorkspace={handleToggleWorkspace}
                 requestTitle={
@@ -2509,6 +2313,18 @@ export function ChatShell() {
                 }
                 showWorkspace={isDiscoveryRailOpen}
               />
+
+              {centerSheetView ? (
+                <FocusSheet
+                  onClose={closeCenterSheet}
+                  open={isCenterSheetOpen}
+                  title={centerSheetView === "roadmap" ? "Roadmap" : "Panel"}
+                >
+                  {centerSheetView === "roadmap" ? (
+                    <RoadmapBoard embedded />
+                  ) : null}
+                </FocusSheet>
+              ) : null}
 
               {isPublicDiscoveryOnly ? (
                 <div className="min-h-0 flex-1 overflow-hidden">
@@ -2860,19 +2676,7 @@ export function ChatShell() {
                                 value={composerText}
                               />
                             </PromptInputBody>
-                            <PromptInputFooter className="justify-between gap-2">
-                              <PromptInputTools className="flex-wrap gap-2">
-                                <Button
-                                  className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                                  onClick={openConnectAgentDialog}
-                                  size="sm"
-                                  type="button"
-                                  variant="outline"
-                                >
-                                  <BotIcon className="size-4" />
-                                  {agentToolbarLabel}
-                                </Button>
-                              </PromptInputTools>
+                            <PromptInputFooter className="justify-end gap-2">
                               <PromptInputSubmit
                                 disabled={
                                   isSubmitting || composerText.trim().length === 0
@@ -3146,27 +2950,7 @@ export function ChatShell() {
                           value={composerText}
                         />
                       </PromptInputBody>
-                      <PromptInputFooter
-                        className={cn(
-                          shouldShowBorealToolbarButton
-                            ? "justify-between gap-2"
-                            : "justify-end"
-                        )}
-                      >
-                        {shouldShowBorealToolbarButton ? (
-                          <PromptInputTools className="flex-wrap gap-2">
-                            <Button
-                              className="border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
-                              onClick={openConnectAgentDialog}
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <BotIcon className="size-4" />
-                              {agentToolbarLabel}
-                            </Button>
-                          </PromptInputTools>
-                        ) : null}
+                      <PromptInputFooter className="justify-end">
                         <PromptInputSubmit
                           disabled={isSubmitting || composerText.trim().length === 0}
                           status={isSubmitting ? "submitted" : undefined}
@@ -3184,10 +2968,7 @@ export function ChatShell() {
             >
               <WorkspacePanel
                 activeTab={workspaceTab}
-                connectedAgentMode={connectedAgentMode}
-                connectedSupplyTitle={activeConnectedSupply?.title ?? null}
                 onAddToCart={handleAddToCart}
-                onOpenBorealConnection={openConnectAgentDialog}
                 onSelectRequest={handleMarketplaceSelect}
                 onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
                 ownerExternalId={ownerExternalId}
@@ -3237,10 +3018,7 @@ export function ChatShell() {
       >
         <WorkspacePanel
           activeTab={workspaceTab}
-          connectedAgentMode={connectedAgentMode}
-          connectedSupplyTitle={activeConnectedSupply?.title ?? null}
           onAddToCart={handleAddToCart}
-          onOpenBorealConnection={openConnectAgentDialog}
           onSelectRequest={handleMarketplaceSelect}
           onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
           ownerExternalId={ownerExternalId}
@@ -3266,20 +3044,6 @@ export function ChatShell() {
         runtimeEnvironment={runtimeEnvironment}
         runtimePrimaryChainFamily={runtimePrimaryChainFamily}
         walletAccounts={walletAccounts}
-      />
-      <ConnectAgentDialog
-        activeSupply={activeConnectedSupply}
-        currentMode={connectedAgentMode}
-        draft={connectAgentDraft}
-        isOpen={isConnectAgentOpen}
-        isSaving={isSavingConnectAgent}
-        myProfileRecord={myProfileRecord}
-        onCreateConnection={handleSaveConnectedAgent}
-        onOpenChange={setIsConnectAgentOpen}
-        onSetDraft={(updater) => setConnectAgentDraft((current) => updater(current))}
-        onSwitchToBoreal={handleSwitchToBorealAgent}
-        onSwitchToNone={handleSwitchToNoAgent}
-        onUseExistingSupply={handleUseExistingConnectedSupply}
       />
       <ProfileBuilderDialog
         connectWalletLabel={

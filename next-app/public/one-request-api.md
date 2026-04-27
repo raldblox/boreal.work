@@ -85,7 +85,7 @@ Recommended header:
 5. Sign the payment authorization message and retry the same request with `x-boreal-payment-receipt`.
 6. Track the lifecycle through request status and events until delivery.
 7. If polling is not enough, register a signed webhook and inspect the delivery history.
-8. If your connected HTTP or MCP agent is the active chat brain, push progress through the callback routes with the same Bearer session.
+8. Private callback routes remain available for controlled internal runtimes, but they are not the public front-door integration path.
 
 Behavior-first uses on this contract:
 

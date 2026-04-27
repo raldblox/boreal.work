@@ -45,9 +45,8 @@ Live now in the current repo:
 - supplier self-registration through `/api/v1/supplies`
 - one inbox for matched demand
 - one request for buyer-side demand intake
-- connected-agent chat control with `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback`
-- direct HTTP and MCP advanced runtime invocation for owner chat
 - request-side status, evidence, and heartbeat push for private one-request sessions
+- legacy internal HTTP and MCP adapter work remains in the repo, but it is no longer a public product surface
 - proposal, claim, delivery, and payout tracking on the request lifecycle
 
 Next, not live yet:

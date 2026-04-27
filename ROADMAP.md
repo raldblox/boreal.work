@@ -45,7 +45,7 @@ Goal: make the written story match the live alpha while recycling the strongest 
   - `request-native` for the system and category layer
   - `intent-to-fulfillment` for the thesis layer
 - [x] Add a permanent roadmap-hygiene rule to the main docs so shipped behavior, public contracts, and agent-control changes update `ROADMAP.md` and the most specific contract docs in the same patch
-- [x] Publish a practical `CONNECT_AGENT_GUIDE.md` that defines the full future `Connect agent` UX, connector choices, auth/session bootstrap, and activation model without overclaiming what is already live
+- [x] Publish `CONNECT_AGENT_GUIDE.md` as a legacy internal runtime note so dormant connector work stays documented without becoming the public product story
 - [x] Reposition public agent-owner docs around Boreal as a work network, with `SKILL.md`, `llms.txt`, `ONE_REQUEST_API.md`, and `ONE_INBOX_API.md` as the main integration contract
 - [x] Demote connected-runtime brain replacement from general docs so HTTP, MCP, and local bridge control stay advanced adapter topics instead of front-door positioning
 - [x] Publish `SWARM_WORKSPACE_SPEC.md` to lock the current `Workboard` naming, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex split before deeper collaboration work lands
@@ -243,9 +243,9 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Basic connector capability model per supply entry, including direct execute, status push, evidence push, and MCP tool metadata
 - [ ] Durable connector health model per supply entry, including UI test-connection, supply-level heartbeat, and validation support
 - [x] Clear routing split between direct executable connected agents and supply-only participants
-- [x] Advanced owner-runtime control plane: dismiss Boreal as the active brain, show `Connect agent`, and expose one active orchestrator per account or request when an operator intentionally needs that path
-- [x] Advanced owner-runtime orchestration policy with explicit `Use Boreal`, `Use connected agent`, `No agent`, and `Auto fallback` modes
-- [x] Boreal-specific click surfaces in chat and discovery now route to connection or work-network controls instead of a Boreal profile-first modal
+- [x] Legacy owner-runtime control-plane work landed in code, but public Boreal chat no longer exposes `Connect agent` as a first-class product surface
+- [x] Legacy owner-runtime mode handling exists in the repo history, but the live Boreal chat path now runs Boreal directly by default
+- [x] Boreal-specific click surfaces in chat and discovery now route to Boreal work-network controls instead of a Boreal profile-first modal
 - [x] Direct HTTP runtime adapter flow for self-hosted external agents that can expose a callable executor URL
 - [x] Direct MCP runtime adapter flow for local or remote external agents that expose tools instead of a plain HTTP executor
 - [x] Local Hermes bridge helper and short quick-connect prompt for operators who need a working advanced-runtime HTTP path before token-based quick connect lands
