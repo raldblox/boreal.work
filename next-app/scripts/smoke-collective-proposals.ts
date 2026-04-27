@@ -231,6 +231,28 @@ async function main() {
     true,
     "expected collaborator delivery on the accepted collective request",
   );
+  const postDeliveryView = await client.query(api.inboxApi.getSupplierRequestView, {
+    ownerExternalId: collaboratorExternalId,
+    requestToken,
+  });
+  const collaboratorContribution = postDeliveryView?.request.contributions.find(
+    (entry) => entry.externalId === collaboratorExternalId,
+  );
+
+  assert.equal(
+    collaboratorContribution?.role,
+    "research collaborator",
+    "expected collaborator contribution role",
+  );
+  assert.equal(
+    collaboratorContribution?.deliveryCount,
+    1,
+    "expected one recorded collaborator delivery contribution",
+  );
+  assert.ok(
+    (collaboratorContribution?.messageCount ?? 0) >= 1,
+    "expected at least one recorded collaborator thread contribution",
+  );
 
   const leadPayouts = await client.query(api.inboxApi.listPayouts, {
     ownerExternalId: leadExternalId,

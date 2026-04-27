@@ -39,6 +39,18 @@ export type ResolvedCollectiveParticipant = {
   userId: string;
 };
 
+export type CollectiveContributionSummary = {
+  delivered: boolean;
+  deliveryCount: number;
+  displayName: string;
+  externalId: string;
+  handle: string | null;
+  lastActivityAt: number | null;
+  messageCount: number;
+  role: string | null;
+  userId: string;
+};
+
 export function normalizeCollectiveProposalInput(input: {
   collectiveMembers?: string[] | undefined;
   memberRoles?:
@@ -313,6 +325,152 @@ export function buildCollectivePayoutAllocations(input: {
       amount: cents / 100,
       externalId: participant.externalId,
       percent: splitEntry?.percent ?? 0,
+      userId: participant.userId,
+    };
+  });
+}
+
+export async function buildCollectiveContributionSummary(
+  ctx: CollectiveContext,
+  input: {
+    acceptedProposal:
+      | {
+          collectiveMembers?: string[] | undefined;
+          isCollective?: boolean | undefined;
+          memberRoles?:
+            | Array<{
+                memberId: string;
+                role: string;
+              }>
+            | undefined;
+          proposerUserId?: string | undefined;
+        }
+      | null
+      | undefined;
+    conversationId?: string | null;
+    intentKey: string;
+  },
+) {
+  if (!input.acceptedProposal?.isCollective) {
+    return [];
+  }
+
+  const collectiveParticipants = await resolveCollectiveParticipants(
+    ctx,
+    input.acceptedProposal,
+  );
+
+  if (collectiveParticipants.error) {
+    return [];
+  }
+
+  const conversationMessages = input.conversationId
+    ? await ctx.db
+        .query("chatMessages")
+        .withIndex("by_conversationId_and_createdAt", (queryBuilder) =>
+          queryBuilder.eq("conversationId", input.conversationId!),
+        )
+        .order("desc")
+        .take(256)
+    : [];
+  const requestMessages = conversationMessages.filter(
+    (message) => message.intentKey === input.intentKey,
+  );
+  const candidateFulfillments = [
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", input.intentKey).eq("status", "active"),
+      )
+      .collect()),
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", input.intentKey).eq("status", "approved"),
+      )
+      .collect()),
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", input.intentKey).eq("status", "blocked"),
+      )
+      .collect()),
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", input.intentKey).eq("status", "fulfilled"),
+      )
+      .collect()),
+  ];
+  const fulfillmentsByUserId = new Map<
+    string,
+    Awaited<typeof candidateFulfillments>[number][]
+  >();
+  const latestEvidenceAtByFulfillmentId = new Map<string, number | null>();
+
+  for (const fulfillment of candidateFulfillments) {
+    if (!fulfillment.fulfillerUserId) {
+      continue;
+    }
+
+    const current = fulfillmentsByUserId.get(fulfillment.fulfillerUserId) ?? [];
+    current.push(fulfillment);
+    fulfillmentsByUserId.set(fulfillment.fulfillerUserId, current);
+
+    const evidence = await ctx.db
+      .query("evidences")
+      .withIndex("by_fulfillmentId_and_createdAt", (queryBuilder) =>
+        queryBuilder.eq("fulfillmentId", fulfillment._id),
+      )
+      .order("desc")
+      .take(1);
+
+    latestEvidenceAtByFulfillmentId.set(
+      fulfillment._id,
+      evidence[0]?.createdAt ?? null,
+    );
+  }
+
+  return collectiveParticipants.participants.map((participant) => {
+    const participantMessages = requestMessages.filter(
+      (message) => message.senderExternalId === participant.externalId,
+    );
+    const participantFulfillments =
+      fulfillmentsByUserId.get(participant.userId) ?? [];
+    const latestMessageAt = participantMessages[0]?.createdAt ?? null;
+    const latestDeliveryAt = participantFulfillments.reduce<number | null>(
+      (latest, fulfillment) => {
+        const evidenceAt =
+          latestEvidenceAtByFulfillmentId.get(fulfillment._id) ?? null;
+
+        if (!evidenceAt) {
+          return latest;
+        }
+
+        return latest === null ? evidenceAt : Math.max(latest, evidenceAt);
+      },
+      null,
+    );
+
+    return {
+      delivered: participantFulfillments.some(
+        (fulfillment) => fulfillment.status === "fulfilled",
+      ),
+      deliveryCount: participantFulfillments.length,
+      displayName: participant.displayName,
+      externalId: participant.externalId,
+      handle: participant.handle,
+      lastActivityAt:
+        latestMessageAt === null
+          ? latestDeliveryAt
+          : latestDeliveryAt === null
+            ? latestMessageAt
+            : Math.max(latestMessageAt, latestDeliveryAt),
+      messageCount: participantMessages.length,
+      role: getCollectiveMemberRole(
+        input.acceptedProposal,
+        participant.externalId,
+      ),
       userId: participant.userId,
     };
   });

@@ -82,7 +82,7 @@ npm run agent:watch:all
 - Supported provider-backed listings can use Privy-backed x402 payment initiation and invocation flows.
 - The premium agent-only surface is now request-first, not registry-first: one request in, frozen quote, `402` payment boundary, seeded specialist execution, and a single request lifecycle all the way to delivery.
 - The supplier-side surface is now inbox-first, not board-first: one matched-demand inbox, request-level claim and delivery actions, and payout readiness attached to the same request lifecycle.
-- The supplier-side request flow now also supports collectives: one approved proposal can name multiple collaborators, assign named roles, let accepted collaborators post and deliver on the same request, and split payout rows off the same transaction.
+- The supplier-side request flow now also supports collectives: one approved proposal can name multiple collaborators, assign named roles, derive per-participant contribution summaries from the same request thread, let accepted collaborators post and deliver on the same request, and split payout rows off the same transaction.
 - The machine-facing lifecycle surface now supports signed webhooks for request, inbox, and payout delivery in addition to SSE polling.
 - `npm run smoke:one-inbox` proves the current supplier-side path from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
 - `npm run smoke:collective-proposals` proves the current collective supplier path from proposal approval through shared request access, collaborator delivery, and split payouts.

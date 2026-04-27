@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 import {
+  buildCollectiveContributionSummary,
   getCollectiveMemberRole,
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
@@ -120,6 +121,7 @@ export const getRequestDetail = query({
         intent: null,
         matchCandidates: [],
         messages: [],
+        contributions: [],
         participants: [],
         fulfillment: null,
         proposals: [],
@@ -197,6 +199,11 @@ export const getRequestDetail = query({
 
     const artifact = artifacts[0];
     const participants = await getRequestParticipants(ctx, intent, acceptedProposal);
+    const contributions = await buildCollectiveContributionSummary(ctx, {
+      acceptedProposal,
+      conversationId: intent.conversationId ?? null,
+      intentKey: intent.intentKey,
+    });
     const fulfillment = await getRequestFulfillment(ctx, intent, acceptedProposal);
     const matchCandidates =
       intent.shouldSearchCatalog || intent.routeTarget === "catalog_lookup"
@@ -297,6 +304,7 @@ export const getRequestDetail = query({
       },
       matchCandidates,
       messages: requestMessages,
+      contributions,
       participants,
       proposals: await Promise.all(
         proposals.map(async (proposal) => ({

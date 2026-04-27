@@ -11,6 +11,7 @@ import {
   getWalletAccountContext,
 } from "./commerceCore";
 import {
+  buildCollectiveContributionSummary,
   getCollectiveMemberRole,
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
@@ -1055,6 +1056,11 @@ async function buildSupplierRequestDetail(
     supplier.user._id,
   );
   const participants = await getRequestParticipants(ctx, input.intent, acceptedProposal);
+  const contributions = await buildCollectiveContributionSummary(ctx, {
+    acceptedProposal,
+    conversationId: input.intent.conversationId ?? null,
+    intentKey: input.intent.intentKey,
+  });
 
   return {
     access: {
@@ -1072,6 +1078,7 @@ async function buildSupplierRequestDetail(
       agent: input.intent.assignedAgent ?? null,
       tools: input.intent.assignedToolNames ?? [],
     },
+    contributions,
     participants,
     requestToken: input.requestToken,
     request: {

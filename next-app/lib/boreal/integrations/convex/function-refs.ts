@@ -496,6 +496,17 @@ export type RequestDetail = {
   } | null;
   matchCandidates: CatalogEntry[];
   messages: RequestMessage[];
+  contributions: Array<{
+    delivered: boolean;
+    deliveryCount: number;
+    displayName: string;
+    externalId: string;
+    handle: string | null;
+    lastActivityAt: number | null;
+    messageCount: number;
+    role: string | null;
+    userId: string;
+  }>;
   participants: Array<{
     displayName: string;
     externalId: string | null;

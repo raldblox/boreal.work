@@ -275,6 +275,7 @@ Current live collective behavior:
 - one approved proposal can move multiple accepted suppliers onto the same request
 - accepted collective participants can carry named roles on the same request
 - accepted collective collaborators see the request as `claimed` in one inbox
+- request detail can expose per-participant contribution summaries from thread activity and delivery attribution
 - accepted collective collaborators can deliver through the same request route
 - payout rows split from one approved proposal according to `splitPlan`
 

@@ -119,6 +119,7 @@ export const submitWork = mutation({
     await ctx.db.patch(activeFulfillment._id, {
       completedSummary: args.deliverablesBody,
       environment: activeFulfillment.environment ?? getCommerceEnvironment(),
+      fulfillerUserId: worker._id,
       scenarioId:
         activeFulfillment.scenarioId ?? getScenarioId("custom_scoped_work"),
       settlementStatus:
