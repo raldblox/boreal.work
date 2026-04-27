@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "convex:dev": "npx convex dev",
+    "convex:wipe:dev": "node --experimental-strip-types scripts/wipe-convex-dev.ts",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",

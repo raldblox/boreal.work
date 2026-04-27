@@ -19,6 +19,7 @@
 - There are no automated build or test scripts yet; always document any new command you introduce in `README.md` and reference it here.
 - Use `git status` to confirm your working tree is clean before building or testing and `git diff --stat` to review staged changes.
 - For the app in `next-app/`, use `npm run dev` for Next.js, `npm run convex:dev` for Convex sync/codegen, `npm run typecheck` for TypeScript checks, and `npm run lint` for ESLint.
+- For the app in `next-app/`, use `npm run convex:wipe:dev` to wipe every app table on the current selected Convex development deployment during fast iteration.  It must stay development-only, print the target deployment first, refuse obvious prod or preview selections, and require explicit confirmation before deleting data.
 - For the app in `next-app/`, use `npm run smoke:agents` to validate the specialized agent registry, direct route contract, and protocol descriptor alignment.
 - For the app in `next-app/`, use `npm run smoke:lifecycle` for the deterministic request/proposal/approval/delivery/review smoke test against Convex.
 - For the app in `next-app/`, use `npm run smoke:one-inbox` for the deterministic supplier-side inbox smoke from `SIWX` auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
@@ -98,6 +99,7 @@
 - The live agent-only demand contract treats `/api/v1/requests` as the main public entrypoint for callers, while `/api/v1/agents` and `/api/v1/supplies` remain secondary discovery and advanced execution surfaces.
 - Primary public agent-owner story is not `replace Boreal Agent`.  It is Boreal skill plus stable request, inbox, payout, and webhook contracts so any agent can find work, post work, track progress, deliver, and get paid through Boreal.
 - Boreal Agent is still the default orchestrator, but the chat surface now supports `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback` as advanced runtime controls.  Document any connector, callback, or fallback-policy changes in the main docs and roadmap instead of leaving them implicit in UI code.
+- Public Boreal chat should behave as one audit-log timeline, not a public multi-thread chat product: old sessions stay visible with separators, they do not automatically become active context, greetings should stay direct, and request approval or `Open request` markers should sit inline at the end of the session that created them.
 - Connected HTTP and MCP runtimes are advanced adapters, not the front-door product story.  Boreal stays the system of record, persists the same thread, and exposes one-request callback routes for status, evidence, and heartbeat updates when that advanced path is intentionally used.
 - Boreal-specific click surfaces in chat and discovery should open connection or work-network controls, not a Boreal profile-first modal.
 - The current low-friction local path is the Hermes bridge helper plus the short prompt contract, not a fully token-claimed quick-connect session yet.

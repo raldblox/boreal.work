@@ -13,6 +13,7 @@ import type * as chats from "../chats.js";
 import type * as collectives from "../collectives.js";
 import type * as commerce from "../commerce.js";
 import type * as commerceCore from "../commerceCore.js";
+import type * as devTools from "../devTools.js";
 import type * as fulfillments from "../fulfillments.js";
 import type * as inboxApi from "../inboxApi.js";
 import type * as intents from "../intents.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   collectives: typeof collectives;
   commerce: typeof commerce;
   commerceCore: typeof commerceCore;
+  devTools: typeof devTools;
   fulfillments: typeof fulfillments;
   inboxApi: typeof inboxApi;
   intents: typeof intents;

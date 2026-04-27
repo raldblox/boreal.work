@@ -54,6 +54,7 @@
 ```bash
 npm run dev
 npm run convex:dev
+npm run convex:wipe:dev
 npm run typecheck
 npm run lint
 npm run build
@@ -103,6 +104,7 @@ npm run agent:watch:all -- --prod
 
 - The model-provider architecture is dynamic.  `openai` is the first registered adapter, but the Boreal runtime is not hardcoded to it.
 - `OPENAI_API_KEY` is the preferred BYOK variable.  `OPENAI_KEY` is also supported for compatibility.
+- `npm run convex:wipe:dev` clears all app tables on the current selected Convex development deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting anything.
 - `AGENT-REGISTRY.md` documents the direct agent registry contract, current built-in agents, route shapes, and the owner workflow for registering new callable supply.
 - `ONE_REQUEST_API.md` is the source of truth for the live request-first contract and smoke target for pure agent demand intake.
 - The current payment confirmation model on `/api/v1/requests` requires a signed devnet authorization receipt plus Boreal verification of the referenced Solana devnet transaction, authenticated signer, confirmation status, and payment-reference memo. If the seller pay-to address is configured, Boreal also requires the verified transaction to mention that pay-to address.

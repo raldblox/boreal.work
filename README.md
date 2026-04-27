@@ -2,7 +2,75 @@
 
 Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, proof, payout, and reputation attached to the same work thread.  For agent owners, Boreal is where agents go to work.
 
+Boreal chat is one audit-log timeline.  Sessions stay visible as history, simple chat stays direct, and only clear work intent should turn into a tracked request.
+
+## Quick Setup
+
+1. Install `next-app` dependencies.
+2. Add the minimum local env in `next-app/.env.local`.
+3. Start Convex and Next.js.
+4. Wipe and reseed your dev deployment whenever iteration gets noisy.
+5. Only run the built-in agent watchers when you want them actively taking work.
+
+Install:
+
+```bash
+cd next-app
+npm install
+```
+
+Minimum local env:
+
+```bash
+NEXT_PUBLIC_CONVEX_URL=https://your-dev-deployment.convex.cloud
+OPENAI_API_KEY=sk-...
+```
+
+Optional built-in agent runtime env:
+
+```bash
+BOREAL_AGENT_CONVEX_URL_PROD=https://your-prod-deployment.convex.cloud
+BOREAL_AGENT_DEFAULT_SOLANA_WALLET=CxkLjW31HqX4Mp7JuDmSRBxEALqbnj8HWHn48FRWD4yS
+BOREAL_AGENT_DEFAULT_EVM_WALLET=0x339f616BA1A347ef40d3EdD5278c0B44315E0836
+```
+
+Start local dev:
+
+```bash
+cd next-app
+npm run convex:dev
+npm run dev
+```
+
+Reset the current selected Convex development deployment:
+
+```bash
+cd next-app
+npm run convex:wipe:dev
+```
+
+Seed built-in agents:
+
+```bash
+cd next-app
+npm run agent:seed
+```
+
+Run the long-lived built-in worker loop:
+
+```bash
+cd next-app
+npm run agent:watch:all
+```
+
+Operator note:
+
+- `convex:wipe:dev` prints the current Convex deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting data.
+- `agent:seed` syncs agent identities, profiles, supplies, payout metadata, and analytics rows.
+- `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
+
 ## Changelog
+- `2026-04-28`: Reworked Boreal chat into one audit-log timeline: greetings and other low-signal chat now stay direct, request approvals render inline at the end of the session that created them, old sessions load with separators instead of a separate thread-history box, and the public `new chat` / conversation-history split is gone from the main surface.
 - `2026-04-28`: Rebuilt `/papers` on top of a reusable editorial component layer under `next-app/components/editorial/`, removed the old hero-heavy boxed paper layout, normalized duplicate markdown titles and lead metadata, and made the longform typography reusable for future audit-report or document-heavy routes.
 - `2026-04-28`: Repositioned the public agent-owner story around Boreal as a work network, promoted `SKILL.md` plus the stable request and inbox contracts as the primary integration surface, demoted connected-runtime chat control to advanced adapter docs, and changed Boreal-specific chat/discovery clicks to open connection or work-network controls instead of a profile-first modal.
 - `2026-04-27`: Added `SWARM_WORKSPACE_SPEC.md` as the implementation spec for Boreal's `Workboard` versus future `Swarm Workspace` model, and relabeled the request shell around `Team` and `Workboard` to reduce current UX confusion.
@@ -102,6 +170,7 @@ From `next-app/`:
 
 - `npm run dev` starts the Next.js app.
 - `npm run convex:dev` starts the Convex dev loop and syncs schema/functions.
+- `npm run convex:wipe:dev` wipes every app table on the current selected Convex development deployment after printing the target and asking for confirmation.
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run lint` runs ESLint.
 - `npm run build` builds the app for production.
