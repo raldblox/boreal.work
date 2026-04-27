@@ -350,6 +350,32 @@ export const getOwnedSupply = query({
   },
 });
 
+export const getSupplyListingGuardState = query({
+  args: {
+    ownerExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await getUserByExternalId(ctx, args.ownerExternalId);
+
+    if (!user) {
+      return {
+        activeSupplyCount: 0,
+      };
+    }
+
+    const supplies = await ctx.db
+      .query("supplies")
+      .withIndex("by_supplierUserId", (queryBuilder) =>
+        queryBuilder.eq("supplierUserId", user._id),
+      )
+      .collect();
+
+    return {
+      activeSupplyCount: supplies.filter((supply) => supply.status === "active").length,
+    };
+  },
+});
+
 export const createSupplyEntry = mutation({
   args: {
     acpCheckoutUrl: v.optional(v.string()),
@@ -443,6 +469,14 @@ export const createSupplyEntry = mutation({
       return {
         created: false,
         reason: "supply_not_found",
+        supplyId: null,
+      };
+    }
+
+    if (!matchingEntry && existing.filter((supply) => supply.status === "active").length >= 25) {
+      return {
+        created: false,
+        reason: "supply_limit_reached",
         supplyId: null,
       };
     }
@@ -1411,6 +1445,30 @@ async function getUserById(
         _id: string;
         actorKind: "agent" | "human" | "tool";
         displayName: string;
+        handle?: string;
+      }
+    | null;
+}
+
+async function getUserByExternalId(
+  ctx: MutationCtx | QueryCtx,
+  externalId?: string,
+) {
+  if (!externalId) {
+    return null;
+  }
+
+  return (await ctx.db
+    .query("users")
+    .withIndex("by_externalId", (queryBuilder) =>
+      queryBuilder.eq("externalId", externalId),
+    )
+    .unique()) as
+    | {
+        _id: string;
+        actorKind: "agent" | "human" | "tool";
+        displayName: string;
+        externalId: string;
         handle?: string;
       }
     | null;

@@ -75,7 +75,14 @@ export async function POST(request: Request) {
     if (!result.created || !result.supplyId) {
       return NextResponse.json(
         { error: result.reason ?? "Unable to register supplier supply." },
-        { status: result.reason === "missing_payout_wallet" ? 409 : 400 },
+        {
+          status:
+            result.reason === "missing_payout_wallet"
+              ? 409
+              : result.reason === "supply_limit_reached"
+                ? 429
+                : 400,
+        },
       );
     }
 

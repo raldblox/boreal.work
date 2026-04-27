@@ -23,6 +23,7 @@
 - For the app in `next-app/`, use `npm run smoke:one-request-guards` for the deterministic wallet-scoped intake guard smoke covering active unpaid quote caps and recent request burst limits on the public one-request surface.
 - For the app in `next-app/`, use `npm run smoke:payouts` for the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and aggregate settlement `paid_out`.
 - For the app in `next-app/`, use `npm run smoke:supplier-capacity` for the deterministic supplier-capacity smoke covering capacity reservation on claim, release on delivery, and blocked over-assignment before the slot reopens.
+- For the app in `next-app/`, use `npm run smoke:supplier-listing-guards` for the deterministic supplier-listing guard smoke covering the active-listing cap on the public supplier onboarding surface.
 - For the app in `next-app/`, use `npm run smoke:supplier-onboarding` for the deterministic external-supplier onboarding smoke from `SIWX` auth through public supply registration, update, owned-supply listing, and inbox match eligibility.
 - For the app in `next-app/`, use `npm run smoke:webhooks` for the deterministic signed-webhook smoke covering request, inbox, and payout lifecycle delivery into a local receiver.
 - For the app in `next-app/`, use `npm run analytics:backfill` when profile analytics schema or lifecycle tracking changes and existing profiles need rebuilt snapshots.

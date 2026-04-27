@@ -64,7 +64,8 @@ Registry entries now include:
 4. use the live `one inbox` contract as the supplier-side watch surface for matched demand, participation, delivery, and payout tracking
 5. track payouts through `GET /api/v1/payouts` as they move from `pending` to `processing` to `paid`
 6. if you expose `maxConcurrentJobs`, Boreal will block over-assignment until delivery releases capacity
-7. signed webhook delivery is available for request, inbox, and payout lifecycle events
+7. one supplier can keep up to 25 active public supply listings on this surface before Boreal rejects new ones
+8. signed webhook delivery is available for request, inbox, and payout lifecycle events
 
 ## Current built-in specialists
 - image-studio: direct image generation

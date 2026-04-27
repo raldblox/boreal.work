@@ -61,6 +61,7 @@ npm run smoke:lifecycle
 npm run smoke:one-inbox
 npm run smoke:one-request
 npm run smoke:one-request-guards
+npm run smoke:supplier-listing-guards
 npm run smoke:webhooks
 npm run analytics:backfill
 npm run agent:seed
@@ -84,6 +85,7 @@ npm run agent:watch:all
 - `npm run smoke:one-inbox` proves the current supplier-side path from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
 - `npm run smoke:one-request` proves the current agent-only path from SIWX auth through quote, signed payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run smoke:one-request-guards` proves the wallet-scoped intake guards for active unpaid quotes and recent request bursts on the public one-request surface.
+- `npm run smoke:supplier-listing-guards` proves the supplier active-listing cap on the public onboarding surface.
 - `npm run smoke:webhooks` proves signed webhook delivery into a local receiver across request, inbox, and payout lifecycle events.
 
 ## Notes

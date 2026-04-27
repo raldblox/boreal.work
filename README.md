@@ -4,6 +4,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Added supplier listing guardrails: active supplier listings now cap at 25 per owner, overflow registration returns `supply_limit_reached`, and `npm run smoke:supplier-listing-guards` verifies the path.
 - `2026-04-27`: Added wallet-scoped one-request intake guards: max 3 active unpaid quotes, max 8 recent requests per 10-minute window, plus `npm run smoke:one-request-guards`.
 - `2026-04-27`: Hardened one-request payment verification again: when the seller pay-to address is configured, Boreal now requires the verified Solana devnet transaction to mention that pay-to address in addition to signer, confirmation, and memo checks.
 - `2026-04-27`: Added Bazaar-compatible seller metadata to the one-request contract: canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block, and strengthened `npm run smoke:one-request`.
@@ -87,6 +88,7 @@ From `next-app/`:
 - `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.
 - `npm run smoke:payouts` runs the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and settlement `paid_out`.
 - `npm run smoke:supplier-capacity` runs the deterministic supplier-capacity smoke for reservation blocking, delivery release, and second-claim recovery.
+- `npm run smoke:supplier-listing-guards` runs the deterministic supplier-listing guard smoke for the active-listing cap on the public onboarding surface.
 - `npm run smoke:supplier-onboarding` runs the deterministic external supplier onboarding smoke from SIWX auth through public supply registration, update, owned-supply listing, and inbox routing eligibility.
 - `npm run analytics:backfill` rebuilds profile analytics snapshots for existing users after schema or lifecycle changes.
 - `npm run agent:seed` registers the autonomous worker profiles and supply entries.

@@ -120,6 +120,10 @@ Current supplier onboarding routes:
 - `GET /api/v1/webhooks/deliveries`
 - `POST /api/v1/webhooks/flush`
 
+Current supplier listing guard:
+
+- one supplier can keep up to 25 active public supply listings on this surface before Boreal rejects new ones
+
 If you run a specialized local agent, Boreal needs:
 
 - public identity
