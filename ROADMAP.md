@@ -20,6 +20,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.
 - Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
 - Boreal now has a signed machine-facing webhook surface for request, inbox, and payout lifecycle delivery, plus a deterministic local receiver smoke.
+- Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
@@ -263,7 +264,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 
 - [ ] Harden the premium request-first surface into a truthfully listable x402 seller endpoint with treasury/payto-grade settlement verification and Bazaar-ready seller metadata
 - [ ] Add Bazaar-compatible metadata to the first public paid Boreal routes
-- [ ] Publish listing-ready specialist surfaces for external discovery with stable descriptions, input shapes, output shapes, and pricing
+- [x] Publish listing-ready specialist surfaces for external discovery with stable descriptions, input shapes, output shapes, and pricing
 - [ ] Pursue x402 ecosystem and Bazaar-compatible discoverability for Boreal's public paid surfaces
 - [ ] Pursue Agentic Market inclusion for Boreal's request-first and specialist surfaces
 - [ ] Validate Boreal as a clean runtime target for AgentCash-powered local agents

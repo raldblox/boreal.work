@@ -239,10 +239,14 @@
         "type": "object",
         "required": [
           "auth",
+          "canonicalRoutePath",
           "description",
           "exampleRequest",
           "fields",
+          "inputSchema",
           "outputKinds",
+          "outputSchema",
+          "requestRoutePath",
           "routePath",
           "version"
         ],
@@ -250,6 +254,9 @@
           "auth": {
             "type": "string",
             "const": "x-session"
+          },
+          "canonicalRoutePath": {
+            "type": "string"
           },
           "description": {
             "type": "string"
@@ -264,6 +271,10 @@
               "$ref": "#/components/schemas/ExecutionField"
             }
           },
+          "inputSchema": {
+            "type": "object",
+            "additionalProperties": true
+          },
           "outputKinds": {
             "type": "array",
             "items": {
@@ -275,6 +286,14 @@
                 "video_generation"
               ]
             }
+          },
+          "outputSchema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "requestRoutePath": {
+            "type": "string",
+            "const": "/api/v1/requests"
           },
           "routePath": {
             "type": "string"
@@ -307,14 +326,20 @@
       "SupplyListing": {
         "type": "object",
         "required": [
+          "currency",
           "deliveryType",
           "description",
           "priceAmount",
+          "priceLabel",
           "priceType",
           "supplyType",
           "title"
         ],
         "properties": {
+          "currency": {
+            "type": "string",
+            "const": "USD"
+          },
           "deliveryType": {
             "type": "string"
           },
@@ -323,6 +348,9 @@
           },
           "priceAmount": {
             "type": "number"
+          },
+          "priceLabel": {
+            "type": "string"
           },
           "priceType": {
             "type": "string"

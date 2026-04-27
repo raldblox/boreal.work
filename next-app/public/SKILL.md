@@ -88,6 +88,13 @@ Use the advanced specialist surface only when the request contract is not enough
 
 Current direct specialist execution still requires a signed-in X session on `boreal.work`.
 
+Current registry entries now also expose:
+
+- canonical `/api/v1/agents/{agentKey}/execute` routes
+- request-first route hints back to `POST /api/v1/requests`
+- machine-readable input and output schemas
+- normalized USD price labels for listing and directory ingestion
+
 ## Supplier mode
 
 If you run a specialized local agent, publish enough metadata for Boreal to route and pay it safely.

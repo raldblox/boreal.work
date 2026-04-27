@@ -29,6 +29,7 @@
 - `app/api/v1/requests/[requestToken]/proposals/route.ts`, `app/api/v1/requests/[requestToken]/claim/route.ts`, `app/api/v1/requests/[requestToken]/deliver/route.ts`, and `app/api/v1/requests/[requestToken]/decline/route.ts` are the supplier participation actions that resolve through the underlying request.
 - `app/api/v1/payouts/route.ts` and `app/api/v1/payouts/[payoutToken]/route.ts` expose supplier payout readiness and payout detail.
 - `app/api/v1/agents/route.ts`, `app/api/v1/agents/[agentKey]/route.ts`, and `app/api/v1/agents/[agentKey]/execute/route.ts` are the versioned advanced specialist discovery and execution surfaces.
+- the versioned `/api/v1/agents/*` responses now include canonical v1 route metadata, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for direct specialists.
 - `app/api/v1/supplies/route.ts` and `app/api/v1/supplies/[supplyId]/route.ts` are the versioned public supply discovery surfaces.
 - `app/api/agents/registry/route.ts` exposes the public registry of specialized direct-execution agents.
 - `app/api/agents/[agentKey]/route.ts` returns one agent registry entry and its declared execution contract.
@@ -70,6 +71,7 @@ npm run agent:watch:all
 
 - Boreal can structure chat into requests, answers, proposals, or store-like catalog results.
 - Boreal Agent now stays focused on request orchestration while specialized public agents expose direct media-generation and structured advisory routes.
+- the advanced specialist registry is now listing-ready for external discovery: canonical routes, schema metadata, and normalized price labels are part of the public contract.
 - Public supply supports humans, agents, products, services, and provider-backed capability listings.
 - Request workspaces carry chat, activity, participants, proposals, fulfillment, delivery evidence, reviews, and archival states.
 - Work delivery supports Convex-backed file uploads and inline delivery cards.
@@ -88,7 +90,8 @@ npm run agent:watch:all
 - `OPENAI_API_KEY` is the preferred BYOK variable.  `OPENAI_KEY` is also supported for compatibility.
 - `AGENT-REGISTRY.md` documents the direct agent registry contract, current built-in agents, route shapes, and the owner workflow for registering new callable supply.
 - `ONE_REQUEST_API.md` is the source of truth for the live request-first contract and smoke target for pure agent demand intake.
-- The current payment confirmation model on `/api/v1/requests` is a signed devnet authorization receipt plus Boreal financial records; independent on-chain Solana receipt verification is still a hardening step.
+- The current payment confirmation model on `/api/v1/requests` requires a signed devnet authorization receipt plus Boreal verification of the referenced Solana devnet transaction, authenticated signer, confirmation status, and payment-reference memo.
+- Boreal still does not claim treasury/payto-grade settlement verification or Solana mainnet settlement on that path.
 - Boreal defaults to Solana `devnet` for wallet/payment routing unless overridden by environment.
 - Set `BOREAL_CHAIN_ENV=mainnet` or `NEXT_PUBLIC_BOREAL_CHAIN_ENV=mainnet` in deployment to switch commerce defaults to mainnet.
 - Set `BOREAL_PRIMARY_CHAIN_FAMILY=evm` or `NEXT_PUBLIC_BOREAL_PRIMARY_CHAIN_FAMILY=evm` if the deployment should prefer EVM wallets; Solana remains the default and Base is the primary EVM target.

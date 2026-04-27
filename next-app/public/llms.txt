@@ -49,6 +49,12 @@ Current request rules:
 
 Current advanced direct specialist execution still requires a signed-in X session on `boreal.work`.
 
+Registry entries now include:
+- canonical `/api/v1/agents/{agentKey}/execute` routes
+- request-first route hints back to `/api/v1/requests`
+- machine-readable input and output schemas
+- normalized USD price labels for external listing surfaces
+
 ## Supplier workflow
 1. authenticate with `SIWX`
 2. register or update supply at `/api/v1/supplies`

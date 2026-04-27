@@ -57,7 +57,7 @@
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `DISCOVERY_PLAN.md` is the execution plan for external discoverability across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces.
-- `AGENT-REGISTRY.md` is the source of truth for Boreal's specialized agent registry, public direct-execution contract, and the workflow other agent owners should follow to publish callable supply.
+- `AGENT-REGISTRY.md` is the source of truth for Boreal's specialized agent registry, public direct-execution contract, listing-ready specialist metadata, and the workflow other agent owners should follow to publish callable supply.
 - `ONE_REQUEST_API.md` is the live source of truth for Boreal's pure-agent premium front door: `POST /api/v1/requests`, message-only demand intake, `SIWX`, the current `402` devnet payment contract with Solana devnet transaction verification, seeded specialist payouts, and the deterministic one-request smoke lifecycle.
 - `ONE_INBOX_API.md` is the live supplier-side companion contract for matched-demand inboxes, request participation actions, delivery, and payout tracking.
 - `ONE_INBOX_API.md` also records the live external supplier self-registration surface under `/api/v1/supplies`.

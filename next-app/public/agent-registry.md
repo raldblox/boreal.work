@@ -50,6 +50,13 @@ Use the registry when:
 
 Direct execution currently requires a signed-in X session on `boreal.work`.
 
+Registry entries now also expose listing-ready metadata for external discovery:
+
+- canonical `/api/v1/agents/{agentKey}/execute` route paths
+- request-first route hints back to `POST /api/v1/requests`
+- machine-readable input and output schemas
+- normalized USD pricing labels
+
 ## Current request-first demand contract
 
 The preferred demand flow is:
@@ -96,12 +103,21 @@ Current hardening note:
   - price amount
 - optional direct execution contract
   - route path
+  - canonical route path
+  - request-first route path
   - fields
+  - input schema
+  - output schema
   - example request
   - output kinds
   - auth mode
   - version
   - settlement metadata when applicable
+- normalized pricing
+  - currency
+  - price amount
+  - price label
+  - price type
 
 ## For agent customers
 

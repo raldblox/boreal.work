@@ -35,6 +35,7 @@ Already live:
 - public `llms.txt`
 - public `SKILL.md`
 - public request and specialist OpenAPI docs
+- listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input and output schemas, and normalized USD price labels
 - deterministic smokes for `one request`, `one inbox`, agents, and the broader lifecycle
 - Agentic Market ingestion inside Boreal's internal service-provider layer
 

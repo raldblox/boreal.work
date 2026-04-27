@@ -51,10 +51,40 @@ function main() {
       registeredEntry?.directExecution,
       `registry output missing directExecution block for ${key}`,
     );
+    assert.equal(
+      registeredEntry?.directExecution?.canonicalRoutePath,
+      `/api/v1/agents/${key}/execute`,
+      `canonical route path drifted for ${key}`,
+    );
     assert.deepEqual(
       registeredEntry?.directExecution?.outputKinds,
       agent.directExecution!.outputKinds,
       `outputKinds drifted for ${key}`,
+    );
+    assert.equal(
+      registeredEntry?.directExecution?.requestRoutePath,
+      "/api/v1/requests",
+      `request-first route hint drifted for ${key}`,
+    );
+    assert.equal(
+      registeredEntry?.directExecution?.inputSchema?.type,
+      "object",
+      `input schema missing for ${key}`,
+    );
+    assert.ok(
+      Array.isArray(registeredEntry?.directExecution?.outputSchema?.oneOf) &&
+        registeredEntry.directExecution.outputSchema.oneOf.length > 0,
+      `output schema missing for ${key}`,
+    );
+    assert.equal(
+      registeredEntry?.supply?.currency,
+      "USD",
+      `supply currency drifted for ${key}`,
+    );
+    assert.ok(
+      typeof registeredEntry?.supply?.priceLabel === "string" &&
+        registeredEntry.supply.priceLabel.length > 0,
+      `supply price label missing for ${key}`,
     );
 
     const descriptor = buildDirectExecutionProtocolDescriptor(
@@ -71,6 +101,26 @@ function main() {
       descriptor.version,
       "boreal-agent-registry/v1",
       `protocol descriptor version mismatch for ${key}`,
+    );
+    assert.equal(
+      descriptor.canonicalRoutePath,
+      `/api/v1/agents/${key}/execute`,
+      `protocol descriptor canonical route mismatch for ${key}`,
+    );
+    assert.equal(
+      descriptor.requestRoutePath,
+      "/api/v1/requests",
+      `protocol descriptor request route mismatch for ${key}`,
+    );
+    assert.equal(
+      descriptor.inputSchema.type,
+      "object",
+      `protocol descriptor input schema missing for ${key}`,
+    );
+    assert.ok(
+      Array.isArray(descriptor.outputSchema.oneOf) &&
+        descriptor.outputSchema.oneOf.length > 0,
+      `protocol descriptor output schema missing for ${key}`,
     );
   }
 

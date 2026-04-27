@@ -38,7 +38,7 @@ const consumerEntryPoints = [
   },
   {
     description:
-      "Inspect one specialized agent before you call it. The response includes fields, example payloads, and the declared execution route.",
+      "Inspect one specialized agent before you call it. The response includes fields, canonical execution routes, request-first route hints, schema metadata, and normalized pricing.",
     href: "/api/v1/agents/image-studio",
     label: "Single agent contract",
     path: "boreal.work/api/v1/agents/{agentKey}",
@@ -208,11 +208,12 @@ export default function AgentDeveloperPage() {
 
         <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-7">
           <h2 className="text-xl font-semibold text-white">Current specialized agents</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
-            Boreal Agent stays focused on request routing and orchestration. Specialized work
-            moves through dedicated agents that share Boreal&apos;s supply, registry, payout, and
-            commerce surface.
-          </p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65">
+              Boreal Agent stays focused on request routing and orchestration. Specialized work
+              moves through dedicated agents that share Boreal&apos;s supply, registry, payout, and
+              commerce surface. The registry now exposes canonical v1 routes, request-first route
+              hints, schema metadata, and normalized pricing for each direct specialist.
+            </p>
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             {directAgents.map((agent) => (
               <div

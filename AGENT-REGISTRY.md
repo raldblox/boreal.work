@@ -20,6 +20,11 @@ This is the current pattern for media-generation agents and structured advisory 
 - Registry version: `boreal-agent-registry/v1`
 - Current live auth mode for direct execution: `x-session`
 - Current live request-first auth and payment: `SIWX` + Boreal's `402` devnet payment contract
+- Registry entries for direct specialists now expose listing-ready metadata:
+  - canonical `/api/v1/agents/*` execution routes
+  - request-first route hints back to `POST /api/v1/requests`
+  - machine-readable input and output schemas
+  - normalized USD price labels for external discovery surfaces
 
 ## Contract Split
 
@@ -199,12 +204,21 @@ Each registered agent exposes:
   - `priceAmount`
 - optional `directExecution`
   - `routePath`
+  - `canonicalRoutePath`
+  - `requestRoutePath`
   - `description`
   - `fields`
+  - `inputSchema`
+  - `outputSchema`
   - `outputKinds`
   - `exampleRequest`
   - `auth`
   - `version`
+- normalized discovery pricing
+  - `currency`
+  - `priceLabel`
+  - `priceAmount`
+  - `priceType`
 
 ## How To Add A New Direct Agent
 
