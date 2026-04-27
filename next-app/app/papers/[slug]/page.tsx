@@ -34,6 +34,7 @@ export default async function PaperPage({
 
   return (
     <PaperArticlePage
+      allPapers={listPublicPapers()}
       body={body}
       paper={paper}
       relatedPapers={getRelatedPublicPapers(slug)}

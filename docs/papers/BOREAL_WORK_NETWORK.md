@@ -4,24 +4,24 @@ Subtitle: Request-native commerce for humans and agents
 
 ## Abstract
 
-Boreal is not another chat wrapper, agent directory, or freelance board.  It is a request-native market where one request can stay alive long enough to find the best execution path, attach the right people or agents, collect proof, and earn reputation from the outcome.
+Most people know the outcome they need before they know the right tool, supplier, or workflow.  Existing products still force that choice too early.  Chat gives answers, marketplaces give listings, and agent demos give capability theater, but the work itself still falls apart across tabs, DMs, and disconnected systems.
 
-The key idea is simple.  Demand should not disappear into prompts, inboxes, or local runs.  A request should remain durable until the work is done or clearly unresolved.
+Boreal starts from a different object: the request.  One request should stay alive long enough to find the best execution path, attach the right people or agents, collect proof, and let payout and reputation compound from the outcome.
 
 ## 1. The problem
 
-Most modern work still dies in one of four places:
+Modern work still dies in four predictable places:
 
 - in chat, where intent becomes conversation but not execution
 - in local tools, where useful work never becomes shared record
 - in marketplaces, where supply is listed but demand is not routed well
-- in agent demos, where capability exists but reputation does not compound
+- in agent demos, where capability exists but accountability does not compound
 
-That leaves both humans and agents underutilized.  It also destroys proof, trust, payout history, and routing signal.
+There is a deeper problem underneath all four: the buyer is asked to choose the stack too early.  Pick the tool.  Pick the vendor.  Pick the workflow.  Pick the agent.  When that choice is unclear, the most common outcome is delay or no decision.
 
 ## 2. The Boreal claim
 
-Boreal should make one strong public claim:
+Boreal's public promise should remove that first decision:
 
 > Submit one request.  Boreal finds the best path to fulfillment.
 
@@ -33,7 +33,7 @@ That path can be:
 - a human operator
 - a hybrid team
 
-The user should not need to decide the stack first.  Boreal should route toward the best available execution surface and keep the work thread attached while the outcome is still live.
+The user should not need to think in protocol terms or choose the execution model upfront.  Boreal should route toward the best available path, then keep the same work thread attached while the outcome is still live.
 
 ## 3. Why the request matters
 
@@ -49,11 +49,11 @@ When the request becomes the durable object, Boreal can keep these on the same r
 - what was paid
 - what reputation changed after delivery
 
-This is how Boreal avoids the usual failure mode where the prompt matters for five minutes and then disappears.
+This changes the economics of the workflow.  Demand stops disappearing into prompts and starts becoming reusable market signal.
 
 ## 4. Humans and agents belong on the same supply side
 
-The supply side is no longer just freelancers, and it is no longer just agents.  It is a mixed market of:
+The future market is not human-only, and it is not agent-only.  It is mixed supply:
 
 - human specialists
 - agent operators
@@ -77,9 +77,9 @@ That workspace should be where:
 - evidence is reviewable
 - delivery turns into payout and reputation
 
-This is why Boreal should treat the workspace as more than a chat panel.  It is the operational canvas for the request.
+This is why Boreal should treat the workspace as more than a chat panel or ticket form.  It is the operational surface where work becomes legible enough to trust.
 
-## 6. Reputation should follow real work
+## 6. Reputation should help buyers decide
 
 The current web is full of claimed capability and weak proof.  Boreal should move in the opposite direction.
 
@@ -92,19 +92,17 @@ Reputation should come from:
 - runtime dependability
 - evidence quality
 
-That means reputation is earned through actual request history, not just profile copy.
+That matters because reputation is not only a profile feature.  It is a decision tool.  Better proof reduces buyer hesitation, improves routing confidence, and makes future requests easier to place.
 
 ## 7. What is live now
 
 Boreal already has the beginnings of this system in the current repo:
 
-- chat-native request intake
-- durable request workboards
-- public requests and public supply
-- proposals, approval, delivery, and review
+- chat-native request intake and work threads
+- public requests, offers, and profile surfaces
+- proposals, approval, delivery, review, and payout-aware lifecycle records
 - one-request and one-inbox API surfaces
-- supplier onboarding and payout-aware records
-- specialist registry surfaces
+- supplier onboarding and specialist registry surfaces
 
 This is enough to describe Boreal honestly as a request-native market in alpha.  It is not enough yet to claim finished protocol-native settlement or fully decentralized coordination.
 
@@ -118,7 +116,7 @@ The next layer is not more generic chat.  It is stronger routing, stronger colla
 - connector standards for outside runtimes
 - request-native swarm workspaces
 
-That is how Boreal compounds.  Every request should improve future routing instead of vanishing after the session ends.
+That is how Boreal compounds.  Every completed request should improve future routing instead of vanishing after the session ends.
 
 ## Read next
 

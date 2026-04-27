@@ -185,10 +185,7 @@ import {
   RequestStatusBadge,
 } from "./request-ui"
 import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel"
-import {
-  FocusSheet,
-  FOCUS_SHEET_EXIT_MS,
-} from "@/components/workboard/focus-sheet"
+import { FocusSheet } from "@/components/workboard/focus-sheet"
 
 type ChatMessage = {
   content: string
@@ -327,6 +324,8 @@ export function ChatShell() {
     searchParams.get("paper"),
     publicPapers
   )
+  const requestedDeepLinkedSheet =
+    requestedPaperSlug ? "papers" : requestedCenterSheet
   const selectedCenterTab = normalizeCenterViewTab(requestedCenterTab)
   const workspaceTab = normalizeWorkspaceTab(searchParams.get("browse"))
 
@@ -875,32 +874,22 @@ export function ChatShell() {
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      if (requestedCenterSheet) {
-        setCenterSheetView(requestedCenterSheet)
-        if (requestedCenterSheet === "papers") {
-          setCenterSheetPaperSlug(requestedPaperSlug)
-        }
+      if (requestedDeepLinkedSheet) {
+        setCenterSheetView(requestedDeepLinkedSheet)
+        setCenterSheetPaperSlug(
+          requestedDeepLinkedSheet === "papers" ? requestedPaperSlug : null
+        )
         setIsCenterSheetOpen(true)
         return
       }
 
       setIsCenterSheetOpen(false)
+      setCenterSheetView(null)
+      setCenterSheetPaperSlug(null)
     })
 
     return () => window.cancelAnimationFrame(frame)
-  }, [requestedCenterSheet, requestedPaperSlug])
-
-  useEffect(() => {
-    if (isCenterSheetOpen || !centerSheetView) {
-      return
-    }
-
-    const timeout = window.setTimeout(() => {
-      setCenterSheetView(null)
-    }, FOCUS_SHEET_EXIT_MS + 40)
-
-    return () => window.clearTimeout(timeout)
-  }, [centerSheetView, isCenterSheetOpen])
+  }, [requestedDeepLinkedSheet, requestedPaperSlug])
 
   useEffect(() => {
     const artifact = requestDetail?.artifact
@@ -2312,6 +2301,11 @@ export function ChatShell() {
   }
 
   function openCenterSheet(view: CenterSheetView) {
+    setCenterSheetView(view)
+    if (view !== "papers") {
+      setCenterSheetPaperSlug(null)
+    }
+    setIsCenterSheetOpen(true)
     updateWorkspaceUrl({
       paper: null,
       sheet: view,
@@ -2319,6 +2313,9 @@ export function ChatShell() {
   }
 
   function closeCenterSheet() {
+    setCenterSheetView(null)
+    setCenterSheetPaperSlug(null)
+    setIsCenterSheetOpen(false)
     updateWorkspaceUrl({
       paper: null,
       sheet: null,
@@ -2331,7 +2328,7 @@ export function ChatShell() {
       return
     }
 
-    if (requestedCenterSheet === nextView && isCenterSheetOpen) {
+    if (centerSheetView === nextView && isCenterSheetOpen) {
       closeCenterSheet()
       return
     }
@@ -2340,6 +2337,9 @@ export function ChatShell() {
   }
 
   function openPapersOverview() {
+    setCenterSheetView("papers")
+    setCenterSheetPaperSlug(null)
+    setIsCenterSheetOpen(true)
     updateWorkspaceUrl({
       paper: null,
       sheet: "papers",
@@ -2347,6 +2347,9 @@ export function ChatShell() {
   }
 
   function openEmbeddedPaper(slug: string) {
+    setCenterSheetView("papers")
+    setCenterSheetPaperSlug(slug)
+    setIsCenterSheetOpen(true)
     updateWorkspaceUrl({
       paper: slug,
       sheet: "papers",
@@ -2466,8 +2469,8 @@ export function ChatShell() {
             >
               <ChatShellHeader
                 activeNavHref={
-                  requestedCenterSheet
-                    ? centerSheetHrefByView[requestedCenterSheet]
+                  isCenterSheetOpen && centerSheetView
+                    ? centerSheetHrefByView[centerSheetView]
                     : null
                 }
                 hideIntentMenu={false}
@@ -2497,7 +2500,11 @@ export function ChatShell() {
                   }
                 >
                   {centerSheetView === "about" ? (
-                    <AboutPage embedded />
+                    <AboutPage
+                      embedded
+                      onOpenPaper={openEmbeddedPaper}
+                      onOpenPapers={openPapersOverview}
+                    />
                   ) : centerSheetView === "developers" ? (
                     <AgentDeveloperSurface embedded />
                   ) : centerSheetView === "papers" ? (

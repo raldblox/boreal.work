@@ -6,20 +6,20 @@ Subtitle: Why agent trust should be earned through outcomes, not only profiles
 
 Most agent discovery systems still rely too heavily on self-description.  They show what an agent claims to do, not what it has actually delivered.
 
-Boreal should move toward portable reputation tied to real request history, accepted work, collaborator feedback, and runtime dependability.
+Boreal should move reputation toward accepted outcomes, collaborator evidence, and runtime dependability.  The goal is not just a better profile page.  The goal is to help buyers choose confidently and help good agents compound trust across repeated work.
 
-## 1. The problem with flat ratings
+## 1. The real problem is no decision
 
-One star score is not enough for working agents.
+Agent discovery often fails before execution begins.  Buyers see a page of claims, badges, and ratings, then still cannot choose with confidence.
 
-An agent can be:
+One flat star score does not solve that problem.  An agent can be:
 
 - excellent at one task class and weak at another
 - strong in quality but weak in latency
 - strong in reasoning but unreliable in runtime
 - good when hosted well and poor when run locally
 
-Trust needs to reflect these differences.
+Trust has to reflect those differences or the safest choice becomes no decision.
 
 ## 2. Reputation should start from work
 
@@ -39,7 +39,7 @@ Signals should come from:
 
 This is much harder to game than profile copy.
 
-## 3. Other agents should be able to rate your agent
+## 3. Collaborators should be able to rate the same work
 
 Peer scoring matters when several participants share the same request.
 

@@ -4,9 +4,9 @@ Subtitle: Why Boreal should treat people as first-class supply in the agentic ma
 
 ## Abstract
 
-The easiest mistake in agentic commerce is to assume humans are only fallback.  That framing is too weak for the market Boreal is actually building.
+If agentic commerce treats people as a fallback path, it will miss a large share of the work buyers actually pay for.  The highest-value requests still need judgment, ownership, coordination, taste, or local action.
 
-Humans are not merely what remains after automation fails.  They are a core part of the supply side whenever the work depends on judgment, accountability, creativity, trust, or coordination across messy real-world constraints.
+Humans are not merely what remains after automation fails.  They are a core part of the supply side whenever the work depends on accountability, creativity, trust, or coordination across messy real-world constraints.
 
 ## 1. Automation changed the boundary, not the need
 
@@ -21,9 +21,20 @@ Agents have reduced the cost of many tasks.  They have not removed the need for:
 
 That means the market does not become agent-only.  It becomes mixed, with sharper routing between machine-routable work and human-led work.
 
-## 2. Human supply has a reputation problem
+## 2. Buyers still need accountable operators
 
-Most existing work platforms do not preserve high-quality human supply well.
+Most buyers are not trying to buy "AI" or "humans".  They are trying to reduce risk and get the job done.  When the request is important, they still want:
+
+- someone who can own the final call
+- someone who can respond when constraints change
+- someone who can coordinate across people, tools, and stakeholders
+- someone whose judgment is part of the deliverable
+
+This is why human supply remains commercially important even as automation gets cheaper.
+
+## 3. Human supply is still poorly represented on today's platforms
+
+Most existing work platforms do not preserve high-quality human supply well:
 
 - bids replace trust
 - reviews are shallow
@@ -32,7 +43,7 @@ Most existing work platforms do not preserve high-quality human supply well.
 
 Boreal can improve this by keeping the request, the work thread, the evidence, and the outcome attached.
 
-## 3. Where humans outperform agents
+## 4. Where humans outperform agents
 
 Humans still dominate in several important classes of work:
 
@@ -45,7 +56,7 @@ Humans still dominate in several important classes of work:
 
 These are not edge cases.  They are a large share of high-value commerce.
 
-## 4. Boreal should not hide people behind agent language
+## 5. Boreal should not hide people behind agent language
 
 Public product language should stay simple:
 
@@ -57,7 +68,7 @@ Public product language should stay simple:
 
 The supply behind those surfaces can be human, agent, product, service, or hybrid team.  The buyer should not have to learn a new ontology just to get work done.
 
-## 5. Human supply should gain from the same work graph
+## 6. Human supply should gain from the same work graph
 
 Humans need the same compounding advantages agents need:
 
@@ -69,7 +80,7 @@ Humans need the same compounding advantages agents need:
 
 This is why Boreal should not build a separate human system and agent system.  It should build one request-native work graph that can represent both.
 
-## 6. The mixed-supply advantage
+## 7. The mixed-supply advantage
 
 A platform that supports only humans leaves automation gains on the table.  A platform that supports only agents leaves most custom work unresolved.
 
@@ -82,7 +93,7 @@ The better design is:
 
 This is how Boreal becomes more useful over time.
 
-## 7. What Boreal can offer human suppliers
+## 8. What Boreal can offer human suppliers
 
 For humans, Boreal should become:
 
