@@ -443,6 +443,48 @@ export async function approvePersistedRequest(input: {
   });
 }
 
+export async function openPersistedRequestForWorkers(input: {
+  intentId: string;
+  ownerExternalId?: string;
+}) {
+  await ensureCatalogSeeded();
+
+  const request = await getRequestExecutionContext({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+
+  if (!request) {
+    throw new Error("Request not found.");
+  }
+
+  await approveRequestDraft({
+    assistantMessage:
+      "Boreal reopened this request for workers after the automatic route stalled. Matching and proposals stay attached here.",
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+    status: "open",
+  });
+
+  return {
+    assistantMessage:
+      "This request is now open for workers and proposals. Boreal kept the failed automatic route in the timeline so you can compare it against the next participants.",
+    intentId: input.intentId,
+    relatedCatalogItems:
+      request.catalogQuery.trim().length > 0
+        ? await withRetry(
+            () =>
+              searchCatalog({
+                limit: 6,
+                query: request.catalogQuery,
+              }),
+            { attempts: 2 },
+          )
+        : [],
+    workspace: buildApprovedWorkerWorkspace(request),
+  };
+}
+
 export async function retryPersistedRequest(input: {
   intentId: string;
   ownerExternalId?: string;
@@ -797,7 +839,7 @@ async function runApprovedExecutionForRequest(input: {
       assignedAgent: executionAgentId,
       assignedToolNames: input.assignedToolNames,
       assistantMessage:
-        `${getExecutionAgentDisplayName(input.request.routeTarget)} could not complete this request automatically. You can retry it from the workboard.`,
+        `${getExecutionAgentDisplayName(input.request.routeTarget)} could not complete this request automatically. Last error: ${message}. Retry it or reopen it for workers.`,
       intentId: input.input.intentId,
       ownerExternalId: input.input.ownerExternalId,
       status: "blocked",
@@ -805,13 +847,13 @@ async function runApprovedExecutionForRequest(input: {
 
     return {
       assistantMessage:
-        `${getExecutionAgentDisplayName(input.request.routeTarget)} could not complete this request automatically. The request is blocked and can be retried from the workboard.`,
+        `${getExecutionAgentDisplayName(input.request.routeTarget)} could not complete this request automatically. Last error: ${message}. The request is blocked until you retry it or reopen it for workers.`,
       intentId: input.input.intentId,
       relatedCatalogItems,
       workspace: {
         kind: "empty",
-        subtitle: "Execution failed after automatic retries. Use retry to run the request again.",
-        title: "Retry needed",
+        subtitle: `Execution failed after automatic retries. Last error: ${message}`,
+        title: "Route blocked",
       } satisfies WorkspaceState,
     };
   }
@@ -926,7 +968,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
         (selection) => selection.agent.key,
       ),
       assistantMessage:
-        "The matched specialist route could not complete this request automatically. You can retry it from the workboard.",
+        `The matched specialist route could not complete this request automatically. Last error: ${message}. Retry it or reopen it for workers.`,
       intentId: input.input.intentId,
       ownerExternalId: input.input.ownerExternalId,
       status: "blocked",
@@ -934,14 +976,13 @@ async function runApprovedSpecialistExecutionForRequest(input: {
 
     return {
       assistantMessage:
-        "The matched specialist route could not complete this request automatically. The request is blocked and can be retried from the workboard.",
+        `The matched specialist route could not complete this request automatically. Last error: ${message}. The request is blocked until you retry it or reopen it for workers.`,
       intentId: input.input.intentId,
       relatedCatalogItems,
       workspace: {
         kind: "empty",
-        subtitle:
-          "Execution failed after automatic retries. Use retry to run the request again.",
-        title: "Retry needed",
+        subtitle: `Execution failed after automatic retries. Last error: ${message}`,
+        title: "Route blocked",
       } satisfies WorkspaceState,
     };
   }

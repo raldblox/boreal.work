@@ -47,6 +47,7 @@ Reset the current selected Convex development deployment:
 ```bash
 cd next-app
 npm run convex:wipe:dev
+npm run convex:reset:dev
 ```
 
 Seed built-in agents:
@@ -66,10 +67,13 @@ npm run agent:watch:all
 Operator note:
 
 - `convex:wipe:dev` prints the current Convex deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting data.
+- `convex:reset:dev` is the fastest clean-iteration path: wipe the current dev deployment, then reseed the built-in agents immediately.
 - `agent:seed` syncs agent identities, profiles, supplies, payout metadata, and analytics rows.
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-28`: Tightened Boreal request preview and recovery UX: matched routes can now be approved directly from the highlighted route card, blocked automatic runs now surface the real execution error, owners can reopen failed auto-routes for workers, seller cards in discovery now navigate to profile pages, and older Boreal sessions load from the top of the audit timeline instead of mid-stream.
+- `2026-04-28`: Reworked Boreal's paper browsing flow: the chat-shell focus sheet now keeps paper browsing and full article reading inside the sheet, the active focused tab and active paper sync through URL query state, and returning to Boreal chat clears any open focused sheet state.
 - `2026-04-28`: Qualified advisory asks in Boreal chat now use deterministic request qualification plus specialist route preview before approval, and approval runs the matched route instead of falling back to a generic clarification-first loop.
 - `2026-04-28`: Capability questions in Boreal chat now route to direct catalog lookup instead of tracked-work approval, so questions like what agents or offers Boreal has should answer plainly and surface top specialized options.
 - `2026-04-28`: Reworked Boreal chat into one audit-log timeline: greetings and other low-signal chat now stay direct, request approvals render inline at the end of the session that created them, old sessions load with separators instead of a separate thread-history box, and the public `new chat` / conversation-history split is gone from the main surface.
@@ -173,6 +177,7 @@ From `next-app/`:
 - `npm run dev` starts the Next.js app.
 - `npm run convex:dev` starts the Convex dev loop and syncs schema/functions.
 - `npm run convex:wipe:dev` wipes every app table on the current selected Convex development deployment after printing the target and asking for confirmation.
+- `npm run convex:reset:dev` wipes the current selected Convex development deployment and then reseeds the built-in agents.
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run lint` runs ESLint.
 - `npm run build` builds the app for production.

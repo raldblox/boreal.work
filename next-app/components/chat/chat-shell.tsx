@@ -65,7 +65,7 @@ import {
 } from "@/components/chat/profile-builder"
 import { AgentDeveloperSurface } from "@/components/home/agent-developer-surface"
 import { AboutPage } from "@/components/home/about-page"
-import { PapersHubPage } from "@/components/home/papers-hub-page"
+import { PapersFocusBrowser } from "@/components/home/papers-focus-browser"
 import {
   type DeliveryDraft,
   DeliverySubmissionDialog,
@@ -165,7 +165,11 @@ import {
   inferInvocationAccess,
   parsePaymentResponseHeader,
 } from "@/lib/boreal/integrations/service-providers/payments/x402"
-import { listPublicPapers } from "@/lib/boreal/papers-data"
+import {
+  getPublicPaper,
+  listPublicPapers,
+  type PublicPaperRecord,
+} from "@/lib/boreal/papers-data"
 
 import { IntentSidebar } from "./intent-sidebar"
 import {
@@ -181,7 +185,10 @@ import {
   RequestStatusBadge,
 } from "./request-ui"
 import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel"
-import { FocusSheet } from "@/components/workboard/focus-sheet"
+import {
+  FocusSheet,
+  FOCUS_SHEET_EXIT_MS,
+} from "@/components/workboard/focus-sheet"
 
 type ChatMessage = {
   content: string
@@ -311,9 +318,15 @@ export function ChatShell() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const publicPapers = useMemo(() => listPublicPapers(), [])
   const activeIntentId = searchParams.get("request")
   const seededPrompt = searchParams.get("prompt")
   const requestedCenterTab = searchParams.get("view")
+  const requestedCenterSheet = normalizeCenterSheetView(searchParams.get("sheet"))
+  const requestedPaperSlug = normalizePublicPaperSlug(
+    searchParams.get("paper"),
+    publicPapers
+  )
   const selectedCenterTab = normalizeCenterViewTab(requestedCenterTab)
   const workspaceTab = normalizeWorkspaceTab(searchParams.get("browse"))
 
@@ -343,6 +356,9 @@ export function ChatShell() {
   const [isMobileWorkspaceOpen, setIsMobileWorkspaceOpen] = useState(false)
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false)
   const [composerText, setComposerText] = useState(() => seededPrompt ?? "")
+  const [pendingApprovalIntentId, setPendingApprovalIntentId] = useState<
+    string | null
+  >(null)
   const [matchQueryDraft, setMatchQueryDraft] = useState<string | null>(null)
   const [pinningSupplyId, setPinningSupplyId] = useState<string | null>(null)
   const [proposalMessage, setProposalMessage] = useState("")
@@ -375,6 +391,9 @@ export function ChatShell() {
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
   const [centerSheetView, setCenterSheetView] =
     useState<CenterSheetView | null>(null)
+  const [centerSheetPaperSlug, setCenterSheetPaperSlug] = useState<string | null>(
+    null
+  )
   const [isCenterSheetOpen, setIsCenterSheetOpen] = useState(false)
 
   const { data: session, status: sessionStatus } = useSession()
@@ -669,6 +688,10 @@ export function ChatShell() {
     ""
   const activeProfileBuilderWorkspace =
     effectiveWorkspace.kind === "profile_builder" ? effectiveWorkspace : null
+  const activeCenterSheetPaper =
+    centerSheetView === "papers" && centerSheetPaperSlug
+      ? getPublicPaper(centerSheetPaperSlug)
+      : null
 
   function buildInitialProfileBuilderDraft() {
     const base = myProfileRecord
@@ -720,7 +743,9 @@ export function ChatShell() {
   function updateWorkspaceUrl(next: {
     browse?: WorkspaceTab | null
     chat?: string | null
+    paper?: string | null
     request?: string | null
+    sheet?: CenterSheetView | null
     view?: CenterViewTab | null
   }) {
     const params = new URLSearchParams(searchParams.toString())
@@ -736,6 +761,8 @@ export function ChatShell() {
       params.delete("view")
     } else if (next.request) {
       setIsCenterSheetOpen(false)
+      params.delete("sheet")
+      params.delete("paper")
       params.set("request", next.request)
     }
 
@@ -749,6 +776,24 @@ export function ChatShell() {
       params.delete("browse")
     } else if (next.browse) {
       params.set("browse", next.browse)
+    }
+
+    if (next.sheet === null) {
+      params.delete("sheet")
+      params.delete("paper")
+    } else if (next.sheet) {
+      params.set("sheet", next.sheet)
+
+      if (next.sheet !== "papers") {
+        params.delete("paper")
+      }
+    }
+
+    if (next.paper === null) {
+      params.delete("paper")
+    } else if (next.paper) {
+      params.set("sheet", "papers")
+      params.set("paper", next.paper)
     }
 
     const nextQuery = params.toString()
@@ -829,13 +874,30 @@ export function ChatShell() {
   }, [isAnyMobileSidebarOpen])
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      if (requestedCenterSheet) {
+        setCenterSheetView(requestedCenterSheet)
+        if (requestedCenterSheet === "papers") {
+          setCenterSheetPaperSlug(requestedPaperSlug)
+        }
+        setIsCenterSheetOpen(true)
+        return
+      }
+
+      setIsCenterSheetOpen(false)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [requestedCenterSheet, requestedPaperSlug])
+
+  useEffect(() => {
     if (isCenterSheetOpen || !centerSheetView) {
       return
     }
 
     const timeout = window.setTimeout(() => {
       setCenterSheetView(null)
-    }, 260)
+    }, FOCUS_SHEET_EXIT_MS + 40)
 
     return () => window.clearTimeout(timeout)
   }, [centerSheetView, isCenterSheetOpen])
@@ -1148,6 +1210,7 @@ export function ChatShell() {
 
     setErrorMessage(null)
     setIsSubmitting(true)
+    setPendingApprovalIntentId(null)
     const now = Date.now()
 
     if (activeIntentId) {
@@ -1304,8 +1367,11 @@ export function ChatShell() {
 
       if (finalPayload.requiresApproval && finalPayload.intentId) {
         setOptimisticReviewRating(null)
+        setPendingApprovalIntentId(finalPayload.intentId)
         return
       }
+
+      setPendingApprovalIntentId(null)
     } catch (error) {
       setMessages((current) =>
         current.filter(
@@ -1354,6 +1420,11 @@ export function ChatShell() {
         request: intentId,
         view: "chat",
       })
+      if (intentId) {
+        setPendingApprovalIntentId((current) =>
+          current === intentId ? null : current
+        )
+      }
       setConversationId(undefined)
       setMessages([])
       setWorkspace(payload.workspace)
@@ -1391,6 +1462,10 @@ export function ChatShell() {
       if (activeIntentId === intentId) {
         handleClearSelection()
       }
+
+      setPendingApprovalIntentId((current) =>
+        current === intentId ? null : current
+      )
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to cancel request."
@@ -1548,6 +1623,49 @@ export function ChatShell() {
       )
     } finally {
       setIsRetryingRequest(false)
+    }
+  }
+
+  async function handleOpenRequestForWorkers() {
+    if (!activeIntentId || isApprovingRequest) {
+      return
+    }
+
+    setErrorMessage(null)
+    setIsApprovingRequest(true)
+
+    try {
+      const response = await fetch(`/api/requests/${activeIntentId}/open`, {
+        method: "POST",
+      })
+      const payload = (await response.json()) as
+        | {
+          assistantMessage: string
+          relatedCatalogItems: CatalogItem[]
+          workspace: WorkspaceState
+        }
+        | { error?: string }
+
+      if (!response.ok || !("workspace" in payload)) {
+        throw new Error(
+          "error" in payload && payload.error
+            ? payload.error
+            : "Failed to open request for workers."
+        )
+      }
+
+      setMessages([])
+      setWorkspace(payload.workspace)
+      updateWorkspaceUrl({ browse: "workers" })
+      setShowWorkspace(true)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to open request for workers."
+      )
+    } finally {
+      setIsApprovingRequest(false)
     }
   }
 
@@ -2124,7 +2242,9 @@ export function ChatShell() {
     setErrorMessage(null)
     updateWorkspaceUrl({
       chat: null,
+      paper: null,
       request: null,
+      sheet: null,
       view: null,
     })
     setMatchQueryDraft(null)
@@ -2134,6 +2254,7 @@ export function ChatShell() {
     setOptimisticReviewRating(null)
     setMessages([])
     setConversationId(undefined)
+    setPendingApprovalIntentId(null)
     setIsMobileIntentSidebarOpen(false)
     setIsMobileWorkspaceOpen(false)
     setWorkspace(emptyWorkspace)
@@ -2143,7 +2264,9 @@ export function ChatShell() {
     setErrorMessage(null)
     updateWorkspaceUrl({
       chat: null,
+      paper: null,
       request: null,
+      sheet: null,
       view: null,
     })
     setMatchQueryDraft(null)
@@ -2189,12 +2312,17 @@ export function ChatShell() {
   }
 
   function openCenterSheet(view: CenterSheetView) {
-    setCenterSheetView(view)
-    setIsCenterSheetOpen(true)
+    updateWorkspaceUrl({
+      paper: null,
+      sheet: view,
+    })
   }
 
   function closeCenterSheet() {
-    setIsCenterSheetOpen(false)
+    updateWorkspaceUrl({
+      paper: null,
+      sheet: null,
+    })
   }
 
   function handleInlineNavSelect(href: string) {
@@ -2203,12 +2331,26 @@ export function ChatShell() {
       return
     }
 
-    if (centerSheetView === nextView && isCenterSheetOpen) {
+    if (requestedCenterSheet === nextView && isCenterSheetOpen) {
       closeCenterSheet()
       return
     }
 
     openCenterSheet(nextView)
+  }
+
+  function openPapersOverview() {
+    updateWorkspaceUrl({
+      paper: null,
+      sheet: "papers",
+    })
+  }
+
+  function openEmbeddedPaper(slug: string) {
+    updateWorkspaceUrl({
+      paper: slug,
+      sheet: "papers",
+    })
   }
 
   function openXSignIn() {
@@ -2261,7 +2403,6 @@ export function ChatShell() {
     borealTimelineSessions.length === 0
   const shouldShowFooterComposer =
     isXAuthenticated && shouldShowChatComposer && !isHomeView
-  const publicPapers = useMemo(() => listPublicPapers(), [])
 
   return (
       <>
@@ -2325,8 +2466,8 @@ export function ChatShell() {
             >
               <ChatShellHeader
                 activeNavHref={
-                  isCenterSheetOpen && centerSheetView
-                    ? centerSheetHrefByView[centerSheetView]
+                  requestedCenterSheet
+                    ? centerSheetHrefByView[requestedCenterSheet]
                     : null
                 }
                 hideIntentMenu={false}
@@ -2349,14 +2490,23 @@ export function ChatShell() {
                 <FocusSheet
                   onClose={closeCenterSheet}
                   open={isCenterSheetOpen}
-                  title={centerSheetTitleByView[centerSheetView]}
+                  title={
+                    centerSheetView === "papers" && activeCenterSheetPaper
+                      ? activeCenterSheetPaper.title
+                      : centerSheetTitleByView[centerSheetView]
+                  }
                 >
                   {centerSheetView === "about" ? (
                     <AboutPage embedded />
                   ) : centerSheetView === "developers" ? (
                     <AgentDeveloperSurface embedded />
                   ) : centerSheetView === "papers" ? (
-                    <PapersHubPage embedded papers={publicPapers} />
+                    <PapersFocusBrowser
+                      activePaperSlug={centerSheetPaperSlug}
+                      onOpenOverview={openPapersOverview}
+                      onSelectPaper={openEmbeddedPaper}
+                      papers={publicPapers}
+                    />
                   ) : centerSheetView === "roadmap" ? (
                     <RoadmapBoard embedded />
                   ) : null}
@@ -2403,8 +2553,13 @@ export function ChatShell() {
                           >
                             Browse requests
                           </Button>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href="/papers">Read papers</Link>
+                          <Button
+                            onClick={openPapersOverview}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            Read papers
                           </Button>
                         </>
                       }
@@ -2626,6 +2781,9 @@ export function ChatShell() {
                                     handleMarkRequestFulfilled
                                   }
                                   onOpenProfileBuilder={openProfileBuilder}
+                                  onOpenRequestForWorkers={
+                                    handleOpenRequestForWorkers
+                                  }
                                   onQuickReply={(value) => {
                                     void submitMessage(value)
                                   }}
@@ -2742,8 +2900,13 @@ export function ChatShell() {
                             >
                               Browse requests
                             </Button>
-                            <Button asChild size="sm" variant="outline">
-                              <Link href="/papers">Read papers</Link>
+                            <Button
+                              onClick={openPapersOverview}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Read papers
                             </Button>
                             <Button
                               onClick={() => {
@@ -2786,6 +2949,20 @@ export function ChatShell() {
                   ) : (
                     <Conversation className="h-full min-h-0">
                       <ConversationContent className={CHAT_RAIL_CLASS}>
+                        {!activeIntentId && hasMoreBorealSessions ? (
+                          <div className="flex justify-center">
+                            <Button
+                              onClick={() =>
+                                setBorealChatSessionLimit((current) => current + 6)
+                              }
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Load more sessions
+                            </Button>
+                          </div>
+                        ) : null}
                         {activeIntentId
                           ? displayedMessages.map((message) => (
                             <Message from={message.role} key={message.id}>
@@ -2806,36 +2983,26 @@ export function ChatShell() {
                           : borealTimelineSessions.map((session, index) => (
                             <BorealTimelineSessionBlock
                               key={`${session.conversation.conversationId}-${session.conversation.latestMessageAt}-${index}`}
+                              activeApprovalIntentId={pendingApprovalIntentId}
                               onApproveRequest={handleApproveRequest}
                               onDiscardRequest={handleCancelRequest}
                               onOpenRequest={openConversationRequestById}
                               session={session}
                             />
                           ))}
-                        {!activeIntentId && hasMoreBorealSessions ? (
-                          <div className="flex justify-center">
-                            <Button
-                              onClick={() =>
-                                setBorealChatSessionLimit((current) => current + 6)
-                              }
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              Load more sessions
-                            </Button>
-                          </div>
-                        ) : null}
                         {hasRenderableInlineWorkspace(effectiveWorkspace) ? (
                           <InlineWorkspaceCard
+                            approvalIntentId={pendingApprovalIntentId}
                             isRefreshingVideo={isRefreshingVideo}
                             onAddToCart={handleAddToCart}
+                            onApproveRoute={handleApproveRequest}
                             onAskCatalogItem={(item) => {
                               void submitMessage(
                                 `Tell me more about ${item.title}. Include best use cases, what it delivers, and whether it fits my request.`
                               )
                             }}
                             onDownloadVideo={handleDownloadVideo}
+                            isApprovingRoute={isApprovingRequest}
                             onOpenProfileBuilder={openProfileBuilder}
                             onQuickReply={(value) => {
                               setComposerText(value)
@@ -3218,11 +3385,13 @@ function MobileSidebarDrawer({
 }
 
 function BorealTimelineSessionBlock({
+  activeApprovalIntentId,
   onApproveRequest,
   onDiscardRequest,
   onOpenRequest,
   session,
 }: {
+  activeApprovalIntentId: string | null
   onApproveRequest: (intentId?: string | null) => Promise<void>
   onDiscardRequest: (intentId: string) => Promise<void>
   onOpenRequest: (requestId: string) => void
@@ -3274,13 +3443,16 @@ function BorealTimelineSessionBlock({
                 {linkedRequest.status === "proposed"
                   ? linkedRequest.needsClarification
                     ? "Needs scope"
-                    : "Awaiting approval"
+                    : linkedRequest.id === activeApprovalIntentId
+                      ? "Review matched routes"
+                      : "Awaiting approval"
                   : linkedRequest.status.replaceAll("_", " ")}
               </p>
             </div>
             <div className="flex items-center gap-2">
               {linkedRequest.status === "proposed" &&
-              !linkedRequest.needsClarification ? (
+              !linkedRequest.needsClarification &&
+              linkedRequest.id !== activeApprovalIntentId ? (
                 <>
                   <Button
                     onClick={() => void onApproveRequest(linkedRequest.id)}
@@ -3305,7 +3477,10 @@ function BorealTimelineSessionBlock({
                   type="button"
                   variant="outline"
                 >
-                  Open request
+                  {linkedRequest.status === "proposed" &&
+                  linkedRequest.id === activeApprovalIntentId
+                    ? "Open draft"
+                    : "Open request"}
                 </Button>
               )}
             </div>
@@ -3314,7 +3489,9 @@ function BorealTimelineSessionBlock({
             <p className="mt-3 text-xs text-muted-foreground">
               {linkedRequest.needsClarification
                 ? "This draft still needs clearer scope. Open it and reply in chat before Boreal turns it into tracked work."
-                : "Approve only when you want Boreal to open tracked work and run the matched route."}
+                : linkedRequest.id === activeApprovalIntentId
+                  ? "The best matched routes are already expanded below. Approve the highlighted route card when you want Boreal to open tracked work."
+                  : "Approve only when you want Boreal to open tracked work and run the matched route."}
             </p>
           ) : null}
         </div>
@@ -3515,6 +3692,7 @@ function getRequestHeaderStage(status: string) {
 
 function InlineRequestActionEvent({
   access,
+  activity,
   approvingProposalId,
   intent,
   isArchivingRequest,
@@ -3530,6 +3708,7 @@ function InlineRequestActionEvent({
   onDeleteIntent,
   onMarkRequestFulfilled,
   onOpenProfileBuilder,
+  onOpenRequestForWorkers,
   onRefreshRequest,
   onRetryRequest,
   onSubmitReview,
@@ -3538,6 +3717,7 @@ function InlineRequestActionEvent({
   shouldPromptReview,
 }: {
   access: RequestDetail["access"]
+  activity: RequestDetail["activity"]
   approvingProposalId: string | null
   intent: NonNullable<RequestDetail["intent"]>
   isArchivingRequest: boolean
@@ -3553,6 +3733,7 @@ function InlineRequestActionEvent({
   onDeleteIntent: () => void
   onMarkRequestFulfilled: () => Promise<void>
   onOpenProfileBuilder: () => void
+  onOpenRequestForWorkers: () => Promise<void>
   onRefreshRequest: () => Promise<void>
   onRetryRequest: () => Promise<void>
   onSubmitReview: (rating: number) => void
@@ -3571,10 +3752,9 @@ function InlineRequestActionEvent({
   )
   const handlingMode = getRequestHandlingMode(intent)
   const isProfileUpdate = intent.routeTarget === "profile_update"
-  const isMatchedTextRoute =
-    handlingMode === "boreal" &&
-    intent.shouldSearchCatalog &&
-    intent.requestedOutputTypes.every((type) => type === "text")
+  const isMatchedCatalogRoute =
+    handlingMode === "boreal" && intent.shouldSearchCatalog
+  const blockedErrorMessage = getLatestBlockedErrorMessage(activity)
 
   if (actionState.kind === "none" || actionState.kind === "review") {
     return null
@@ -3685,7 +3865,7 @@ function InlineRequestActionEvent({
                     ? "Approval target: worker market"
                     : isProfileUpdate
                       ? "Approval target: Boreal profile drafting"
-                      : isMatchedTextRoute
+                      : isMatchedCatalogRoute
                         ? "Approval target: best matched route"
                         : "Approval target: Boreal Agent"}
               </p>
@@ -3696,7 +3876,7 @@ function InlineRequestActionEvent({
                     ? "Approving this will publish the request for proposals and matching."
                     : isProfileUpdate
                       ? "Approving this will let Boreal draft your editable public profile and first listing. You can also open the builder form and fill it manually."
-                      : isMatchedTextRoute
+                      : isMatchedCatalogRoute
                         ? "Approving this will let Boreal run the strongest matched specialist route first."
                         : "Approving this will let Boreal Agent take the first execution pass."}
               </p>
@@ -3758,6 +3938,17 @@ function InlineRequestActionEvent({
           ))}
         </div>
       ) : null}
+      {actionState.kind === "approval" && isMatchedCatalogRoute ? (
+        <p className="text-xs text-muted-foreground">
+          Approve the highlighted route card below when you want Boreal to lock
+          the strongest match and start tracked work.
+        </p>
+      ) : null}
+      {actionState.kind === "blocked" && blockedErrorMessage ? (
+        <div className="border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-muted-foreground">
+          Last error: {blockedErrorMessage}
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {actionState.kind === "approval" ? (
           <>
@@ -3772,7 +3963,7 @@ function InlineRequestActionEvent({
                 Open builder form
               </Button>
             ) : null}
-            {handlingMode !== "clarify" ? (
+            {handlingMode !== "clarify" && !isMatchedCatalogRoute ? (
               <Button
                 disabled={isApprovingRequest}
                 onClick={onApproveRequest}
@@ -3788,9 +3979,7 @@ function InlineRequestActionEvent({
                   ? "Open for proposals"
                   : isProfileUpdate
                     ? "Approve Boreal draft"
-                    : isMatchedTextRoute
-                      ? "Approve matched route"
-                      : "Approve Boreal Agent"}
+                    : "Approve Boreal Agent"}
               </Button>
             ) : null}
             <Button
@@ -3905,6 +4094,20 @@ function InlineRequestActionEvent({
               Retry
             </Button>
             <Button
+              disabled={isApprovingRequest}
+              onClick={() => void onOpenRequestForWorkers()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isApprovingRequest ? (
+                <LoaderIcon className="animate-spin" />
+              ) : (
+                <MessagesSquareIcon />
+              )}
+              Open for workers
+            </Button>
+            <Button
               disabled={isArchivingRequest}
               onClick={() => void onArchiveRequest()}
               size="sm"
@@ -3999,6 +4202,12 @@ type RequestTimelineItem =
   }
   | { item: ChatMessage; key: string; kind: "live"; timestamp: number }
   | {
+    item: RequestDetail["activity"][number]
+    key: string
+    kind: "activity"
+    timestamp: number
+  }
+  | {
     item: NonNullable<RequestDetail["artifact"]>
     key: string
     kind: "artifact"
@@ -4037,6 +4246,7 @@ function RequestChatTimeline({
   onDownloadVideo,
   onMarkRequestFulfilled,
   onOpenProfileBuilder,
+  onOpenRequestForWorkers,
   onQuickReply,
   onRefreshRequest,
   onRefreshVideo,
@@ -4066,6 +4276,7 @@ function RequestChatTimeline({
   onDownloadVideo: (videoId: string) => void
   onMarkRequestFulfilled: () => Promise<void>
   onOpenProfileBuilder: () => void
+  onOpenRequestForWorkers: () => Promise<void>
   onQuickReply: (value: string) => void
   onRefreshRequest: () => Promise<void>
   onRefreshVideo: () => void
@@ -4077,6 +4288,13 @@ function RequestChatTimeline({
   workspace: WorkspaceState
 }) {
   const timeline = buildRequestTimeline(requestDetail, review, liveMessages)
+  const catalogApprovalIntentId =
+    requestDetail.intent &&
+    requestDetail.access?.isOwner &&
+    requestDetail.intent.status === "proposed" &&
+    !requestDetail.intent.needsClarification
+      ? requestDetail.intent._id
+      : null
 
   return (
     <>
@@ -4119,6 +4337,10 @@ function RequestChatTimeline({
               </MessageContent>
             </Message>
           )
+        }
+
+        if (entry.kind === "activity") {
+          return <InlineActivityEvent activity={entry.item} key={entry.key} />
         }
 
         if (entry.kind === "artifact") {
@@ -4166,10 +4388,12 @@ function RequestChatTimeline({
           onArchiveRequest={onArchiveRequest}
           onApproveProposal={onApproveProposal}
           onApproveRequest={() => onApproveRequest(requestDetail.intent?._id)}
+          activity={requestDetail.activity}
           onCancelRequest={() => onCancelRequest(requestDetail.intent?._id)}
           onDeleteIntent={onDeleteIntent}
           onMarkRequestFulfilled={onMarkRequestFulfilled}
           onOpenProfileBuilder={onOpenProfileBuilder}
+          onOpenRequestForWorkers={onOpenRequestForWorkers}
           onRefreshRequest={onRefreshRequest}
           onRetryRequest={onRetryRequest}
           participants={requestDetail.participants}
@@ -4183,10 +4407,13 @@ function RequestChatTimeline({
         workspace.kind === "profile_builder" ||
         (timeline.length === 0 && hasRenderableInlineWorkspace(workspace)) ? (
         <InlineWorkspaceCard
+          approvalIntentId={catalogApprovalIntentId}
           isRefreshingVideo={isRefreshingVideo}
           onAddToCart={onAddToCart}
+          onApproveRoute={onApproveRequest}
           onAskCatalogItem={onAskCatalogItem}
           onDownloadVideo={onDownloadVideo}
+          isApprovingRoute={isApprovingRequest}
           onOpenProfileBuilder={onOpenProfileBuilder}
           onQuickReply={onQuickReply}
           onRefreshVideo={onRefreshVideo}
@@ -4210,6 +4437,15 @@ function buildRequestTimeline(
       key: `message-${message._id}`,
       kind: "message",
       timestamp: message.createdAt,
+    })
+  }
+
+  for (const activity of requestDetail.activity) {
+    items.push({
+      item: activity,
+      key: `activity-${activity._id}`,
+      kind: "activity",
+      timestamp: activity.createdAt,
     })
   }
 
@@ -4256,15 +4492,38 @@ function buildRequestTimeline(
     }
 
     const order = {
-      message: 0,
-      live: 1,
-      fulfillment: 2,
-      artifact: 3,
-      review: 4,
+      activity: 0,
+      message: 1,
+      live: 2,
+      fulfillment: 3,
+      artifact: 4,
+      review: 5,
     }
 
     return order[left.kind] - order[right.kind]
   })
+}
+
+function InlineActivityEvent({
+  activity,
+}: {
+  activity: RequestDetail["activity"][number]
+}) {
+  return (
+    <div className="space-y-2 border-l border-border pl-4">
+      <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+        {formatRequestDate(activity.createdAt)}
+      </p>
+      <div className="space-y-1">
+        <p className="text-sm font-medium">{labelActivity(activity.type)}</p>
+        {activity.payload ? (
+          <p className="text-xs text-muted-foreground">
+            {describeActivityPayload(activity.payload)}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 function InlineArtifactEvent({
@@ -5833,10 +6092,9 @@ function getRequestActionState(
   }
 
   if (status === "proposed" && access?.canApproveProposals) {
-    const isMatchedTextRoute =
+    const isMatchedCatalogRoute =
       handlingMode === "boreal" &&
-      intent.shouldSearchCatalog &&
-      intent.requestedOutputTypes.every((type) => type === "text")
+      intent.shouldSearchCatalog
 
     return {
       description:
@@ -5844,7 +6102,7 @@ function getRequestActionState(
           ? "The draft still needs clearer scope before Boreal can open or run it safely."
           : handlingMode === "workers"
             ? "Approve to publish this request for workers and proposals. No one is assigned yet."
-            : isMatchedTextRoute
+            : isMatchedCatalogRoute
               ? "Approve to let Boreal run the best matched specialist route for this request."
               : "Approve to let Boreal Agent take the first pass on this request.",
       kind: "approval" as const,
@@ -5853,7 +6111,7 @@ function getRequestActionState(
           ? "Needs scope"
           : handlingMode === "workers"
             ? "Open for workers"
-            : isMatchedTextRoute
+            : isMatchedCatalogRoute
               ? "Approve matched route"
               : "Approve Boreal Agent",
     }
@@ -5880,7 +6138,7 @@ function getRequestActionState(
   if (status === "blocked" && access?.isOwner) {
     return {
       description:
-        "Automatic execution hit an error. Retry if you want another pass, or archive/delete it if this request should stop here.",
+        "Automatic execution hit an error. Retry it, or reopen it for workers if you want people or external agents to take over.",
       kind: "blocked" as const,
       title: "Needs intervention",
     }
@@ -5944,6 +6202,30 @@ function normalizeCenterViewTab(value: string | null): CenterViewTab {
   }
 
   return "chat"
+}
+
+function normalizeCenterSheetView(value: string | null): CenterSheetView | null {
+  if (
+    value === "about" ||
+    value === "developers" ||
+    value === "papers" ||
+    value === "roadmap"
+  ) {
+    return value
+  }
+
+  return null
+}
+
+function normalizePublicPaperSlug(
+  value: string | null,
+  papers: PublicPaperRecord[]
+) {
+  if (!value) {
+    return null
+  }
+
+  return papers.some((paper) => paper.slug === value) ? value : null
 }
 
 async function consumeChatStream(input: {
@@ -6062,8 +6344,11 @@ function hasRenderableInlineWorkspace(workspaceState: WorkspaceState) {
 }
 
 function InlineWorkspaceCard({
+  approvalIntentId,
+  isApprovingRoute,
   isRefreshingVideo,
   onAddToCart,
+  onApproveRoute,
   onAskCatalogItem,
   onDownloadVideo,
   onOpenProfileBuilder,
@@ -6071,8 +6356,11 @@ function InlineWorkspaceCard({
   onRefreshVideo,
   workspace,
 }: {
+  approvalIntentId?: string | null
+  isApprovingRoute?: boolean
   isRefreshingVideo: boolean
   onAddToCart: (supplyId: string) => Promise<void>
+  onApproveRoute?: (intentId?: string | null) => Promise<void>
   onAskCatalogItem: (item: CatalogItem) => void
   onDownloadVideo: (videoId: string) => void
   onOpenProfileBuilder: () => void
@@ -6153,6 +6441,8 @@ function InlineWorkspaceCard({
   }
 
   if (workspace.kind === "catalog") {
+    const highlightedId = workspace.highlightedId ?? workspace.items[0]?.id
+
     return (
       <div className="space-y-4 border border-border p-4">
         <div className="space-y-1">
@@ -6162,9 +6452,13 @@ function InlineWorkspaceCard({
         <div className="space-y-3">
           {workspace.items.map((item) => (
             <CatalogWorkspaceCard
+              approvalIntentId={approvalIntentId}
+              highlighted={item.id === highlightedId}
+              isApprovingRoute={Boolean(isApprovingRoute)}
               item={item}
               key={item.id}
               onAddToCart={onAddToCart}
+              onApproveRoute={onApproveRoute}
               onAskCatalogItem={onAskCatalogItem}
             />
           ))}
@@ -6223,20 +6517,36 @@ function InlineWorkspaceCard({
 }
 
 function CatalogWorkspaceCard({
+  approvalIntentId,
+  highlighted,
+  isApprovingRoute,
   item,
   onAddToCart,
+  onApproveRoute,
   onAskCatalogItem,
 }: {
+  approvalIntentId?: string | null
+  highlighted: boolean
+  isApprovingRoute: boolean
   item: CatalogItem
   onAddToCart: (supplyId: string) => Promise<void>
+  onApproveRoute?: (intentId?: string | null) => Promise<void>
   onAskCatalogItem: (item: CatalogItem) => void
 }) {
+  const canApproveRoute =
+    Boolean(approvalIntentId) && highlighted && typeof onApproveRoute === "function"
+
   return (
     <div className="space-y-4 border border-border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium">{item.title}</p>
+            {highlighted ? (
+              <span className="inline-flex items-center border border-primary/30 px-2 py-1 text-[11px] tracking-[0.16em] text-primary uppercase">
+                Top route
+              </span>
+            ) : null}
             {item.matchScore !== null ? (
               <span
                 className={cn(
@@ -6288,6 +6598,21 @@ function CatalogWorkspaceCard({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
+        {canApproveRoute ? (
+          <Button
+            disabled={isApprovingRoute}
+            onClick={() => void onApproveRoute?.(approvalIntentId)}
+            size="sm"
+            type="button"
+          >
+            {isApprovingRoute ? (
+              <LoaderIcon className="animate-spin" />
+            ) : (
+              <CheckIcon />
+            )}
+            Approve route
+          </Button>
+        ) : null}
         {item.isCartEnabled ? (
           <Button
             onClick={() => void onAddToCart(item.id)}
@@ -6416,6 +6741,9 @@ function ActivityThreadPanel({
   }
 
   const intent = requestDetail?.intent
+  const reopenedAfterFailure =
+    intent?.status === "open" &&
+    Boolean(requestDetail && getLatestBlockedErrorMessage(requestDetail.activity))
 
   return (
     <div className="space-y-4">
@@ -6441,7 +6769,7 @@ function ActivityThreadPanel({
       {requestDetail?.assignment ? (
         <div className="space-y-3 border border-border p-4">
           <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-            Assignment
+            {reopenedAfterFailure ? "Last automatic route" : "Assignment"}
           </p>
           <div className="space-y-2 text-sm">
             <p>
@@ -6513,7 +6841,18 @@ function ActivityThreadPanel({
 }
 
 function labelActivity(type: string) {
-  return type.replace("request.", "").replaceAll("_", " ")
+  const labels: Record<string, string> = {
+    "request.approved": "Request approved",
+    "request.awaiting_approval": "Awaiting approval",
+    "request.blocked": "Execution blocked",
+    "request.delivered": "Route delivered",
+    "request.execution_started": "Execution started",
+    "request.fulfilled": "Request fulfilled",
+    "request.opened_for_workers": "Opened for workers",
+    "request.retrying": "Retry started",
+  }
+
+  return labels[type] ?? type.replace("request.", "").replaceAll("_", " ")
 }
 
 function describeActivityPayload(payload: Record<string, unknown>) {
@@ -6546,7 +6885,23 @@ function describeActivityPayload(payload: Record<string, unknown>) {
     parts.push(`Route: ${payload.routeTarget.replaceAll("_", " ")}`)
   }
 
+  if (typeof payload.error === "string" && payload.error.trim().length > 0) {
+    parts.push(`Error: ${payload.error}`)
+  }
+
   return parts.join(" | ")
+}
+
+function getLatestBlockedErrorMessage(activity: RequestDetail["activity"]) {
+  const latestBlocked = [...activity]
+    .reverse()
+    .find((entry) => entry.type === "request.blocked")
+
+  const error = latestBlocked?.payload?.error
+
+  return typeof error === "string" && error.trim().length > 0
+    ? error
+    : null
 }
 
 function buildWorkspaceFromRequestDetail(
@@ -6692,12 +7047,20 @@ function buildWorkspaceFromRequestDetail(
   }
 
   if (detail.catalogItems.length > 0) {
+    const blockedErrorMessage = getLatestBlockedErrorMessage(detail.activity)
+
     return {
       highlightedId: detail.catalogItems[0]?._id,
       items: detail.catalogItems.map(mapCatalogEntryToItem),
       kind: "catalog",
       subtitle:
-        "Matched offers stay attached to this request so products and services remain actionable after refresh.",
+        detail.intent.status === "blocked"
+          ? blockedErrorMessage
+            ? `Automatic route failed: ${blockedErrorMessage} You can retry it or reopen it for workers.`
+            : "Automatic route failed. You can retry it or reopen it for workers."
+          : detail.intent.status === "open" && blockedErrorMessage
+            ? "This request was reopened for workers after an automatic route failed. The matched offers stay attached so you can compare and wait for proposals."
+            : "Matched offers stay attached to this request so products and services remain actionable after refresh.",
       title: "Matched offers",
     }
   }

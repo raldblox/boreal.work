@@ -6,6 +6,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
+import Link from "next/link"
 import { useQuery } from "convex/react"
 import {
   BotIcon,
@@ -16,15 +17,7 @@ import {
   UserIcon,
 } from "lucide-react"
 
-import { BorealConnectionView } from "@/components/chat/boreal-connection-view"
-import { ProfileView } from "@/components/profiles/profile-view"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,7 +25,6 @@ import {
   type CatalogEntry,
   convexFunctionRefs,
   type SidebarIntentPreview,
-  type WorkerProfileDetail,
 } from "@/lib/boreal/integrations/convex/function-refs"
 import { cn } from "@/lib/utils"
 
@@ -66,9 +58,6 @@ export function WorkspacePanel({
   )
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search.trim())
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
-    null
-  )
 
   const searchedSupplyListings = useQuery(
     convexFunctionRefs.searchCatalog,
@@ -118,13 +107,6 @@ export function WorkspacePanel({
   )
   const isRequestsLoading =
     activeTab === "requests" && publicRequestsResult === undefined
-  const selectedProfile = useQuery(
-    convexFunctionRefs.getPublicProfile,
-    selectedProfileId && selectedProfileId !== "boreal-agent"
-      ? { ownerExternalId, profileId: selectedProfileId }
-      : "skip"
-  ) as WorkerProfileDetail | undefined
-  const isBorealConnectionSelected = selectedProfileId === "boreal-agent"
 
   if (!isMounted) {
     return (
@@ -142,8 +124,7 @@ export function WorkspacePanel({
   }
 
   return (
-    <>
-      <aside className="flex h-full flex-col overflow-hidden border border-border bg-background">
+    <aside className="flex h-full flex-col overflow-hidden border border-border bg-background">
         <Tabs
           className="min-h-0 flex-1 gap-0"
           onValueChange={(value) => onTabChange(value as WorkspaceTab)}
@@ -206,9 +187,6 @@ export function WorkspacePanel({
                       key={listing._id}
                       listing={listing}
                       onAddToCart={onAddToCart}
-                      onOpenSellerProfile={(profileId) => {
-                        setSelectedProfileId(profileId)
-                      }}
                     />
                   ))
                 )}
@@ -246,34 +224,7 @@ export function WorkspacePanel({
             </ScrollArea>
           </TabsContent>
         </Tabs>
-      </aside>
-
-      <Dialog
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedProfileId(null)
-          }
-        }}
-        open={Boolean(selectedProfileId)}
-      >
-        <DialogContent className="h-[min(88svh,54rem)] max-w-[min(68rem,calc(100vw-2rem))] gap-0 overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(68rem,calc(100vw-2rem))]">
-          <DialogHeader className="sr-only">
-            <DialogTitle>
-              {isBorealConnectionSelected ? "Boreal connection" : "Worker profile"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="h-full overflow-auto bg-background">
-            {isBorealConnectionSelected ? (
-              <BorealConnectionView />
-            ) : selectedProfile ? (
-              <ProfileView detail={selectedProfile} showProfileLink={true} />
-            ) : (
-              <ProfileDialogLoader />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    </aside>
   )
 }
 
@@ -300,11 +251,9 @@ function getMatchScoreTone(score: number | null) {
 function SupplyCard({
   listing,
   onAddToCart,
-  onOpenSellerProfile,
 }: {
   listing: CatalogEntry
   onAddToCart: (supplyId: string) => Promise<void>
-  onOpenSellerProfile: (profileId: string) => void
 }) {
   const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
 
@@ -394,13 +343,8 @@ function SupplyCard({
               </Button>
             ) : null}
             {listing.seller?.profileId ? (
-              <Button
-                onClick={() => onOpenSellerProfile(listing.seller!.profileId!)}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                View seller
+              <Button asChild size="sm" type="button" variant="ghost">
+                <Link href={`/p/${listing.seller.profileId}`}>View seller</Link>
               </Button>
             ) : null}
           </div>
@@ -473,36 +417,6 @@ function DiscoveryPanelLoader({
           </div>
         </div>
       ))}
-    </div>
-  )
-}
-
-function ProfileDialogLoader() {
-  return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <LoaderIcon className="size-4 animate-spin" />
-        <span>Loading profile</span>
-      </div>
-      <div className="space-y-4">
-        <div className="h-16 w-16 animate-pulse rounded-2xl border border-border bg-muted/50" />
-        <div className="space-y-2">
-          <div className="h-7 w-48 animate-pulse bg-muted/55" />
-          <div className="h-4 w-5/6 animate-pulse bg-muted/40" />
-          <div className="h-4 w-2/3 animate-pulse bg-muted/30" />
-        </div>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            className="space-y-2 border border-border/60 bg-background px-4 py-4"
-            key={index}
-          >
-            <div className="h-3 w-24 animate-pulse bg-muted/35" />
-            <div className="h-6 w-20 animate-pulse bg-muted/55" />
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
