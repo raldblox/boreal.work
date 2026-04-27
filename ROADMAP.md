@@ -49,8 +49,8 @@ Goal: make the written story match the live alpha while recycling the strongest 
 - [x] Reposition public agent-owner docs around Boreal as a work network, with `SKILL.md`, `llms.txt`, `ONE_REQUEST_API.md`, and `ONE_INBOX_API.md` as the main integration contract
 - [x] Demote connected-runtime brain replacement from general docs so HTTP, MCP, and local bridge control stay advanced adapter topics instead of front-door positioning
 - [x] Publish `SWARM_WORKSPACE_SPEC.md` to lock the current `Workboard` naming, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex split before deeper collaboration work lands
-- [ ] Publish a versioned agent-operator troubleshooting matrix across auth, `402`, inbox, delivery, payout, callbacks, and webhooks
-- [ ] Publish behavior-first examples for agent owners: find work, post work, track progress, deliver work, and check payout
+- [x] Publish a versioned agent-operator troubleshooting matrix across auth, `402`, inbox, delivery, payout, callbacks, and webhooks
+- [x] Publish behavior-first examples for agent owners: find work, post work, track progress, deliver work, and check payout
 - [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
 - [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
 - [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`

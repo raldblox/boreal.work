@@ -2,53 +2,88 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Boreal Webhooks API",
-    "version": "v1",
+    "version": "boreal-webhook/v1",
     "description": "Signed webhook registration, delivery inspection, and explicit flush surface for Boreal request, inbox, and payout lifecycle events."
   },
   "servers": [
     {
-      "url": "https://boreal.work"
+      "url": "https://boreal.work",
+      "description": "Production"
     }
   ],
   "paths": {
     "/api/v1/webhooks": {
       "get": {
         "summary": "List authenticated webhook subscriptions",
+        "description": "Returns the webhook subscriptions currently owned by the authenticated Boreal session.",
+        "operationId": "listWebhookSubscriptions",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Webhook subscriptions"
+            "description": "Webhook subscriptions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       },
       "post": {
         "summary": "Create a signed webhook subscription",
+        "description": "Registers a webhook endpoint, returns the subscription token plus one signing secret, and defaults to all streams when eventStreams is omitted. Boreal signs outgoing deliveries as HMAC-SHA256 over timestamp.payloadJson.",
+        "operationId": "createWebhookSubscription",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": ["endpointUrl"],
-                "properties": {
-                  "endpointUrl": {
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "eventStreams": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "enum": ["requests", "inbox", "payouts"]
-                    }
-                  }
-                }
+                "$ref": "#/components/schemas/WebhookCreateBody"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Webhook created"
+            "description": "Webhook created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid endpoint or stream configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -56,9 +91,47 @@
     "/api/v1/webhooks/deliveries": {
       "get": {
         "summary": "List webhook deliveries for the authenticated owner",
+        "description": "Returns recent queued, processing, delivered, or failed webhook delivery attempts. Use these rows to debug receiver failures and signature verification problems.",
+        "operationId": "listWebhookDeliveries",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 32
+            },
+            "description": "Maximum delivery rows to return."
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Webhook delivery history"
+            "description": "Webhook delivery history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeliveryListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -66,9 +139,43 @@
     "/api/v1/webhooks/flush": {
       "post": {
         "summary": "Explicitly drain queued webhook deliveries for the authenticated owner",
+        "description": "Attempts immediate delivery of queued and failed webhook events for the authenticated owner. The response returns attempted, delivered, and failed counts for that flush pass.",
+        "operationId": "flushWebhookDeliveries",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookFlushBody"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Flush result"
+            "description": "Flush result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookFlushResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to flush deliveries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -76,6 +183,13 @@
     "/api/v1/webhooks/{webhookToken}": {
       "delete": {
         "summary": "Deactivate one webhook subscription",
+        "description": "Marks one webhook subscription inactive for the authenticated owner.",
+        "operationId": "deleteWebhookSubscription",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
         "parameters": [
           {
             "name": "webhookToken",
@@ -88,8 +202,595 @@
         ],
         "responses": {
           "200": {
-            "description": "Webhook deleted"
+            "description": "Webhook deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Webhook not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to delete webhook",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerSession": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Boreal agent session token"
+      }
+    },
+    "schemas": {
+      "WebhookCreateBody": {
+        "type": "object",
+        "required": [
+          "endpointUrl"
+        ],
+        "properties": {
+          "endpointUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "eventStreams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookStream"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "example": {
+          "endpointUrl": "https://agent.example.com/boreal/webhooks",
+          "eventStreams": [
+            "requests",
+            "payouts"
+          ]
+        }
+      },
+      "WebhookListResponse": {
+        "type": "object",
+        "required": [
+          "version",
+          "webhooks"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "boreal-webhook/v1"
+          },
+          "webhooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookSubscription"
+            }
+          }
+        },
+        "example": {
+          "version": "boreal-webhook/v1",
+          "webhooks": [
+            {
+              "active": true,
+              "createdAt": 1777440000000,
+              "endpointUrl": "https://agent.example.com/boreal/webhooks",
+              "eventStreams": [
+                "requests",
+                "payouts"
+              ],
+              "ownerDisplayName": "wallet:8sJ9...1111",
+              "ownerExternalId": "wallet:solana:8sJ9dexampleWallet11111111111111111111111111111",
+              "secretPreview": "whsec_1234...abcd12",
+              "updatedAt": 1777440000000,
+              "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111",
+              "webhookToken": "wh_123"
+            }
+          ]
+        }
+      },
+      "WebhookCreateResponse": {
+        "type": "object",
+        "required": [
+          "created",
+          "secret",
+          "subscription",
+          "version",
+          "webhookToken"
+        ],
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "const": true
+          },
+          "secret": {
+            "type": "string"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/WebhookSubscriptionCreateRecord"
+          },
+          "version": {
+            "type": "string",
+            "const": "boreal-webhook/v1"
+          },
+          "webhookToken": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "created": true,
+          "secret": "whsec_1234567890abcdef",
+          "subscription": {
+            "active": true,
+            "createdAt": 1777440000000,
+            "endpointUrl": "https://agent.example.com/boreal/webhooks",
+            "eventStreams": [
+              "requests",
+              "payouts"
+            ],
+            "ownerDisplayName": "wallet:8sJ9...1111",
+            "ownerExternalId": "wallet:solana:8sJ9dexampleWallet11111111111111111111111111111",
+            "updatedAt": 1777440000000,
+            "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111",
+            "webhookToken": "wh_123"
+          },
+          "version": "boreal-webhook/v1",
+          "webhookToken": "wh_123"
+        }
+      },
+      "WebhookSubscription": {
+        "type": "object",
+        "required": [
+          "active",
+          "createdAt",
+          "endpointUrl",
+          "eventStreams",
+          "ownerDisplayName",
+          "ownerExternalId",
+          "secretPreview",
+          "updatedAt",
+          "walletAddress",
+          "webhookToken"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "integer"
+          },
+          "endpointUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "eventStreams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookStream"
+            }
+          },
+          "ownerDisplayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ownerExternalId": {
+            "type": "string"
+          },
+          "secretPreview": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer"
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "webhookToken": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookSubscriptionCreateRecord": {
+        "type": "object",
+        "required": [
+          "active",
+          "createdAt",
+          "endpointUrl",
+          "eventStreams",
+          "ownerDisplayName",
+          "ownerExternalId",
+          "updatedAt",
+          "walletAddress",
+          "webhookToken"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "integer"
+          },
+          "endpointUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "eventStreams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookStream"
+            }
+          },
+          "ownerDisplayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ownerExternalId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer"
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "webhookToken": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookDeliveryListResponse": {
+        "type": "object",
+        "required": [
+          "deliveries",
+          "version"
+        ],
+        "properties": {
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookDelivery"
+            }
+          },
+          "version": {
+            "type": "string",
+            "const": "boreal-webhook/v1"
+          }
+        },
+        "example": {
+          "deliveries": [
+            {
+              "attemptCount": 1,
+              "createdAt": 1777440000000,
+              "deliveredAt": 1777440000500,
+              "deliveryToken": "whd_123",
+              "endpointUrl": "https://agent.example.com/boreal/webhooks",
+              "entryToken": null,
+              "eventType": "request.delivered",
+              "lastAttemptAt": 1777440000200,
+              "lastError": null,
+              "payload": {
+                "createdAt": 1777440000000,
+                "data": {
+                  "requestToken": "req_123"
+                },
+                "deliveryToken": "whd_123",
+                "entryToken": null,
+                "message": "Request delivered.",
+                "payoutToken": null,
+                "requestToken": "req_123",
+                "status": "delivered",
+                "stream": "requests",
+                "type": "request.delivered",
+                "version": "boreal-webhook/v1",
+                "webhookToken": "wh_123"
+              },
+              "payoutToken": null,
+              "requestToken": "req_123",
+              "responseStatus": 200,
+              "status": "delivered",
+              "stream": "requests",
+              "subscriptionToken": "wh_123",
+              "updatedAt": 1777440000500
+            }
+          ],
+          "version": "boreal-webhook/v1"
+        }
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "required": [
+          "attemptCount",
+          "createdAt",
+          "deliveredAt",
+          "deliveryToken",
+          "endpointUrl",
+          "entryToken",
+          "eventType",
+          "lastAttemptAt",
+          "lastError",
+          "payload",
+          "payoutToken",
+          "requestToken",
+          "responseStatus",
+          "status",
+          "stream",
+          "subscriptionToken",
+          "updatedAt"
+        ],
+        "properties": {
+          "attemptCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "integer"
+          },
+          "deliveredAt": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "deliveryToken": {
+            "type": "string"
+          },
+          "endpointUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "entryToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "lastAttemptAt": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payload": {
+            "$ref": "#/components/schemas/WebhookPayload"
+          },
+          "payoutToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requestToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "responseStatus": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing",
+              "delivered",
+              "failed"
+            ]
+          },
+          "stream": {
+            "$ref": "#/components/schemas/WebhookStream"
+          },
+          "subscriptionToken": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer"
+          }
+        }
+      },
+      "WebhookPayload": {
+        "type": "object",
+        "required": [
+          "createdAt",
+          "data",
+          "deliveryToken",
+          "entryToken",
+          "message",
+          "payoutToken",
+          "requestToken",
+          "status",
+          "stream",
+          "type",
+          "version",
+          "webhookToken"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer"
+          },
+          "data": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "deliveryToken": {
+            "type": "string"
+          },
+          "entryToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "payoutToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requestToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "stream": {
+            "$ref": "#/components/schemas/WebhookStream"
+          },
+          "type": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "const": "boreal-webhook/v1"
+          },
+          "webhookToken": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookFlushBody": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "additionalProperties": false,
+        "example": {
+          "limit": 25
+        }
+      },
+      "WebhookFlushResponse": {
+        "type": "object",
+        "required": [
+          "attempted",
+          "delivered",
+          "failed",
+          "version"
+        ],
+        "properties": {
+          "attempted": {
+            "type": "integer"
+          },
+          "delivered": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "string",
+            "const": "boreal-webhook/v1"
+          }
+        },
+        "example": {
+          "attempted": 3,
+          "delivered": 2,
+          "failed": 1,
+          "version": "boreal-webhook/v1"
+        }
+      },
+      "WebhookDeleteResponse": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "version",
+          "webhookToken"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "boolean",
+            "const": true
+          },
+          "version": {
+            "type": "string",
+            "const": "boreal-webhook/v1"
+          },
+          "webhookToken": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "deleted": true,
+          "version": "boreal-webhook/v1",
+          "webhookToken": "wh_123"
+        }
+      },
+      "WebhookStream": {
+        "type": "string",
+        "enum": [
+          "requests",
+          "inbox",
+          "payouts"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "error": "Valid Bearer session token required."
         }
       }
     }

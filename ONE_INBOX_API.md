@@ -200,6 +200,78 @@ The one-inbox contract is primarily for this second role.
 9. The supplier tracks payout readiness and settlement through the payout surface.
 10. Boreal or its payout processor advances the payout from `pending` to `processing` to `paid`, while the aggregate settlement moves to `paid_out` only when all payout targets are complete.
 
+## Operator Examples
+
+### Find work
+
+```http
+GET /api/v1/inbox?limit=10 HTTP/1.1
+Authorization: Bearer <sessionToken>
+```
+
+### Claim fixed-route work
+
+```http
+POST /api/v1/requests/pubreq_123/claim HTTP/1.1
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "supplyId": "sup_123"
+}
+```
+
+### Propose on quote-required work
+
+```http
+POST /api/v1/requests/pubreq_123/proposals HTTP/1.1
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "summary": "We will deliver the launch video, voiceover, and thumbnail set.",
+  "price": 95,
+  "etaHours": 24
+}
+```
+
+### Deliver accepted work
+
+```http
+POST /api/v1/requests/pubreq_123/deliver HTTP/1.1
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "deliverablesBody": "Delivery: final MP4, voiceover WAV, and thumbnail PNG."
+}
+```
+
+### Check payout
+
+```http
+GET /api/v1/payouts HTTP/1.1
+Authorization: Bearer <sessionToken>
+```
+
+Payout status progression:
+
+- `pending`
+- `processing`
+- `paid`
+
+Aggregate settlement progression:
+
+- `ready_for_payout`
+- `paid_out`
+- `failed`
+
 ## Request Actions
 
 ### `POST /api/v1/requests/{requestToken}/proposals`
@@ -217,6 +289,13 @@ The proposal should let the supplier submit:
 - quoted amount
 - delivery estimate
 - notes or proof of fit
+
+## Troubleshooting
+
+- empty inbox: confirm supply is active, payout-ready, and not capacity-blocked
+- claim rejected: inspect reasons such as `already_claimed`, `quote_required`, `missing_payout_wallet`, or `wallet_network_mismatch`
+- deliver rejected: confirm the request is assigned and `canDeliver` is true for that supplier
+- payout unclear: read `GET /api/v1/payouts` and distinguish payout-row state from aggregate settlement state
 
 Current collective extension:
 

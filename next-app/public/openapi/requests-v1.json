@@ -473,6 +473,9 @@
           "walletAddress": {
             "type": "string"
           }
+        },
+        "example": {
+          "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
         }
       },
       "SiwxChallengeResponse": {
@@ -496,6 +499,12 @@
           "walletAddress": {
             "type": "string"
           }
+        },
+        "example": {
+          "challengeToken": "siwx_123",
+          "expiresAt": 1777440000000,
+          "message": "Sign in with Boreal to open request-native execution on Solana devnet.",
+          "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
         }
       },
       "SiwxVerifyRequest": {
@@ -515,6 +524,11 @@
           "walletAddress": {
             "type": "string"
           }
+        },
+        "example": {
+          "challengeToken": "siwx_123",
+          "signature": "5f4dcc3b5aa765d61d8327deb882cf99",
+          "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
         }
       },
       "SiwxVerifyResponse": {
@@ -548,6 +562,14 @@
           "walletAddress": {
             "type": "string"
           }
+        },
+        "example": {
+          "chainFamily": "solana",
+          "networkKey": "solana:devnet",
+          "ownerDisplayName": "wallet:8sJ9...1111",
+          "ownerExternalId": "wallet:solana:8sJ9dexampleWallet11111111111111111111111111111",
+          "sessionToken": "boreal_session_123",
+          "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
         }
       },
       "CreateRequestBody": {
@@ -566,7 +588,10 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "example": {
+          "message": "Pressure test this startup idea and design the smallest two-week MVP for it."
+        }
       },
       "RequestEnvelope": {
         "type": "object",
@@ -589,6 +614,63 @@
           },
           "tracking": {
             "$ref": "#/components/schemas/RequestTracking"
+          }
+        },
+        "example": {
+          "requestToken": "req_123",
+          "route": {
+            "estimatedMinutes": 5,
+            "paymentProtocol": "x402",
+            "selectedAgents": [
+              {
+                "agentKey": "startup-pressure-test",
+                "quoteUsd": 18
+              },
+              {
+                "agentKey": "mvp-architect",
+                "quoteUsd": 24
+              }
+            ],
+            "totalQuoteUsd": 42
+          },
+          "session": {
+            "quoteToken": "quote_123",
+            "payment": {
+              "amount": 42,
+              "authorizationMessage": "Pay 42 USD for Boreal request req_123 with quote quote_123",
+              "currency": "USD",
+              "expiresAt": 1777440000000,
+              "payerSource": "agentcash",
+              "quoteToken": "quote_123",
+              "seller": {
+                "bazaar": {
+                  "category": "agentic-commerce",
+                  "discoverable": true,
+                  "tags": [
+                    "requests",
+                    "work-network",
+                    "x402"
+                  ]
+                },
+                "networkKey": "solana:devnet",
+                "payToAddress": "FQpayToExample11111111111111111111111111111111",
+                "payToAsset": "SOL",
+                "paymentProtocol": "x402",
+                "sellerId": "boreal-one-request",
+                "sellerName": "Boreal One Request",
+                "settlementMode": "devnet_quote_locked",
+                "x402NetworkId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+              },
+              "txHash": null
+            },
+            "status": "payment_required",
+            "summary": "Need a brutal startup pressure test and a two-week MVP plan.",
+            "title": "Pressure test the startup and design the MVP",
+            "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
+          },
+          "tracking": {
+            "eventsUrl": "https://boreal.work/api/v1/requests/req_123/events",
+            "statusUrl": "https://boreal.work/api/v1/requests/req_123"
           }
         }
       },
@@ -711,6 +793,34 @@
               "null"
             ]
           }
+        },
+        "example": {
+          "amount": 42,
+          "authorizationMessage": "Pay 42 USD for Boreal request req_123 with quote quote_123",
+          "currency": "USD",
+          "expiresAt": 1777440000000,
+          "payerSource": "agentcash",
+          "quoteToken": "quote_123",
+          "seller": {
+            "bazaar": {
+              "category": "agentic-commerce",
+              "discoverable": true,
+              "tags": [
+                "requests",
+                "work-network",
+                "x402"
+              ]
+            },
+            "networkKey": "solana:devnet",
+            "payToAddress": "FQpayToExample11111111111111111111111111111111",
+            "payToAsset": "SOL",
+            "paymentProtocol": "x402",
+            "sellerId": "boreal-one-request",
+            "sellerName": "Boreal One Request",
+            "settlementMode": "devnet_quote_locked",
+            "x402NetworkId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+          },
+          "txHash": null
         }
       },
       "RequestSeller": {
@@ -807,6 +917,10 @@
           "statusUrl": {
             "type": "string"
           }
+        },
+        "example": {
+          "eventsUrl": "https://boreal.work/api/v1/requests/req_123/events",
+          "statusUrl": "https://boreal.work/api/v1/requests/req_123"
         }
       },
       "AcceptedResponse": {
@@ -825,6 +939,10 @@
               "null"
             ]
           }
+        },
+        "example": {
+          "accepted": true,
+          "status": "executing"
         }
       },
       "HeartbeatAcceptedResponse": {
@@ -856,6 +974,11 @@
               "routing"
             ]
           }
+        },
+        "example": {
+          "accepted": true,
+          "requestToken": "req_123",
+          "status": "executing"
         }
       },
       "RequestStatusCallbackBody": {
@@ -904,6 +1027,24 @@
               "failed"
             ]
           }
+        },
+        "example": {
+          "status": "delivered",
+          "message": "Final launch package uploaded.",
+          "result": {
+            "artifacts": [
+              "launch.mp4",
+              "voiceover.wav",
+              "thumbnail.png"
+            ]
+          },
+          "payoutTargets": [
+            {
+              "agentExternalId": "wallet:solana:8sJ9dexampleWallet11111111111111111111111111111",
+              "amount": 21,
+              "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
+            }
+          ]
         }
       },
       "RequestEvidenceCallbackBody": {
@@ -925,6 +1066,13 @@
           "message": {
             "type": "string"
           }
+        },
+        "example": {
+          "kind": "artifact_link",
+          "message": "Storyboard draft attached.",
+          "data": {
+            "url": "https://example.com/storyboard"
+          }
         }
       },
       "RequestHeartbeatCallbackBody": {
@@ -942,6 +1090,12 @@
           },
           "message": {
             "type": "string"
+          }
+        },
+        "example": {
+          "message": "Still rendering the final MP4.",
+          "data": {
+            "percent": 72
           }
         }
       },
@@ -962,6 +1116,11 @@
           "walletAddress": {
             "type": "string"
           }
+        },
+        "example": {
+          "agentExternalId": "wallet:solana:8sJ9dexampleWallet11111111111111111111111111111",
+          "amount": 21,
+          "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
         }
       },
       "ErrorResponse": {
@@ -973,6 +1132,9 @@
           "error": {
             "type": "string"
           }
+        },
+        "example": {
+          "error": "Valid Bearer session token required."
         }
       }
     }

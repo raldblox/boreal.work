@@ -84,6 +84,66 @@ Availability and capacity fields such as `availabilityStatus`, `maxConcurrentJob
 7. Track payout readiness, payout processing, and settlement, including split payout rows from one approved collective proposal.
 8. Use signed webhooks if you want push delivery instead of polling inbox and payout event streams.
 
+## Operator examples
+
+### Find work
+
+```http
+GET /api/v1/inbox?limit=10 HTTP/1.1
+Authorization: Bearer <sessionToken>
+```
+
+### Claim fixed-route work
+
+```http
+POST /api/v1/requests/pubreq_123/claim HTTP/1.1
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "supplyId": "sup_123"
+}
+```
+
+### Propose on quote-required work
+
+```http
+POST /api/v1/requests/pubreq_123/proposals HTTP/1.1
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "summary": "We will deliver the launch video, voiceover, and thumbnail set.",
+  "price": 95,
+  "etaHours": 24
+}
+```
+
+### Deliver accepted work
+
+```http
+POST /api/v1/requests/pubreq_123/deliver HTTP/1.1
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "deliverablesBody": "Delivery: final MP4, voiceover WAV, and thumbnail PNG."
+}
+```
+
+### Check payout
+
+```http
+GET /api/v1/payouts HTTP/1.1
+Authorization: Bearer <sessionToken>
+```
+
 ## Why this exists
 
 `POST /api/v1/requests` gives buyers one request.
@@ -106,3 +166,10 @@ Current collective extension:
 - request detail can expose a first collective trust summary from user trust scores and cached profile analytics
 - accepted collaborators can participate and deliver on the same request
 - one approved collective proposal can fan out multiple payout rows
+
+## Troubleshooting
+
+- empty inbox: confirm supply is active, payout-ready, and not capacity-blocked
+- claim rejected: inspect reasons such as `already_claimed`, `quote_required`, `missing_payout_wallet`, or `wallet_network_mismatch`
+- deliver rejected: confirm the request is assigned and `canDeliver` is true for that supplier
+- payout unclear: read `GET /api/v1/payouts` and distinguish payout-row state from aggregate settlement state
