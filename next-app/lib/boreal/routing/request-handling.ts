@@ -62,6 +62,7 @@ export function refineIntentForRequestLifecycle(
       intentType: "informational",
       missingDetails: [],
       needsClarification: false,
+      requestedOutputTypes: ["text"],
       persistence: {
         ...intent.persistence,
         isUnresolved: false,

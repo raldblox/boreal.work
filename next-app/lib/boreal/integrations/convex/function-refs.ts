@@ -108,6 +108,38 @@ export type ConversationThreadRecord = {
   }>;
 } | null;
 
+export type BorealChatSessionRecord = Array<{
+  conversation: {
+    _id: string;
+    conversationId: string;
+    intentCount: number;
+    lastMessageBody: string | null;
+    lastMessageRole: "assistant" | "system" | "user" | null;
+    latestMessageAt: number;
+    messageCount: number;
+    title: string;
+    updatedAt: number;
+  };
+  linkedRequests: Array<{
+    id: string;
+    status: string;
+    title: string;
+    updatedAt: number;
+  }>;
+  messages: Array<{
+    _id: string;
+    body: string;
+    createdAt: number;
+    role: "assistant" | "system" | "user";
+    sender: {
+      actorKind: "agent" | "human" | "tool";
+      displayName: string;
+      externalId: string | null;
+      handle: string | null;
+    };
+  }>;
+}>;
+
 export type CatalogEntry = {
   _id: string;
   actorKind: "agent" | "human" | "tool";
@@ -769,6 +801,11 @@ export const convexFunctionRefs = {
     { limit: number; ownerExternalId?: string },
     ConversationSidebarPreview[]
   >("chats:listConversationSidebar"),
+  listBorealChatSessions: makeFunctionReference<
+    "query",
+    { limit: number; messageLimit?: number; ownerExternalId?: string },
+    BorealChatSessionRecord
+  >("chats:listBorealChatSessions"),
   getActiveCart: makeFunctionReference<
     "query",
     { ownerExternalId?: string },

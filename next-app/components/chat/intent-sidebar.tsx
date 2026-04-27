@@ -7,7 +7,7 @@ import {
   LoaderIcon,
   LogInIcon,
   LogOutIcon,
-  MessageSquarePlusIcon,
+  MessagesSquareIcon,
   PanelLeftCloseIcon,
   Settings2Icon,
   ShieldAlertIcon,
@@ -17,44 +17,34 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
-import type {
-  ConversationSidebarPreview,
-  SidebarIntentPreview,
-} from "@/lib/boreal/integrations/convex/function-refs"
+import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs"
 import type { RequestNavigationView } from "@/components/chat/request-notifications"
 
-import {
-  ConversationSidebarSection,
-  RequestSidebarSection,
-} from "./intent-sidebar-sections"
+import { RequestSidebarSection } from "./intent-sidebar-sections"
 
 type IntentSidebarProps = {
-  conversations: ConversationSidebarPreview[]
+  borealChatSessionCount: number
+  isBorealChatActive: boolean
   intents: SidebarIntentPreview[]
   onOpenAccount?: () => void
+  onOpenBorealChat: () => void
   onCollapse?: () => void
-  onDeselect: () => void
-  onOpenConversationRequest?: (conversation: ConversationSidebarPreview) => void
   onOpenPendingApprovals?: () => void
-  onSelectConversation?: (conversation: ConversationSidebarPreview) => void
   onSelect: (intent: SidebarIntentPreview, view?: RequestNavigationView) => void
   pendingApprovalCount: number
-  selectedConversationId: string | null
   selectedIntentId: string | null
 }
 
 export function IntentSidebar({
-  conversations,
+  borealChatSessionCount,
+  isBorealChatActive,
   intents,
   onOpenAccount,
+  onOpenBorealChat,
   onCollapse,
-  onDeselect,
-  onOpenConversationRequest,
   onOpenPendingApprovals,
-  onSelectConversation,
   onSelect,
   pendingApprovalCount,
-  selectedConversationId,
   selectedIntentId,
 }: IntentSidebarProps) {
   const { data: session, status } = useSession()
@@ -106,12 +96,18 @@ export function IntentSidebar({
       <div className="space-y-2 px-4 py-4">
         <Button
           size={"lg"}
-          className="w-full justify-start"
-          onClick={onDeselect}
+          className="w-full justify-between"
+          onClick={onOpenBorealChat}
           type="button"
+          variant={isBorealChatActive ? "default" : "outline"}
         >
-          <MessageSquarePlusIcon />
-          New chat
+          <span className="flex items-center gap-2">
+            <MessagesSquareIcon />
+            Boreal chat
+          </span>
+          <span className="font-mono text-xs">
+            {borealChatSessionCount}
+          </span>
         </Button>
         {pendingApprovalCount > 0 ? (
           <Button
@@ -131,14 +127,6 @@ export function IntentSidebar({
           </Button>
         ) : null}
       </div>
-
-      <ConversationSidebarSection
-        conversations={conversations}
-        onOpenConversationRequest={onOpenConversationRequest}
-        onSelectConversation={onSelectConversation}
-        selectedConversationId={selectedConversationId}
-        selectedIntentId={selectedIntentId}
-      />
 
       <RequestSidebarSection
         intents={intents}

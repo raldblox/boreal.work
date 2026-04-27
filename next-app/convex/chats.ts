@@ -1023,6 +1023,89 @@ export const listConversationSidebar = query({
   },
 });
 
+export const listBorealChatSessions = query({
+  args: {
+    limit: v.number(),
+    messageLimit: v.optional(v.number()),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (!args.ownerExternalId) {
+      return [];
+    }
+
+    const conversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_ownerExternalId_and_latestMessageAt", (queryBuilder) =>
+        queryBuilder.eq("ownerExternalId", args.ownerExternalId),
+      )
+      .order("desc")
+      .take(args.limit);
+
+    const messageLimit = Math.max(4, args.messageLimit ?? 24);
+
+    return Promise.all(
+      conversations.map(async (conversation) => {
+        const [linkedIntent, messages] = await Promise.all([
+          ctx.db
+            .query("intents")
+            .withIndex("by_conversationId", (queryBuilder) =>
+              queryBuilder.eq("conversationId", conversation.conversationId),
+            )
+            .collect(),
+          ctx.db
+            .query("chatMessages")
+            .withIndex("by_conversationId_and_createdAt", (queryBuilder) =>
+              queryBuilder.eq("conversationId", conversation.conversationId),
+            )
+            .order("desc")
+            .take(messageLimit),
+        ]);
+
+        const linkedRequests = linkedIntent
+          .sort((left, right) => right.createdAt - left.createdAt)
+          .map((intent) => ({
+            id: intent._id,
+            status: intent.status,
+            title: intent.title,
+            updatedAt: intent.updatedAt ?? intent.createdAt,
+          }))
+          .slice(0, 6);
+
+        return {
+          conversation: {
+            _id: conversation._id,
+            conversationId: conversation.conversationId,
+            intentCount: conversation.intentCount,
+            lastMessageBody: conversation.lastMessageBody ?? null,
+            lastMessageRole: conversation.lastMessageRole ?? null,
+            latestMessageAt: conversation.latestMessageAt,
+            messageCount: conversation.messageCount ?? 0,
+            title: conversation.title,
+            updatedAt: conversation.updatedAt,
+          },
+          linkedRequests,
+          messages: messages
+            .slice()
+            .reverse()
+            .map((message) => ({
+              _id: message._id,
+              body: message.body,
+              createdAt: message.createdAt,
+              role: message.role,
+              sender: {
+                actorKind: message.senderActorKind ?? "human",
+                displayName: message.senderDisplayName ?? "Unknown",
+                externalId: message.senderExternalId ?? null,
+                handle: message.senderHandle ?? null,
+              },
+            })),
+        };
+      }),
+    );
+  },
+});
+
 export const getConversationThread = query({
   args: {
     conversationId: v.string(),

@@ -908,6 +908,15 @@ function buildClarificationMessage(intent: IntentExtraction) {
 }
 
 function requestNeedsApproval(intent: PersistedIntent) {
+  if (
+    !intent.needsClarification &&
+    intent.routeTarget !== "profile_update" &&
+    !intent.routing.shouldCreateFulfillmentRequest &&
+    intent.requestedOutputTypes.every((type) => type === "text")
+  ) {
+    return false;
+  }
+
   return (
     intent.needsClarification ||
     intent.routeTarget === "profile_update" ||

@@ -271,8 +271,9 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Public agent-owner contract centered on `SKILL.md`, `llms.txt`, `ONE_REQUEST_API.md`, and `ONE_INBOX_API.md`
 - [x] Primary behavior guidance that tells agents when to use Boreal: find work, post work, track progress, deliver, and get paid
 - [x] Clear split between front-door work-network behavior and advanced runtime-adapter behavior
-- [ ] Versioned schema examples for agent-owner flows: find work, post work, claim work, deliver work, and check payout
-- [ ] Explicit machine-readable debugging and retry guidance across request, inbox, payout, callback, and webhook flows
+- [x] Versioned schema examples for agent-owner flows: find work, post work, claim work, deliver work, and check payout
+- [x] Explicit machine-readable debugging and retry guidance across request, inbox, payout, callback, and webhook flows
+- [x] One Boreal chat timeline as the public owner surface, with session separators, inline request birth and approval markers, load-more session history, and no public new-chat or thread-history split
 
 ### Supplier-Side One-Inbox API
 

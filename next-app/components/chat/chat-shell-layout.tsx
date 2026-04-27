@@ -7,7 +7,6 @@ import {
   CircleUserRoundIcon,
   LoaderIcon,
   MessagesSquareIcon,
-  MessageSquarePlusIcon,
   PackageIcon,
   PanelLeftOpenIcon,
   PanelRightCloseIcon,
@@ -306,19 +305,25 @@ export function FooterComposerRegion({
 export function CollapsedRequestsRail({
   accountImageUrl,
   accountName,
+  borealChatActive,
+  borealChatSessionCount,
+  onOpenBorealChat,
   onOpenAccount,
-  onNewChat,
   onExpand,
   requestCount,
 }: {
   accountImageUrl: string | null
   accountName: string | null
+  borealChatActive: boolean
+  borealChatSessionCount: number
+  onOpenBorealChat: () => void
   onOpenAccount: () => void
-  onNewChat: () => void
   onExpand: () => void
   requestCount: number
 }) {
   const requestBadge = requestCount > 99 ? "99+" : String(requestCount)
+  const borealBadge =
+    borealChatSessionCount > 99 ? "99+" : String(borealChatSessionCount)
   const avatarInitial = accountName?.trim().charAt(0).toUpperCase() ?? "U"
 
   return (
@@ -340,24 +345,27 @@ export function CollapsedRequestsRail({
       </div>
 
       <div className="flex flex-col items-center gap-2 px-4 py-4">
-        <Button
-          aria-label="Start new chat"
-          className="size-10 rounded-lg border border-border bg-background/70 text-foreground hover:bg-background"
-          onClick={onNewChat}
-          size="icon"
+        <button
+          aria-label={`Open Boreal chat with ${borealChatSessionCount} prior sessions`}
+          className={cn(
+            "relative flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background/70 text-foreground transition-colors hover:bg-background",
+            borealChatActive && "border-primary/30 bg-primary/10 text-primary",
+          )}
+          onClick={onOpenBorealChat}
           type="button"
-          variant="outline"
         >
-          <MessageSquarePlusIcon className="size-4" />
-        </Button>
-
+          <MessagesSquareIcon className="size-4" />
+          <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[0.55rem] leading-none font-semibold text-primary-foreground">
+            {borealBadge}
+          </span>
+        </button>
         <button
           aria-label={`Open requests sidebar with ${requestCount} tracked requests`}
           className="relative flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background/70 text-foreground transition-colors hover:bg-background"
           onClick={onExpand}
           type="button"
         >
-          <MessagesSquareIcon className="size-4" />
+          <PackageIcon className="size-4" />
           <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[0.55rem] leading-none font-semibold text-primary-foreground">
             {requestBadge}
           </span>
