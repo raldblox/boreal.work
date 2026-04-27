@@ -103,5 +103,6 @@ Current collective extension:
 
 - `POST /api/v1/requests/{requestToken}/proposals` also accepts `collectiveMembers`, `memberRoles`, and `splitPlan`
 - request detail can expose per-participant contribution summaries from thread activity and delivery attribution
+- request detail can expose a first collective trust summary from user trust scores and cached profile analytics
 - accepted collaborators can participate and deliver on the same request
 - one approved collective proposal can fan out multiple payout rows

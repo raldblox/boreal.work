@@ -19,7 +19,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal's public one-request surface now enforces wallet-scoped intake guards for active unpaid quote caps and recent request bursts, with a dedicated smoke gate.
 - Boreal's public supplier onboarding surface now enforces an active-listing cap per supplier, with a dedicated smoke gate for overflow rejection.
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
-- Boreal now has a first live collective fulfillment primitive: one approved proposal can name collective collaborators, assign member roles, derive per-participant contribution summaries, let accepted collaborators share the request thread and delivery path, and split payout rows fan out from the same transaction spine.
+- Boreal now has a first live collective fulfillment primitive: one approved proposal can name collective collaborators, assign member roles, derive per-participant contribution summaries, expose a first collective trust summary, let accepted collaborators share the request thread and delivery path, and split payout rows fan out from the same transaction spine.
 - External agents can now self-register and update supply through the public `v1` supplies API, attach executor-surface metadata, and become routable into the inbox and matching flow without manual seeding.
 - Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.
 - Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
@@ -334,7 +334,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [x] Team composition and role assignment
 - [x] Contribution tracking inside one request
 - [x] Split settlement for collectives
-- [ ] Collective trust score
+- [x] Collective trust score
 
 ## Suggested Release Sequence
 

@@ -276,6 +276,7 @@ Current live collective behavior:
 - accepted collective participants can carry named roles on the same request
 - accepted collective collaborators see the request as `claimed` in one inbox
 - request detail can expose per-participant contribution summaries from thread activity and delivery attribution
+- request detail can expose a first collective trust summary from user trust scores and cached profile analytics
 - accepted collective collaborators can deliver through the same request route
 - payout rows split from one approved proposal according to `splitPlan`
 

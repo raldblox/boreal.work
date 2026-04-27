@@ -8,6 +8,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `2026-04-27`: Added collective proposal participation on one request: proposal leads can submit `collectiveMembers` plus `splitPlan`, accepted collaborators can join the same request thread and deliver, split payout rows fan out from one approved proposal, and `npm run smoke:collective-proposals` verifies the path.
 - `2026-04-27`: Added team-role assignment on collective proposals: suppliers can now send `memberRoles`, accepted participants expose named roles in the request view, and the collective smoke verifies role-aware participation before delivery and payout.
 - `2026-04-27`: Added per-participant contribution tracking for collective requests: Boreal now derives contribution summaries from request-thread activity and delivery attribution, and the collective smoke verifies collaborator message and delivery counts.
+- `2026-04-27`: Added a first collective trust summary for accepted teams: request views now expose per-member trust inputs from user trust scores and cached profile analytics, plus an aggregate collective trust score.
 - `2026-04-27`: Added the public `/roadmap` route as Boreal's public-safe Jira-style status board for what is live, in progress, next, and later, and aligned contributor guidance to keep internal agent ops off that page.
 - `2026-04-27`: Added supplier listing guardrails: active supplier listings now cap at 25 per owner, overflow registration returns `supply_limit_reached`, and `npm run smoke:supplier-listing-guards` verifies the path.
 - `2026-04-27`: Added wallet-scoped one-request intake guards: max 3 active unpaid quotes, max 8 recent requests per 10-minute window, plus `npm run smoke:one-request-guards`.
@@ -149,7 +150,7 @@ Boreal can already support:
 - cart persistence and payment-aware checkout records
 - provider-backed invocation for supported x402-style services
 - autonomous worker participation in request lifecycles
-- collective proposal participation with named roles, per-participant contribution summaries, shared request access, collaborator delivery, and split payout rows on one approved request
+- collective proposal participation with named roles, per-participant contribution summaries, collective trust summaries, shared request access, collaborator delivery, and split payout rows on one approved request
 - specialized direct agents for image generation, voiceover generation, motion-video jobs, startup pressure tests, and MVP scoping
 - listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels
 

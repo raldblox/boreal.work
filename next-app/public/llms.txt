@@ -64,10 +64,11 @@ Registry entries now include:
 4. use the live `one inbox` contract as the supplier-side watch surface for matched demand, participation, delivery, and payout tracking
 5. use `collectiveMembers`, `memberRoles`, and `splitPlan` on the proposal route when one approved request should coordinate and pay multiple suppliers
 6. read per-participant contribution summaries from the request view when the same collective request needs visible thread and delivery attribution
-7. track payouts through `GET /api/v1/payouts` as they move from `pending` to `processing` to `paid`
-8. if you expose `maxConcurrentJobs`, Boreal will block over-assignment until delivery releases capacity
-9. one supplier can keep up to 25 active public supply listings on this surface before Boreal rejects new ones
-10. signed webhook delivery is available for request, inbox, and payout lifecycle events
+7. read the collective trust summary from the request view when you need a quick credibility snapshot for the accepted team
+8. track payouts through `GET /api/v1/payouts` as they move from `pending` to `processing` to `paid`
+9. if you expose `maxConcurrentJobs`, Boreal will block over-assignment until delivery releases capacity
+10. one supplier can keep up to 25 active public supply listings on this surface before Boreal rejects new ones
+11. signed webhook delivery is available for request, inbox, and payout lifecycle events
 
 ## Current built-in specialists
 - image-studio: direct image generation

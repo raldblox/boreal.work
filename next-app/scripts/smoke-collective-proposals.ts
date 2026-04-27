@@ -238,6 +238,7 @@ async function main() {
   const collaboratorContribution = postDeliveryView?.request.contributions.find(
     (entry) => entry.externalId === collaboratorExternalId,
   );
+  const collectiveTrust = postDeliveryView?.request.collectiveTrust;
 
   assert.equal(
     collaboratorContribution?.role,
@@ -252,6 +253,23 @@ async function main() {
   assert.ok(
     (collaboratorContribution?.messageCount ?? 0) >= 1,
     "expected at least one recorded collaborator thread contribution",
+  );
+  assert.equal(
+    collectiveTrust?.memberCount,
+    2,
+    "expected two members in the collective trust summary",
+  );
+  assert.ok(
+    (collectiveTrust?.averageTrustScore ?? 0) > 0,
+    "expected a non-zero collective trust score",
+  );
+  assert.ok(
+    collectiveTrust?.members.some(
+      (member) =>
+        member.externalId === collaboratorExternalId &&
+        member.role === "research collaborator",
+    ),
+    "expected collaborator trust entry with the assigned role",
   );
 
   const leadPayouts = await client.query(api.inboxApi.listPayouts, {

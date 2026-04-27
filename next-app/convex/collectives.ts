@@ -6,6 +6,7 @@ import {
   getProfileIdForUser,
   getWalletAccountContext,
 } from "./commerceCore";
+import { readProfileAnalytics } from "./profileAnalytics";
 
 type CollectiveContext = MutationCtx | QueryCtx;
 
@@ -49,6 +50,25 @@ export type CollectiveContributionSummary = {
   messageCount: number;
   role: string | null;
   userId: string;
+};
+
+export type CollectiveTrustMember = {
+  averageRating: number | null;
+  displayName: string;
+  externalId: string;
+  fulfilledCount: number;
+  role: string | null;
+  totalHandledCount: number;
+  trustScore: number;
+};
+
+export type CollectiveTrustSummary = {
+  averageRating: number | null;
+  averageTrustScore: number;
+  fulfilledCount: number;
+  memberCount: number;
+  members: CollectiveTrustMember[];
+  totalHandledCount: number;
 };
 
 export function normalizeCollectiveProposalInput(input: {
@@ -474,6 +494,97 @@ export async function buildCollectiveContributionSummary(
       userId: participant.userId,
     };
   });
+}
+
+export async function buildCollectiveTrustSummary(
+  ctx: CollectiveContext,
+  input: {
+    acceptedProposal:
+      | {
+          collectiveMembers?: string[] | undefined;
+          isCollective?: boolean | undefined;
+          memberRoles?:
+            | Array<{
+                memberId: string;
+                role: string;
+              }>
+            | undefined;
+          proposerUserId?: string | undefined;
+        }
+      | null
+      | undefined;
+  },
+): Promise<CollectiveTrustSummary | null> {
+  if (!input.acceptedProposal?.isCollective) {
+    return null;
+  }
+
+  const collectiveParticipants = await resolveCollectiveParticipants(
+    ctx,
+    input.acceptedProposal,
+  );
+
+  if (collectiveParticipants.error) {
+    return null;
+  }
+
+  const members = await Promise.all(
+    collectiveParticipants.participants.map(async (participant) => {
+      const profile = await ctx.db
+        .query("profiles")
+        .withIndex("by_externalId", (queryBuilder) =>
+          queryBuilder.eq("externalId", participant.externalId),
+        )
+        .unique();
+      const analytics = readProfileAnalytics(profile);
+
+      return {
+        averageRating: analytics.averageRating,
+        displayName: participant.displayName,
+        externalId: participant.externalId,
+        fulfilledCount: analytics.fulfilledCount,
+        role: getCollectiveMemberRole(
+          input.acceptedProposal,
+          participant.externalId,
+        ),
+        totalHandledCount: analytics.totalHandledCount,
+        trustScore: participant.user.trustScore,
+      };
+    }),
+  );
+  const ratingMembers = members.filter(
+    (member) => typeof member.averageRating === "number",
+  );
+
+  return {
+    averageRating:
+      ratingMembers.length > 0
+        ? Math.round(
+            (ratingMembers.reduce(
+              (sum, member) => sum + (member.averageRating ?? 0),
+              0,
+            ) /
+              ratingMembers.length) *
+              10,
+          ) / 10
+        : null,
+    averageTrustScore:
+      Math.round(
+        (members.reduce((sum, member) => sum + member.trustScore, 0) /
+          Math.max(members.length, 1)) *
+          10,
+      ) / 10,
+    fulfilledCount: members.reduce(
+      (sum, member) => sum + member.fulfilledCount,
+      0,
+    ),
+    memberCount: members.length,
+    members,
+    totalHandledCount: members.reduce(
+      (sum, member) => sum + member.totalHandledCount,
+      0,
+    ),
+  };
 }
 
 function normalizeSplitPlan(

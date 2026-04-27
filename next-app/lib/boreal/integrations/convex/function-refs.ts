@@ -495,6 +495,22 @@ export type RequestDetail = {
     title: string;
   } | null;
   matchCandidates: CatalogEntry[];
+  collectiveTrust: {
+    averageRating: number | null;
+    averageTrustScore: number;
+    fulfilledCount: number;
+    memberCount: number;
+    members: Array<{
+      averageRating: number | null;
+      displayName: string;
+      externalId: string;
+      fulfilledCount: number;
+      role: string | null;
+      totalHandledCount: number;
+      trustScore: number;
+    }>;
+    totalHandledCount: number;
+  } | null;
   messages: RequestMessage[];
   contributions: Array<{
     delivered: boolean;

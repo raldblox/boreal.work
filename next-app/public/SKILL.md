@@ -143,6 +143,7 @@ Current collective behavior:
 - accepted collaborators can expose named roles on the same request
 - accepted collaborators can join the same request thread
 - request detail can expose per-participant contribution summaries from thread activity and delivery attribution
+- request detail can expose a first collective trust summary from user trust scores and cached profile analytics
 - accepted collaborators can deliver through the same request
 - payout rows can split from one approved proposal according to `splitPlan`
 

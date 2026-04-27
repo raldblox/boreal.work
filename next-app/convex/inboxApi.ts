@@ -12,6 +12,7 @@ import {
 } from "./commerceCore";
 import {
   buildCollectiveContributionSummary,
+  buildCollectiveTrustSummary,
   getCollectiveMemberRole,
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
@@ -1061,6 +1062,9 @@ async function buildSupplierRequestDetail(
     conversationId: input.intent.conversationId ?? null,
     intentKey: input.intent.intentKey,
   });
+  const collectiveTrust = await buildCollectiveTrustSummary(ctx, {
+    acceptedProposal,
+  });
 
   return {
     access: {
@@ -1078,6 +1082,7 @@ async function buildSupplierRequestDetail(
       agent: input.intent.assignedAgent ?? null,
       tools: input.intent.assignedToolNames ?? [],
     },
+    collectiveTrust,
     contributions,
     participants,
     requestToken: input.requestToken,

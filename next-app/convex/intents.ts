@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 import {
   buildCollectiveContributionSummary,
+  buildCollectiveTrustSummary,
   getCollectiveMemberRole,
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
@@ -120,6 +121,7 @@ export const getRequestDetail = query({
         conversationId: null,
         intent: null,
         matchCandidates: [],
+        collectiveTrust: null,
         messages: [],
         contributions: [],
         participants: [],
@@ -203,6 +205,9 @@ export const getRequestDetail = query({
       acceptedProposal,
       conversationId: intent.conversationId ?? null,
       intentKey: intent.intentKey,
+    });
+    const collectiveTrust = await buildCollectiveTrustSummary(ctx, {
+      acceptedProposal,
     });
     const fulfillment = await getRequestFulfillment(ctx, intent, acceptedProposal);
     const matchCandidates =
@@ -303,6 +308,7 @@ export const getRequestDetail = query({
         title: intent.title,
       },
       matchCandidates,
+      collectiveTrust,
       messages: requestMessages,
       contributions,
       participants,
