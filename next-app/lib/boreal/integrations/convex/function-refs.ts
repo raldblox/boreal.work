@@ -67,6 +67,8 @@ export type ConversationSidebarPreview = {
   latestMessageAt: number;
   linkedRequests: Array<{
     id: string;
+    needsClarification: boolean;
+    routeTarget: string;
     status: string;
     title: string;
     updatedAt: number;
@@ -90,6 +92,8 @@ export type ConversationThreadRecord = {
   };
   linkedRequests: Array<{
     id: string;
+    needsClarification: boolean;
+    routeTarget: string;
     status: string;
     title: string;
     updatedAt: number;
@@ -122,6 +126,8 @@ export type BorealChatSessionRecord = Array<{
   };
   linkedRequests: Array<{
     id: string;
+    needsClarification: boolean;
+    routeTarget: string;
     status: string;
     title: string;
     updatedAt: number;
@@ -643,10 +649,13 @@ export type RequestExecutionContext = {
   _id: string;
   assetPrompt: string;
   body: string;
+  capabilityTags: string[];
   catalogQuery: string;
+  category: string;
   conversationId: string | null;
   generationSignals: PersistedIntent["generationSignals"];
   intentKey: string;
+  keywords: string[];
   missingDetails: string[];
   needsClarification: boolean;
   provider: string;

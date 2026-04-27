@@ -26,6 +26,8 @@ const deliverableVerbPattern =
 
 const deliverableNounPattern =
   /\b(tutorial|guide|explainer|lesson|course|article|post|script|outline|deck|presentation|landing page|copy|brief|proposal|plan|website|web app|app|product page|workflow|agent|bot)\b/i;
+const advisoryRequestPattern =
+  /\b(pressure test|startup idea|business idea|idea critique|idea review|fatal flaw|mvp|launch plan|go[- ]to[- ]market|gtm|validate (this|my|our) idea|review my idea|audit|critique|evaluate|assess|analy[sz]e|brainstorm|research)\b/i;
 
 const workerLedPattern =
   /\b(website|web app|app|mobile app|frontend|backend|full[- ]stack|landing page|design system|dashboard|api integration|automation|smart contract|marketplace|platform|saas)\b/i;
@@ -44,6 +46,10 @@ const lowSignalConversationPattern =
   /^(hi|hello|hey|yo|sup|gm|good morning|good afternoon|good evening|thanks|thank you|thx|ok|okay|cool|nice|sounds good|all good|test|ping)[!. ]*$/i;
 const informationalQuestionPattern =
   /\b(what is|what's|how does|how do|can you explain|explain|tell me about|who is|where is|why does|why is|what can you do)\b/i;
+const capabilityLookupPattern =
+  /\b(what (can|do) (agents|boreal|you) do|what agents can do|what do you offer|what does boreal offer|what services do you have|what offers do you have|show (me )?(agents|offers|services)|available (agents|offers|services)|top (agents|offers|services)|specialized agents)\b/i;
+const structuredOutputPattern =
+  /\b(tutorial|guide|explainer|lesson|course|script|outline|deck|presentation|slides|blog post|thread|video script|email|prompt)\b/i;
 
 export function refineIntentForRequestLifecycle(
   intent: IntentExtraction,
@@ -52,9 +58,44 @@ export function refineIntentForRequestLifecycle(
 ): IntentExtraction {
   const text = buildIntentText(intent, message);
   const supplyOnboarding = isLikelySupplyOnboardingRequest(text);
-  const likelyDeliverable = isLikelyDeliverableRequest(text);
+  const capabilityLookup = isCapabilityLookupRequest(text);
+  const advisoryRequest = isLikelyAdvisoryRequest(text);
   const workerLed = isLikelyWorkerLedRequest(text);
   const textOnly = isTextOnlyIntent(intent.requestedOutputTypes);
+
+  if (capabilityLookup && textOnly) {
+    return {
+      ...intent,
+      intentType: "informational",
+      missingDetails: [],
+      needsClarification: false,
+      requestedOutputTypes: ["text"],
+      persistence: {
+        ...intent.persistence,
+        isUnresolved: false,
+        reason: "Handled as a direct Boreal capability lookup.",
+        shouldPersist: false,
+      },
+      responseInstructions:
+        "Reply directly in chat. Summarize Boreal's top specialized agents, offers, or service paths and when to use each one. Do not open tracked work.",
+      routeTarget: "catalog_lookup",
+      routing: {
+        ...intent.routing,
+        resolutionTier: "fast",
+        shouldCreateFulfillmentRequest: false,
+        shouldPersistToBoard: false,
+      },
+      shouldSearchCatalog: true,
+      suggestedReplies: Array.from(
+        new Set([
+          ...intent.suggestedReplies,
+          "Show top specialized agents",
+          "What should I use for a launch video?",
+          "Which offer fits research or strategy?",
+        ]),
+      ).slice(0, 4),
+    };
+  }
 
   if (shouldStayDirect(text, message, intent, uiContext)) {
     return {
@@ -121,18 +162,25 @@ export function refineIntentForRequestLifecycle(
     };
   }
 
-  if (!likelyDeliverable || !textOnly) {
+  if (!textOnly || !isLikelyQualifiedTextRequest(text)) {
     return intent;
   }
 
-  const missingDetails = mergeMissingDetails(
-    intent.missingDetails,
-    inferDeliverableClarifications(text),
-  );
+  const missingDetails = advisoryRequest
+    ? []
+    : mergeMissingDetails(
+        intent.missingDetails,
+        inferDeliverableClarifications(text),
+      );
   const needsClarification = missingDetails.length > 0;
 
   return {
     ...intent,
+    category:
+      advisoryRequest && intent.category.trim().toLowerCase() === "general"
+        ? "advisory"
+        : intent.category,
+    catalogQuery: buildQualifiedCatalogQuery(intent, message),
     intentType: "demand",
     missingDetails,
     needsClarification,
@@ -146,16 +194,27 @@ export function refineIntentForRequestLifecycle(
     },
     responseInstructions: workerLed
       ? "Do not fulfill inline. Treat this as a tracked request, gather clarification when needed, and open it for worker proposals after approval."
-      : "Do not answer inline right away. Treat this as a tracked text-deliverable request, gather missing scope details, then wait for approval before generating the final output.",
-    routeTarget: needsClarification ? "clarification" : intent.routeTarget,
+      : advisoryRequest
+        ? "Do not answer with generic clarification. Treat this as a qualified tracked request, preview the best matching specialist route first, then wait for approval before durable execution."
+        : "Do not answer inline right away. Treat this as a tracked text-deliverable request, gather missing scope details, then wait for approval before generating the final output.",
+    routeTarget: needsClarification
+      ? "clarification"
+      : intent.routeTarget === "catalog_lookup"
+        ? "general_assistance"
+        : intent.routeTarget,
     routing: {
       ...intent.routing,
       resolutionTier: workerLed ? "open" : intent.routing.resolutionTier,
       shouldCreateFulfillmentRequest: true,
       shouldPersistToBoard: true,
     },
-    shouldSearchCatalog: intent.shouldSearchCatalog || workerLed,
-    suggestedReplies: buildSuggestedReplies(intent.suggestedReplies, workerLed),
+    shouldSearchCatalog:
+      intent.shouldSearchCatalog || workerLed || advisoryRequest,
+    suggestedReplies: buildSuggestedReplies(
+      intent.suggestedReplies,
+      workerLed,
+      advisoryRequest,
+    ),
   };
 }
 
@@ -214,12 +273,24 @@ function isLikelyDeliverableRequest(text: string) {
   return deliverableVerbPattern.test(text) || deliverableNounPattern.test(text);
 }
 
+function isLikelyAdvisoryRequest(text: string) {
+  return advisoryRequestPattern.test(text);
+}
+
+function isLikelyQualifiedTextRequest(text: string) {
+  return isLikelyDeliverableRequest(text) || isLikelyAdvisoryRequest(text);
+}
+
 function isLikelyWorkerLedRequest(text: string) {
   return workerLedPattern.test(text);
 }
 
 function isLikelySupplyOnboardingRequest(text: string) {
   return supplyOnboardingPattern.test(text);
+}
+
+function isCapabilityLookupRequest(text: string) {
+  return capabilityLookupPattern.test(text);
 }
 
 function shouldStayDirect(
@@ -259,6 +330,10 @@ function isTextOnlyIntent(values: RequestedOutputType[]) {
 }
 
 function inferDeliverableClarifications(text: string) {
+  if (!structuredOutputPattern.test(text)) {
+    return [];
+  }
+
   const questions: string[] = [];
 
   if (!formatPattern.test(text)) {
@@ -290,13 +365,43 @@ function mergeMissingDetails(current: string[], inferred: string[]) {
   return Array.from(new Set([...current, ...inferred])).slice(0, 4);
 }
 
-function buildSuggestedReplies(current: string[], workerLed: boolean) {
-  const suggestions = [
-    ...current,
-    "Beginner written tutorial",
-    "Step-by-step lesson outline",
-    workerLed ? "Open it for proposals" : "Let Boreal draft it",
-  ];
+function buildSuggestedReplies(
+  current: string[],
+  workerLed: boolean,
+  advisoryRequest: boolean,
+) {
+  const suggestions = advisoryRequest
+    ? [
+        ...current,
+        "Show the best route",
+        "Open it as tracked work",
+        "What other matches do you see?",
+      ]
+    : [
+        ...current,
+        "Beginner written tutorial",
+        "Step-by-step lesson outline",
+        workerLed ? "Open it for proposals" : "Let Boreal draft it",
+      ];
 
   return Array.from(new Set(suggestions)).slice(0, 4);
+}
+
+function buildQualifiedCatalogQuery(
+  intent: IntentExtraction,
+  message: string,
+) {
+  const parts = [
+    intent.catalogQuery,
+    message,
+    intent.title,
+    intent.summary,
+    ...(intent.capabilityTags ?? []),
+    ...(intent.keywords ?? []),
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return parts.join(" ").slice(0, 220);
 }

@@ -70,6 +70,8 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-28`: Qualified advisory asks in Boreal chat now use deterministic request qualification plus specialist route preview before approval, and approval runs the matched route instead of falling back to a generic clarification-first loop.
+- `2026-04-28`: Capability questions in Boreal chat now route to direct catalog lookup instead of tracked-work approval, so questions like what agents or offers Boreal has should answer plainly and surface top specialized options.
 - `2026-04-28`: Reworked Boreal chat into one audit-log timeline: greetings and other low-signal chat now stay direct, request approvals render inline at the end of the session that created them, old sessions load with separators instead of a separate thread-history box, and the public `new chat` / conversation-history split is gone from the main surface.
 - `2026-04-28`: Rebuilt `/papers` on top of a reusable editorial component layer under `next-app/components/editorial/`, removed the old hero-heavy boxed paper layout, normalized duplicate markdown titles and lead metadata, and made the longform typography reusable for future audit-report or document-heavy routes.
 - `2026-04-28`: Repositioned the public agent-owner story around Boreal as a work network, promoted `SKILL.md` plus the stable request and inbox contracts as the primary integration surface, demoted connected-runtime chat control to advanced adapter docs, and changed Boreal-specific chat/discovery clicks to open connection or work-network controls instead of a profile-first modal.

@@ -2700,6 +2700,7 @@ export function ChatShell() {
                                 return
                               }
 
+                              setComposerText("")
                               await submitMessage(input.text)
                             }}
                           >
@@ -2897,6 +2898,7 @@ export function ChatShell() {
                           return
                         }
 
+                        setComposerText("")
                         await submitMessage(input.text)
                       }}
                     >
@@ -3270,19 +3272,22 @@ function BorealTimelineSessionBlock({
               <p className="text-sm font-medium">{linkedRequest.title}</p>
               <p className="mt-1 text-xs tracking-[0.16em] text-muted-foreground uppercase">
                 {linkedRequest.status === "proposed"
-                  ? "Awaiting approval"
+                  ? linkedRequest.needsClarification
+                    ? "Needs scope"
+                    : "Awaiting approval"
                   : linkedRequest.status.replaceAll("_", " ")}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {linkedRequest.status === "proposed" ? (
+              {linkedRequest.status === "proposed" &&
+              !linkedRequest.needsClarification ? (
                 <>
                   <Button
                     onClick={() => void onApproveRequest(linkedRequest.id)}
                     size="sm"
                     type="button"
                   >
-                    Approve
+                    Approve route
                   </Button>
                   <Button
                     onClick={() => void onDiscardRequest(linkedRequest.id)}
@@ -3307,7 +3312,9 @@ function BorealTimelineSessionBlock({
           </div>
           {linkedRequest.status === "proposed" ? (
             <p className="mt-3 text-xs text-muted-foreground">
-              Approve only when you want Boreal to open tracked work and involve supply.
+              {linkedRequest.needsClarification
+                ? "This draft still needs clearer scope. Open it and reply in chat before Boreal turns it into tracked work."
+                : "Approve only when you want Boreal to open tracked work and run the matched route."}
             </p>
           ) : null}
         </div>
@@ -3564,6 +3571,10 @@ function InlineRequestActionEvent({
   )
   const handlingMode = getRequestHandlingMode(intent)
   const isProfileUpdate = intent.routeTarget === "profile_update"
+  const isMatchedTextRoute =
+    handlingMode === "boreal" &&
+    intent.shouldSearchCatalog &&
+    intent.requestedOutputTypes.every((type) => type === "text")
 
   if (actionState.kind === "none" || actionState.kind === "review") {
     return null
@@ -3674,7 +3685,9 @@ function InlineRequestActionEvent({
                     ? "Approval target: worker market"
                     : isProfileUpdate
                       ? "Approval target: Boreal profile drafting"
-                      : "Approval target: Boreal Agent"}
+                      : isMatchedTextRoute
+                        ? "Approval target: best matched route"
+                        : "Approval target: Boreal Agent"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {handlingMode === "clarify"
@@ -3683,7 +3696,9 @@ function InlineRequestActionEvent({
                     ? "Approving this will publish the request for proposals and matching."
                     : isProfileUpdate
                       ? "Approving this will let Boreal draft your editable public profile and first listing. You can also open the builder form and fill it manually."
-                      : "Approving this will let Boreal Agent take the first execution pass."}
+                      : isMatchedTextRoute
+                        ? "Approving this will let Boreal run the strongest matched specialist route first."
+                        : "Approving this will let Boreal Agent take the first execution pass."}
               </p>
             </div>
           </div>
@@ -3773,7 +3788,9 @@ function InlineRequestActionEvent({
                   ? "Open for proposals"
                   : isProfileUpdate
                     ? "Approve Boreal draft"
-                    : "Approve Boreal Agent"}
+                    : isMatchedTextRoute
+                      ? "Approve matched route"
+                      : "Approve Boreal Agent"}
               </Button>
             ) : null}
             <Button
@@ -5816,20 +5833,29 @@ function getRequestActionState(
   }
 
   if (status === "proposed" && access?.canApproveProposals) {
+    const isMatchedTextRoute =
+      handlingMode === "boreal" &&
+      intent.shouldSearchCatalog &&
+      intent.requestedOutputTypes.every((type) => type === "text")
+
     return {
       description:
         handlingMode === "clarify"
-          ? "The request is drafted, but the scope is still too vague to approve safely."
+          ? "The draft still needs clearer scope before Boreal can open or run it safely."
           : handlingMode === "workers"
             ? "Approve to publish this request for workers and proposals. No one is assigned yet."
-            : "Approve to let Boreal Agent take the first pass on this request.",
+            : isMatchedTextRoute
+              ? "Approve to let Boreal run the best matched specialist route for this request."
+              : "Approve to let Boreal Agent take the first pass on this request.",
       kind: "approval" as const,
       title:
         handlingMode === "clarify"
-          ? "Clarify before approval"
+          ? "Needs scope"
           : handlingMode === "workers"
             ? "Open for workers"
-            : "Approve Boreal Agent",
+            : isMatchedTextRoute
+              ? "Approve matched route"
+              : "Approve Boreal Agent",
     }
   }
 

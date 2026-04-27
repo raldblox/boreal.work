@@ -1000,6 +1000,8 @@ export const listConversationSidebar = query({
           .sort((left, right) => right.createdAt - left.createdAt)
           .map((intent) => ({
             id: intent._id,
+            needsClarification: intent.needsClarification ?? false,
+            routeTarget: intent.routeTarget ?? "general_assistance",
             status: intent.status,
             title: intent.title,
             updatedAt: intent.updatedAt ?? intent.createdAt,

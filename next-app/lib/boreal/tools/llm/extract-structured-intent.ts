@@ -73,6 +73,7 @@ function buildPrompt(
     "- basic information questions about Boreal, an offer, a provider, or how something works should stay direct chat replies unless the user clearly wants work opened.",
     "- general questions should use routeTarget=general_assistance.",
     "- if the user is asking Boreal to make, write, build, draft, explain, package, or prepare a deliverable for them, do not treat it as a plain direct answer. Treat it as a tracked request.",
+    "- advisory asks such as pressure testing an idea, critiquing a concept, MVP planning, audits, or research are valid tracked work and should not ask tutorial-style format, audience, or depth questions unless the user explicitly wants a packaged educational output.",
     "- for underspecified text deliverables, tutorials, explainers, lessons, scripts, guides, or packaged outputs, set needsClarification=true and list the missing scope details.",
     "- for vague educational content requests, ask about outcome format, audience level, and desired depth before approving execution.",
     "- use catalog_lookup when the user is asking about available products, tools, services, pricing, or capability matching.",

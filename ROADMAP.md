@@ -169,6 +169,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Structured intent persistence
 - [x] Text, image, audio, and video intent detection
 - [x] Request approval before fulfillment
+- [x] Qualified advisory requests now preview best-fit specialist routes before approval, and approval runs the matched route instead of a generic clarification-first loop
 - [x] Product-search intents that open a request workboard and render matched supply
 - [x] Public proposal board behavior through public requests
 - [x] Keyword generation stored and actively used in retrieval/routing

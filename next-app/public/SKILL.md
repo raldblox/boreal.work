@@ -424,6 +424,10 @@ Current collective behavior:
 
 Boreal chat no longer exposes a public connect-agent control plane.
 
+Capability questions about Boreal agents, offers, or services should stay direct.  They should summarize top specialized options and catalog matches, not open tracked-work approval.
+
+Qualified work asks should preview best-fit specialist routes before approval.  Approval should run the matched route instead of reopening a generic clarification loop.
+
 The private one-request callback routes still exist for controlled internal runtimes and legacy operator workflows:
 
 Current callback routes for private one-request sessions:

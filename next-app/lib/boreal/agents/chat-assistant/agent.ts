@@ -19,6 +19,10 @@ import {
   getRequestHandlingMode,
   refineIntentForRequestLifecycle,
 } from "@/lib/boreal/routing/request-handling";
+import {
+  buildAutoRoutePlan,
+  executeAutoRoute,
+} from "@/lib/boreal/one-request/routing";
 import type {
   ChatAssistantResponse,
   CatalogItem,
@@ -35,6 +39,7 @@ import type {
   PersistedIntent,
   ToolRoute,
 } from "@/lib/boreal/schemas/intent";
+import type { OneRequestRoutePlan } from "@/lib/boreal/one-request/types";
 import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent";
 import { searchCatalog } from "@/lib/boreal/tools/catalog/search-catalog";
 import { extractStructuredIntent } from "@/lib/boreal/tools/llm/extract-structured-intent";
@@ -194,12 +199,24 @@ export const chatAssistantAgent: ComposableAgent<
       provider: provider.key,
       userMessageId,
     });
+    const specialistRoutePlan = buildSpecialistRoutePlan({
+      intent: persistedIntent,
+      message: input.message,
+    });
+    const previewCatalogItems = mergePreviewCatalogItems(
+      relatedCatalogItems,
+      buildRoutePreviewCatalogItems(specialistRoutePlan),
+    );
 
     if (
       input.uiContext?.surface !== "request" &&
       requestNeedsApproval(persistedIntent)
     ) {
-      const assistantMessage = buildApprovalMessage(intent, relatedCatalogItems);
+      const assistantMessage = buildApprovalMessage(
+        intent,
+        previewCatalogItems,
+        specialistRoutePlan,
+      );
       const persistedResult = await saveIntentPipelineRecord({
         assistantMessage,
         conversationId,
@@ -217,9 +234,13 @@ export const chatAssistantAgent: ComposableAgent<
         intent: persistedIntent,
         intentId: persistedResult.intentId,
         persisted: true,
-        relatedCatalogItems,
+        relatedCatalogItems: previewCatalogItems,
         requiresApproval: true,
-        workspace: buildDraftWorkspace(intent, relatedCatalogItems),
+        workspace: buildDraftWorkspace(
+          intent,
+          previewCatalogItems,
+          specialistRoutePlan,
+        ),
       };
     }
 
@@ -334,6 +355,15 @@ export async function approvePersistedRequest(input: {
     throw new Error("Request not found.");
   }
 
+  const persistedExecutionIntent = toPersistedExecutionIntent(
+    request,
+    runtimeConfig,
+    provider.key,
+  );
+  const specialistRoutePlan = buildSpecialistRoutePlan({
+    intent: persistedExecutionIntent,
+    message: request.body,
+  });
   const handlingMode = getRequestHandlingMode(toExecutionIntent(request));
   const assignedToolNames = buildAssignedTools(request.routeTarget);
   const executionAgentId = getExecutionAgentId(request.routeTarget);
@@ -367,6 +397,33 @@ export async function approvePersistedRequest(input: {
           : [],
       workspace: buildApprovedWorkerWorkspace(request),
     };
+  }
+
+  if (specialistRoutePlan) {
+    const specialistToolNames = specialistRoutePlan.selected.map(
+      (selection) => selection.agent.key,
+    );
+
+    await approveRequestDraft({
+      assignedAgent: specialistRoutePlan.selected
+        .map((selection) => selection.agent.identity.displayName)
+        .join(", "),
+      assignedToolNames: specialistToolNames,
+      assistantMessage: `Request approved. Boreal locked the best route: ${specialistRoutePlan.selected
+        .map((selection) => selection.agent.identity.displayName)
+        .join(", ")}.`,
+      intentId: input.intentId,
+      ownerExternalId: input.ownerExternalId,
+      status: "claimed",
+    });
+
+    return runApprovedSpecialistExecutionForRequest({
+      input,
+      provider,
+      request,
+      routePlan: specialistRoutePlan,
+      runtimeConfig,
+    });
   }
 
   await approveRequestDraft({
@@ -404,23 +461,52 @@ export async function retryPersistedRequest(input: {
     throw new Error("Request not found.");
   }
 
+  const persistedExecutionIntent = toPersistedExecutionIntent(
+    request,
+    runtimeConfig,
+    provider.key,
+  );
+  const specialistRoutePlan = buildSpecialistRoutePlan({
+    intent: persistedExecutionIntent,
+    message: request.body,
+  });
   const assignedToolNames = buildAssignedTools(request.routeTarget);
   const executionAgentId = getExecutionAgentId(request.routeTarget);
+  const retryToolNames = specialistRoutePlan
+    ? specialistRoutePlan.selected.map((selection) => selection.agent.key)
+    : assignedToolNames;
+  const retryAgentLabel = specialistRoutePlan
+    ? specialistRoutePlan.selected
+        .map((selection) => selection.agent.identity.displayName)
+        .join(", ")
+    : executionAgentId;
 
   await appendRequestExecution({
     activityPayload: JSON.stringify({
-      assignedAgent: executionAgentId,
+      assignedAgent: retryAgentLabel,
       retrying: true,
       routeTarget: request.routeTarget,
     }),
     activityType: "request.retrying",
-    assignedAgent: executionAgentId,
-    assignedToolNames,
-    assistantMessage: `Retrying this request with ${getExecutionAgentDisplayName(request.routeTarget)}.`,
+    assignedAgent: retryAgentLabel,
+    assignedToolNames: retryToolNames,
+    assistantMessage: specialistRoutePlan
+      ? `Retrying this request with ${retryAgentLabel}.`
+      : `Retrying this request with ${getExecutionAgentDisplayName(request.routeTarget)}.`,
     intentId: input.intentId,
     ownerExternalId: input.ownerExternalId,
     status: "in_progress",
   });
+
+  if (specialistRoutePlan) {
+    return runApprovedSpecialistExecutionForRequest({
+      input,
+      provider,
+      request,
+      routePlan: specialistRoutePlan,
+      runtimeConfig,
+    });
+  }
 
   return runApprovedExecutionForRequest({
     assignedToolNames,
@@ -731,6 +817,136 @@ async function runApprovedExecutionForRequest(input: {
   }
 }
 
+async function runApprovedSpecialistExecutionForRequest(input: {
+  input: {
+    intentId: string;
+    ownerExternalId?: string;
+  };
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  routePlan: OneRequestRoutePlan;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const persistedIntent = toPersistedExecutionIntent(
+    input.request,
+    input.runtimeConfig,
+    input.provider.key,
+  );
+  const relatedCatalogItems = mergePreviewCatalogItems(
+    input.request.catalogQuery.trim().length > 0
+      ? await withRetry(
+          () =>
+            searchCatalog({
+              limit: 6,
+              query: input.request.catalogQuery,
+            }),
+          { attempts: 2 },
+        )
+      : [],
+    buildRoutePreviewCatalogItems(input.routePlan),
+  );
+
+  try {
+    const results = await executeAutoRoute({
+      intent: persistedIntent,
+      modelId: input.runtimeConfig.assistantModel,
+      routePlan: input.routePlan,
+    });
+
+    if (results.length === 0) {
+      throw new Error("No specialist route completed the approved request.");
+    }
+
+    const assistantMessage = buildSpecialistExecutionMessage(results);
+    const assignedAgent = input.routePlan.selected
+      .map((selection) => selection.agent.identity.displayName)
+      .join(", ");
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent,
+        routeTarget: input.request.routeTarget,
+        selectedAgentKeys: input.routePlan.selected.map(
+          (selection) => selection.agent.key,
+        ),
+      }),
+      activityType: "request.delivered",
+      assignedAgent,
+      assignedToolNames: input.routePlan.selected.map(
+        (selection) => selection.agent.key,
+      ),
+      assistantMessage,
+      intentId: input.input.intentId,
+      ownerExternalId: input.input.ownerExternalId,
+      status: "fulfilled",
+    });
+
+    return {
+      assistantMessage,
+      intentId: input.input.intentId,
+      relatedCatalogItems,
+      workspace:
+        relatedCatalogItems.length > 0
+          ? ({
+              highlightedId: relatedCatalogItems[0]?.id,
+              items: relatedCatalogItems,
+              kind: "catalog",
+              subtitle:
+                "Boreal routed this request through the strongest matched specialists.",
+              title: "Matched route",
+            } satisfies WorkspaceState)
+          : ({
+              kind: "empty",
+              subtitle:
+                "The matched specialist route completed. Request history stays in the chat timeline.",
+              title: "Route complete",
+            } satisfies WorkspaceState),
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "The matched specialist route failed.";
+    const assignedAgent = input.routePlan.selected
+      .map((selection) => selection.agent.identity.displayName)
+      .join(", ");
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent,
+        error: message,
+        routeTarget: input.request.routeTarget,
+        selectedAgentKeys: input.routePlan.selected.map(
+          (selection) => selection.agent.key,
+        ),
+      }),
+      activityType: "request.blocked",
+      assignedAgent,
+      assignedToolNames: input.routePlan.selected.map(
+        (selection) => selection.agent.key,
+      ),
+      assistantMessage:
+        "The matched specialist route could not complete this request automatically. You can retry it from the workboard.",
+      intentId: input.input.intentId,
+      ownerExternalId: input.input.ownerExternalId,
+      status: "blocked",
+    });
+
+    return {
+      assistantMessage:
+        "The matched specialist route could not complete this request automatically. The request is blocked and can be retried from the workboard.",
+      intentId: input.input.intentId,
+      relatedCatalogItems,
+      workspace: {
+        kind: "empty",
+        subtitle:
+          "Execution failed after automatic retries. Use retry to run the request again.",
+        title: "Retry needed",
+      } satisfies WorkspaceState,
+    };
+  }
+}
+
 async function runExecutionWithRetry(input: {
   assistantModelId: string;
   catalogItems: CatalogItem[];
@@ -752,14 +968,14 @@ function toExecutionIntent(
   return {
     assetPrompt: request.assetPrompt,
     body: request.body,
-    capabilityTags: [],
+    capabilityTags: request.capabilityTags,
     catalogQuery: request.catalogQuery,
-    category: "request",
+    category: request.category,
     confidence: 0.8,
     extractionNotes: [],
     generationSignals: request.generationSignals,
     intentType: "demand",
-    keywords: [],
+    keywords: request.keywords,
     missingDetails: request.missingDetails,
     needsClarification: request.needsClarification,
     persistence: {
@@ -784,7 +1000,29 @@ function toExecutionIntent(
   };
 }
 
-function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem[]): WorkspaceState {
+function toPersistedExecutionIntent(
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>,
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>,
+  providerKey: string,
+): PersistedIntent {
+  return {
+    ...toExecutionIntent(request),
+    assistantMessageId: crypto.randomUUID(),
+    conversationId: request.conversationId ?? crypto.randomUUID(),
+    embedding: [],
+    embeddingModel: runtimeConfig.embeddingModel,
+    intentModel: runtimeConfig.intentModel,
+    modalityScores: [],
+    provider: providerKey,
+    userMessageId: crypto.randomUUID(),
+  };
+}
+
+function buildDraftWorkspace(
+  intent: IntentExtraction,
+  catalogItems: CatalogItem[],
+  specialistRoutePlan?: OneRequestRoutePlan | null,
+): WorkspaceState {
   const handlingMode = getRequestHandlingMode(intent);
 
   if (intent.routeTarget === "profile_update") {
@@ -812,6 +1050,10 @@ function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem
   }
 
   if (catalogItems.length > 0) {
+    const hasSpecialistPreview =
+      handlingMode !== "workers" &&
+      Boolean(specialistRoutePlan && specialistRoutePlan.selected.length > 0);
+
     return {
       highlightedId: catalogItems[0]?.id,
       items: catalogItems,
@@ -819,8 +1061,10 @@ function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem
       subtitle:
         handlingMode === "workers"
           ? "These matches can support the request once you approve and open it to the market."
-          : "These matches are ready if you approve and want Boreal to route the work.",
-      title: "Potential matches",
+          : hasSpecialistPreview
+            ? "Boreal already scored the strongest specialist routes. Review them before you open tracked work."
+            : "These matches are ready if you approve and want Boreal to route the work.",
+      title: hasSpecialistPreview ? "Best-fit routes" : "Potential matches",
     };
   }
 
@@ -835,7 +1079,11 @@ function buildDraftWorkspace(intent: IntentExtraction, catalogItems: CatalogItem
   };
 }
 
-function buildApprovalMessage(intent: IntentExtraction, catalogItems: CatalogItem[]) {
+function buildApprovalMessage(
+  intent: IntentExtraction,
+  catalogItems: CatalogItem[],
+  specialistRoutePlan?: OneRequestRoutePlan | null,
+) {
   const handlingMode = getRequestHandlingMode(intent);
   const modeLabel = intent.requestedOutputTypes
     .map((value) => value.replaceAll("_", " "))
@@ -861,6 +1109,27 @@ function buildApprovalMessage(intent: IntentExtraction, catalogItems: CatalogIte
         ? `Still needed:\n${intent.missingDetails.map((detail) => `- ${detail}`).join("\n")}`
         : "Reply with the missing scope details in chat.",
       "Once that is clear, approve to open it as tracked work.",
+    ].join("\n\n");
+  }
+
+  if (specialistRoutePlan && specialistRoutePlan.selected.length > 0) {
+    const primary = specialistRoutePlan.selected[0]?.agent.identity.displayName;
+    const alternates = specialistRoutePlan.selected
+      .slice(1)
+      .map((selection) => selection.agent.identity.displayName);
+
+    return [
+      `This is a qualified ${modeLabel} request.`,
+      intent.summary,
+      primary
+        ? `Best fit right now: ${primary}.`
+        : "Boreal already found a strong direct route for the first pass.",
+      alternates.length > 0
+        ? `Also matched: ${alternates.join(", ")}.`
+        : catalogItems.length > 1
+          ? `I also found ${catalogItems.length - 1} alternate match${catalogItems.length === 2 ? "" : "es"} to compare.`
+          : "No extra artifacts were started yet.",
+      "Review the matched routes below, then approve when you want Boreal to open tracked work and run the best route.",
     ].join("\n\n");
   }
 
@@ -905,6 +1174,158 @@ function buildClarificationMessage(intent: IntentExtraction) {
     "",
     "Reply here or use the workspace prompts to unblock it.",
   ].join("\n");
+}
+
+function buildSpecialistRoutePlan(input: {
+  intent: PersistedIntent;
+  message: string;
+}) {
+  const routeTarget = input.intent.routeTarget;
+  const textOnlyRequest =
+    input.intent.requestedOutputTypes.length === 1 &&
+    input.intent.requestedOutputTypes[0] === "text";
+
+  if (
+    input.intent.intentType !== "demand" ||
+    input.intent.needsClarification ||
+    !input.intent.routing.shouldCreateFulfillmentRequest ||
+    !textOnlyRequest ||
+    routeTarget === "catalog_lookup" ||
+    routeTarget === "profile_update" ||
+    routeTarget === "clarification" ||
+    routeTarget === "image_generation" ||
+    routeTarget === "speech_generation" ||
+    routeTarget === "video_generation"
+  ) {
+    return null;
+  }
+
+  const routePlan = buildAutoRoutePlan({
+    intent: input.intent,
+    message: input.message,
+  });
+
+  if (!routePlan) {
+    return null;
+  }
+
+  const textSelections = routePlan.selected.filter((selection) =>
+    selection.outputKinds.includes("text"),
+  );
+
+  if (textSelections.length === 0) {
+    return null;
+  }
+
+  return {
+    ...routePlan,
+    selected: textSelections,
+    totalQuoteUsd: textSelections.reduce(
+      (sum, selection) => sum + selection.quoteUsd,
+      0,
+    ),
+  } satisfies OneRequestRoutePlan;
+}
+
+function buildRoutePreviewCatalogItems(
+  routePlan: OneRequestRoutePlan | null | undefined,
+): CatalogItem[] {
+  if (!routePlan) {
+    return [];
+  }
+
+  return routePlan.selected.map((selection, index) => ({
+    actorKind: "agent",
+    averageRating: null,
+    brand: "Boreal",
+    capabilityTags: selection.agent.supplyEntry.capabilityTags,
+    category: selection.agent.supplyEntry.category,
+    checkoutProtocol: selection.agent.supplyEntry.checkoutProtocol ?? "custom",
+    currency: routePlan.currency,
+    deliveryType: selection.agent.supplyEntry.deliveryType,
+    description: selection.agent.supplyEntry.description,
+    estimatedDeliveryLabel:
+      selection.agent.supplyEntry.estimatedDeliveryLabel ??
+      `${routePlan.estimatedMinutes} min`,
+    executionSurface:
+      selection.agent.supplyEntry.executionSurface ?? "http",
+    executorUrl:
+      selection.agent.supplyEntry.executorUrl ??
+      selection.agent.directExecution?.routePath ??
+      null,
+    fulfillmentKind:
+      selection.agent.supplyEntry.fulfillmentKind ?? "digital",
+    gatedOutReasons: [],
+    id: `route-preview:${selection.agent.key}`,
+    isCartEnabled: false,
+    isPinned: index === 0,
+    matchReasons: [
+      `direct specialist score ${selection.score}`,
+      ...selection.agent.profile.skillTags.slice(0, 2),
+    ],
+    matchScore: selection.score,
+    matchStage: "ranked",
+    paymentNetworkHints: [routePlan.networkKey],
+    paymentProtocol: routePlan.paymentProtocol,
+    priceAmount: selection.quoteUsd,
+    priceLabel: `${routePlan.currency} ${selection.quoteUsd.toFixed(2)}/fixed`,
+    requiresHumanApproval: false,
+    reviewCount: 0,
+    seller: {
+      actorKind: "agent",
+      displayName: selection.agent.identity.displayName,
+      handle: selection.agent.identity.handle,
+      profileId: null,
+    },
+    sourceListingUrl: null,
+    sourceProviderKey: "manual",
+    subtitle: selection.agent.profile.headline,
+    supplyType: selection.agent.supplyEntry.supplyType,
+    supportsDirectInvoke: true,
+    supportsPrivyWallet: false,
+    successProbability: selection.score,
+    title: selection.agent.supplyEntry.title,
+  }));
+}
+
+function mergePreviewCatalogItems(
+  catalogItems: CatalogItem[],
+  previewItems: CatalogItem[],
+) {
+  const merged = [...previewItems, ...catalogItems];
+  const seen = new Set<string>();
+
+  return merged.filter((item) => {
+    const key = `${item.title}::${item.seller?.displayName ?? ""}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildSpecialistExecutionMessage(
+  results: Awaited<ReturnType<typeof executeAutoRoute>>,
+) {
+  if (results.length === 1 && results[0]?.result.kind === "text") {
+    return [
+      `${results[0].result.title} completed this request.`,
+      results[0].result.content,
+    ].join("\n\n");
+  }
+
+  return results
+    .map((result) => {
+      if (result.result.kind !== "text") {
+        return `${result.result.title} completed this request.`;
+      }
+
+      return [`## ${result.result.title}`, result.result.content].join("\n\n");
+    })
+    .join("\n\n");
 }
 
 function requestNeedsApproval(intent: PersistedIntent) {

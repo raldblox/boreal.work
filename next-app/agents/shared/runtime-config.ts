@@ -1,4 +1,4 @@
-import { inferBorealNetworkSelection } from "../../lib/boreal/commerce/networks";
+import { inferBorealNetworkSelection } from "../../lib/boreal/commerce/networks.ts";
 import { loadAgentEnv } from "./env.ts";
 import type {
   AgentPaymentSource,

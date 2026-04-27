@@ -59,6 +59,7 @@ function buildPrompt(input: {
     "- Be useful and concise.",
     "- If catalog matches exist, summarize the best matches and when to choose them.",
     "- If the user asked a general question, answer it plainly first.",
+    "- If the user asked about Boreal agents, offers, or services, name the strongest relevant specialized options and what each one is best for.",
     "- Do not emit JSON, schemas, scores, or internal extractor details.",
     "- If the request is incomplete, ask only for the missing details that matter.",
   ].join("\n");
