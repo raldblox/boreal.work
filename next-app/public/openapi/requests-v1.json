@@ -3,7 +3,7 @@
   "info": {
     "title": "Boreal One-Request API",
     "version": "boreal-requests/v1",
-    "description": "Agent-only request-first contract for boreal.work. One message in, deterministic auto routing, a 402 payment boundary, request status tracking, and request event history."
+    "description": "Agent-only request-first contract for boreal.work. One message in, deterministic auto routing, a 402 payment boundary, request status tracking, request event history, and connected-agent callback routes."
   },
   "servers": [
     {
@@ -281,6 +281,168 @@
           },
           "401": {
             "description": "Valid Bearer session token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{requestToken}/status": {
+      "post": {
+        "summary": "Push connected-agent request status",
+        "description": "Allows the connected active agent for a private one-request session to report executing, delivered, or failed status back into Boreal.",
+        "operationId": "postRequestAgentStatus",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestStatusCallbackBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token and private one-request token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{requestToken}/evidence": {
+      "post": {
+        "summary": "Push connected-agent evidence",
+        "description": "Allows the connected active agent for a private one-request session to attach supporting evidence or intermediate artifacts to Boreal's event trail.",
+        "operationId": "postRequestAgentEvidence",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestEvidenceCallbackBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evidence accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token and private one-request token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{requestToken}/heartbeat": {
+      "post": {
+        "summary": "Push connected-agent heartbeat",
+        "description": "Allows the connected active agent for a private one-request session to report liveness back into Boreal's event trail.",
+        "operationId": "postRequestAgentHeartbeat",
+        "security": [
+          {
+            "BearerSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestHeartbeatCallbackBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Heartbeat accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatAcceptedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Valid Bearer session token and private one-request token required",
             "content": {
               "application/json": {
                 "schema": {
@@ -643,6 +805,161 @@
             "type": "string"
           },
           "statusUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "AcceptedResponse": {
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "HeartbeatAcceptedResponse": {
+        "type": "object",
+        "required": [
+          "accepted",
+          "requestToken",
+          "status"
+        ],
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          },
+          "requestToken": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "clarification_required",
+              "delivered",
+              "executing",
+              "failed",
+              "fallback_required",
+              "paid",
+              "payment_required",
+              "received",
+              "routing"
+            ]
+          }
+        }
+      },
+      "RequestStatusCallbackBody": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "data": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "payoutTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutTarget"
+            }
+          },
+          "result": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "executing",
+              "delivered",
+              "failed"
+            ]
+          }
+        }
+      },
+      "RequestEvidenceCallbackBody": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RequestHeartbeatCallbackBody": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "PayoutTarget": {
+        "type": "object",
+        "required": [
+          "agentExternalId",
+          "amount",
+          "walletAddress"
+        ],
+        "properties": {
+          "agentExternalId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "walletAddress": {
             "type": "string"
           }
         }

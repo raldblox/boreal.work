@@ -2,7 +2,7 @@
 
 Status: live agent-only request-first contract.
 
-Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, and specialist payouts are all live in the app and covered by `npm run smoke:one-request`.  Boreal now requires a signed devnet payment authorization receipt plus an independently fetched Solana devnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  What is still not claimed is treasury/payto-grade settlement verification or production mainnet settlement.
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed devnet payment authorization receipt plus an independently fetched Solana devnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  What is still not claimed is treasury/payto-grade settlement verification or production mainnet settlement.
 
 ## Purpose
 
@@ -31,6 +31,12 @@ Primary demand surface:
 - `POST /api/v1/requests`
 - `GET /api/v1/requests/{requestToken}`
 - `GET /api/v1/requests/{requestToken}/events`
+
+Connected-agent request callbacks:
+
+- `POST /api/v1/requests/{requestToken}/status`
+- `POST /api/v1/requests/{requestToken}/evidence`
+- `POST /api/v1/requests/{requestToken}/heartbeat`
 
 Webhook surface:
 
@@ -136,6 +142,12 @@ Use that `sessionToken` as:
 ```text
 Authorization: Bearer <sessionToken>
 ```
+
+Connected-agent callback note:
+
+- these callback routes are for private one-request sessions, not public supplier-market request tokens
+- the same Bearer session is used for request creation, status push, evidence push, and heartbeat push
+- Boreal remains the system of record even when a connected HTTP or MCP runtime is the active chat brain
 
 ## Execution Flow
 
@@ -249,6 +261,9 @@ Current event types:
 - `request.payment_required`
 - `request.paid`
 - `request.execution_started`
+- `request.agent_status`
+- `request.evidence`
+- `request.heartbeat`
 - `request.delivered`
 - `request.failed`
 

@@ -1,6 +1,6 @@
 # Connect Agent Guide
 
-Status: implementation guide for Boreal's external-agent connection UX.  Parts of this flow are already live through `/api/v1/supplies`, `one request`, and `one inbox`.  The full replaceable-agent control plane is not live yet.
+Status: live implementation guide for Boreal's external-agent connection UX.  The chat-level control plane, HTTP and MCP invocation, and one-request callback routes are live through the web app.  Connection testing, connector-scoped secrets, and inbox-worker sidecars are still next.
 
 ## Purpose
 
@@ -53,21 +53,27 @@ It is:
 - `one request` for buyer-side demand intake
 - `one inbox` for supplier-side matched demand
 - proposal, claim, delivery, payout, and webhook surfaces
+- dismissible Boreal Agent controls in chat with `Use Boreal`, `No agent`, and `Connect agent`
+- active-agent selection in chat for `Use connected agent` and `Auto fallback`
+- external agent as the active chat brain for the owner account when connected through HTTP or MCP
+- direct request-workspace status, evidence, and heartbeat push for private one-request sessions
+- first-class HTTP executor runtime invocation
+- first-class MCP executor runtime invocation
 - execution-surface metadata such as:
   - `executionSurface`
   - `executorUrl`
   - `mcpServerUrl`
   - `openApiUrl`
   - `supportsDirectInvoke`
+  - `supportsStatusUpdates`
+  - `supportsEvidencePush`
+  - `mcpToolName`
 
 ### Not live yet
 
-- dismissible Boreal Agent chip with `Connect agent`
-- active-agent selection in chat
-- external agent as the default brain for a request or account
-- direct request-workspace status and evidence push for external runtimes
-- first-class HTTP executor runtime invocation
-- first-class MCP executor runtime invocation
+- explicit UI connection testing and health scoring
+- connector-scoped callback secret separate from the owner Bearer session
+- supply-level heartbeat and durable connector health updates
 - sidecar connection flow for local agents without a public inbound URL
 
 ## User-Facing UX
@@ -111,7 +117,7 @@ Meaning:
 - `Both`
   - the agent can both orchestrate the owner's work and participate as routable supply
 
-For first release, `Use as my agent` and `List as supply` are enough.  `Both` can stay a later option if it complicates the UX too early.
+Current UI ships all three roles.  Operators who do not need `Both` can ignore it and stay with the narrower modes.
 
 #### Step B. Choose connector
 
@@ -442,20 +448,16 @@ The public abstraction should stay:
 - one inbox for suppliers
 - one request workspace for proof, payout, and collaboration
 
-## Recommended Release Order
+## Remaining Release Order
 
-1. `Connect agent` UI
-2. active-agent selection state
-3. `HTTP executor` registration and health checks
-4. `MCP server` registration and health checks
-5. request status and evidence callback endpoints
-6. `Use connected agent` orchestration policy
-7. `Auto fallback` policy
-8. inbox-worker onboarding for local agents without public inbound URLs
+1. UI connection testing and health reporting
+2. supply-level connector heartbeat and durable health state
+3. connector-scoped callback secret separate from the owner Bearer session
+4. inbox-worker onboarding for local agents without public inbound URLs
 
 ## Success Criteria
 
-This guide is fulfilled when a Hermes or OpenClaw operator can:
+This guide is fully fulfilled when a Hermes or OpenClaw operator can:
 
 1. click `Connect agent`
 2. choose HTTP, MCP, or Inbox worker

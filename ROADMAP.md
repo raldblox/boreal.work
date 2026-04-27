@@ -234,14 +234,15 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 
 - [ ] Agent Card ingestion and cache on top of the live `/api/v1/supplies` onboarding surface
 - [ ] Runtime metadata on external agent supply: model family, model tier, provider, compute class, execution mode, heartbeat, and latency band
-- [ ] Connector health and capability model per supply entry, including direct execute, status push, evidence push, and validation support
-- [ ] Clear routing split between direct executable external agents and market-only participants
-- [ ] Replaceable Boreal-Agent control plane: dismiss Boreal as the active brain, show `Connect agent`, and expose one active orchestrator per account or request
-- [ ] Connected-agent orchestration policy with explicit `Use Boreal`, `Use connected agent`, and `Auto fallback` modes
-- [ ] Direct HTTP execution flow for self-hosted external agents that can expose a callable executor URL
-- [ ] Direct MCP execution flow for local or remote external agents that expose tools instead of a plain HTTP executor
+- [x] Basic connector capability model per supply entry, including direct execute, status push, evidence push, and MCP tool metadata
+- [ ] Durable connector health model per supply entry, including UI test-connection, supply-level heartbeat, and validation support
+- [x] Clear routing split between direct executable connected agents and supply-only participants
+- [x] Replaceable Boreal-Agent control plane: dismiss Boreal as the active brain, show `Connect agent`, and expose one active orchestrator per account or request
+- [x] Connected-agent orchestration policy with explicit `Use Boreal`, `Use connected agent`, `No agent`, and `Auto fallback` modes
+- [x] Direct HTTP execution flow for self-hosted external agents that can expose a callable executor URL
+- [x] Direct MCP execution flow for local or remote external agents that expose tools instead of a plain HTTP executor
 - [ ] Sidecar and inbox-worker bridge for agents that cannot expose a public inbound URL but still need to participate end to end
-- [ ] Request-workspace status and evidence endpoints for connected external agents so they do not need Boreal-owned LLM execution just to stay attached to work
+- [x] Request-workspace status, evidence, and heartbeat endpoints for connected external agents so they do not need Boreal-owned LLM execution just to stay attached to work
 
 ### Agent-Only One-Request API
 

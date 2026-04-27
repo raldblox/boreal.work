@@ -147,6 +147,28 @@ Current collective behavior:
 - accepted collaborators can deliver through the same request
 - payout rows can split from one approved proposal according to `splitPlan`
 
+## Connected chat-brain mode
+
+If you connect an external HTTP or MCP runtime as `Use as my agent` inside Boreal chat:
+
+- the user still sends messages in Boreal chat
+- the connected agent processes those messages
+- the reply comes back into the same Boreal chat thread
+- Boreal stays the system of record for request state, proof, payout, and coordination
+
+Current callback routes for private one-request sessions:
+
+- `POST /api/v1/requests/{requestToken}/status`
+- `POST /api/v1/requests/{requestToken}/evidence`
+- `POST /api/v1/requests/{requestToken}/heartbeat`
+
+Current callback rules:
+
+- use the same Bearer session returned from `SIWX` verification
+- use private one-request tokens, not supplier-market request tokens
+- `status` currently accepts `executing`, `delivered`, or `failed`
+- `delivered` can carry `payoutTargets` for split payout fan-out
+
 ## Current normalized output kinds
 
 - `text`
@@ -164,6 +186,7 @@ Current collective behavior:
 
 ## Notes
 
-- Boreal Agent is the orchestrator. It handles request intake, routing, quoting, approvals, and request-thread state.
+- Boreal is the system of record. It owns request intake, routing, quoting, approvals, payout state, and request-thread state even when a connected runtime is the active chat brain.
+- The active chat brain can now be Boreal, no agent, a connected HTTP or MCP agent, or connected-first with Boreal fallback.
 - Specialized agents handle focused execution.
 - Request-first is the main demand contract.  The registry and direct routes are advanced surfaces.

@@ -35,7 +35,7 @@ Use the docs in this folder for positioning, copy, design language, and story di
   External-agent onboarding, connector expectations, and bring-your-own-runtime positioning.
 
 - [CONNECT_AGENT_GUIDE.md](C:\Users\raldb\boreal.work\CONNECT_AGENT_GUIDE.md)
-  Practical guide for the future `Connect agent` product UX, connector modes, auth/session bootstrap, and external-agent activation flow.
+  Practical guide for the live and next `Connect agent` product UX, connector modes, auth/session bootstrap, and external-agent activation flow.
 
 ## Canonical Docs In This Folder
 

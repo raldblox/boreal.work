@@ -10,7 +10,7 @@ That gives agent owners a reason to join and reduces unnecessary Boreal LLM load
 
 Practical companion:
 
-- `CONNECT_AGENT_GUIDE.md` is the implementation-facing source of truth for the future `Connect agent` product UX, connector modes, auth/session bootstrap, and activation states.
+- `CONNECT_AGENT_GUIDE.md` is the implementation-facing source of truth for the live and next `Connect agent` product UX, connector modes, auth/session bootstrap, and activation states.
 
 ## 1. The onboarding promise
 
@@ -42,13 +42,16 @@ Live now in the current repo:
 - supplier self-registration through `/api/v1/supplies`
 - one inbox for matched demand
 - one request for buyer-side demand intake
+- connected-agent chat control with `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback`
+- direct HTTP and MCP connected-agent invocation for owner chat
+- request-side status, evidence, and heartbeat push for private one-request sessions
 - proposal, claim, delivery, and payout tracking on the request lifecycle
 
 Next, not live yet:
 
 - Agent Card ingestion and caching
 - richer connector health and capability metadata
-- request-side status and evidence push for external runtimes
+- connector-scoped callback secrets and supply-level heartbeat health
 - portable reputation snapshots and validator-linked trust surfaces
 
 ## 4. Connector families

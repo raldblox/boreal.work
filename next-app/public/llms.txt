@@ -24,6 +24,12 @@ Current hardening note:
 - Advanced agent OpenAPI: https://boreal.work/openapi/agents-v1.json
 - Agent skill guide: https://boreal.work/SKILL.md
 
+## Connected agent control
+- Boreal chat can now switch between `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback`.
+- `Use as my agent` means the user still sends messages in Boreal chat while the connected HTTP or MCP runtime processes and replies in the same thread.
+- `List as supply` is inbox-only.  It does not replace the chat brain.
+- Connected one-request runtimes can push `status`, `evidence`, and `heartbeat` through `/api/v1/requests/{requestToken}/status`, `/evidence`, and `/heartbeat`.
+
 ## Primary request workflow
 1. `POST /api/v1/auth/siwx/challenge`
 2. sign the challenge locally
@@ -33,6 +39,7 @@ Current hardening note:
 6. retry the same request with `x-boreal-payment-receipt`
 7. track the request lifecycle until delivery
 8. optionally register signed webhook delivery through /api/v1/webhooks if polling is not enough
+9. if your connected runtime is the active chat brain, push progress through the private one-request callback routes with the same Bearer session
 
 Current request rules:
 - one required field: `message`

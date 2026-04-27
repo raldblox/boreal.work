@@ -23,6 +23,8 @@
 - For the app in `next-app/`, use `npm run smoke:collective-proposals` for the deterministic collective supplier smoke covering one approved proposal, shared request participation, collaborator delivery, and split payout rows.
 - For the app in `next-app/`, use `npm run smoke:one-request` for the deterministic agent-only request-first lifecycle smoke from SIWX auth through `402`, signed payment receipt, Solana devnet transaction verification, specialist execution, delivery, settlement, and payout records.
 - For the app in `next-app/`, use `npm run smoke:one-request-guards` for the deterministic wallet-scoped intake guard smoke covering active unpaid quote caps and recent request burst limits on the public one-request surface.
+- For the app in `next-app/`, use `npm run smoke:connected-agents` for the deterministic connected-agent chat smoke covering HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
+- For the app in `next-app/`, use `npm run smoke:request-callbacks` for the deterministic connected-agent callback smoke covering private one-request status, evidence, heartbeat, delivery, and payout-readiness progression.
 - For the app in `next-app/`, use `npm run smoke:payouts` for the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and aggregate settlement `paid_out`.
 - For the app in `next-app/`, use `npm run smoke:supplier-capacity` for the deterministic supplier-capacity smoke covering capacity reservation on claim, release on delivery, and blocked over-assignment before the slot reopens.
 - For the app in `next-app/`, use `npm run smoke:supplier-listing-guards` for the deterministic supplier-listing guard smoke covering the active-listing cap on the public supplier onboarding surface.
@@ -62,7 +64,7 @@
 - `next-app/app/roadmap` is the public-safe Jira-style status board for what is live, in progress, next, and later.  Keep it aligned with `ROADMAP.md` and `README.md`, and do not expose internal agent task boards, private blockers, or merge coordination there.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for Boreal's external-agent identity, portable reputation, connector adapters, request-native Swarm Workspace direction, and the concrete roadmap/API/schema extension plan for that layer.  Keep it honest about what is live versus target architecture.
-- `CONNECT_AGENT_GUIDE.md` is the practical source of truth for Boreal's future `Connect agent` UX, connector choices, auth/session bootstrap, activation modes, and replaceable-agent control plane.
+- `CONNECT_AGENT_GUIDE.md` is the practical source of truth for Boreal's live and next `Connect agent` UX, connector choices, auth/session bootstrap, activation modes, and replaceable-agent control plane.
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `DISCOVERY_PLAN.md` is the execution plan for external discoverability across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces.
@@ -88,7 +90,8 @@
 - Built-in specialized agents should stay source-of-truth in `next-app/agents/profiles/`, while Convex remains the runtime mirror for discovery, payouts, control state, and analytics.  Use stable per-agent sync identifiers so `agent:seed` updates existing DB records instead of duplicating them.
 - Specialized public agents can additionally expose signed-in direct execution under `next-app/app/api/agents/`; the registry contract and required metadata live in `AGENT-REGISTRY.md`.
 - The live agent-only demand contract treats `/api/v1/requests` as the main public entrypoint for callers, while `/api/v1/agents` and `/api/v1/supplies` remain secondary discovery and advanced execution surfaces.
-- Boreal Agent is the default orchestrator today, but agent-control work should keep it replaceable.  Document any `Connect agent`, external-orchestrator, HTTP executor, MCP executor, or fallback-policy changes in the main docs and roadmap instead of leaving them implicit in UI code.
+- Boreal Agent is still the default orchestrator, but the chat surface now supports `Use Boreal`, `No agent`, `Use connected agent`, and `Auto fallback`.  Document any connector, callback, or fallback-policy changes in the main docs and roadmap instead of leaving them implicit in UI code.
+- Connected HTTP and MCP agents can now become the active chat brain for their owner account.  Boreal stays the system of record, persists the same thread, and exposes one-request callback routes for status, evidence, and heartbeat updates.
 - `next-app/app/papers` is the public markdown-backed paper hub for Boreal's flagship article and specialized deep dives.
 - The supplier-side contract treats `/api/v1/inbox` as the personalized matched-demand watch surface for suppliers, while proposal, claim, delivery, and payout actions still resolve through underlying request resources.
 - The supplier-side contract now supports collective proposals: one supplier can submit `collectiveMembers`, `memberRoles`, and `splitPlan`, accepted collaborators can participate on the same request thread with named roles, request views derive per-participant contribution and trust summaries, and payout rows can split from one approved proposal.

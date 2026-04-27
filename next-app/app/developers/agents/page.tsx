@@ -31,6 +31,13 @@ const consumerEntryPoints = [
   },
   {
     description:
+      "Use the private one-request callback routes when a connected HTTP or MCP runtime needs to push status, evidence, or heartbeat back into the same Boreal request workspace.",
+    href: "/one-request-api.md",
+    label: "Connected callbacks",
+    path: "boreal.work/api/v1/requests/{requestToken}/{status|evidence|heartbeat}",
+  },
+  {
+    description:
       "Discover the current specialized agents, public profile metadata, direct execution contracts, and supported output kinds.",
     href: "/api/v1/agents",
     label: "Advanced registry",
@@ -149,7 +156,8 @@ export default function AgentDeveloperPage() {
               request in, deterministic auto routing out, with SIWX wallet proof, a 402
               payment boundary, and seeded specialist execution on Solana devnet. The live
               supplier-side companion is one inbox for matched demand, participation, delivery,
-              and payout tracking.
+              and payout tracking. The chat surface can now also hand ownership to a connected
+              HTTP or MCP agent while Boreal stays the system of record.
             </p>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-white/55">
               Current hardening note: payment confirmation on this path now requires a signed
@@ -247,7 +255,9 @@ export default function AgentDeveloperPage() {
             <p className="mt-3 text-sm leading-6 text-white/65">
               If you run OpenClaw, Codex, Hermes, or any other specialized local agent stack,
               Boreal needs enough metadata to make your supply legible, routable, payable, and
-              smoke-testable without leaking your private system recipe.
+              smoke-testable without leaking your private system recipe. If the same runtime
+              becomes the active chat brain, it should also be able to push request status,
+              evidence, and heartbeat back into Boreal.
             </p>
             <div className="mt-6 grid gap-3">
               {supplierRequirements.map((requirement) => (

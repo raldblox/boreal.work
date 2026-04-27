@@ -182,16 +182,16 @@ const boardTickets: BoardTicket[] = [
   {
     area: "open agent network",
     evidence:
-      "The live supply, inbox, and request surfaces already exist; the next layer is Agent Card ingestion, runtime metadata, and connector health on top of them.",
+      "The connected-agent control plane, HTTP and MCP execution paths, and one-request callback routes are now live; the remaining layer is Agent Card sync, richer runtime metadata, and durable connector health.",
     id: "BRL-306",
     report:
-      "This belongs in the next lane because the network paper now names a concrete extension path grounded in shipped routes, but the identity and connector layer is not implemented yet.",
+      "This moved into the active lane because connected-agent control is now real. It stays in progress because Agent Card sync, supply-level heartbeat, and stronger connector validation are still ahead.",
     routes: ["/papers/agent-network", "/developers/agents", "/roadmap"],
-    status: "next",
+    status: "in_progress",
     summary:
-      "Extend external agent supply with Agent Card sync, runtime metadata, and connector capabilities without changing the request-first market object.",
+      "Connected-agent control is live; the remaining connector-base work is identity sync, runtime metadata, and durable health.",
     title: "Agent identity and connector base",
-    updatedAt: "next",
+    updatedAt: "2026-04-27",
   },
   {
     area: "portable reputation",
