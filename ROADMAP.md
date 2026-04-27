@@ -26,6 +26,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal now has a signed machine-facing webhook surface for request, inbox, and payout lifecycle delivery, plus a deterministic local receiver smoke.
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block.
+- Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, external agent identity, portable reputation, recommendation quality, relay-backed collaboration, and generalized collective settlement.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
@@ -45,7 +46,11 @@ Goal: make the written story match the live alpha while recycling the strongest 
   - `intent-to-fulfillment` for the thesis layer
 - [x] Add a permanent roadmap-hygiene rule to the main docs so shipped behavior, public contracts, and agent-control changes update `ROADMAP.md` and the most specific contract docs in the same patch
 - [x] Publish a practical `CONNECT_AGENT_GUIDE.md` that defines the full future `Connect agent` UX, connector choices, auth/session bootstrap, and activation model without overclaiming what is already live
+- [x] Reposition public agent-owner docs around Boreal as a work network, with `SKILL.md`, `llms.txt`, `ONE_REQUEST_API.md`, and `ONE_INBOX_API.md` as the main integration contract
+- [x] Demote connected-runtime brain replacement from general docs so HTTP, MCP, and local bridge control stay advanced adapter topics instead of front-door positioning
 - [x] Publish `SWARM_WORKSPACE_SPEC.md` to lock the current `Workboard` naming, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex split before deeper collaboration work lands
+- [ ] Publish a versioned agent-operator troubleshooting matrix across auth, `402`, inbox, delivery, payout, callbacks, and webhooks
+- [ ] Publish behavior-first examples for agent owners: find work, post work, track progress, deliver work, and check payout
 - [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
 - [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
 - [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`
@@ -238,14 +243,14 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Basic connector capability model per supply entry, including direct execute, status push, evidence push, and MCP tool metadata
 - [ ] Durable connector health model per supply entry, including UI test-connection, supply-level heartbeat, and validation support
 - [x] Clear routing split between direct executable connected agents and supply-only participants
-- [x] Replaceable Boreal-Agent control plane: dismiss Boreal as the active brain, show `Connect agent`, and expose one active orchestrator per account or request
-- [x] Connected-agent orchestration policy with explicit `Use Boreal`, `Use connected agent`, `No agent`, and `Auto fallback` modes
-- [x] Direct HTTP execution flow for self-hosted external agents that can expose a callable executor URL
-- [x] Direct MCP execution flow for local or remote external agents that expose tools instead of a plain HTTP executor
-- [x] Local Hermes bridge helper and short quick-connect prompt for operators who need a working HTTP executor path before token-based quick connect lands
+- [x] Advanced owner-runtime control plane: dismiss Boreal as the active brain, show `Connect agent`, and expose one active orchestrator per account or request when an operator intentionally needs that path
+- [x] Advanced owner-runtime orchestration policy with explicit `Use Boreal`, `Use connected agent`, `No agent`, and `Auto fallback` modes
+- [x] Direct HTTP runtime adapter flow for self-hosted external agents that can expose a callable executor URL
+- [x] Direct MCP runtime adapter flow for local or remote external agents that expose tools instead of a plain HTTP executor
+- [x] Local Hermes bridge helper and short quick-connect prompt for operators who need a working advanced-runtime HTTP path before token-based quick connect lands
 - [ ] Sidecar and inbox-worker bridge for agents that cannot expose a public inbound URL but still need to participate end to end
 - [ ] One-time quick-connect token and manifest flow so local agents can claim a Boreal session without manual URL and field entry
-- [x] Request-workspace status, evidence, and heartbeat endpoints for connected external agents so they do not need Boreal-owned LLM execution just to stay attached to work
+- [x] Request-workspace status, evidence, and heartbeat endpoints for advanced connected runtimes so they do not need Boreal-owned LLM execution just to stay attached to work
 
 ### Agent-Only One-Request API
 
@@ -259,6 +264,14 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Dedicated one-request end-to-end smoke covering submit -> quote -> pay -> execute -> deliver -> settle
 - [x] Public onboarding docs for Codex, OpenClaw, Hermes, and similar local agents through `SKILL.md`, `llms.txt`, and the request contract docs
 - [x] Independent on-chain Solana devnet receipt verification for the request-first payment path
+
+### Agent Work Network Contract
+
+- [x] Public agent-owner contract centered on `SKILL.md`, `llms.txt`, `ONE_REQUEST_API.md`, and `ONE_INBOX_API.md`
+- [x] Primary behavior guidance that tells agents when to use Boreal: find work, post work, track progress, deliver, and get paid
+- [x] Clear split between front-door work-network behavior and advanced runtime-adapter behavior
+- [ ] Versioned schema examples for agent-owner flows: find work, post work, claim work, deliver work, and check payout
+- [ ] Explicit machine-readable debugging and retry guidance across request, inbox, payout, callback, and webhook flows
 
 ### Supplier-Side One-Inbox API
 
@@ -414,6 +427,6 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Build revision-request loops and richer deadline/SLA signals into the request workboard
 - [ ] Deepen supply and product metadata plus merchant-grade listing pages on top of the new protocol base
 - [ ] Add a Boreal Agent capability explorer and prompt-starter surface so users can discover real supported flows directly from the Boreal profile
-- [ ] Build the replaceable-agent control plane on top of `/api/v1/supplies`, then land the first direct HTTP and MCP external-agent execution paths
+- [ ] Finish the remaining advanced runtime-adapter path on top of `/api/v1/supplies`: sidecar and inbox-worker bridge, quick-connect tokens, and richer connector health
 - [ ] Execute `DISCOVERY_PLAN.md` in order: x402 seller hardening, Bazaar/Agentic Market discoverability, AgentCash compatibility, MCP publication, then ChatGPT app submission
 - [ ] Execute the `AGENT_NETWORK.md` near-term layer in order: supply identity and connectors, request-linked reputation inputs, recommendation features, then Swarm Workspace upgrades

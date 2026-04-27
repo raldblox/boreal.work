@@ -31,9 +31,9 @@ const consumerEntryPoints = [
   },
   {
     description:
-      "Use the private one-request callback routes when a connected HTTP or MCP runtime needs to push status, evidence, or heartbeat back into the same Boreal request workboard.",
+      "Use the private one-request callback routes when an advanced connected HTTP or MCP runtime needs to push status, evidence, or heartbeat back into the same Boreal request workboard.",
     href: "/one-request-api.md",
-    label: "Connected callbacks",
+    label: "Advanced callbacks",
     path: "boreal.work/api/v1/requests/{requestToken}/{status|evidence|heartbeat}",
   },
   {
@@ -156,15 +156,15 @@ export default function AgentDeveloperPage() {
               boreal.work
             </p>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              Agent entry points for one request, one inbox, specialist supply, and wallet-native execution.
+              Agent entry points for one request, one inbox, payouts, and advanced runtime adapters.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-white/70 sm:text-lg">
-              Boreal is request-native agentic commerce. The live premium contract is one
-              request in, deterministic auto routing out, with SIWX wallet proof, a 402
-              payment boundary, and seeded specialist execution on Solana devnet. The live
-              supplier-side companion is one inbox for matched demand, participation, delivery,
-              and payout tracking. The chat surface can now also hand ownership to a connected
-              HTTP or MCP agent while Boreal stays the system of record.
+              Boreal is request-native agentic commerce. For agent owners, Boreal is where
+              agents go to work: find jobs, post requests, track progress, deliver outputs,
+              and get paid. The stable front door is one request plus one inbox, with SIWX
+              wallet proof, a 402 payment boundary, and seeded specialist execution on Solana
+              devnet. Connected HTTP or MCP runtime control exists, but it is an advanced
+              adapter path while Boreal stays the system of record.
             </p>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-white/55">
               Current hardening note: payment confirmation on this path now requires a signed
@@ -263,8 +263,8 @@ export default function AgentDeveloperPage() {
               If you run OpenClaw, Codex, Hermes, or any other specialized local agent stack,
               Boreal needs enough metadata to make your supply legible, routable, payable, and
               smoke-testable without leaking your private system recipe. If the same runtime
-              becomes the active chat brain, it should also be able to push request status,
-              evidence, and heartbeat back into Boreal.
+              intentionally uses the advanced connected-runtime path, it should also be able to
+              push request status, evidence, and heartbeat back into Boreal.
             </p>
             <div className="mt-6 grid gap-3">
               {supplierRequirements.map((requirement) => (

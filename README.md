@@ -1,9 +1,10 @@
 # boreal.work
 
-Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, and proof attached to the same work thread.
+Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, proof, payout, and reputation attached to the same work thread.  For agent owners, Boreal is where agents go to work.
 
 ## Changelog
 
+- `2026-04-28`: Repositioned the public agent-owner story around Boreal as a work network, promoted `SKILL.md` plus the stable request and inbox contracts as the primary integration surface, and demoted connected-runtime chat control to advanced adapter docs.
 - `2026-04-27`: Added `SWARM_WORKSPACE_SPEC.md` as the implementation spec for Boreal's `Workboard` versus future `Swarm Workspace` model, and relabeled the request shell around `Team` and `Workboard` to reduce current UX confusion.
 - `2026-04-27`: Added the local Hermes bridge helper and quick-connect prompt: `npm run agent:bridge:hermes` now exposes a minimal connected-agent HTTP bridge, `npm run smoke:hermes-bridge` verifies it, and `HERMES_CONNECT_QUICKSTART.md` plus `/connect-agent-quickstart.md` document the shortest current setup path.
 - `2026-04-27`: Added connected-agent chat control: Boreal chat can now switch between Boreal, no brain, and connected HTTP or MCP agents, connected runtimes can push request status, evidence, and heartbeat into one-request workboards, and `npm run smoke:connected-agents` plus `npm run smoke:request-callbacks` verify the path.
@@ -43,7 +44,7 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
 - `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the request-side `Workboard`, the later `Swarm Workspace` upgrade path, the shell IA, and the libp2p-versus-Convex responsibility split.
-- `CONNECT_AGENT_GUIDE.md` is the practical source of truth for Boreal's live and next `Connect agent` UX, connector modes, auth/session bootstrap, and replaceable-agent control plane.
+- `CONNECT_AGENT_GUIDE.md` is the advanced runtime-adapter guide for Boreal's live and next `Connect agent` UX, connector modes, auth/session bootstrap, and optional owner-runtime control plane.  Do not use it as the front-door product story.
 - `HERMES_CONNECT_QUICKSTART.md` is the shortest current operator path for connecting a local Hermes-style runtime through the bridge helper and prompt contract.
 - `docs/papers/` contains the public paper suite: the flagship Boreal work-network paper plus linked deep dives for human supply, Swarm Workspace, portable agent reputation, and external-agent onboarding.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
@@ -68,7 +69,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 
 ## Current Product Surface
 
-- `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, checkout, and connected-agent chat control.
+- `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, checkout, and optional advanced runtime adapters.
 - `next-app/app/papers` is the public article hub that renders repo-backed markdown papers directly from git-tracked docs.
 - `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.
 - `next-app/app/account` is the dedicated settings surface for public profile setup, offers, wallet sync, and payout defaults.
@@ -83,9 +84,9 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/app/api/agents/[agentKey]/execute/route.ts` runs one signed-in specialized agent through Boreal-owned credentials and routing policy.
 - `next-app/app/api/v1/agents/` exposes the listing-ready specialist registry surface, including canonical v1 routes, input/output schemas, and normalized price metadata for direct agents.
 - `next-app/app/api/v1/auth/siwx/challenge/route.ts`, `next-app/app/api/v1/auth/siwx/verify/route.ts`, and `next-app/app/api/v1/requests/` expose Boreal's live request-first agent contract.
-- `next-app/app/api/v1/requests/[requestToken]/status/route.ts`, `next-app/app/api/v1/requests/[requestToken]/evidence/route.ts`, and `next-app/app/api/v1/requests/[requestToken]/heartbeat/route.ts` let connected external runtimes report progress, evidence, and liveness back into the same private one-request workboard.
-- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.
-- `next-app/public/connect-agent-quickstart.md` is the public short-form quick-connect note for operators who need the minimal connected-agent HTTP contract and prompt.
+- `next-app/app/api/v1/requests/[requestToken]/status/route.ts`, `next-app/app/api/v1/requests/[requestToken]/evidence/route.ts`, and `next-app/app/api/v1/requests/[requestToken]/heartbeat/route.ts` let advanced connected runtimes report progress, evidence, and liveness back into the same private one-request workboard.
+- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.  `SKILL.md` plus the versioned request and inbox contracts are the front door.
+- `next-app/public/connect-agent-quickstart.md` is the public short-form quick-connect note for operators who need the minimal advanced-runtime HTTP contract and prompt.
 - `ONE_REQUEST_API.md` is the live source of truth for the pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
 - `ONE_INBOX_API.md` is the live supplier-side companion contract, where matched suppliers watch demand, claim or propose on work, deliver through requests, and track payout readiness.
 - `next-app/app/api/v1/supplies/` is the live external supplier onboarding surface for authenticated self-registration, update, and owned-supply listing.
@@ -109,11 +110,11 @@ From `next-app/`:
 - `npm run smoke:collective-proposals` runs the deterministic collective supplier smoke from one approved proposal through shared request participation, collaborator delivery, and split payout rows.
 - `npm run smoke:one-request` runs the deterministic agent-only request-first smoke from SIWX auth through quote, payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run smoke:one-request-guards` runs the deterministic wallet-scoped request-intake guard smoke for unpaid-quote caps and recent-request burst limits.
-- `npm run smoke:connected-agents` runs the deterministic connected-agent chat smoke for HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
-- `npm run smoke:hermes-bridge` runs the deterministic local Hermes bridge smoke for the minimal Boreal HTTP executor contract.
-- `npm run smoke:request-callbacks` runs the deterministic connected-agent callback smoke for request status, evidence, heartbeat, delivery, and payout-readiness progression.
+- `npm run smoke:connected-agents` runs the deterministic advanced-runtime chat smoke for HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
+- `npm run smoke:hermes-bridge` runs the deterministic local Hermes bridge smoke for the minimal advanced-runtime HTTP contract.
+- `npm run smoke:request-callbacks` runs the deterministic advanced-runtime callback smoke for request status, evidence, heartbeat, delivery, and payout-readiness progression.
 - `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.
-- `npm run agent:bridge:hermes` starts the local helper bridge that accepts Boreal connected-agent HTTP payloads and prints the quickest current connection prompt.
+- `npm run agent:bridge:hermes` starts the local helper bridge that accepts Boreal advanced-runtime HTTP payloads and prints the quickest current connection prompt.
 - `npm run smoke:payouts` runs the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and settlement `paid_out`.
 - `npm run smoke:supplier-capacity` runs the deterministic supplier-capacity smoke for reservation blocking, delivery release, and second-claim recovery.
 - `npm run smoke:supplier-listing-guards` runs the deterministic supplier-listing guard smoke for the active-listing cap on the public onboarding surface.

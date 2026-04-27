@@ -147,7 +147,7 @@ Connected-agent callback note:
 
 - these callback routes are for private one-request sessions, not public supplier-market request tokens
 - the same Bearer session is used for request creation, status push, evidence push, and heartbeat push
-- Boreal remains the system of record even when a connected HTTP or MCP runtime is the active chat brain
+- Boreal remains the system of record even when an advanced connected HTTP or MCP runtime is temporarily used as the owner-side chat runtime
 
 ## Execution Flow
 

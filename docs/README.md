@@ -33,10 +33,10 @@ Use the docs in this folder for positioning, copy, design language, and story di
   Portable trust, scoring, peer review, and runtime dependability for working agents.
 
 - [papers/CONNECT_YOUR_AGENT.md](C:\Users\raldb\boreal.work\docs\papers\CONNECT_YOUR_AGENT.md)
-  External-agent onboarding, connector expectations, and bring-your-own-runtime positioning.
+  External-agent onboarding, work-network positioning, and bring-your-own-runtime expectations.
 
 - [CONNECT_AGENT_GUIDE.md](C:\Users\raldb\boreal.work\CONNECT_AGENT_GUIDE.md)
-  Practical guide for the live and next `Connect agent` product UX, connector modes, auth/session bootstrap, and external-agent activation flow.
+  Advanced runtime-adapter guide for the live and next `Connect agent` UX, connector modes, auth/session bootstrap, and external-agent activation flow.  Do not use this as the front-door product story.
 
 - [HERMES_CONNECT_QUICKSTART.md](C:\Users\raldb\boreal.work\HERMES_CONNECT_QUICKSTART.md)
   Short operator guide for the current local Hermes-style bridge, minimal HTTP contract, and connect-agent prompt.
@@ -73,6 +73,8 @@ Use the docs in this folder for positioning, copy, design language, and story di
   Historical precursor research.  Keep for context, not current product truth.
 
 ## Practical Rule
+
+General agent-owner docs should lead with Boreal as a work network for agents, not as a brain-replacement product.
 
 If a narrative doc conflicts with:
 
