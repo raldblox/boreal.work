@@ -27,7 +27,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
-- Boreal is still behind the whitepaper on protocol depth, matching quality, trust scoring, team composition, contribution tracking, and generalized collective settlement.
+- Boreal is still behind the whitepaper on protocol depth, external agent identity, portable reputation, recommendation quality, relay-backed collaboration, and generalized collective settlement.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
 
@@ -227,6 +227,14 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Executor-surface registration for third-party agent suppliers with HTTP/MCP/OpenAPI/schema metadata
 - [x] Concurrency and availability controls for agent suppliers
 
+### Open Agent Identity And Connectors
+
+- [ ] Agent Card ingestion and cache on top of the live `/api/v1/supplies` onboarding surface
+- [ ] Runtime metadata on external agent supply: model family, model tier, provider, compute class, execution mode, heartbeat, and latency band
+- [ ] Connector health and capability model per supply entry, including direct execute, status push, evidence push, and validation support
+- [ ] Clear routing split between direct executable external agents and market-only participants
+- [ ] Request-workspace status and evidence endpoints for connected external agents so they do not need Boreal-owned LLM execution just to stay attached to work
+
 ### Agent-Only One-Request API
 
 - [x] `POST /api/v1/requests` as the main premium demand entrypoint for external agents
@@ -307,6 +315,15 @@ Goal: harden the system for broader public use after the core commerce and routi
 - [ ] Dispute workflow
 - [ ] On-chain transaction audit trail
 
+### Portable Reputation And Validation
+
+- [ ] Request-linked collaborator feedback tied to accepted collective participation
+- [ ] Request-linked validator events for objective checks, proofs, and pass or fail outcomes
+- [ ] Category-specific reputation snapshots per supply and capability cluster
+- [ ] Runtime dependability scoring as a first-class ranking input
+- [ ] Anti-gaming rules for feedback and trust: request-linked authorization, accepted-work proof, rater weighting, and stronger Sybil resistance
+- [ ] Public reputation summary surface for external agent supply without overclaiming universal portability
+
 ## Phase 5 - Agent-Native Commerce Expansion
 
 Goal: extend Boreal from core protocol-facing commerce into deeper agent-native presence and execution.
@@ -315,6 +332,14 @@ Goal: extend Boreal from core protocol-facing commerce into deeper agent-native 
 - [ ] Listing-level representative agents for products/services
 - [ ] MCP tool server for Boreal
 - [ ] Agent wallet and spend-rule support
+
+### Swarm Workspace
+
+- [ ] Explicit workspace-upgrade event from a normal request into a paid Swarm Workspace session
+- [ ] Assignment and decomposition primitives inside one request workspace
+- [ ] Validator lane and richer progress-event surfaces inside the workspace
+- [ ] Relay-backed real-time collaboration plane for upgraded requests
+- [ ] Owner-visible live coordination state, not only artifact and activity replay
 
 ## Phase 6 - Network Intelligence and Collective Fulfillment
 
@@ -327,6 +352,10 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Urgency scoring with deadline decay
 - [ ] Automatic promotion of repeated fulfillment patterns into routable supply
 - [ ] Recommendation engine for open requests and product-search workspaces
+- [ ] Agent affinity edges for suppliers or specialists that succeed together
+- [ ] Collaborative filtering over accepted collectives, repeat hires, and request similarity
+- [ ] Recommendation features that combine capability fit, runtime quality, dispute history, owner preference, and payout reliability
+- [ ] Agent Card and trust-reference signals folded into ranking only after product-native outcome history is considered
 
 ### Collective Fulfillment
 
@@ -374,3 +403,4 @@ Goal: make the system compound from usage and support larger, multi-party work.
 - [ ] Deepen supply and product metadata plus merchant-grade listing pages on top of the new protocol base
 - [ ] Add a Boreal Agent capability explorer and prompt-starter surface so users can discover real supported flows directly from the Boreal profile
 - [ ] Execute `DISCOVERY_PLAN.md` in order: x402 seller hardening, Bazaar/Agentic Market discoverability, AgentCash compatibility, MCP publication, then ChatGPT app submission
+- [ ] Execute the `AGENT_NETWORK.md` near-term layer in order: supply identity and connectors, request-linked reputation inputs, recommendation features, then Swarm Workspace upgrades

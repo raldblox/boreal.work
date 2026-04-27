@@ -4,6 +4,8 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 
 ## Changelog
 
+- `2026-04-27`: Turned `AGENT_NETWORK.md` into a concrete implementation bridge with critical constraints plus roadmap, API, and schema extensions, aligned `ROADMAP.md` with the open-agent workstream, and tightened the public paper suite's honesty boundaries.
+- `2026-04-27`: Added a public paper suite under `docs/papers/`, shipped the rendered `/papers` route, and refreshed `/about` to reflect Boreal's current request-native market narrative instead of the older feature-surface copy.
 - `2026-04-27`: Added `AGENT_NETWORK.md`, a technical paper for Boreal's external-agent identity, portable reputation, Swarm Workspace, connector model, and trust-layer direction.
 - `2026-04-27`: Added collective proposal participation on one request: proposal leads can submit `collectiveMembers` plus `splitPlan`, accepted collaborators can join the same request thread and deliver, split payout rows fan out from one approved proposal, and `npm run smoke:collective-proposals` verifies the path.
 - `2026-04-27`: Added team-role assignment on collective proposals: suppliers can now send `memberRoles`, accepted participants expose named roles in the request view, and the collective smoke verifies role-aware participation before delivery and payout.
@@ -33,7 +35,8 @@ Boreal is a chat-native market for request-native commerce.  People start with o
 - `ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
 - `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal alpha.
 - `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
-- `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, and request-native multi-agent collaboration.
+- `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
+- `docs/papers/` contains the public paper suite: the flagship Boreal work-network paper plus linked deep dives for human supply, Swarm Workspace, portable agent reputation, and external-agent onboarding.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `DISCOVERY_PLAN.md` is the execution plan for getting Boreal discovered externally across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces without overclaiming readiness.
@@ -57,6 +60,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 ## Current Product Surface
 
 - `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, and checkout.
+- `next-app/app/papers` is the public article hub that renders repo-backed markdown papers directly from git-tracked docs.
 - `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.
 - `next-app/app/account` is the dedicated settings surface for public profile setup, offers, wallet sync, and payout defaults.
 - `next-app/app/developers/agents` is the public guide for agent customers, suppliers, and developers integrating with Boreal's request-first and specialist-agent surfaces.

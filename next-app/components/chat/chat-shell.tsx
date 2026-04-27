@@ -2331,6 +2331,9 @@ export function ChatShell() {
                           >
                             Browse requests
                           </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href="/papers">Read papers</Link>
+                          </Button>
                         </>
                       }
                       starterPrompts={[]}
@@ -2662,44 +2665,47 @@ export function ChatShell() {
                         }
                         quickActions={
                           <>
-                          <Button
-                            onClick={() => openMarketplaceTab("workers")}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            Browse offers
-                          </Button>
-                          <Button
-                            onClick={() => openMarketplaceTab("requests")}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            Browse requests
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              if (privyAuthenticated) {
-                                setIsAccountDialogOpen(true)
-                                return
-                              }
+                            <Button
+                              onClick={() => openMarketplaceTab("workers")}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Browse offers
+                            </Button>
+                            <Button
+                              onClick={() => openMarketplaceTab("requests")}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Browse requests
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                              <Link href="/papers">Read papers</Link>
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                if (privyAuthenticated) {
+                                  setIsAccountDialogOpen(true)
+                                  return
+                                }
 
-                              login()
-                            }}
-                            size="sm"
-                            type="button"
-                            variant={privyAuthenticated ? "secondary" : "outline"}
-                          >
-                            <WalletIcon className="size-4" />
-                            {privyReady
-                              ? privyAuthenticated
-                                ? "Wallet connected"
-                                : runtimePrimaryChainFamily === "solana"
-                                  ? "Connect Solana"
-                                  : "Connect wallet"
-                              : "Wallet"}
-                          </Button>
+                                login()
+                              }}
+                              size="sm"
+                              type="button"
+                              variant={privyAuthenticated ? "secondary" : "outline"}
+                            >
+                              <WalletIcon className="size-4" />
+                              {privyReady
+                                ? privyAuthenticated
+                                  ? "Wallet connected"
+                                  : runtimePrimaryChainFamily === "solana"
+                                    ? "Connect Solana"
+                                    : "Connect wallet"
+                                : "Wallet"}
+                            </Button>
                           </>
                         }
                         starterPrompts={starterPrompts.map((prompt) => {

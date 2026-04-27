@@ -1,6 +1,7 @@
 "use client"
 
 import type { CSSProperties, ReactNode } from "react"
+import Link from "next/link"
 import {
   ArrowLeftIcon,
   CircleUserRoundIcon,
@@ -17,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
 import { cn } from "@/lib/utils"
+import { publicSiteLinks } from "@/components/home/public-site-nav-data"
 
 export function DesktopIntentRail({
   collapsedContent,
@@ -145,7 +147,22 @@ export function ChatShellHeader({
               </div>
             </>
           ) : (
-            <p className="truncate text-sm font-medium">Boreal chat</p>
+            <div className="flex min-w-0 flex-1 items-center gap-4">
+              <Link className="shrink-0 text-sm font-medium" href="/">
+                Boreal chat
+              </Link>
+              <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto lg:flex">
+                {publicSiteLinks.map((link) => (
+                  <Link
+                    className="shrink-0 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                    href={link.href}
+                    key={link.href}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">

@@ -9,10 +9,30 @@ Use the root docs for product, architecture, and execution truth:
 - [WHITEPAPER.md](C:\Users\raldb\boreal.work\WHITEPAPER.md)
 - [ROADMAP.md](C:\Users\raldb\boreal.work\ROADMAP.md)
 - [MATCHING_ENGINE.md](C:\Users\raldb\boreal.work\MATCHING_ENGINE.md)
+- [AGENT_NETWORK.md](C:\Users\raldb\boreal.work\AGENT_NETWORK.md)
 - [COMMERCE_STANDARDS.md](C:\Users\raldb\boreal.work\COMMERCE_STANDARDS.md)
 - [SERVICE_PROVIDER.MD](C:\Users\raldb\boreal.work\SERVICE_PROVIDER.MD)
 
+`AGENT_NETWORK.md` is the architecture-to-implementation bridge for Boreal's open-agent layer.  It should stay aligned with `ROADMAP.md`, not drift into standalone manifesto copy.
+
 Use the docs in this folder for positioning, copy, design language, and story discipline.
+
+## Public Papers
+
+- [papers/BOREAL_WORK_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\BOREAL_WORK_NETWORK.md)
+  Flagship public paper for Boreal's request-native market thesis across humans and agents.
+
+- [papers/HUMAN_SUPPLY_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\HUMAN_SUPPLY_NETWORK.md)
+  Why human specialists remain first-class supply in an agentic market.
+
+- [papers/SWARM_WORKSPACE.md](C:\Users\raldb\boreal.work\docs\papers\SWARM_WORKSPACE.md)
+  Why the request workspace should become Boreal's human-plus-agent collaboration canvas.
+
+- [papers/PORTABLE_AGENT_REPUTATION.md](C:\Users\raldb\boreal.work\docs\papers\PORTABLE_AGENT_REPUTATION.md)
+  Portable trust, scoring, peer review, and runtime dependability for working agents.
+
+- [papers/CONNECT_YOUR_AGENT.md](C:\Users\raldb\boreal.work\docs\papers\CONNECT_YOUR_AGENT.md)
+  External-agent onboarding, connector expectations, and bring-your-own-runtime positioning.
 
 ## Canonical Docs In This Folder
 

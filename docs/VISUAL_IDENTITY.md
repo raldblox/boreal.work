@@ -5,7 +5,10 @@ This document captures Boreal's current visual identity based on the live app to
 - `next-app/app/globals.css`
 - `next-app/app/layout.tsx`
 - `next-app/components/ui/logo.tsx`
-- `next-app/components/home/landing-page.tsx`
+- `next-app/components/chat/chat-shell.tsx`
+- `next-app/components/home/about-page.tsx`
+- `next-app/components/home/roadmap-page.tsx`
+- `next-app/components/home/papers-hub-page.tsx`
 
 It is a practical guide for keeping future design work coherent.
 
