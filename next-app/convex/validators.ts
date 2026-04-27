@@ -276,6 +276,19 @@ export const payoutStatusValidator = v.union(
   v.literal("cancelled"),
 );
 
+export const webhookStreamValidator = v.union(
+  v.literal("requests"),
+  v.literal("inbox"),
+  v.literal("payouts"),
+);
+
+export const webhookDeliveryStatusValidator = v.union(
+  v.literal("queued"),
+  v.literal("processing"),
+  v.literal("delivered"),
+  v.literal("failed"),
+);
+
 export const refundStatusValidator = v.union(
   v.literal("pending"),
   v.literal("processed"),

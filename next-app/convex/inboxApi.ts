@@ -22,6 +22,7 @@ import {
   parsePublicRequestToken,
 } from "../lib/boreal/one-inbox/tokens";
 import { getScenarioId, recordTransactionAuditEvent } from "./transactionScenarios";
+import { queueWebhookDeliveries } from "./webhooks";
 
 const DEFAULT_LIMIT = 24;
 const MARKET_OPEN_STATUSES = new Set(["open", "proposed", "claimed", "in_progress", "fulfilled"]);
@@ -379,6 +380,25 @@ export const recordRequestDecline = mutation({
       type: "request.declined_by_supplier",
     });
 
+    await queueWebhookDeliveries(ctx, {
+      data: {
+        reason: args.reason?.trim() || null,
+        supplyId: args.supplyId ?? null,
+      },
+      entryToken: args.supplyId
+        ? createInboxEntryToken({
+            intentId: intent._id,
+            supplyId: args.supplyId,
+          })
+        : undefined,
+      eventType: "inbox.declined",
+      message: "Supplier declined the request.",
+      ownerExternalId: args.ownerExternalId,
+      requestToken: args.requestToken,
+      status: "declined",
+      stream: "inbox",
+    });
+
     return { declined: true };
   },
 });
@@ -644,6 +664,26 @@ export const claimMatchedRequest = mutation({
       stage: "approval",
       status: "passed",
       transactionId,
+    });
+
+    await queueWebhookDeliveries(ctx, {
+      data: {
+        fulfillmentId,
+        price: supply.priceAmount,
+        proposalId,
+        supplyId: supply._id,
+        transactionId,
+      },
+      entryToken: createInboxEntryToken({
+        intentId: intent._id,
+        supplyId: supply._id,
+      }),
+      eventType: "inbox.claimed",
+      message: "Supplier claimed the request.",
+      ownerExternalId: args.ownerExternalId,
+      requestToken: args.requestToken,
+      status: "claimed",
+      stream: "inbox",
     });
 
     await refreshProfileAnalyticsForUser(ctx, supplier.user._id);

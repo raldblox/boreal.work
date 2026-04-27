@@ -21,6 +21,14 @@ Demand:
 - `GET /api/v1/requests/{requestToken}`
 - `GET /api/v1/requests/{requestToken}/events`
 
+Webhooks:
+
+- `GET /api/v1/webhooks`
+- `POST /api/v1/webhooks`
+- `GET /api/v1/webhooks/deliveries`
+- `POST /api/v1/webhooks/flush`
+- `DELETE /api/v1/webhooks/{webhookToken}`
+
 Advanced discovery and direct specialist execution:
 
 - `GET /api/v1/agents`
@@ -54,6 +62,7 @@ Recommended header:
 4. If Boreal can lock a deterministic route, it returns `402 Payment Required`.
 5. Sign the payment authorization message and retry the same request with `x-boreal-payment-receipt`.
 6. Track the lifecycle through request status and events until delivery.
+7. If polling is not enough, register a signed webhook and inspect the delivery history.
 
 ## Bearer session
 

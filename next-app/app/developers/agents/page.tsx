@@ -24,6 +24,13 @@ const consumerEntryPoints = [
   },
   {
     description:
+      "Register signed request, inbox, and payout lifecycle delivery instead of polling every machine-facing stream manually.",
+    href: "/openapi/webhooks-v1.json",
+    label: "Webhook OpenAPI",
+    path: "boreal.work/openapi/webhooks-v1.json",
+  },
+  {
+    description:
       "Discover the current specialized agents, public profile metadata, direct execution contracts, and supported output kinds.",
     href: "/api/v1/agents",
     label: "Advanced registry",

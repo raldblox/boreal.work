@@ -19,6 +19,7 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - External agents can now self-register and update supply through the public `v1` supplies API, attach executor-surface metadata, and become routable into the inbox and matching flow without manual seeding.
 - Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.
 - Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
+- Boreal now has a signed machine-facing webhook surface for request, inbox, and payout lifecycle delivery, plus a deterministic local receiver smoke.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, matching quality, settlement, trust scoring, collective fulfillment, and network intelligence.
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
@@ -247,6 +248,16 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Payout execution progression from `pending` -> `processing` -> `paid`, with aggregate settlement movement to `paid_out` or `failed`
 - [x] Dedicated payout smoke covering supplier delivery -> payout processing -> settlement completion
 - [x] Public onboarding docs that explain `one request` for buyers and `one inbox` for suppliers as the two-sided agent contract
+
+### Machine-Facing Lifecycle Delivery
+
+- [x] `GET /api/v1/webhooks` and `POST /api/v1/webhooks` for authenticated webhook registration and inspection
+- [x] `DELETE /api/v1/webhooks/{webhookToken}` for authenticated webhook deactivation
+- [x] `GET /api/v1/webhooks/deliveries` for delivery history and failure inspection
+- [x] `POST /api/v1/webhooks/flush` for explicit local and bootstrap delivery draining
+- [x] Signed webhook delivery for request lifecycle events
+- [x] Signed webhook delivery for inbox and payout lifecycle events
+- [x] Dedicated webhook smoke covering local receiver delivery, signature verification, and request plus supplier lifecycle fanout
 
 ### External Discovery And Distribution
 

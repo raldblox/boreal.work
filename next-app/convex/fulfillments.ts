@@ -10,9 +10,11 @@ import {
   getProfileIdForUser,
   updateTransactionById,
 } from "./commerceCore";
+import { createPayoutToken, createPublicRequestToken } from "../lib/boreal/one-inbox/tokens";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 import { releaseSupplyCapacity } from "./supplies";
 import { getScenarioId, recordTransactionAuditEvent } from "./transactionScenarios";
+import { queueWebhookDeliveries } from "./webhooks";
 
 export const submitWork = mutation({
   args: {
@@ -157,6 +159,7 @@ export const submitWork = mutation({
     await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
 
     if (transactionId) {
+      let payoutId: Id<"payouts"> | undefined;
       await updateTransactionById(ctx, transactionId, {
         fulfillmentId: activeFulfillment._id,
         settlementStatus:
@@ -178,7 +181,7 @@ export const submitWork = mutation({
       });
 
       if (acceptedProposal.price > 0) {
-        await ensurePayoutRecord(ctx, {
+        payoutId = await ensurePayoutRecord(ctx, {
           amount: transaction?.amount ?? acceptedProposal.price,
           chainFamily: transaction?.chainFamily,
           currency: transaction?.currency ?? acceptedProposal.currency,
@@ -221,6 +224,54 @@ export const submitWork = mutation({
         status: acceptedProposal.price > 0 ? "passed" : "info",
         transactionId,
       });
+
+      await queueWebhookDeliveries(ctx, {
+        data: {
+          fulfillmentId: activeFulfillment._id,
+          settlementStatus:
+            acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+          transactionId,
+        },
+        eventType: "inbox.delivered",
+        message: "Supplier delivered work.",
+        ownerExternalId: args.workerExternalId,
+        requestToken: createPublicRequestToken(intent._id),
+        status: "delivered",
+        stream: "inbox",
+      });
+
+      if (acceptedProposal.price > 0 && payoutId) {
+        const payoutToken = createPayoutToken(payoutId);
+
+        await queueWebhookDeliveries(ctx, {
+          data: {
+            payoutToken,
+            settlementStatus: "ready_for_payout",
+            transactionId,
+          },
+          eventType: "inbox.payout_ready",
+          message: "Payout is ready for the supplier.",
+          ownerExternalId: args.workerExternalId,
+          payoutToken,
+          requestToken: createPublicRequestToken(intent._id),
+          status: "payout_ready",
+          stream: "inbox",
+        });
+        await queueWebhookDeliveries(ctx, {
+          data: {
+            payoutToken,
+            settlementStatus: "ready_for_payout",
+            transactionId,
+          },
+          eventType: "payout.ready",
+          message: "Payout is ready for processing.",
+          ownerExternalId: args.workerExternalId,
+          payoutToken,
+          requestToken: createPublicRequestToken(intent._id),
+          status: "pending",
+          stream: "payouts",
+        });
+      }
     }
 
     return { submitted: true };
@@ -410,6 +461,7 @@ export const markRequestFulfilled = mutation({
     const transactionId = fulfillment?.transactionId;
 
     if (transactionId) {
+      let payoutId: Id<"payouts"> | undefined;
       await updateTransactionById(ctx, transactionId, {
         fulfillmentId,
         settlementStatus:
@@ -435,7 +487,7 @@ export const markRequestFulfilled = mutation({
       });
 
       if (acceptedProposal && acceptedProposal.price > 0 && acceptedProposal.proposerUserId) {
-        await ensurePayoutRecord(ctx, {
+        payoutId = await ensurePayoutRecord(ctx, {
           amount: transaction?.amount ?? acceptedProposal.price,
           chainFamily: transaction?.chainFamily,
           currency: transaction?.currency ?? acceptedProposal.currency,
@@ -490,6 +542,61 @@ export const markRequestFulfilled = mutation({
           acceptedProposal && acceptedProposal.price > 0 ? "passed" : "info",
         transactionId,
       });
+
+      const proposerExternalId = await getUserExternalId(
+        ctx,
+        acceptedProposal?.proposerUserId,
+      );
+
+      await queueWebhookDeliveries(ctx, {
+        data: {
+          fulfillmentId,
+          settlementStatus:
+            acceptedProposal && acceptedProposal.price > 0
+              ? "ready_for_payout"
+              : "not_applicable",
+          transactionId,
+        },
+        eventType: "inbox.delivered",
+        message: "Owner marked the request fulfilled.",
+        ownerExternalId: proposerExternalId,
+        requestToken: createPublicRequestToken(intent._id),
+        status: "delivered",
+        stream: "inbox",
+      });
+
+      if (acceptedProposal && acceptedProposal.price > 0 && payoutId) {
+        const payoutToken = createPayoutToken(payoutId);
+
+        await queueWebhookDeliveries(ctx, {
+          data: {
+            payoutToken,
+            settlementStatus: "ready_for_payout",
+            transactionId,
+          },
+          eventType: "inbox.payout_ready",
+          message: "Payout is ready after owner confirmation.",
+          ownerExternalId: proposerExternalId,
+          payoutToken,
+          requestToken: createPublicRequestToken(intent._id),
+          status: "payout_ready",
+          stream: "inbox",
+        });
+        await queueWebhookDeliveries(ctx, {
+          data: {
+            payoutToken,
+            settlementStatus: "ready_for_payout",
+            transactionId,
+          },
+          eventType: "payout.ready",
+          message: "Payout is ready for processing.",
+          ownerExternalId: proposerExternalId,
+          payoutToken,
+          requestToken: createPublicRequestToken(intent._id),
+          status: "pending",
+          stream: "payouts",
+        });
+      }
     }
 
     return { fulfilled: true };
@@ -525,15 +632,17 @@ async function ensurePayoutRecord(
     )
     .collect();
 
-  if (existing.some((payout) => payout.payeeUserId === input.userId)) {
-    return;
+  const matched = existing.find((payout) => payout.payeeUserId === input.userId);
+
+  if (matched) {
+    return matched._id;
   }
 
   const now = Date.now();
   const payeeProfileId = await getProfileIdForUser(ctx, input.userId);
   const walletAccountId = await getDefaultPayoutWalletAccountId(ctx, input.userId);
 
-  await ctx.db.insert("payouts", {
+  return ctx.db.insert("payouts", {
     amount: input.amount,
     chainFamily: input.chainFamily,
     createdAt: now,
@@ -549,4 +658,16 @@ async function ensurePayoutRecord(
     updatedAt: now,
     walletAccountId,
   });
+}
+
+async function getUserExternalId(
+  ctx: MutationCtx,
+  userId: string | undefined,
+) {
+  if (!userId) {
+    return null;
+  }
+
+  const user = await ctx.db.get(userId as Id<"users">);
+  return user?.externalId ?? null;
 }

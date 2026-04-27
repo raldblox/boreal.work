@@ -50,6 +50,8 @@ import {
   walletExecutionModeValidator,
   walletProviderValidator,
   walletSyncStatusValidator,
+  webhookDeliveryStatusValidator,
+  webhookStreamValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -688,6 +690,47 @@ export default defineSchema({
     .index("by_supplierUserId_and_createdAt", ["supplierUserId", "createdAt"])
     .index("by_supplierUserId_and_intentId", ["supplierUserId", "intentId"])
     .index("by_requestToken_and_createdAt", ["requestToken", "createdAt"]),
+
+  webhookSubscriptions: defineTable({
+    active: v.boolean(),
+    createdAt: v.number(),
+    endpointUrl: v.string(),
+    eventStreams: v.array(webhookStreamValidator),
+    ownerDisplayName: v.optional(v.string()),
+    ownerExternalId: v.string(),
+    secret: v.string(),
+    updatedAt: v.number(),
+    walletAddress: v.optional(v.string()),
+    webhookToken: v.string(),
+  })
+    .index("by_ownerExternalId_and_createdAt", ["ownerExternalId", "createdAt"])
+    .index("by_webhookToken", ["webhookToken"]),
+
+  webhookDeliveries: defineTable({
+    attemptCount: v.number(),
+    createdAt: v.number(),
+    deliveredAt: v.optional(v.number()),
+    deliveryToken: v.string(),
+    endpointUrl: v.string(),
+    entryToken: v.optional(v.string()),
+    eventType: v.string(),
+    lastAttemptAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    ownerExternalId: v.string(),
+    payloadJson: v.string(),
+    payoutToken: v.optional(v.string()),
+    requestToken: v.optional(v.string()),
+    responseStatus: v.optional(v.number()),
+    secret: v.string(),
+    status: webhookDeliveryStatusValidator,
+    stream: webhookStreamValidator,
+    subscriptionToken: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_deliveryToken", ["deliveryToken"])
+    .index("by_ownerExternalId_and_createdAt", ["ownerExternalId", "createdAt"])
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_subscriptionToken_and_createdAt", ["subscriptionToken", "createdAt"]),
 
   transactions: defineTable({
     amount: v.optional(v.number()),

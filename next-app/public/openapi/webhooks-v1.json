@@ -1,0 +1,97 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Boreal Webhooks API",
+    "version": "v1",
+    "description": "Signed webhook registration, delivery inspection, and explicit flush surface for Boreal request, inbox, and payout lifecycle events."
+  },
+  "servers": [
+    {
+      "url": "https://boreal.work"
+    }
+  ],
+  "paths": {
+    "/api/v1/webhooks": {
+      "get": {
+        "summary": "List authenticated webhook subscriptions",
+        "responses": {
+          "200": {
+            "description": "Webhook subscriptions"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a signed webhook subscription",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["endpointUrl"],
+                "properties": {
+                  "endpointUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "eventStreams": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["requests", "inbox", "payouts"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook created"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/deliveries": {
+      "get": {
+        "summary": "List webhook deliveries for the authenticated owner",
+        "responses": {
+          "200": {
+            "description": "Webhook delivery history"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/flush": {
+      "post": {
+        "summary": "Explicitly drain queued webhook deliveries for the authenticated owner",
+        "responses": {
+          "200": {
+            "description": "Flush result"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/{webhookToken}": {
+      "delete": {
+        "summary": "Deactivate one webhook subscription",
+        "parameters": [
+          {
+            "name": "webhookToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook deleted"
+          }
+        }
+      }
+    }
+  }
+}

@@ -73,6 +73,14 @@ Supplier payout surface:
 - `GET /api/v1/payouts`
 - `GET /api/v1/payouts/{payoutToken}`
 
+Webhook surface:
+
+- `GET /api/v1/webhooks`
+- `POST /api/v1/webhooks`
+- `GET /api/v1/webhooks/deliveries`
+- `POST /api/v1/webhooks/flush`
+- `DELETE /api/v1/webhooks/{webhookToken}`
+
 The inbox is the watch surface.  Request actions still operate on the underlying request resource.
 
 ## Supplier Registration Surface

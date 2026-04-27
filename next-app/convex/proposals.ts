@@ -11,6 +11,7 @@ import {
   getWalletAccountContext,
 } from "./commerceCore";
 import { areBorealNetworksCompatible } from "../lib/boreal/commerce/networks";
+import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 import {
   getScenarioId,
@@ -18,6 +19,7 @@ import {
   scenarioNeedsBuyerWallet,
   scenarioNeedsPayoutWallet,
 } from "./transactionScenarios";
+import { queueWebhookDeliveries } from "./webhooks";
 
 export const submitProposal = mutation({
   args: {
@@ -120,6 +122,23 @@ export const submitProposal = mutation({
       stage: "proposal",
       status: "passed",
     });
+
+    if (args.ownerExternalId) {
+      await queueWebhookDeliveries(ctx, {
+        data: {
+          currency: args.currency,
+          etaAt: args.etaAt,
+          price: args.price,
+          proposalId,
+        },
+        eventType: "inbox.proposed",
+        message: "Supplier submitted a proposal.",
+        ownerExternalId: args.ownerExternalId,
+        requestToken: createPublicRequestToken(intent._id),
+        status: "proposed",
+        stream: "inbox",
+      });
+    }
 
     await refreshProfileAnalyticsForUser(ctx, proposerUserId);
     await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
@@ -407,6 +426,21 @@ export const approveProposal = mutation({
       transactionId,
     });
 
+    await queueWebhookDeliveries(ctx, {
+      data: {
+        fulfillmentId,
+        price: proposal.price,
+        proposalId: proposal._id,
+        transactionId,
+      },
+      eventType: "inbox.claimed",
+      message: "Proposal approved and work moved into fulfillment.",
+      ownerExternalId: await getUserExternalId(ctx, proposal.proposerUserId),
+      requestToken: createPublicRequestToken(intent._id),
+      status: "claimed",
+      stream: "inbox",
+    });
+
     await refreshProfileAnalyticsForUser(ctx, proposal.proposerUserId);
     await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
 
@@ -489,4 +523,17 @@ async function getUserDisplayName(
 
   const user = await ctx.db.get(userId);
   return user?.displayName ?? null;
+}
+
+async function getUserExternalId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  userId: string | undefined,
+) {
+  if (!userId) {
+    return null;
+  }
+
+  const user = await ctx.db.get(userId);
+  return user?.externalId ?? null;
 }

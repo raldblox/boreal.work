@@ -26,6 +26,7 @@ import type * as supplies from "../supplies.js";
 import type * as transactionScenarios from "../transactionScenarios.js";
 import type * as validators from "../validators.js";
 import type * as wallets from "../wallets.js";
+import type * as webhooks from "../webhooks.js";
 
 import type {
   ApiFromModules,
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   transactionScenarios: typeof transactionScenarios;
   validators: typeof validators;
   wallets: typeof wallets;
+  webhooks: typeof webhooks;
 }>;
 
 /**

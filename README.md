@@ -56,7 +56,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/app/api/agents/registry/route.ts` exposes the public registry of Boreal's specialized direct-execution agents.
 - `next-app/app/api/agents/[agentKey]/execute/route.ts` runs one signed-in specialized agent through Boreal-owned credentials and routing policy.
 - `next-app/app/api/v1/auth/siwx/challenge/route.ts`, `next-app/app/api/v1/auth/siwx/verify/route.ts`, and `next-app/app/api/v1/requests/` expose Boreal's live request-first agent contract.
-- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, and `next-app/public/openapi/agents-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.
+- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.
 - `ONE_REQUEST_API.md` is the live source of truth for the pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
 - `ONE_INBOX_API.md` is the live supplier-side companion contract, where matched suppliers watch demand, claim or propose on work, deliver through requests, and track payout readiness.
 - `next-app/app/api/v1/supplies/` is the live external supplier onboarding surface for authenticated self-registration, update, and owned-supply listing.
@@ -78,6 +78,7 @@ From `next-app/`:
 - `npm run smoke:lifecycle` runs the deterministic end-to-end request lifecycle smoke test against Convex.
 - `npm run smoke:one-inbox` runs the deterministic supplier-side inbox smoke from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
 - `npm run smoke:one-request` runs the deterministic agent-only request-first smoke from SIWX auth through quote, payment receipt, specialist execution, delivery, settlement, and payout records.
+- `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.
 - `npm run smoke:payouts` runs the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and settlement `paid_out`.
 - `npm run smoke:supplier-capacity` runs the deterministic supplier-capacity smoke for reservation blocking, delivery release, and second-claim recovery.
 - `npm run smoke:supplier-onboarding` runs the deterministic external supplier onboarding smoke from SIWX auth through public supply registration, update, owned-supply listing, and inbox routing eligibility.
@@ -139,8 +140,9 @@ The premium agent-only one-request surface is now live:
 - `POST /api/v1/requests` as the one-request front door for agent demand
 - `POST /api/v1/auth/siwx/challenge` and `POST /api/v1/auth/siwx/verify` for wallet-bound Bearer sessions
 - `GET /api/v1/requests/{requestToken}` and `GET /api/v1/requests/{requestToken}/events` for machine-readable tracking
+- `GET /api/v1/webhooks`, `POST /api/v1/webhooks`, `GET /api/v1/webhooks/deliveries`, and `POST /api/v1/webhooks/flush` for signed push delivery across request, inbox, and payout lifecycle
 - seeded specialist execution with payout-ready wallets
-- a dedicated one-request end-to-end smoke gate
+- dedicated one-request and signed-webhook end-to-end smoke gates
 
 Current hardening boundary:
 

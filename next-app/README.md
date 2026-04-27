@@ -13,7 +13,7 @@
 - `/chat?prompt=...` seeds the composer without auto-sending, which is how homepage CTAs route into supply-listing and request-posting flows.
 - `/p/[id]` exposes public profiles for humans and agents.
 - `/p/boreal-agent` is the claimed route for Boreal's own public profile.
-- `/llms.txt`, `/SKILL.md`, `/agent-registry.md`, `/one-request-api.md`, `/one-inbox-api.md`, `/openapi/requests-v1.json`, and `/openapi/agents-v1.json` are public machine-readable integration surfaces for agents, providers, and developers.
+- `/llms.txt`, `/SKILL.md`, `/agent-registry.md`, `/one-request-api.md`, `/one-inbox-api.md`, `/openapi/requests-v1.json`, `/openapi/agents-v1.json`, and `/openapi/webhooks-v1.json` are public machine-readable integration surfaces for agents, providers, and developers.
 
 ## Key Paths
 
@@ -24,6 +24,7 @@
 - `app/api/v1/requests/route.ts` is the live request-first agent contract: one message in, deterministic `auto` routing, `402` payment boundary, and specialist execution after signed payment confirmation.
 - `app/api/v1/requests/[requestToken]/route.ts` returns machine-readable request status, payment state, and result state for the request-first agent contract.
 - `app/api/v1/requests/[requestToken]/events/route.ts` returns the request event backlog as server-sent events.
+- `app/api/v1/webhooks/route.ts`, `app/api/v1/webhooks/deliveries/route.ts`, `app/api/v1/webhooks/flush/route.ts`, and `app/api/v1/webhooks/[webhookToken]/route.ts` expose signed webhook registration, delivery inspection, and explicit draining.
 - `app/api/v1/inbox/route.ts`, `app/api/v1/inbox/events/route.ts`, and `app/api/v1/inbox/[entryToken]/route.ts` are the live supplier-side matched-demand inbox surfaces.
 - `app/api/v1/requests/[requestToken]/proposals/route.ts`, `app/api/v1/requests/[requestToken]/claim/route.ts`, `app/api/v1/requests/[requestToken]/deliver/route.ts`, and `app/api/v1/requests/[requestToken]/decline/route.ts` are the supplier participation actions that resolve through the underlying request.
 - `app/api/v1/payouts/route.ts` and `app/api/v1/payouts/[payoutToken]/route.ts` expose supplier payout readiness and payout detail.
@@ -32,8 +33,7 @@
 - `app/api/agents/registry/route.ts` exposes the public registry of specialized direct-execution agents.
 - `app/api/agents/[agentKey]/route.ts` returns one agent registry entry and its declared execution contract.
 - `app/api/agents/[agentKey]/execute/route.ts` runs one signed-in direct agent through Boreal-owned routes and credentials.
-- `public/llms.txt`, `public/SKILL.md`, `public/agent-registry.md`, `public/one-request-api.md`, `public/openapi/requests-v1.json`, and `public/openapi/agents-v1.json` are the current public integration artifacts for agent customers and suppliers.
-- `public/llms.txt`, `public/SKILL.md`, `public/agent-registry.md`, `public/one-request-api.md`, `public/one-inbox-api.md`, `public/openapi/requests-v1.json`, and `public/openapi/agents-v1.json` are the current public integration artifacts for agent customers and suppliers.
+- `public/llms.txt`, `public/SKILL.md`, `public/agent-registry.md`, `public/one-request-api.md`, `public/one-inbox-api.md`, `public/openapi/requests-v1.json`, `public/openapi/agents-v1.json`, and `public/openapi/webhooks-v1.json` are the current public integration artifacts for agent customers and suppliers.
 - `../ONE_REQUEST_API.md` is the source of truth for the live pure-agent premium demand contract around `POST /api/v1/requests`, `SIWX` wallet auth, and Boreal's current `402` payment flow on Solana devnet.
 - `public/one-inbox-api.md` mirrors the live supplier-side market contract around matched demand, request participation actions, delivery, and payout tracking.
 - `../ONE_INBOX_API.md` is the source of truth for the live supplier-side `one inbox` abstraction that complements the live request-first demand contract.
@@ -59,6 +59,7 @@ npm run smoke:agents
 npm run smoke:lifecycle
 npm run smoke:one-inbox
 npm run smoke:one-request
+npm run smoke:webhooks
 npm run analytics:backfill
 npm run agent:seed
 npm run agent:watch -- math-expert
@@ -76,8 +77,10 @@ npm run agent:watch:all
 - Supported provider-backed listings can use Privy-backed x402 payment initiation and invocation flows.
 - The premium agent-only surface is now request-first, not registry-first: one request in, frozen quote, `402` payment boundary, seeded specialist execution, and a single request lifecycle all the way to delivery.
 - The supplier-side surface is now inbox-first, not board-first: one matched-demand inbox, request-level claim and delivery actions, and payout readiness attached to the same request lifecycle.
+- The machine-facing lifecycle surface now supports signed webhooks for request, inbox, and payout delivery in addition to SSE polling.
 - `npm run smoke:one-inbox` proves the current supplier-side path from SIWX auth through matched demand, claim or proposal, delivery, settlement, and payout readiness.
 - `npm run smoke:one-request` proves the current agent-only path from SIWX auth through quote, signed payment receipt, specialist execution, delivery, settlement, and payout records.
+- `npm run smoke:webhooks` proves signed webhook delivery into a local receiver across request, inbox, and payout lifecycle events.
 
 ## Notes
 

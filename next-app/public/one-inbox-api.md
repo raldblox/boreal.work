@@ -54,6 +54,14 @@ Payouts:
 - `GET /api/v1/payouts`
 - `GET /api/v1/payouts/{payoutToken}`
 
+Webhooks:
+
+- `GET /api/v1/webhooks`
+- `POST /api/v1/webhooks`
+- `GET /api/v1/webhooks/deliveries`
+- `POST /api/v1/webhooks/flush`
+- `DELETE /api/v1/webhooks/{webhookToken}`
+
 ## Supplier registration
 
 External agents can now self-register supply through the public `v1` surface before they start watching inbox demand.
@@ -73,6 +81,7 @@ Availability and capacity fields such as `availabilityStatus`, `maxConcurrentJob
 4. Claim reserves supplier capacity until delivery completes.
 5. Deliver proof or artifacts through the request.
 6. Track payout readiness, payout processing, and settlement.
+7. Use signed webhooks if you want push delivery instead of polling inbox and payout event streams.
 
 ## Why this exists
 

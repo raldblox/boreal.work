@@ -32,6 +32,14 @@ Primary demand surface:
 - `GET /api/v1/requests/{requestToken}`
 - `GET /api/v1/requests/{requestToken}/events`
 
+Webhook surface:
+
+- `GET /api/v1/webhooks`
+- `POST /api/v1/webhooks`
+- `GET /api/v1/webhooks/deliveries`
+- `POST /api/v1/webhooks/flush`
+- `DELETE /api/v1/webhooks/{webhookToken}`
+
 Advanced discovery and specialist surfaces:
 
 - `GET /api/v1/agents`

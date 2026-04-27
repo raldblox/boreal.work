@@ -16,6 +16,7 @@ import {
 } from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
 import { recordTransactionAuditEvent } from "./transactionScenarios";
+import { queueWebhookDeliveries } from "./webhooks";
 
 export const findSessionForCaller = query({
   args: {
@@ -194,6 +195,7 @@ export const createRequestSession = mutation({
 
     await insertRequestEvent(ctx, {
       message: "Request received by the Boreal one-request API.",
+      ownerExternalId: args.ownerExternalId,
       requestSessionId: sessionId,
       requestToken: args.requestToken,
       status: "received",
@@ -202,6 +204,7 @@ export const createRequestSession = mutation({
     await insertRequestEvent(ctx, {
       dataJson: args.routeJson,
       message: "Auto route locked and quote created.",
+      ownerExternalId: args.ownerExternalId,
       requestSessionId: sessionId,
       requestToken: args.requestToken,
       status: args.status,
@@ -217,6 +220,7 @@ export const createRequestSession = mutation({
           quoteToken: args.quoteToken,
         }),
         message: "Payment is required before execution can begin.",
+        ownerExternalId: args.ownerExternalId,
         requestSessionId: sessionId,
         requestToken: args.requestToken,
         status: "payment_required",
@@ -250,6 +254,7 @@ export const appendRequestEvent = mutation({
     await insertRequestEvent(ctx, {
       dataJson: args.dataJson,
       message: args.message,
+      ownerExternalId: args.ownerExternalId,
       requestSessionId: session._id,
       requestToken: args.requestToken,
       status: args.status,
@@ -303,6 +308,7 @@ export const refreshQuote = mutation({
         quoteToken: args.quoteToken,
       }),
       message: "Locked route quote refreshed after expiry.",
+      ownerExternalId: session.ownerExternalId,
       requestSessionId: session._id,
       requestToken: session.requestToken,
       status: "payment_required",
@@ -439,6 +445,7 @@ export const recordQuotePayment = mutation({
     await insertRequestEvent(ctx, {
       dataJson: args.paymentReceiptJson,
       message: "Payment recorded for the locked Boreal route.",
+      ownerExternalId: session.ownerExternalId,
       requestSessionId: session._id,
       requestToken: session.requestToken,
       status: "paid",
@@ -507,6 +514,7 @@ export const markExecutionStarted = mutation({
 
     await insertRequestEvent(ctx, {
       message: "Specialists started executing the locked route.",
+      ownerExternalId: session.ownerExternalId,
       requestSessionId: session._id,
       requestToken: session.requestToken,
       status: "executing",
@@ -600,6 +608,7 @@ export const markRequestDelivered = mutation({
     await insertRequestEvent(ctx, {
       dataJson: args.resultJson,
       message: "Locked route delivered final results.",
+      ownerExternalId: session.ownerExternalId,
       requestSessionId: session._id,
       requestToken: session.requestToken,
       status: "delivered",
@@ -683,6 +692,7 @@ export const markRequestFailed = mutation({
         errorCode: args.errorCode,
       }),
       message: args.errorMessage,
+      ownerExternalId: session.ownerExternalId,
       requestSessionId: session._id,
       requestToken: session.requestToken,
       status: "failed",
@@ -710,6 +720,7 @@ async function insertRequestEvent(
   input: {
     dataJson?: string;
     message: string;
+    ownerExternalId: string;
     requestSessionId: Id<"agentRequestSessions">;
     requestToken: string;
     status:
@@ -738,6 +749,15 @@ async function insertRequestEvent(
   await ctx.db.patch(input.requestSessionId, {
     lastEventAt: now,
     updatedAt: now,
+  });
+  await queueWebhookDeliveries(ctx, {
+    data: input.dataJson ? safeParseJson(input.dataJson) : null,
+    eventType: input.type,
+    message: input.message,
+    ownerExternalId: input.ownerExternalId,
+    requestToken: input.requestToken,
+    status: input.status,
+    stream: "requests",
   });
 }
 
@@ -781,4 +801,12 @@ function inferEnvironmentFromNetworkKey(networkKey: string) {
   }
 
   return "devnet" as const;
+}
+
+function safeParseJson(value: string) {
+  try {
+    return JSON.parse(value) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
