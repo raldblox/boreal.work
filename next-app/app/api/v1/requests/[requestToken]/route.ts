@@ -7,6 +7,7 @@ import {
   buildTrackingUrls,
   requireAgentSession,
 } from "@/lib/boreal/one-request/http";
+import { getOneRequestSellerMetadata } from "@/lib/boreal/one-request/seller";
 import { isPublicRequestToken } from "@/lib/boreal/one-inbox/tokens";
 
 export async function GET(
@@ -60,6 +61,7 @@ export async function GET(
             expiresAt: session.quoteExpiresAt,
             payerSource: session.payerSource ?? null,
             quoteToken: session.quoteToken,
+            seller: getOneRequestSellerMetadata(),
             txHash: session.txHash ?? null,
           },
           result: session.resultJson ? safeParseJson(session.resultJson) : null,

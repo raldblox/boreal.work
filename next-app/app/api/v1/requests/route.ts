@@ -19,6 +19,7 @@ import {
 } from "@/lib/boreal/one-request/http";
 import { verifyOneRequestPayment } from "@/lib/boreal/one-request/payment";
 import { buildAutoRoutePlan } from "@/lib/boreal/one-request/routing";
+import { getOneRequestSellerMetadata } from "@/lib/boreal/one-request/seller";
 import {
   buildPersistedIntent,
   executeAndPersistOneRequest,
@@ -632,6 +633,7 @@ function buildExistingPaymentResponse(
     quoteToken: session.quoteToken,
     requestToken: session.requestToken,
   });
+  const seller = getOneRequestSellerMetadata();
 
   return {
     ...buildExistingEnvelope(request, session, route),
@@ -645,6 +647,7 @@ function buildExistingPaymentResponse(
       paymentReference,
       paymentProtocol: "x402",
       quoteToken: session.quoteToken,
+      seller,
     },
   };
 }
@@ -664,6 +667,7 @@ function buildPaymentRequiredResponse(input: {
     quoteToken: input.quoteToken,
     requestToken: input.requestToken,
   });
+  const seller = getOneRequestSellerMetadata();
 
   return {
     quote: {
@@ -677,6 +681,7 @@ function buildPaymentRequiredResponse(input: {
       paymentReference,
       paymentProtocol: input.routePlan.paymentProtocol,
       quoteToken: input.quoteToken,
+      seller,
     },
     requestToken: input.requestToken,
     route: serializeRoutePlan(input.routePlan),

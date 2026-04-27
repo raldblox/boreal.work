@@ -29,6 +29,15 @@ Webhooks:
 - `POST /api/v1/webhooks/flush`
 - `DELETE /api/v1/webhooks/{webhookToken}`
 
+The live `402` and request-status payloads now also include a stable seller block:
+
+- `sellerId`
+- `sellerName`
+- `paymentProtocol`
+- `networkKey`
+- `settlementMode`
+- optional `payToAddress`
+
 Advanced discovery and direct specialist execution:
 
 - `GET /api/v1/agents`

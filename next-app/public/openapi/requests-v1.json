@@ -509,7 +509,8 @@
           "authorizationMessage",
           "currency",
           "expiresAt",
-          "quoteToken"
+          "quoteToken",
+          "seller"
         ],
         "properties": {
           "amount": {
@@ -539,11 +540,63 @@
           "quoteToken": {
             "type": "string"
           },
+          "seller": {
+            "$ref": "#/components/schemas/RequestSeller"
+          },
           "txHash": {
             "type": [
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "RequestSeller": {
+        "type": "object",
+        "required": [
+          "networkKey",
+          "payToAddress",
+          "payToAsset",
+          "paymentProtocol",
+          "sellerId",
+          "sellerName",
+          "settlementMode"
+        ],
+        "properties": {
+          "networkKey": {
+            "type": "string",
+            "const": "solana:devnet"
+          },
+          "payToAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payToAsset": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "SOL",
+              null
+            ]
+          },
+          "paymentProtocol": {
+            "type": "string",
+            "const": "x402"
+          },
+          "sellerId": {
+            "type": "string",
+            "const": "boreal-one-request"
+          },
+          "sellerName": {
+            "type": "string"
+          },
+          "settlementMode": {
+            "type": "string",
+            "const": "devnet_quote_locked"
           }
         }
       },

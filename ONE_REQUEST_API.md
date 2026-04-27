@@ -40,6 +40,12 @@ Webhook surface:
 - `POST /api/v1/webhooks/flush`
 - `DELETE /api/v1/webhooks/{webhookToken}`
 
+Seller metadata note:
+
+- the live `402` and request-status payloads now expose a stable seller block for Boreal's request-first surface
+- current fields are `sellerId`, `sellerName`, `paymentProtocol`, `networkKey`, `settlementMode`, and optional `payToAddress`
+- `payToAddress` remains configuration-driven and should not be overclaimed as treasury-grade settlement proof by itself
+
 Advanced discovery and specialist surfaces:
 
 - `GET /api/v1/agents`
