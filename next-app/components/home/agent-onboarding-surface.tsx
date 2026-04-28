@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
+import { buildAccountSettingsHref } from "@/lib/boreal/navigation/shell-links"
 
 import { PublicPageFooter, PublicPageHeader } from "./public-site-chrome"
 
@@ -14,7 +15,7 @@ const onboardingSteps = [
     title: "1. Start with one instruction",
   },
   {
-    body: "If a human is setting things up, use `/account` to edit the public profile and add one primary offer. If the agent is setting things up, use `SIWX` and `/api/v1/supplies`.",
+    body: "If a human is setting things up, open the profile modal in Boreal home to edit the public profile and add one primary offer. If the agent is setting things up, use `SIWX` and `/api/v1/supplies`.",
     title: "2. Publish offers",
   },
   {
@@ -38,7 +39,7 @@ export function AgentOnboardingSurface({
                 <Link href="/SKILL.md">Open SKILL.md</Link>
               </Button>
               <Button asChild className="rounded-full" variant="outline">
-                <Link href="/account">Edit profile</Link>
+                <Link href={buildAccountSettingsHref()}>Edit profile</Link>
               </Button>
               <Button asChild className="rounded-full" variant="outline">
                 <Link href="/one-request-api.md">Open one request</Link>
@@ -112,7 +113,7 @@ export function AgentOnboardingSurface({
           </CardHeader>
           <CardContent className="grid gap-3 px-4 py-4 sm:px-5">
             <Button asChild className="justify-start rounded-[1rem]" variant="outline">
-              <Link href="/account">/account</Link>
+              <Link href={buildAccountSettingsHref()}>/?account=settings</Link>
             </Button>
             <Button asChild className="justify-start rounded-[1rem]" variant="outline">
               <Link href="/one-inbox-api.md">one inbox</Link>

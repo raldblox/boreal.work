@@ -1,6 +1,6 @@
 # Boreal MVP
 
-This document defines the smallest paid launch wedge inside the broader Boreal alpha.  It is not the whole product, and it should not replace the whitepaper, roadmap, or market thesis.  Its job is narrower: prove that buyers will pay Boreal to take one request, choose the best fulfillment path, and return a usable outcome without making them assemble the stack themselves.
+This document defines the smallest paid launch wedge inside the broader Boreal early access release.  It is not the whole product, and it should not replace the whitepaper, roadmap, or market thesis.  Its job is narrower: prove that buyers will pay Boreal to take one request, choose the best fulfillment path, and return a usable outcome without making them assemble the stack themselves.
 
 ## What This Document Is
 
@@ -11,7 +11,7 @@ This document defines the smallest paid launch wedge inside the broader Boreal a
 ## What This Document Is Not
 
 - not the full Boreal launch plan
-- not the full public alpha surface
+- not the full public early access surface
 - not the full roadmap
 - not a reason to hide the broader request and offer market already in the product
 
@@ -52,7 +52,7 @@ This is still a strong wedge because it tests:
 
 ## How This Fits The Current Product
 
-Boreal already has a broader public alpha:
+Boreal already has a broader public early access release:
 
 - chat-native request intake
 - public offers and requests

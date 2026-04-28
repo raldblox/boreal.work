@@ -41,7 +41,7 @@ const scopePattern =
 const formatPattern =
   /\b(tutorial|guide|article|lesson|script|outline|deck|presentation|slides|blog post|thread|video script|email|prompt)\b/i;
 const supplyOnboardingPattern =
-  /\b(publish my skills|publish.*(skills|services|products)|supply listing|list my (skills|services|products)|public worker profile|worker profile|profile update|package my capabilities|package my skills|match me to relevant requests|set up a strong supply listing|help me set up.*listing|help me publish.*(services|products|skills))\b/i;
+  /\b(publish my skills|publish.*(skills|services|products)|supply listing|list my (skills|services|products)|public worker profile|worker profile|work profile|profile update|optimi[sz]e my profile|improve my profile|optimi[sz]e my work profile|improve my work profile|package my capabilities|package my skills|match me to relevant requests|set up a strong supply listing|help me set up.*listing|help me publish.*(services|products|skills))\b/i;
 const lowSignalConversationPattern =
   /^(hi|hello|hey|yo|sup|gm|good morning|good afternoon|good evening|thanks|thank you|thx|ok|okay|cool|nice|sounds good|all good|test|ping)[!. ]*$/i;
 const informationalQuestionPattern =

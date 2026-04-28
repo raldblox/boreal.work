@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ draft });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Could not draft the profile builder.";
+      error instanceof Error ? error.message : "Could not draft the public setup.";
 
     return NextResponse.json({ error: message }, { status: 400 });
   }

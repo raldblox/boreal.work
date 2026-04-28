@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- The repo is currently document-first: root holds the product, architecture, and execution docs `README.md`, `MVP.md`, `WHITEPAPER.md`, `ROADMAP.md`, `MATCHING_ENGINE.md`, `AGENT_NETWORK.md`, `COMMERCE_STANDARDS.md`, and `SERVICE_PROVIDER.MD`, while the brand, messaging, character, deck, visual source-of-truth docs, and public paper suite live under `docs/`.
+- The repo is currently document-first: root holds the product, architecture, and execution docs `README.md`, `MVP.md`, `WHITEPAPER.md`, `ROADMAP.md`, `EARLY_ACCESS.md`, `SUPPLY_LIST.md`, `MATCHING_ENGINE.md`, `AGENT_NETWORK.md`, `COMMERCE_STANDARDS.md`, and `SERVICE_PROVIDER.MD`, while the brand, messaging, character, deck, visual source-of-truth docs, and public paper suite live under `docs/`.
 - The public paper suite lives under `docs/papers/` and is the repo-backed source for Boreal's flagship thesis and linked deep-dive articles.
 - The active application workspace is `next-app/`, with feature code split across `next-app/app/`, `next-app/components/`, `next-app/lib/boreal/`, and `next-app/convex/`.
 - Reusable longform reading and text-heavy layout primitives now live under `next-app/components/editorial/` so papers, audit reports, and future document-heavy surfaces can share one editorial system instead of route-specific markup.
@@ -65,12 +65,16 @@
 ## Documentation & Agent Notes
 - Keep this guide and `README.md` in sync; add a changelog entry whenever you alter structural expectations.
 - When a new agent, SDK, or process is introduced, create a short subsection here summarizing how contributors should interact with it.
-- `MVP.md` is the current paid launch wedge doc.  It should stay focused on one assumption, one offer, and one commercialization path inside the broader Boreal alpha rather than replacing the full product narrative.
+- `MVP.md` is the current paid launch wedge doc.  It should stay focused on one assumption, one offer, and one commercialization path inside the broader Boreal early access release rather than replacing the full product narrative.
 - `ROADMAP.md` is the execution tracker derived from `WHITEPAPER.md`; update its checklists when product capabilities, public contracts, agent-control flows, or roadmap-relevant architecture materially change.
+- `EARLY_ACCESS.md` is the release-ordered tracker for Boreal's early access.  Keep it phase-based, auditable, and aligned with current repo truth, with explicit verification notes around mainnet hardening, funded execution, escrow, and any broader paid-release claim.
+- `SUPPLY_LIST.md` is the repo-truthful supply inventory and build-tracker spec.  Use it when changing supply classes, delivery semantics, provider-backed offers, subtype tables, or class-specific routing and fetch behavior.
 - If a change introduces missing roadmap work, add the task in the same patch.  If a change completes roadmap work, check it in the same patch.
 - If a change affects how agents connect, execute, route, or should be instructed, update `AGENTS.md`, `README.md`, and the most specific contract doc in the same patch (`ONE_REQUEST_API.md`, `ONE_INBOX_API.md`, `AGENT-REGISTRY.md`, `AGENT_NETWORK.md`, or `DISCOVERY_PLAN.md`).
 - `next-app/app/roadmap` is the public-safe Jira-style status board for what is live, in progress, next, and later.  Keep it aligned with `ROADMAP.md` and `README.md`, and do not expose internal agent task boards, private blockers, or merge coordination there.
-- `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture note for Boreal's next matching phase.
+- `next-app/app/agents` is the public operator-facing onboarding surface for agent owners, while `next-app/app/developers/agents` is the lower-level technical contract surface behind it.
+- `next-app/app/offline` is the public cached-shell fallback route used by Boreal's service worker.  Keep it honest: chrome-only, no fake request or market freshness claims while the network is unavailable.
+- `MATCHING_ENGINE.md` is the search, discovery, ranking, request-classification, and fetch-path architecture note for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for Boreal's external-agent identity, portable reputation, connector adapters, request-native Swarm Workspace direction, and the concrete roadmap/API/schema extension plan for that layer.  Keep it honest about what is live versus target architecture.
 - `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the current request-side `Workboard`, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex collaboration split.  Keep UI labels and architecture docs aligned to this naming.
 - `CONNECT_AGENT_GUIDE.md` is the advanced runtime-adapter guide for Boreal's live and next `Connect agent` UX, connector choices, auth/session bootstrap, activation modes, and optional owner-runtime control plane.  Do not use it as the main product story.
@@ -82,7 +86,9 @@
 - `ONE_REQUEST_API.md` is the live source of truth for Boreal's pure-agent premium front door: `POST /api/v1/requests`, message-only demand intake, `SIWX`, the current `402` devnet payment contract with Solana devnet transaction verification, seeded specialist payouts, and the deterministic one-request smoke lifecycle.
 - `ONE_INBOX_API.md` is the live supplier-side companion contract for matched-demand inboxes, request participation actions, collective proposals with member roles, per-participant contribution tracking, collective trust summaries, delivery, and payout tracking.
 - `ONE_INBOX_API.md` also records the live external supplier self-registration surface under `/api/v1/supplies`.
-- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are the public machine-readable integration surfaces served from `boreal.work`.
+- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are the public machine-readable integration surfaces served from `boreal.work`.  `/agents` plus `SKILL.md` are the shortest public onboarding handoff.
+- `next-app/public/sw.js` plus `next-app/app/manifest.ts` define Boreal's cached app-shell path for repeat visits.  Cache shell and static assets only; do not treat them as proof that live request, inbox, payout, or catalog data is current offline.
+- Public agent-owner onboarding must explain both the signed-in `/account` UI path and the `SIWX` plus `/api/v1/supplies` API path, including the minimum required supply fields before request, inbox, and payout flows begin.
 - `docs/README.md` is the hub for the Boreal narrative layer.  Use it to find the current source of truth for positioning, category language, copywriting, brand system, visual identity, deck guidance, archive notes, and the Boreal agent character prompt source.
 - `docs/papers/` is the public paper layer rendered at `/papers`; keep the flagship thesis and each linked deep dive aligned with actual shipped product truth.
 - Boreal's network-default policy lives in `next-app/lib/boreal/commerce/networks.ts`; default to Solana `devnet` locally unless deployment env flags intentionally switch the commerce layer to `mainnet` or EVM-first defaults.

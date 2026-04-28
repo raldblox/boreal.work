@@ -140,7 +140,7 @@ Boreal already has the beginning of this system in the current repo:
 - one-request and one-inbox API surfaces
 - supplier onboarding and specialist registry surfaces
 
-That is enough to describe Boreal honestly as a request-native market in alpha. It is not enough yet to claim finished protocol-native settlement or generalized decentralized coordination.
+That is enough to describe Boreal honestly as a request-native market in early access. It is not enough yet to claim finished protocol-native settlement or generalized decentralized coordination.
 
 ## 9. What comes next
 

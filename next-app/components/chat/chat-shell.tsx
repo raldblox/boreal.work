@@ -3,7 +3,9 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
+  type ChangeEvent,
   type CSSProperties,
   type Dispatch,
   type ReactNode,
@@ -58,11 +60,11 @@ import {
   AudioPlayerVolumeRange,
 } from "@/components/ai-elements/audio-player"
 import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
+import { BorealAgentCue } from "@/components/chat/boreal-agent-cue"
 import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
-import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { ProfileView } from "@/components/profiles/profile-view"
 import { AgentOnboardingSurface } from "@/components/home/agent-onboarding-surface"
 import { AgentDeveloperSurface } from "@/components/home/agent-developer-surface"
@@ -85,6 +87,13 @@ import {
   MessageContent,
   MessageResponse,
 } from "@/components/ai-elements/message"
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool"
 import {
   PromptInput,
   PromptInputBody,
@@ -133,6 +142,7 @@ import type {
 } from "@/lib/boreal/integrations/convex/function-refs"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import type {
+  ChatAssistantDebugEvent,
   CatalogItem,
   ChatAssistantResponse,
   ChatUiContext,
@@ -163,6 +173,11 @@ import {
   getBorealPrimaryChainFamily,
   getDefaultBorealNetworkKey,
 } from "@/lib/boreal/commerce/networks"
+import {
+  buildAccountSettingsHref,
+  type BorealShellAccountView,
+  type BorealShellModal,
+} from "@/lib/boreal/navigation/shell-links"
 import { cn } from "@/lib/utils"
 import { usePayment } from "@/hooks/use-payment"
 import {
@@ -194,6 +209,7 @@ import { FocusSheet } from "@/components/workboard/focus-sheet"
 type ChatMessage = {
   content: string
   createdAt: number
+  debugEvents?: ChatAssistantDebugEvent[]
   id: string
   role: "assistant" | "user"
 }
@@ -250,11 +266,11 @@ const deleteIntentMutation = makeFunctionReference<
 const starterPrompts = [
   {
     description:
-      "Turn skills, services, and products into a stronger public offer.",
+      "Let Boreal draft a stronger work profile and one primary offer.",
     icon: CircleUserRoundIcon,
     prompt:
-      "Help me package my capabilities into a strong public worker profile with skills, offers, and products.",
-    title: "Package my capabilities",
+      "Help me optimize my Boreal work profile and draft one strong primary offer for the kind of work I want.",
+    title: "Optimize my profile",
   },
   {
     description:
@@ -326,14 +342,21 @@ export function ChatShell() {
   const activeIntentId = searchParams.get("request")
   const seededPrompt = searchParams.get("prompt")
   const chatMode = normalizeChatMode(searchParams.get("chat"))
+  const pipelineTraceEnabled =
+    searchParams.get("trace") === "1" || searchParams.get("debug") === "1"
+  const requestedAccountView = normalizeShellAccountView(
+    searchParams.get("account")
+  )
   const requestedCenterTab = searchParams.get("view")
   const requestedCenterSheet = normalizeCenterSheetView(searchParams.get("sheet"))
+  const requestedModal = normalizeShellModal(searchParams.get("modal"))
   const requestedPaperSlug = normalizePublicPaperSlug(
     searchParams.get("paper"),
     publicPapers
   )
+  const requestedProfileId = normalizeProfileQuery(searchParams.get("profile"))
   const requestedDeepLinkedSheet =
-    requestedPaperSlug ? "papers" : requestedCenterSheet
+    requestedProfileId ? null : requestedPaperSlug ? "papers" : requestedCenterSheet
   const selectedCenterTab = normalizeCenterViewTab(requestedCenterTab)
   const workspaceTab = normalizeWorkspaceTab(searchParams.get("browse"))
 
@@ -357,7 +380,7 @@ export function ChatShell() {
   const [showWorkspace, setShowWorkspace] = useState(false)
   const [borealChatSessionLimit, setBorealChatSessionLimit] = useState(6)
   const [isPublicMarketDismissed, setIsPublicMarketDismissed] = useState(false)
-  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+  const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false)
   const [isMobileIntentSidebarOpen, setIsMobileIntentSidebarOpen] =
     useState(false)
   const [isMobileWorkspaceOpen, setIsMobileWorkspaceOpen] = useState(false)
@@ -389,6 +412,8 @@ export function ChatShell() {
     null
   )
   const [isProfileBuilderOpen, setIsProfileBuilderOpen] = useState(false)
+  const [isProfileAvailabilityUpdating, setIsProfileAvailabilityUpdating] =
+    useState(false)
   const [isSettingDefaultPayoutWalletId, setIsSettingDefaultPayoutWalletId] =
     useState<string | null>(null)
   const [isDraftingProfileBuilder, setIsDraftingProfileBuilder] =
@@ -398,6 +423,7 @@ export function ChatShell() {
   const [profileBuilderMessage, setProfileBuilderMessage] = useState("")
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [centerSheetView, setCenterSheetView] =
     useState<CenterSheetView | null>(null)
   const [centerSheetPaperSlug, setCenterSheetPaperSlug] = useState<string | null>(
@@ -405,6 +431,8 @@ export function ChatShell() {
   )
   const [isCenterSheetOpen, setIsCenterSheetOpen] = useState(false)
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null)
+  const hasPromptedAccountSignInRef = useRef(false)
+  const previousRequestedModalRef = useRef<BorealShellModal | null>(null)
 
   const { data: session, status: sessionStatus } = useSession()
   const ownerExternalId = session?.user?.id
@@ -461,10 +489,14 @@ export function ChatShell() {
       ? { intentId: activeIntentId, ownerExternalId }
       : "skip"
   )
-  const activeProfileLookup =
-    activeProfileId && activeProfileId !== "boreal-agent"
-      ? parseProfileLookup(activeProfileId)
-      : null
+  const activeProfileLookup = activeProfileId
+    ? activeProfileId === "boreal-agent"
+      ? {
+          externalId: "agent:boreal",
+          kind: "externalId" as const,
+        }
+      : parseProfileLookup(activeProfileId)
+    : null
   const profileSheetDetail = useQuery(
     convexFunctionRefs.getPublicProfile,
     activeProfileLookup?.kind === "profileId"
@@ -483,10 +515,6 @@ export function ChatShell() {
       }
       : "skip"
   ) as WorkerProfileDetail | undefined
-  const borealProfileStats = useQuery(
-    convexFunctionRefs.getBorealAgentStats,
-    activeProfileId === "boreal-agent" ? {} : "skip"
-  )
   const activeCartResult = useQuery(
     convexFunctionRefs.getActiveCart,
     ownerExternalId ? { ownerExternalId } : "skip"
@@ -741,17 +769,102 @@ export function ChatShell() {
     return mergeProfileBuilderDraft(base, activeProfileBuilderWorkspace.draft)
   }
 
-  function openProfileBuilder() {
-    if (!activeProfileBuilderWorkspace && typeof window !== "undefined") {
-      window.location.assign("/account")
+  function buildHumanProfileOptimizerBrief() {
+    const profile = myProfileRecord?.profile ?? null
+    const primarySupply = myProfileRecord?.supplies[0] ?? null
+    const lines = [
+      "Optimize my human work profile for Boreal.",
+      "Rewrite it for sharper discovery, better matching, and clearer public positioning.",
+      "Keep it specific, honest, and ready for paid work.",
+    ]
+
+    if (profile?.displayName) {
+      lines.push(`Display name: ${profile.displayName}`)
+    }
+
+    if (profile?.headline) {
+      lines.push(`Current headline: ${profile.headline}`)
+    }
+
+    if (profile?.bio) {
+      lines.push(`Current bio: ${profile.bio}`)
+    }
+
+    if (profile?.capabilityTags.length) {
+      lines.push(`Capabilities: ${profile.capabilityTags.join(", ")}`)
+    }
+
+    if (profile?.skillTags.length) {
+      lines.push(`Skills: ${profile.skillTags.join(", ")}`)
+    }
+
+    if (primarySupply?.title) {
+      lines.push(`Primary offer: ${primarySupply.title}`)
+    }
+
+    if (primarySupply?.description) {
+      lines.push(`Offer description: ${primarySupply.description}`)
+    }
+
+    return lines.join("\n")
+  }
+
+  function openAccountSheet() {
+    if (!isXAuthenticated) {
+      openXSignIn(buildAccountSettingsHref())
       return
     }
 
-    setProfileBuilderDraft(buildInitialProfileBuilderDraft())
+    setCenterSheetView(null)
+    setCenterSheetPaperSlug(null)
+    setIsCenterSheetOpen(false)
+    setActiveProfileId(null)
+    setIsAccountSheetOpen(true)
+    updateWorkspaceUrl({
+      account: "settings",
+    })
+  }
+
+  function closeAccountSheet() {
+    setIsAccountSheetOpen(false)
+    updateWorkspaceUrl({
+      account: null,
+    })
+  }
+
+  function openMyProfileSurface() {
+    const myProfileId = myProfileRecord?.profile?._id ?? null
+
+    if (myProfileId) {
+      openProfileSheet(myProfileId)
+      return
+    }
+
+    openProfileBuilder()
+  }
+
+  function openProfileBuilder(options?: {
+    draft?: ProfileBuilderDraft
+    sourceMessage?: string
+  }) {
+    setProfileBuilderDraft(options?.draft ?? buildInitialProfileBuilderDraft())
     setProfileBuilderMessage(
-      activeProfileBuilderWorkspace?.sourceBrief ?? composerText.trim()
+      options?.sourceMessage ??
+        activeProfileBuilderWorkspace?.sourceBrief ??
+        composerText.trim()
     )
     setIsProfileBuilderOpen(true)
+    setIsAccountSheetOpen(false)
+    updateWorkspaceUrl({
+      modal: "profile-builder",
+    })
+  }
+
+  function closeProfileBuilder() {
+    setIsProfileBuilderOpen(false)
+    updateWorkspaceUrl({
+      modal: null,
+    })
   }
 
   async function handleSetDefaultPayoutWallet(walletAccountId: string) {
@@ -781,10 +894,131 @@ export function ChatShell() {
     }
   }
 
+  async function handleToggleProfileAvailability(checked: boolean) {
+    if (!ownerExternalId) {
+      setAccountNotice("Sign in with X first before updating your profile.")
+      return
+    }
+
+    setIsProfileAvailabilityUpdating(true)
+    setAccountNotice(null)
+
+    try {
+      const draft = myProfileRecord
+        ? buildProfileBuilderDraftFromRecord(myProfileRecord)
+        : createEmptyProfileBuilderDraft(session?.user?.name ?? "")
+
+      draft.profile.availabilityStatus = checked ? "available" : "unavailable"
+      draft.profile.isPublic = checked
+
+      const result = await upsertMyProfile(
+        profileBuilderToProfileMutationInput(draft, {
+          displayName:
+            (draft.profile.displayName || session?.user?.name) ?? undefined,
+          externalId: ownerExternalId,
+          handle: undefined,
+        })
+      )
+
+      if (!result.saved) {
+        throw new Error("Could not update profile availability.")
+      }
+
+      setAccountNotice(
+        checked
+          ? "Profile is now available for work."
+          : "Profile is now hidden from Boreal work discovery."
+      )
+    } catch (error) {
+      setAccountNotice(
+        error instanceof Error
+          ? error.message
+          : "Could not update profile availability."
+      )
+    } finally {
+      setIsProfileAvailabilityUpdating(false)
+    }
+  }
+
+  async function handleDraftProfileBuilder(
+    message: string,
+    baseDraft?: ProfileBuilderDraft
+  ) {
+    const trimmedMessage = message.trim()
+
+    if (!trimmedMessage || isDraftingProfileBuilder) {
+      return
+    }
+
+    setErrorMessage(null)
+    setProfileBuilderMessage(trimmedMessage)
+    setIsDraftingProfileBuilder(true)
+
+    try {
+      const response = await fetch("/api/profile-builder/draft", {
+        body: JSON.stringify({
+          message: trimmedMessage,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      })
+      const payload = (await response.json()) as {
+        draft?: ProfileBuilderDraft
+        error?: string
+      }
+
+      const draftedProfile = payload.draft
+
+      if (!response.ok || !draftedProfile) {
+        throw new Error(payload.error ?? "Could not draft the public setup.")
+      }
+
+      setProfileBuilderDraft((current) =>
+        mergeProfileBuilderDraft(baseDraft ?? current, draftedProfile)
+      )
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not draft the public setup."
+      )
+    } finally {
+      setIsDraftingProfileBuilder(false)
+    }
+  }
+
+  async function invokeHumanProfileOptimizer() {
+    if (!isXAuthenticated) {
+      openXSignIn(buildAccountSettingsHref())
+      return
+    }
+
+    const baseDraft = buildInitialProfileBuilderDraft()
+    const sourceMessage = buildHumanProfileOptimizerBrief()
+
+    closeProfileSheet()
+    openProfileBuilder({
+      draft: baseDraft,
+      sourceMessage,
+    })
+    await handleDraftProfileBuilder(sourceMessage, baseDraft)
+  }
+
+  async function handleInvokeListing(listing: CatalogEntry) {
+    if (listing.capabilityTags.includes("profile-optimizer-human")) {
+      await invokeHumanProfileOptimizer()
+    }
+  }
+
   function updateWorkspaceUrl(next: {
+    account?: BorealShellAccountView | null
     browse?: WorkspaceTab | null
     chat?: string | null
+    modal?: BorealShellModal | null
     paper?: string | null
+    profile?: string | null
     request?: string | null
     sheet?: CenterSheetView | null
     view?: CenterViewTab | null
@@ -802,6 +1036,9 @@ export function ChatShell() {
       params.delete("view")
     } else if (next.request) {
       setIsCenterSheetOpen(false)
+      params.delete("account")
+      params.delete("modal")
+      params.delete("profile")
       params.delete("sheet")
       params.delete("paper")
       params.set("request", next.request)
@@ -823,6 +1060,8 @@ export function ChatShell() {
       params.delete("sheet")
       params.delete("paper")
     } else if (next.sheet) {
+      params.delete("account")
+      params.delete("profile")
       params.set("sheet", next.sheet)
 
       if (next.sheet !== "papers") {
@@ -833,8 +1072,38 @@ export function ChatShell() {
     if (next.paper === null) {
       params.delete("paper")
     } else if (next.paper) {
+      params.delete("account")
+      params.delete("profile")
       params.set("sheet", "papers")
       params.set("paper", next.paper)
+    }
+
+    if (next.account === null) {
+      params.delete("account")
+    } else if (next.account) {
+      params.delete("modal")
+      params.delete("profile")
+      params.delete("sheet")
+      params.delete("paper")
+      params.set("account", next.account)
+    }
+
+    if (next.profile === null) {
+      params.delete("profile")
+    } else if (next.profile) {
+      params.delete("account")
+      params.delete("modal")
+      params.delete("sheet")
+      params.delete("paper")
+      params.set("profile", next.profile)
+    }
+
+    if (next.modal === null) {
+      params.delete("modal")
+    } else if (next.modal) {
+      params.delete("account")
+      params.delete("profile")
+      params.set("modal", next.modal)
     }
 
     const nextQuery = params.toString()
@@ -932,6 +1201,52 @@ export function ChatShell() {
 
     return () => window.cancelAnimationFrame(frame)
   }, [requestedDeepLinkedSheet, requestedPaperSlug])
+
+  useEffect(() => {
+    setActiveProfileId(requestedProfileId)
+  }, [requestedProfileId])
+
+  useEffect(() => {
+    if (requestedAccountView === "settings" && !isXAuthenticated) {
+      if (!hasPromptedAccountSignInRef.current) {
+        hasPromptedAccountSignInRef.current = true
+        openXSignIn(buildAccountSettingsHref())
+      }
+      return
+    }
+
+    hasPromptedAccountSignInRef.current = false
+    if (requestedAccountView === "settings") {
+      setCenterSheetView(null)
+      setCenterSheetPaperSlug(null)
+      setIsCenterSheetOpen(false)
+      setActiveProfileId(null)
+    }
+    setIsAccountSheetOpen(requestedAccountView === "settings")
+  }, [isXAuthenticated, requestedAccountView])
+
+  useEffect(() => {
+    const previousRequestedModal = previousRequestedModalRef.current
+
+    if (requestedModal === "profile-builder") {
+      if (previousRequestedModal !== "profile-builder") {
+        setProfileBuilderDraft(buildInitialProfileBuilderDraft())
+        setProfileBuilderMessage(
+          activeProfileBuilderWorkspace?.sourceBrief ?? composerText.trim()
+        )
+      }
+      setIsProfileBuilderOpen(true)
+    } else {
+      setIsProfileBuilderOpen(false)
+    }
+
+    previousRequestedModalRef.current = requestedModal
+  }, [
+    activeProfileBuilderWorkspace,
+    composerText,
+    requestedModal,
+    session?.user?.name,
+  ])
 
   useEffect(() => {
     const artifact = requestDetail?.artifact
@@ -1334,6 +1649,7 @@ export function ChatShell() {
             selectedCenterTab: activeCenterTab,
             workspaceTab,
           }),
+          debugPipeline: pipelineTraceEnabled,
           message: trimmed,
           provider: "boreal-agent",
         }),
@@ -1386,6 +1702,22 @@ export function ChatShell() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function fillComposerAndFocus(value: string) {
+    setComposerText(value)
+
+    requestAnimationFrame(() => {
+      const textarea = composerTextareaRef.current
+
+      if (!textarea) {
+        return
+      }
+
+      textarea.focus()
+      const cursor = value.length
+      textarea.setSelectionRange(cursor, cursor)
+    })
   }
 
   async function handleApproveRequest(intentId = activeIntentId) {
@@ -2057,49 +2389,6 @@ export function ChatShell() {
     }
   }
 
-  async function handleDraftProfileBuilder() {
-    if (!profileBuilderMessage.trim() || isDraftingProfileBuilder) {
-      return
-    }
-
-    setErrorMessage(null)
-    setIsDraftingProfileBuilder(true)
-
-    try {
-      const response = await fetch("/api/profile-builder/draft", {
-        body: JSON.stringify({
-          message: profileBuilderMessage,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      })
-      const payload = (await response.json()) as {
-        draft?: ProfileBuilderDraft
-        error?: string
-      }
-
-      const draftedProfile = payload.draft
-
-      if (!response.ok || !draftedProfile) {
-        throw new Error(payload.error ?? "Could not draft the public setup.")
-      }
-
-      setProfileBuilderDraft((current) =>
-        mergeProfileBuilderDraft(current, draftedProfile)
-      )
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not draft the public setup."
-      )
-    } finally {
-      setIsDraftingProfileBuilder(false)
-    }
-  }
-
   async function saveProfileBuilder(includeListing: boolean) {
     if (!ownerExternalId || isSavingProfileBuilder) {
       if (!ownerExternalId) {
@@ -2162,7 +2451,7 @@ export function ChatShell() {
         if (!supplyResult.created) {
           throw new Error(
             supplyResult.reason === "missing_payout_wallet"
-              ? "Connect a wallet first before publishing a paid offer so Boreal knows where payouts should go."
+              ? "Connect a Solana wallet first before publishing a paid offer so Boreal knows where payouts should go."
               : "Could not publish the offer."
           )
         }
@@ -2193,11 +2482,11 @@ export function ChatShell() {
         setWorkspace({
           draft: cloneProfileBuilderDraft(profileBuilderDraft),
           kind: "profile_builder",
-          sourceBrief: profileBuilderMessage,
+          sourceBrief: activeProfileBuilderWorkspace?.sourceBrief ?? "",
           subtitle: includeListing
-            ? "Your public profile was saved and the primary offer is now published."
-            : "Your public profile was saved. Publish the primary offer whenever you are ready.",
-          title: "Public profile and primary offer",
+            ? "Your work profile was saved and the primary offer is now published."
+            : "Your work profile was saved. Publish the primary offer whenever you are ready.",
+          title: "Work profile and primary offer",
         })
       }
 
@@ -2289,8 +2578,11 @@ export function ChatShell() {
   function handleClearSelection() {
     setErrorMessage(null)
     updateWorkspaceUrl({
+      account: null,
       chat: null,
+      modal: null,
       paper: null,
+      profile: null,
       request: null,
       sheet: null,
       view: null,
@@ -2311,8 +2603,11 @@ export function ChatShell() {
   function handleOpenSessions() {
     setErrorMessage(null)
     updateWorkspaceUrl({
+      account: null,
       chat: "sessions",
+      modal: null,
       paper: null,
+      profile: null,
       request: null,
       sheet: null,
       view: null,
@@ -2333,8 +2628,11 @@ export function ChatShell() {
   function handleReturnHome() {
     setErrorMessage(null)
     updateWorkspaceUrl({
+      account: null,
       chat: null,
+      modal: null,
       paper: null,
+      profile: null,
       request: null,
       sheet: null,
       view: null,
@@ -2383,6 +2681,8 @@ export function ChatShell() {
   }
 
   function openCenterSheet(view: CenterSheetView) {
+    setActiveProfileId(null)
+    setIsAccountSheetOpen(false)
     setCenterSheetView(view)
     if (view !== "papers") {
       setCenterSheetPaperSlug(null)
@@ -2405,11 +2705,21 @@ export function ChatShell() {
   }
 
   function openProfileSheet(profileId: string) {
+    setCenterSheetView(null)
+    setCenterSheetPaperSlug(null)
+    setIsCenterSheetOpen(false)
+    setIsAccountSheetOpen(false)
     setActiveProfileId(profileId)
+    updateWorkspaceUrl({
+      profile: profileId,
+    })
   }
 
   function closeProfileSheet() {
     setActiveProfileId(null)
+    updateWorkspaceUrl({
+      profile: null,
+    })
   }
 
   function handleInlineNavSelect(href: string) {
@@ -2427,6 +2737,8 @@ export function ChatShell() {
   }
 
   function openPapersOverview() {
+    setActiveProfileId(null)
+    setIsAccountSheetOpen(false)
     setCenterSheetView("papers")
     setCenterSheetPaperSlug(null)
     setIsCenterSheetOpen(true)
@@ -2441,6 +2753,8 @@ export function ChatShell() {
   }
 
   function openEmbeddedPaper(slug: string) {
+    setActiveProfileId(null)
+    setIsAccountSheetOpen(false)
     setCenterSheetView("papers")
     setCenterSheetPaperSlug(slug)
     setIsCenterSheetOpen(true)
@@ -2450,9 +2764,9 @@ export function ChatShell() {
     })
   }
 
-  function openXSignIn() {
+  function openXSignIn(callbackUrl?: string) {
     void signIn("twitter", {
-      callbackUrl: pathname || "/",
+      callbackUrl: callbackUrl ?? pathname ?? "/",
     })
   }
 
@@ -2519,14 +2833,8 @@ export function ChatShell() {
                 borealChatSessionCount={borealChatSessions.length}
                 isSessionsActive={isSessionsView}
                 onOpenBorealChat={handleClearSelection}
-                onOpenAccount={() => {
-                  if (!isXAuthenticated) {
-                    openXSignIn()
-                    return
-                  }
-
-                  setIsAccountDialogOpen(true)
-                }}
+                onOpenAccount={openAccountSheet}
+                onOpenProfile={openMyProfileSurface}
                 onExpand={() => setShowIntentSidebar(true)}
                 onOpenSessions={handleOpenSessions}
                 requestCount={visibleSidebarIntents.length}
@@ -2540,7 +2848,8 @@ export function ChatShell() {
                 isBorealChatActive={!activeIntentId && !isSessionsView}
                 isSessionsActive={isSessionsView}
                 intents={visibleSidebarIntents}
-                onOpenAccount={() => setIsAccountDialogOpen(true)}
+                onOpenAccount={openAccountSheet}
+                onOpenProfile={openMyProfileSurface}
                 onOpenBorealChat={handleClearSelection}
                 onCollapse={() => setShowIntentSidebar(false)}
                 onOpenSessions={handleOpenSessions}
@@ -2631,19 +2940,10 @@ export function ChatShell() {
                   onClose={closeProfileSheet}
                   open={Boolean(activeProfileId)}
                   title={
-                    activeProfileId === "boreal-agent"
-                      ? "Boreal Agent"
-                      : resolvedProfileSheetDetail?.profile.displayName ?? "Profile"
+                    resolvedProfileSheetDetail?.profile.displayName ?? "Profile"
                   }
                 >
-                  {activeProfileId === "boreal-agent" ? (
-                    <div className="min-h-full">
-                      <BorealProfileView
-                        showProfileLink={false}
-                        stats={borealProfileStats}
-                      />
-                    </div>
-                  ) : resolvedProfileSheetDetail === undefined ? (
+                  {resolvedProfileSheetDetail === undefined ? (
                     <div className="flex min-h-[24rem] items-center justify-center text-sm text-muted-foreground">
                       <LoaderIcon className="mr-2 size-4 animate-spin" />
                       Loading profile
@@ -2660,12 +2960,70 @@ export function ChatShell() {
                   ) : (
                     <div className="min-h-full">
                       <ProfileView
+                        actions={
+                          resolvedProfileSheetDetail.profile.isMine &&
+                          resolvedProfileSheetDetail.profile.actorKind === "human" ? (
+                            <>
+                              <Button
+                                onClick={() => {
+                                  closeProfileSheet()
+                                  openProfileBuilder()
+                                }}
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                              >
+                                <CircleUserRoundIcon />
+                                Update profile
+                              </Button>
+                              <Button
+                                onClick={() => void invokeHumanProfileOptimizer()}
+                                size="sm"
+                                type="button"
+                              >
+                                <SparklesIcon />
+                                Optimize profile
+                              </Button>
+                            </>
+                          ) : undefined
+                        }
                         detail={resolvedProfileSheetDetail}
                         showProfileLink={false}
                       />
                     </div>
                   )}
                 </FocusSheet>
+              ) : null}
+
+              {isAccountSheetOpen ? (
+                <AccountSettingsSheet
+                  accountName={session?.user?.name ?? null}
+                  defaultWalletAddress={defaultWalletAddress}
+                  isOpen={isAccountSheetOpen}
+                  isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
+                  isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
+                  isPrivyAuthenticated={privyAuthenticated}
+                  isWalletReady={isWalletReady}
+                  myProfileRecord={myProfileRecord}
+                  notice={accountNotice}
+                  onConnectWallet={login}
+                  onOpenChange={(nextOpen) => {
+                    if (nextOpen) {
+                      openAccountSheet()
+                      return
+                    }
+
+                    closeAccountSheet()
+                  }}
+                  onOpenProfileBuilder={() => {
+                    closeAccountSheet()
+                    openProfileBuilder()
+                  }}
+                  onToggleProfileAvailability={handleToggleProfileAvailability}
+                  onSetDefaultPayoutWallet={handleSetDefaultPayoutWallet}
+                  runtimeDefaultNetworkKey={runtimeDefaultNetworkKey}
+                  walletAccounts={walletAccounts}
+                />
               ) : null}
 
               {isPublicDiscoveryOnly ? (
@@ -2682,14 +3040,17 @@ export function ChatShell() {
                                 value=""
                               />
                           </PromptInputBody>
-                          <PromptInputFooter className="justify-end">
+                          <PromptInputFooter className="items-center justify-between gap-2">
+                            <PromptInputTools className="w-full flex-wrap justify-start gap-2">
+                              <BorealAgentCue />
+                            </PromptInputTools>
                             <PromptInputSubmit disabled />
                           </PromptInputFooter>
                         </PromptInput>
                       }
                       quickActions={
                         <>
-                          <Button onClick={openXSignIn} size="sm" type="button">
+                          <Button onClick={() => openXSignIn()} size="sm" type="button">
                             Sign in with X
                           </Button>
                           <Button
@@ -3038,14 +3399,18 @@ export function ChatShell() {
                             <PromptInputBody>
                               <PromptInputTextarea
                                 className="min-h-[140px] text-base"
-                                onChange={(event) =>
+                                onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                                   setComposerText(event.currentTarget.value)
                                 }
                                 placeholder="Submit a request, publish an offer, or tell Boreal what should happen."
+                                ref={composerTextareaRef}
                                 value={composerText}
                               />
                             </PromptInputBody>
-                            <PromptInputFooter className="justify-end gap-2">
+                            <PromptInputFooter className="items-center justify-between gap-2">
+                              <PromptInputTools className="w-full flex-wrap justify-start gap-2">
+                                <BorealAgentCue />
+                              </PromptInputTools>
                               <PromptInputSubmit
                                 disabled={
                                   isSubmitting || composerText.trim().length === 0
@@ -3092,7 +3457,7 @@ export function ChatShell() {
                             <Button
                               onClick={() => {
                                 if (privyAuthenticated) {
-                                  setIsAccountDialogOpen(true)
+                                  openAccountSheet()
                                   return
                                 }
 
@@ -3106,9 +3471,7 @@ export function ChatShell() {
                               {privyReady
                                 ? privyAuthenticated
                                   ? "Wallet connected"
-                                  : runtimePrimaryChainFamily === "solana"
-                                    ? "Connect Solana"
-                                    : "Connect wallet"
+                                  : "Connect Solana"
                                 : "Wallet"}
                             </Button>
                           </>
@@ -3120,7 +3483,7 @@ export function ChatShell() {
                             description: prompt.description,
                             icon: <Icon className="size-4" />,
                             onSelect: () => {
-                              setComposerText(prompt.prompt)
+                              fillComposerAndFocus(prompt.prompt)
                             },
                             title: prompt.title,
                           }
@@ -3206,6 +3569,13 @@ export function ChatShell() {
                                   <span>Routing request</span>
                                 </div>
                               )}
+                              {message.role === "assistant" &&
+                              message.debugEvents &&
+                              message.debugEvents.length > 0 ? (
+                                <AssistantDebugTools
+                                  events={message.debugEvents}
+                                />
+                              ) : null}
                             </MessageContent>
                           </Message>
                         ))}
@@ -3224,7 +3594,7 @@ export function ChatShell() {
                             isApprovingRoute={isApprovingRequest}
                             onOpenProfileBuilder={openProfileBuilder}
                             onQuickReply={(value) => {
-                              setComposerText(value)
+                              fillComposerAndFocus(value)
                             }}
                             onRefreshVideo={() => undefined}
                             onViewProfile={openProfileSheet}
@@ -3284,12 +3654,8 @@ export function ChatShell() {
                           <WalletIcon />
                           {privyReady
                             ? privyAuthenticated
-                              ? runtimePrimaryChainFamily === "solana"
-                                ? "Connect Solana"
-                                : "Connect wallet"
-                              : runtimePrimaryChainFamily === "solana"
-                                ? "Connect Solana"
-                                : "Connect wallet"
+                              ? "Wallet connected"
+                              : "Connect Solana"
                             : "Wallet"}
                         </Button>
                       ) : null}
@@ -3314,10 +3680,11 @@ export function ChatShell() {
                     >
                       <PromptInputBody>
                         <PromptInputTextarea
-                          onChange={(event) =>
+                          onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                             setComposerText(event.currentTarget.value)
                           }
                           placeholder="Ask a question, coordinate on a request, or ask Boreal for help."
+                          ref={composerTextareaRef}
                           value={composerText}
                         />
                       </PromptInputBody>
@@ -3339,6 +3706,7 @@ export function ChatShell() {
             >
               <WorkspacePanel
                 activeTab={workspaceTab}
+                onInvokeListing={(listing) => void handleInvokeListing(listing)}
                 onSelectRequest={handleMarketplaceSelect}
                 onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
                 onViewProfile={openProfileSheet}
@@ -3366,7 +3734,8 @@ export function ChatShell() {
           isBorealChatActive={!activeIntentId && !isSessionsView}
           isSessionsActive={isSessionsView}
           intents={visibleSidebarIntents}
-          onOpenAccount={() => setIsAccountDialogOpen(true)}
+          onOpenAccount={openAccountSheet}
+          onOpenProfile={openMyProfileSurface}
           onOpenBorealChat={handleClearSelection}
           onCollapse={() => setIsMobileIntentSidebarOpen(false)}
           onOpenSessions={handleOpenSessions}
@@ -3389,39 +3758,15 @@ export function ChatShell() {
       >
         <WorkspacePanel
           activeTab={workspaceTab}
+          onInvokeListing={(listing) => void handleInvokeListing(listing)}
           onSelectRequest={handleMarketplaceSelect}
           onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
           onViewProfile={openProfileSheet}
           ownerExternalId={ownerExternalId}
         />
       </MobileSidebarDrawer>
-      <AccountSettingsDialog
-        accountName={session?.user?.name ?? null}
-        defaultWalletAddress={defaultWalletAddress}
-        isOpen={isAccountDialogOpen}
-        isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
-        isPrivyAuthenticated={privyAuthenticated}
-        isWalletReady={isWalletReady}
-        myProfileRecord={myProfileRecord}
-        notice={accountNotice}
-        onConnectWallet={login}
-        onOpenChange={setIsAccountDialogOpen}
-        onOpenProfileBuilder={() => {
-          setIsAccountDialogOpen(false)
-          openProfileBuilder()
-        }}
-        onSetDefaultPayoutWallet={handleSetDefaultPayoutWallet}
-        runtimeDefaultNetworkKey={runtimeDefaultNetworkKey}
-        runtimeEnvironment={runtimeEnvironment}
-        runtimePrimaryChainFamily={runtimePrimaryChainFamily}
-        walletAccounts={walletAccounts}
-      />
       <ProfileBuilderDialog
-        connectWalletLabel={
-          runtimePrimaryChainFamily === "solana"
-            ? "Connect Solana wallet"
-            : "Connect EVM wallet"
-        }
+        connectWalletLabel="Connect Solana wallet"
         draft={profileBuilderDraft}
         isDrafting={isDraftingProfileBuilder}
         isOpen={isProfileBuilderOpen}
@@ -3429,7 +3774,14 @@ export function ChatShell() {
         isWalletReady={isWalletReady}
         onConnectWallet={login}
         onDraftWithBoreal={handleDraftProfileBuilder}
-        onOpenChange={setIsProfileBuilderOpen}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) {
+            openProfileBuilder()
+            return
+          }
+
+          closeProfileBuilder()
+        }}
         onSaveProfile={() => saveProfileBuilder(false)}
         onSaveProfileAndListing={() => saveProfileBuilder(true)}
         setDraft={setProfileBuilderDraft}
@@ -3456,10 +3808,11 @@ export function ChatShell() {
   )
 }
 
-function AccountSettingsDialog({
+function AccountSettingsSheet({
   accountName,
   defaultWalletAddress,
   isOpen,
+  isProfileAvailabilityUpdating,
   isPayoutWalletUpdating,
   isPrivyAuthenticated,
   isWalletReady,
@@ -3468,15 +3821,15 @@ function AccountSettingsDialog({
   onConnectWallet,
   onOpenChange,
   onOpenProfileBuilder,
+  onToggleProfileAvailability,
   onSetDefaultPayoutWallet,
   runtimeDefaultNetworkKey,
-  runtimeEnvironment,
-  runtimePrimaryChainFamily,
   walletAccounts,
 }: {
   accountName: string | null
   defaultWalletAddress: string | null
   isOpen: boolean
+  isProfileAvailabilityUpdating: boolean
   isPayoutWalletUpdating: string | null
   isPrivyAuthenticated: boolean
   isWalletReady: boolean
@@ -3485,66 +3838,38 @@ function AccountSettingsDialog({
   onConnectWallet: () => void
   onOpenChange: (open: boolean) => void
   onOpenProfileBuilder: () => void
+  onToggleProfileAvailability: (checked: boolean) => Promise<void>
   onSetDefaultPayoutWallet: (walletAccountId: string) => Promise<void>
   runtimeDefaultNetworkKey: string
-  runtimeEnvironment: "devnet" | "mainnet" | "testnet"
-  runtimePrimaryChainFamily: "evm" | "solana"
   walletAccounts: WalletAccountRecord
 }) {
-
   return (
-    <Dialog onOpenChange={onOpenChange} open={isOpen}>
-      <DialogContent className="max-h-[min(88svh,52rem)] max-w-[min(48rem,calc(100vw-2rem))] overflow-hidden border border-border bg-background p-0 text-foreground shadow-2xl sm:max-w-[min(48rem,calc(100vw-2rem))]">
-        <DialogHeader className="border-b border-border px-6 py-5">
-          <DialogTitle>Account settings</DialogTitle>
-          <DialogDescription>
-            Boreal binds wallet identity, payout routing, and public offers to
-            your signed-in X account.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="max-h-[calc(88svh-8.5rem)]">
-          <div className="px-6 py-6">
-            <AccountSettingsSurface
-              accountName={accountName}
-              builderSlot={undefined}
-              defaultWalletAddress={defaultWalletAddress}
-              isEditingPublicSetup={false}
-              isPayoutWalletUpdating={isPayoutWalletUpdating}
-              isPrivyAuthenticated={isPrivyAuthenticated}
-              isWalletReady={isWalletReady}
-              myProfileRecord={myProfileRecord}
-              notice={notice}
-              onCloseProfileBuilder={() => onOpenChange(false)}
-              onConnectWallet={onConnectWallet}
-              onOpenProfileBuilder={onOpenProfileBuilder}
-              onSetDefaultPayoutWallet={onSetDefaultPayoutWallet}
-              runtimeDefaultNetworkKey={runtimeDefaultNetworkKey}
-              runtimeEnvironment={runtimeEnvironment}
-              runtimePrimaryChainFamily={runtimePrimaryChainFamily}
-              walletAccounts={walletAccounts}
-            />
-          </div>
-        </ScrollArea>
-        <DialogFooter className="border-t border-border px-6 py-4">
-          <div className="flex w-full items-center justify-between gap-3 text-xs text-muted-foreground">
-            <p>
-              Deploy with <code>BOREAL_CHAIN_ENV=mainnet</code> to switch the
-              commerce layer out of devnet defaults.
-            </p>
-            <div className="flex items-center gap-2">
-              <Button asChild size="sm" type="button" variant="outline">
-                <Link href="/account" onClick={() => onOpenChange(false)}>
-                  Full settings
-                </Link>
-              </Button>
-              <Button onClick={() => onOpenChange(false)} size="sm" type="button" variant="outline">
-                Close
-              </Button>
-            </div>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <FocusSheet
+      onClose={() => onOpenChange(false)}
+      open={isOpen}
+      title="Settings"
+    >
+      <div className="px-4 py-4 sm:px-6 sm:py-6">
+        <AccountSettingsSurface
+          accountName={accountName}
+          builderSlot={undefined}
+          defaultWalletAddress={defaultWalletAddress}
+          isEditingPublicSetup={false}
+          isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
+          isPayoutWalletUpdating={isPayoutWalletUpdating}
+          isPrivyAuthenticated={isPrivyAuthenticated}
+          isWalletReady={isWalletReady}
+          myProfileRecord={myProfileRecord}
+          notice={notice}
+          onConnectWallet={onConnectWallet}
+          onOpenProfileBuilder={onOpenProfileBuilder}
+          onToggleProfileAvailability={onToggleProfileAvailability}
+          onSetDefaultPayoutWallet={onSetDefaultPayoutWallet}
+          runtimeDefaultNetworkKey={runtimeDefaultNetworkKey}
+          walletAccounts={walletAccounts}
+        />
+      </div>
+    </FocusSheet>
   )
 }
 
@@ -4145,8 +4470,8 @@ function InlineRequestActionEvent({
                   : handlingMode === "workers"
                     ? "Approving this will publish the request for proposals and matching."
                     : isProfileUpdate
-                      ? "Approving this will let Boreal draft your editable public profile and first listing. You can also open the builder form and fill it manually."
-                      : isMatchedCatalogRoute
+                    ? "Approving this will let Boreal draft your editable work profile and first listing. You can also open the builder form and fill it manually."
+                    : isMatchedCatalogRoute
                         ? "Approving this will let Boreal run the strongest matched specialist route first."
                         : "Approving this will let Boreal Agent take the first execution pass."}
               </p>
@@ -4226,7 +4551,7 @@ function InlineRequestActionEvent({
                 variant="outline"
               >
                 <CircleUserRoundIcon />
-                Open builder form
+                Update profile
               </Button>
             ) : null}
             {handlingMode !== "clarify" && !isMatchedCatalogRoute ? (
@@ -4337,7 +4662,7 @@ function InlineRequestActionEvent({
             {isProfileUpdate ? (
               <Button onClick={onOpenProfileBuilder} size="sm" type="button">
                 <CircleUserRoundIcon />
-                Open builder form
+                Update profile
               </Button>
             ) : null}
             <Button
@@ -4379,7 +4704,7 @@ function InlineRequestActionEvent({
                 variant="outline"
               >
                 <CircleUserRoundIcon />
-                Open builder form
+                Update profile
               </Button>
             ) : null}
             <Button
@@ -4414,32 +4739,6 @@ function InlineRequestActionEvent({
               )}
               Open for workers
             </Button>
-            <Button
-              disabled={isArchivingRequest}
-              onClick={() => void onArchiveRequest()}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              {isArchivingRequest ? (
-                <LoaderIcon className="animate-spin" />
-              ) : (
-                <PackageIcon />
-              )}
-              Archive
-            </Button>
-            <Button
-              onClick={onDeleteIntent}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Delete
-            </Button>
-          </>
-        ) : null}
-        {actionState.kind === "archive" ? (
-          <>
             <Button
               disabled={isArchivingRequest}
               onClick={() => void onArchiveRequest()}
@@ -5316,7 +5615,7 @@ function ProposalViewerPanel({
           <div className="space-y-1">
             <p className="text-sm font-medium">Profile onboarding</p>
             <p className="text-xs text-muted-foreground">
-              Use the builder to save your public profile and publish the first
+              Use the builder to save your work profile and publish the first
               listing. Boreal drafting is optional and only runs when you ask
               for it.
             </p>
@@ -6489,8 +6788,8 @@ function getRequestActionState(
   if (status === "fulfilled" && access?.isOwner) {
     return {
       description:
-        "Delivery is complete. Archive finished work or keep it active for more follow-up.",
-      kind: "archive" as const,
+        "This request is complete. No further action is required here.",
+      kind: "none" as const,
       title: "Completed request",
     }
   }
@@ -6548,6 +6847,33 @@ function normalizeCenterViewTab(value: string | null): CenterViewTab {
 
 function normalizeChatMode(value: string | null) {
   return value === "sessions" ? "sessions" : null
+}
+
+function normalizeShellAccountView(
+  value: string | null
+): BorealShellAccountView | null {
+  if (value === "settings") {
+    return value
+  }
+
+  return null
+}
+
+function normalizeShellModal(value: string | null): BorealShellModal | null {
+  if (value === "profile-builder") {
+    return value
+  }
+
+  return null
+}
+
+function normalizeProfileQuery(value: string | null) {
+  if (!value) {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 function parseProfileLookup(value: string) {
@@ -6624,6 +6950,7 @@ async function consumeChatStream(input: {
 
       const event = JSON.parse(trimmed) as
         | { delta: string; type: "assistant-delta" }
+        | { payload: ChatAssistantDebugEvent; type: "debug" }
         | { message: string; type: "error" }
         | { payload: ChatAssistantResponse; type: "final" }
 
@@ -6632,6 +6959,23 @@ async function consumeChatStream(input: {
           current.map((message) =>
             message.id === input.assistantMessageId
               ? { ...message, content: `${message.content}${event.delta}` }
+              : message
+          )
+        )
+        continue
+      }
+
+      if (event.type === "debug") {
+        input.setMessages((current) =>
+          current.map((message) =>
+            message.id === input.assistantMessageId
+              ? {
+                  ...message,
+                  debugEvents: upsertAssistantDebugEvent(
+                    message.debugEvents,
+                    event.payload
+                  ),
+                }
               : message
           )
         )
@@ -6662,6 +7006,51 @@ async function consumeChatStream(input: {
   )
 
   return finalPayload
+}
+
+function AssistantDebugTools({
+  events,
+}: {
+  events: ChatAssistantDebugEvent[]
+}) {
+  return (
+    <div className="space-y-2 pt-2">
+      {events.map((event) => (
+        <Tool defaultOpen key={event.id}>
+          <ToolHeader
+            state={event.state}
+            title={event.title}
+            type={event.type}
+          />
+          <ToolContent>
+            {event.input !== undefined ? <ToolInput input={event.input} /> : null}
+            {event.output !== undefined || event.errorText ? (
+              <ToolOutput
+                errorText={event.errorText ?? undefined}
+                output={event.output}
+              />
+            ) : null}
+          </ToolContent>
+        </Tool>
+      ))}
+    </div>
+  )
+}
+
+function upsertAssistantDebugEvent(
+  events: ChatAssistantDebugEvent[] | undefined,
+  nextEvent: ChatAssistantDebugEvent
+) {
+  const current = events ?? []
+  const existingIndex = current.findIndex((event) => event.id === nextEvent.id)
+
+  if (existingIndex === -1) {
+    return [...current, nextEvent]
+  }
+
+  return current.map((event, index) =>
+    index === existingIndex ? nextEvent : event
+  )
 }
 
 function buildChatUiContext(input: {

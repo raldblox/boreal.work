@@ -311,6 +311,7 @@ export function CollapsedRequestsRail({
   isSessionsActive,
   onOpenBorealChat,
   onOpenAccount,
+  onOpenProfile,
   onExpand,
   onOpenSessions,
   requestCount,
@@ -322,6 +323,7 @@ export function CollapsedRequestsRail({
   isSessionsActive: boolean
   onOpenBorealChat: () => void
   onOpenAccount: () => void
+  onOpenProfile?: () => void
   onExpand: () => void
   onOpenSessions: () => void
   requestCount: number
@@ -390,9 +392,9 @@ export function CollapsedRequestsRail({
 
       <div className="mt-auto border-t border-border px-4 py-4">
         <button
-          aria-label="Open account settings"
+          aria-label="Open profile"
           className="flex size-10 items-center justify-center rounded-lg transition-colors hover:bg-background/70"
-          onClick={onOpenAccount}
+          onClick={onOpenProfile ?? onOpenAccount}
           type="button"
         >
           <Avatar className="size-10 rounded-lg border border-border bg-background">

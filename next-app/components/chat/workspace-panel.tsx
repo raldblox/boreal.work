@@ -32,6 +32,7 @@ export type WorkspaceTab = "requests" | "workers"
 
 type WorkspacePanelProps = {
   activeTab: WorkspaceTab
+  onInvokeListing?: (listing: CatalogEntry) => void
   onSelectRequest: (
     request: SidebarIntentPreview,
     view?: RequestNavigationView
@@ -43,6 +44,7 @@ type WorkspacePanelProps = {
 
 export function WorkspacePanel({
   activeTab,
+  onInvokeListing,
   onSelectRequest,
   onTabChange,
   onViewProfile,
@@ -73,9 +75,25 @@ export function WorkspacePanel({
         }
       : "skip"
   )
-  const supplyListings = ((deferredSearch
-    ? searchedSupplyListings
-    : defaultSupplyListings) ?? []) as CatalogEntry[]
+  const supplyListings = useMemo(() => {
+    const fetchedListings = ((deferredSearch
+      ? searchedSupplyListings
+      : defaultSupplyListings) ?? []) as CatalogEntry[]
+    const normalizedQuery = deferredSearch.toLowerCase()
+    const spotlightMatches =
+      normalizedQuery.length === 0 ||
+      matchesCatalogListing(BOREAL_AGENT_HUMAN_OPTIMIZER, normalizedQuery)
+    const mergedListings = spotlightMatches
+      ? [
+          BOREAL_AGENT_HUMAN_OPTIMIZER,
+          ...fetchedListings.filter(
+            (listing) => listing._id !== BOREAL_AGENT_HUMAN_OPTIMIZER._id
+          ),
+        ]
+      : fetchedListings
+
+    return [...mergedListings].sort(compareDiscoverySupplyListings)
+  }, [defaultSupplyListings, deferredSearch, searchedSupplyListings])
   const isWorkersLoading =
     activeTab === "workers" &&
     (deferredSearch
@@ -183,6 +201,7 @@ export function WorkspacePanel({
                     <SupplyCard
                       key={listing._id}
                       listing={listing}
+                      onInvokeListing={onInvokeListing}
                       onViewProfile={onViewProfile}
                     />
                   ))
@@ -247,12 +266,17 @@ function getMatchScoreTone(score: number | null) {
 
 function SupplyCard({
   listing,
+  onInvokeListing,
   onViewProfile,
 }: {
   listing: CatalogEntry
+  onInvokeListing?: (listing: CatalogEntry) => void
   onViewProfile: (profileId: string) => void
 }) {
   const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
+  const isBorealAgentListing = listing.seller?.profileId === "boreal-agent"
+  const supportsDirectInvoke =
+    isBorealAgentListing && listing.supportsDirectInvoke && !!onInvokeListing
 
   return (
     <div className="space-y-3 border border-transparent p-3 transition-colors hover:border-border hover:bg-foreground/5">
@@ -321,6 +345,15 @@ function SupplyCard({
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            {supportsDirectInvoke ? (
+              <Button
+                onClick={() => onInvokeListing?.(listing)}
+                size="sm"
+                type="button"
+              >
+                Use
+              </Button>
+            ) : null}
             {listing.seller?.profileId ? (
               <Button
                 onClick={() => onViewProfile(listing.seller!.profileId!)}
@@ -336,6 +369,100 @@ function SupplyCard({
       </div>
     </div>
   )
+}
+
+const BOREAL_AGENT_HUMAN_OPTIMIZER: CatalogEntry = {
+  _id: "boreal-agent-human-profile-optimizer",
+  actorKind: "agent",
+  averageRating: null,
+  brand: "Boreal",
+  capabilityTags: [
+    "profile-optimizer",
+    "profile-optimizer-human",
+    "human-supply",
+    "discovery",
+    "work-profile",
+  ],
+  category: "operations",
+  checkoutProtocol: null,
+  currency: "USD",
+  deliveryType: "instant",
+  description:
+    "Directly rewrite your human work profile, sharpen discovery metadata, and draft a stronger first offer in one Boreal pass.",
+  estimatedDeliveryLabel: "Instant draft",
+  executionSurface: "sdk",
+  executorUrl: null,
+  fulfillmentKind: "service",
+  gatedOutReasons: [],
+  isCartEnabled: false,
+  isPinned: true,
+  matchReasons: [],
+  matchScore: 100,
+  matchStage: "ranked",
+  paymentNetworkHints: [],
+  paymentProtocol: "none",
+  priceAmount: 0,
+  priceType: "fixed",
+  requiresHumanApproval: false,
+  reviewCount: 0,
+  seller: {
+    actorKind: "agent",
+    displayName: "Boreal Agent",
+    handle: null,
+    profileId: "boreal-agent",
+  },
+  sourceListingUrl: null,
+  sourceProviderKey: "manual",
+  subtitle: null,
+  supplyType: "capability",
+  supportsDirectInvoke: true,
+  supportsPrivyWallet: true,
+  successProbability: 100,
+  title: "Boreal Agent",
+  trustScore: 96,
+}
+
+function compareDiscoverySupplyListings(left: CatalogEntry, right: CatalogEntry) {
+  const leftPriority = getDiscoverySupplyPriority(left)
+  const rightPriority = getDiscoverySupplyPriority(right)
+
+  if (leftPriority !== rightPriority) {
+    return leftPriority - rightPriority
+  }
+
+  if (left.matchScore !== right.matchScore) {
+    return (right.matchScore ?? -1) - (left.matchScore ?? -1)
+  }
+
+  return left.title.localeCompare(right.title)
+}
+
+function getDiscoverySupplyPriority(listing: CatalogEntry) {
+  if (listing._id === BOREAL_AGENT_HUMAN_OPTIMIZER._id) {
+    return 0
+  }
+
+  if (listing.seller?.profileId === "boreal-agent") {
+    return 1
+  }
+
+  return 2
+}
+
+function matchesCatalogListing(listing: CatalogEntry, normalizedQuery: string) {
+  const haystack = [
+    listing.title,
+    listing.subtitle,
+    listing.description,
+    listing.category,
+    listing.seller?.displayName,
+    ...listing.capabilityTags,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+
+  return haystack.includes(normalizedQuery)
 }
 
 function EmptyBlock({ subtitle, title }: { subtitle: string; title: string }) {

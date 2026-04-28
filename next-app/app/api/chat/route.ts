@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { chatAssistantAgent } from "@/lib/boreal/agents/chat-assistant/agent";
-import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
+import type {
+  ChatAssistantDebugEvent,
+  ChatUiContext,
+} from "@/lib/boreal/schemas/chat";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -23,6 +26,15 @@ export async function POST(request: Request) {
         const result = await chatAssistantAgent.run({
           conversationId: body.conversationId,
           message: body.message,
+          onDebugEvent: body.debugPipeline
+            ? async (event: ChatAssistantDebugEvent) => {
+                await writer.write(
+                  encoder.encode(
+                    `${JSON.stringify({ payload: event, type: "debug" })}\n`,
+                  ),
+                );
+              }
+            : undefined,
           requester: {
             displayName: user.name ?? undefined,
             externalId: user.id ?? undefined,
@@ -84,6 +96,7 @@ export async function POST(request: Request) {
 type ParsedChatRequest = {
   conversationId?: string;
   context?: ChatUiContext;
+  debugPipeline?: boolean;
   message: string;
   provider?: string;
 };
@@ -99,6 +112,7 @@ function parseChatRequest(value: unknown): ParsedChatRequest {
   const message = payload.message;
   const conversationId = payload.conversationId;
   const context = payload.context;
+  const debugPipeline = payload.debugPipeline;
   const provider = payload.provider;
 
   if (typeof message !== "string" || message.trim().length === 0) {
@@ -117,6 +131,7 @@ function parseChatRequest(value: unknown): ParsedChatRequest {
   return {
     conversationId,
     context: isValidChatContext(context) ? context : undefined,
+    debugPipeline: typeof debugPipeline === "boolean" ? debugPipeline : false,
     message,
     provider: typeof provider === "string" ? provider : undefined,
   };

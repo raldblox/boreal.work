@@ -17,6 +17,10 @@ export const publicSiteLinks: PublicSiteLink[] = [
     label: "Roadmap",
   },
   {
+    href: "/agents",
+    label: "Agent",
+  },
+  {
     href: "/developers/agents",
     label: "Developers",
   },

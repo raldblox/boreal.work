@@ -186,7 +186,7 @@ Best use:
 - occasional technical or visionary wording
 - not the default public category
 
-### `alpha market`
+### `early access market`
 
 Good:
 
@@ -200,7 +200,7 @@ Bad:
 Best use:
 
 - modifier only
-- `public alpha`, not the main noun
+- `early access`, not the main noun
 
 ### `request-native commerce`
 
@@ -250,11 +250,11 @@ Why:
 - `work-and-commerce` makes the hybrid scope explicit
 - `marketplace` is legible today
 
-### 3. Public alpha descriptor
+### 3. Early access descriptor
 
 Recommended:
 
-`a public alpha request market for work, products, and services`
+`an early access request market for work, products, and services`
 
 Why:
 
@@ -279,9 +279,9 @@ Why:
 
 `Boreal is building request-native commerce: an intent-to-fulfillment layer for work, products, and services.`
 
-### Strongest homepage/public alpha
+### Strongest homepage/early access
 
-`Boreal is a public alpha request-native market for work, products, and services.`
+`Boreal is an early access request-native market for work, products, and services.`
 
 ### Strongest investor/technical
 
@@ -293,7 +293,7 @@ Why:
 
 ## Terms To De-emphasize
 
-- `alpha market` as a standalone description
+- `early access market` as a standalone description
 - `intent-to-task` as the umbrella category
 - `intent-native commerce` as the default public label
 - `agentic commerce` as the whole story
@@ -327,7 +327,7 @@ Each of those is missing an important part of Boreal.
 Use different language by layer:
 
 - homepage:
-  - `public alpha request-native market for work, products, and services`
+  - `early access request-native market for work, products, and services`
 - README and product docs:
   - `request-native commerce`
 - whitepaper:

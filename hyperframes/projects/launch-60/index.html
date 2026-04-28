@@ -46,14 +46,17 @@
         --bg-light: #f7faf9;
         --bg-panel: #ffffff;
         --bg-panel-soft: #eaf4f2;
+        --bg-panel-dark: rgba(12, 29, 25, 0.74);
         --text-dark: #09110f;
         --text-light: #f7faf9;
-        --text-muted: rgba(9, 17, 15, 0.66);
+        --text-muted: rgba(9, 17, 15, 0.68);
         --text-muted-light: rgba(247, 250, 249, 0.74);
-        --line: rgba(9, 17, 15, 0.09);
+        --line: rgba(9, 17, 15, 0.1);
+        --line-strong: rgba(9, 17, 15, 0.14);
         --line-light: rgba(247, 250, 249, 0.14);
         --cyan: #22c1f3;
         --mint: #62ffce;
+        --violet: #6537c6;
       }
 
       * {
@@ -91,30 +94,34 @@
       .scene-2,
       .scene-3,
       .scene-4,
-      .scene-5,
-      .scene-6 {
+      .scene-5 {
         opacity: 0;
         transform: translateX(2200px);
       }
 
       .scene-dark {
-        background: var(--bg-dark);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+          var(--bg-dark);
         color: var(--text-light);
       }
 
       .scene-light {
-        background: var(--bg-light);
+        background:
+          radial-gradient(circle at top right, rgba(34, 193, 243, 0.08), transparent 28%),
+          radial-gradient(circle at bottom left, rgba(98, 255, 206, 0.06), transparent 26%),
+          var(--bg-light);
         color: var(--text-dark);
       }
 
       .scene-content {
         position: relative;
         z-index: 2;
-        width: 100%;
-        height: 100%;
-        padding: 82px 94px;
         display: flex;
         flex-direction: column;
+        width: 100%;
+        height: 100%;
+        padding: 84px 92px;
         gap: 28px;
       }
 
@@ -127,13 +134,15 @@
       .eyebrow,
       .label,
       .mini-pill,
+      .metric-label,
+      .field-label,
       .brand-meta {
-        font-family: "Geist Mono", "IBM Plex Mono", monospace;
+        font-family: "Geist Mono", monospace;
       }
 
       .eyebrow {
         font-size: 18px;
-        letter-spacing: 0.22em;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
         color: var(--text-muted);
       }
@@ -144,77 +153,73 @@
 
       .headline {
         font-family: "Syne", sans-serif;
-        font-size: 102px;
-        line-height: 0.94;
+        font-size: 104px;
+        line-height: 0.93;
         letter-spacing: -0.06em;
         font-weight: 700;
-        max-width: 1220px;
       }
 
       .headline-mid {
-        font-size: 86px;
-        max-width: 1180px;
+        font-size: 84px;
       }
 
-      .body {
-        font-size: 30px;
-        line-height: 1.34;
-        max-width: 760px;
+      .headline-light {
+        color: var(--text-light);
+      }
+
+      .problem-headline {
+        font-size: 88px;
+        max-width: 640px;
+      }
+
+      .body-copy {
+        font-size: 29px;
+        line-height: 1.36;
+        max-width: 780px;
         color: var(--text-muted);
       }
 
-      .body-light {
+      .body-copy-light {
         color: var(--text-muted-light);
       }
 
+      .problem-copy {
+        font-size: 24px;
+        line-height: 1.34;
+        max-width: 620px;
+      }
+
       .panel {
-        border-radius: 32px;
+        border-radius: 34px;
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.92);
-        box-shadow: 0 28px 70px -44px rgba(7, 19, 17, 0.34);
+        box-shadow: 0 28px 72px -46px rgba(7, 19, 17, 0.3);
       }
 
-      .scene-glow {
-        position: absolute;
-        border-radius: 999px;
-        filter: blur(84px);
-        pointer-events: none;
-      }
-
-      .glow-cyan {
-        width: 560px;
-        height: 560px;
-        top: 10px;
-        right: 90px;
-        background: radial-gradient(circle, rgba(34, 193, 243, 0.2) 0%, rgba(34, 193, 243, 0) 76%);
-      }
-
-      .glow-mint {
-        width: 520px;
-        height: 520px;
-        bottom: -40px;
-        left: 40px;
-        background: radial-gradient(circle, rgba(98, 255, 206, 0.16) 0%, rgba(98, 255, 206, 0) 78%);
-      }
-
-      .feature-layout {
-        flex: 1;
-        display: grid;
-        grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
-        gap: 28px;
+      .panel-dark {
+        border-color: var(--line-light);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+          var(--bg-panel-dark);
+        box-shadow: 0 32px 86px -48px rgba(0, 0, 0, 0.62);
       }
 
       .copy-panel,
       .preview-panel,
+      .hybrid-shell,
       .close-card {
-        padding: 32px;
         display: flex;
         flex-direction: column;
         gap: 18px;
+        padding: 32px;
       }
 
       .copy-panel {
         justify-content: space-between;
+      }
+
+      .copy-panel-dark {
+        justify-content: center;
       }
 
       .feature-title {
@@ -226,8 +231,12 @@
 
       .feature-copy {
         font-size: 28px;
-        line-height: 1.34;
+        line-height: 1.36;
         color: var(--text-muted);
+      }
+
+      .feature-copy-light {
+        color: var(--text-muted-light);
       }
 
       .label {
@@ -235,6 +244,17 @@
         letter-spacing: 0.18em;
         text-transform: uppercase;
         color: #0d748d;
+      }
+
+      .label-light {
+        color: rgba(98, 255, 206, 0.84);
+      }
+
+      .frame-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
       }
 
       .window-dots {
@@ -246,13 +266,11 @@
         width: 12px;
         height: 12px;
         border-radius: 999px;
-        background: rgba(9, 17, 15, 0.14);
+        background: rgba(9, 17, 15, 0.16);
       }
 
-      .frame-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+      .window-dots-light span {
+        background: rgba(247, 250, 249, 0.16);
       }
 
       .mini-pill {
@@ -261,7 +279,7 @@
         justify-content: center;
         padding: 10px 14px;
         border-radius: 999px;
-        border: 1px solid rgba(34, 193, 243, 0.22);
+        border: 1px solid rgba(34, 193, 243, 0.2);
         background: rgba(34, 193, 243, 0.12);
         color: #0e6f86;
         font-size: 14px;
@@ -269,23 +287,300 @@
         text-transform: uppercase;
       }
 
-      .surface-grid {
+      .mini-pill-dark {
+        border-color: rgba(98, 255, 206, 0.16);
+        background: rgba(98, 255, 206, 0.08);
+        color: rgba(247, 250, 249, 0.8);
+      }
+
+      .scene-glow {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(92px);
+        pointer-events: none;
+      }
+
+      .glow-cyan-top {
+        width: 540px;
+        height: 540px;
+        top: -30px;
+        right: 90px;
+        background: radial-gradient(circle, rgba(34, 193, 243, 0.2) 0%, rgba(34, 193, 243, 0) 76%);
+      }
+
+      .glow-mint-bottom {
+        width: 520px;
+        height: 520px;
+        bottom: -50px;
+        left: 40px;
+        background: radial-gradient(circle, rgba(98, 255, 206, 0.16) 0%, rgba(98, 255, 206, 0) 78%);
+      }
+
+      .problem-layout,
+      .feature-layout {
+        flex: 1;
         display: grid;
+        gap: 28px;
+      }
+
+      .problem-layout {
+        grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+      }
+
+      .feature-layout {
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      }
+
+      .problem-board {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 28px;
+      }
+
+      .fragment-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .fragment-card {
+        border-radius: 24px;
+        border: 1px solid rgba(247, 250, 249, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+        padding: 22px;
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .fragment-card strong,
+      .fragment-title,
+      .request-title,
+      .surface-title,
+      .lane-title {
+        font-weight: 700;
+      }
+
+      .fragment-kicker {
+        font-family: "Geist Mono", monospace;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(247, 250, 249, 0.5);
+      }
+
+      .fragment-title {
+        font-size: 30px;
+        line-height: 1.14;
+        color: var(--text-light);
+      }
+
+      .fragment-copy {
+        font-size: 18px;
+        line-height: 1.36;
+        color: rgba(247, 250, 249, 0.72);
+      }
+
+      .trace-panel {
+        border-radius: 28px;
+        border: 1px solid rgba(247, 250, 249, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .trace-line {
+        position: relative;
+        height: 18px;
+      }
+
+      .trace-line::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 7px;
+        width: calc(100% - 120px);
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(34, 193, 243, 0.18), rgba(34, 193, 243, 0.92), rgba(98, 255, 206, 0.62));
+        box-shadow: 0 0 28px rgba(34, 193, 243, 0.28);
+      }
+
+      .trace-line::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        border: 2px solid rgba(247, 250, 249, 0.44);
+        background: transparent;
+      }
+
+      .trace-copy {
+        font-size: 20px;
+        line-height: 1.4;
+        color: rgba(247, 250, 249, 0.72);
+      }
+
+      .request-preview,
+      .market-preview {
+        gap: 24px;
+      }
+
+      .request-flow {
+        display: grid;
+        grid-template-columns: minmax(0, 0.68fr) 84px minmax(0, 1fr);
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .prompt-card,
+      .request-card,
+      .surface-card,
+      .lane-card,
+      .match-card,
+      .metric-card {
+        border-radius: 26px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.88);
+      }
+
+      .prompt-card,
+      .request-card {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .prompt-card {
+        background: rgba(234, 244, 242, 0.94);
+      }
+
+      .prompt-text {
+        font-size: 28px;
+        line-height: 1.28;
+        color: var(--text-dark);
+      }
+
+      .prompt-tail {
+        font-size: 18px;
+        line-height: 1.4;
+        color: var(--text-muted);
+      }
+
+      .route-arrow {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .route-arrow::before {
+        content: "";
+        width: 100%;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(34, 193, 243, 0.24), rgba(34, 193, 243, 1));
+        box-shadow: 0 0 24px rgba(34, 193, 243, 0.28);
+      }
+
+      .route-arrow::after {
+        content: "";
+        position: absolute;
+        right: 4px;
+        width: 14px;
+        height: 14px;
+        border-top: 4px solid var(--cyan);
+        border-right: 4px solid var(--cyan);
+        transform: rotate(45deg);
+      }
+
+      .request-title {
+        font-size: 36px;
+        line-height: 1.1;
+        color: var(--text-dark);
+      }
+
+      .request-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .field-label {
+        font-size: 13px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #0d748d;
+      }
+
+      .field-value {
+        font-size: 20px;
+        line-height: 1.38;
+        color: var(--text-dark);
+      }
+
+      .signal-row,
+      .proof-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .signal-pill,
+      .proof-chip,
+      .score-chip,
+      .state-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-family: "Geist Mono", monospace;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .signal-pill,
+      .score-chip {
+        border: 1px solid rgba(34, 193, 243, 0.2);
+        background: rgba(34, 193, 243, 0.12);
+        color: #0d748d;
+      }
+
+      .signal-pill-mint,
+      .state-chip-live {
+        border-color: rgba(98, 255, 206, 0.22);
+        background: rgba(98, 255, 206, 0.14);
+        color: #0d876a;
+      }
+
+      .market-stage {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
         gap: 18px;
       }
 
-      .surface-grid.two {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      }
-
-      .surface-grid.three {
+      .supply-grid {
+        display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
       }
 
-      .surface-card {
-        border-radius: 24px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.88);
+      .surface-card,
+      .match-card,
+      .rail-card {
         padding: 22px;
         display: flex;
         flex-direction: column;
@@ -296,76 +591,289 @@
         background: rgba(234, 244, 242, 0.94);
       }
 
-      .card-title {
-        font-size: 26px;
-        font-weight: 700;
+      .surface-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .surface-title {
+        font-size: 28px;
+        line-height: 1.08;
         letter-spacing: -0.03em;
       }
 
-      .card-copy {
+      .surface-copy,
+      .rail-copy,
+      .match-copy,
+      .lane-copy,
+      .evidence-copy,
+      .metric-value {
         font-size: 18px;
         line-height: 1.42;
         color: var(--text-muted);
       }
 
-      .mini-row {
+      .market-side {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 16px;
+      }
+
+      .rail-card,
+      .match-card {
+        border-radius: 26px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .rail-row {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .rail-step {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        border: 1px solid var(--line-strong);
+        background: rgba(234, 244, 242, 0.88);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Geist Mono", monospace;
+        font-size: 14px;
+        color: #0d748d;
+      }
+
+      .rail-step-active {
+        background: rgba(34, 193, 243, 0.14);
+        border-color: rgba(34, 193, 243, 0.22);
+      }
+
+      .rail-title,
+      .match-title,
+      .metric-number {
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: var(--text-dark);
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric-card {
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .metric-label {
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #0d748d;
+      }
+
+      .metric-number {
+        font-size: 36px;
+      }
+
+      .hybrid-shell {
+        flex: 1;
+        gap: 18px;
+        padding: 28px;
+      }
+
+      .hybrid-copy {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 28px;
+      }
+
+      .hybrid-copy .feature-copy {
+        max-width: 760px;
+      }
+
+      .scene4-title {
+        font-size: 66px;
+        max-width: 820px;
+      }
+
+      .scene4-copy {
+        font-size: 25px;
+        max-width: 700px;
+      }
+
+      .hybrid-stage {
+        position: relative;
+        flex: 1;
+        padding: 28px 20px 0;
+      }
+
+      .request-node {
+        width: 400px;
+        margin: 0 auto;
+        padding: 20px 22px;
+        border-radius: 28px;
+        border: 1px solid rgba(34, 193, 243, 0.22);
+        background: linear-gradient(180deg, rgba(14, 32, 29, 0.96), rgba(7, 19, 17, 0.88));
+        box-shadow: 0 22px 62px -34px rgba(7, 19, 17, 0.68);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .request-node .request-title {
+        color: var(--text-light);
+      }
+
+      .request-node .field-value {
+        color: rgba(247, 250, 249, 0.8);
+      }
+
+      .branch-line {
+        position: absolute;
+        top: 96px;
+        width: 290px;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(34, 193, 243, 0.08), rgba(34, 193, 243, 0.96), rgba(98, 255, 206, 0.72));
+        box-shadow: 0 0 24px rgba(34, 193, 243, 0.24);
+      }
+
+      .branch-left {
+        left: 224px;
+        transform: rotate(20deg);
+        transform-origin: right center;
+      }
+
+      .branch-right {
+        right: 224px;
+        transform: rotate(-20deg);
+        transform-origin: left center;
+      }
+
+      .lane-grid {
+        margin-top: 64px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .lane-card {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .lane-card-dark {
+        background: rgba(234, 244, 242, 0.94);
+      }
+
+      .lane-title {
+        font-size: 30px;
+        line-height: 1.08;
+        letter-spacing: -0.04em;
+        color: var(--text-dark);
+      }
+
+      .lane-points {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .lane-row {
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.78);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .lane-row-title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      .lane-copy {
+        color: var(--text-muted);
+      }
+
+      .evidence-bar {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-radius: 24px;
+        border: 1px solid rgba(34, 193, 243, 0.16);
+        background: rgba(34, 193, 243, 0.08);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 14px;
+        gap: 18px;
       }
 
-      .audience-stage {
-        position: relative;
-        flex: 1;
-      }
-
-      .audience-line {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 0 220px;
-        font-family: "Syne", sans-serif;
-        font-size: 66px;
-        line-height: 1.06;
-        letter-spacing: -0.04em;
-        transform: translateX(2200px);
-      }
-
-      .audience-line-4 {
-        font-size: 84px;
+      .state-chip {
+        border: 1px solid rgba(9, 17, 15, 0.12);
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--text-dark);
+        padding: 8px 11px;
+        font-size: 11px;
       }
 
       .close-card {
         width: 100%;
-        max-width: 980px;
-        align-self: center;
+        max-width: 1120px;
         align-items: center;
         justify-content: center;
         text-align: center;
-        background: rgba(10, 24, 21, 0.72);
         border: 1px solid var(--line-light);
-        box-shadow: 0 34px 84px -46px rgba(0, 0, 0, 0.58);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+          rgba(10, 24, 21, 0.72);
+        box-shadow: 0 36px 92px -48px rgba(0, 0, 0, 0.62);
       }
 
       .brand-wordmark {
         font-family: "Syne", sans-serif;
-        font-size: 122px;
-        line-height: 0.9;
+        font-size: 148px;
+        line-height: 0.88;
         letter-spacing: -0.08em;
       }
 
       .brand-tagline {
         font-family: "Syne", sans-serif;
-        font-size: 48px;
+        font-size: 52px;
+        line-height: 1.02;
         letter-spacing: -0.04em;
+        max-width: 920px;
+      }
+
+      .brand-body {
+        max-width: 860px;
+      }
+
+      .proof-chip {
+        border: 1px solid rgba(247, 250, 249, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(247, 250, 249, 0.82);
       }
 
       .brand-meta {
-        font-size: 22px;
+        font-size: 18px;
         letter-spacing: 0.18em;
         text-transform: uppercase;
         color: var(--text-muted-light);
@@ -381,58 +889,121 @@
       data-height="1080"
     >
       <section class="scene scene-1 scene-dark">
-        <div class="scene-glow glow-cyan"></div>
-        <div class="scene-glow glow-mint"></div>
-        <div class="scene-content scene-content-center">
-          <p class="eyebrow eyebrow-light scene1-eyebrow">Boreal</p>
-          <h1 class="headline scene1-line-1">Your problem has an answer somewhere.</h1>
-          <h2 class="headline headline-mid scene1-line-2">Boreal finds it.</h2>
+        <div class="scene-glow glow-cyan-top"></div>
+        <div class="scene-glow glow-mint-bottom"></div>
+        <div class="scene-content">
+          <p class="eyebrow eyebrow-light scene1-eyebrow">Problem / disappearing demand</p>
+          <div class="problem-layout">
+            <div class="panel panel-dark copy-panel copy-panel-dark scene1-copy">
+              <p class="label label-light">Why Boreal exists</p>
+              <h1 class="headline headline-light problem-headline">Demand gets expressed everywhere. Most of it disappears before it becomes work.</h1>
+              <p class="body-copy body-copy-light problem-copy">
+                Chat, search, and prompts capture intent. They rarely keep the request
+                alive long enough to route, approve, deliver, and close it.
+              </p>
+            </div>
+
+            <div class="panel panel-dark problem-board scene1-board">
+              <div class="frame-header">
+                <div class="window-dots window-dots-light"><span></span><span></span><span></span></div>
+                <div class="mini-pill mini-pill-dark">Unresolved demand</div>
+              </div>
+
+              <div class="fragment-grid">
+                <div class="fragment-card scene1-fragment">
+                  <p class="fragment-kicker">Signal</p>
+                  <p class="fragment-title">Need this shipped by Friday.</p>
+                  <p class="fragment-copy">A clear ask enters the system.</p>
+                </div>
+
+                <div class="fragment-card scene1-fragment">
+                  <p class="fragment-kicker">Routing</p>
+                  <p class="fragment-title">Find the best person or tool.</p>
+                  <p class="fragment-copy">The route is still unknown.</p>
+                </div>
+
+                <div class="fragment-card scene1-fragment">
+                  <p class="fragment-kicker">Execution</p>
+                  <p class="fragment-title">What should resolve directly?</p>
+                  <p class="fragment-copy">Ready supply and custom work are mixed together.</p>
+                </div>
+
+                <div class="fragment-card scene1-fragment">
+                  <p class="fragment-kicker">Failure mode</p>
+                  <p class="fragment-title">The thread ends before the work begins.</p>
+                  <p class="fragment-copy">Intent disappears into answers, tabs, and dead threads.</p>
+                </div>
+              </div>
+
+              <div class="trace-panel scene1-trace">
+                <div class="trace-line"></div>
+                <p class="trace-copy">
+                  The problem is not expression. The problem is keeping the request alive
+                  until someone can actually fulfill it.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <section class="scene scene-2 scene-light">
         <div class="scene-content">
-          <p class="eyebrow scene2-eyebrow">Post A Request</p>
+          <p class="eyebrow scene2-eyebrow">Post one request</p>
           <div class="feature-layout">
             <div class="panel copy-panel scene2-copy">
               <p class="label">Cut 01</p>
               <h2 class="feature-title">Start in plain language.</h2>
-              <p class="feature-copy">The opening move is not a form. It is a direct ask that Boreal can structure, route, and keep alive as work.</p>
+              <p class="feature-copy">
+                Boreal turns the ask into a live request with scope, routing, timing,
+                and approval attached.
+              </p>
             </div>
-            <div class="panel preview-panel scene2-preview">
+
+            <div class="panel preview-panel request-preview scene2-preview">
               <div class="frame-header">
                 <div class="window-dots"><span></span><span></span><span></span></div>
-                <div class="mini-pill">Request Intake</div>
+                <div class="mini-pill">Request intake</div>
               </div>
-              <div class="surface-grid">
-                <div class="surface-card">
-                  <div class="card-title">Composer</div>
-                  <div class="card-copy">I need a launch explainer with clean motion, fast turnaround, and a fixed budget.</div>
+
+              <div class="request-flow">
+                <div class="prompt-card scene2-prompt">
+                  <p class="label">Prompt</p>
+                  <p class="prompt-text">
+                    I need a launch page, onboarding copy, and a checkout-ready listing by Friday.
+                  </p>
+                  <p class="prompt-tail">
+                    Search supply first. Open proposals only for the missing custom pieces.
+                  </p>
                 </div>
-                <div class="surface-grid two">
-                  <div class="surface-card surface-card-soft">
-                    <div class="card-title">Request</div>
-                    <div class="card-copy">Launch explainer • 60 seconds</div>
+
+                <div class="route-arrow scene2-arrow"></div>
+
+                <div class="request-card scene2-request">
+                  <p class="label">Request</p>
+                  <h3 class="request-title">Launch package for Friday</h3>
+
+                  <div class="request-field">
+                    <p class="field-label">Deliverables</p>
+                    <p class="field-value">Launch page, onboarding copy, checkout-ready listing</p>
                   </div>
-                  <div class="surface-card">
-                    <div class="card-title">Route</div>
-                    <div class="card-copy">Automated or hybrid</div>
+
+                  <div class="request-field">
+                    <p class="field-label">Route</p>
+                    <p class="field-value">Search existing supply first, then gate custom work if needed</p>
                   </div>
-                </div>
-                <div class="surface-grid three">
-                  <div class="surface-card">
-                    <div class="card-title">Budget</div>
-                    <div class="card-copy">$150 fixed</div>
-                  </div>
-                  <div class="surface-card">
-                    <div class="card-title">Window</div>
-                    <div class="card-copy">Three days</div>
-                  </div>
-                  <div class="surface-card">
-                    <div class="card-title">State</div>
-                    <div class="card-copy">Ready to route</div>
+
+                  <div class="request-field">
+                    <p class="field-label">State</p>
+                    <p class="field-value">Drafted, scoped, and ready to route</p>
                   </div>
                 </div>
+              </div>
+
+              <div class="signal-row scene2-signals">
+                <span class="signal-pill">Request drafted</span>
+                <span class="signal-pill signal-pill-mint">Supply first</span>
+                <span class="signal-pill">Approval attached</span>
               </div>
             </div>
           </div>
@@ -441,47 +1012,120 @@
 
       <section class="scene scene-3 scene-light">
         <div class="scene-content">
-          <p class="eyebrow scene3-eyebrow">The Network Responds</p>
+          <p class="eyebrow scene3-eyebrow">Search supply first</p>
           <div class="feature-layout">
             <div class="panel copy-panel scene3-copy">
               <p class="label">Cut 02</p>
-              <h2 class="feature-title">One request. Multiple execution surfaces.</h2>
-              <p class="feature-copy">Supply can be a human specialist, an agent runtime, or a digital listing. Boreal ranks the options inside the request instead of forcing the user to restart somewhere else.</p>
+              <h2 class="feature-title">See the best routes before you open proposals.</h2>
+              <p class="feature-copy">
+                Humans, agents, products, and services compete on the same request. Boreal
+                scores the likely route before it asks the market for more work.
+              </p>
             </div>
-            <div class="panel preview-panel scene3-preview">
+
+            <div class="panel preview-panel market-preview scene3-preview">
               <div class="frame-header">
                 <div class="window-dots"><span></span><span></span><span></span></div>
-                <div class="mini-pill">Supply Surface</div>
+                <div class="mini-pill">Supply surface</div>
               </div>
-              <div class="surface-grid three">
-                <div class="surface-card">
-                  <div class="mini-row">
-                    <div class="card-title">Human</div>
-                    <div class="mini-pill">Proposal</div>
+
+              <div class="market-stage">
+                <div class="supply-grid">
+                  <div class="surface-card scene3-card">
+                    <div class="surface-head">
+                      <div>
+                        <p class="label">Human specialist</p>
+                        <p class="surface-title">Launch copy lead</p>
+                      </div>
+                      <span class="score-chip">92</span>
+                    </div>
+                    <p class="surface-copy">
+                      Strong when the ask needs positioning judgment and revision.
+                    </p>
+                    <span class="signal-pill signal-pill-mint">Proposal if needed</span>
                   </div>
-                  <div class="card-copy">Narrative polish and last-mile editing.</div>
-                </div>
-                <div class="surface-card surface-card-soft">
-                  <div class="mini-row">
-                    <div class="card-title">Agent</div>
-                    <div class="mini-pill">Direct</div>
+
+                  <div class="surface-card surface-card-soft scene3-card">
+                    <div class="surface-head">
+                      <div>
+                        <p class="label">Agent runtime</p>
+                        <p class="surface-title">Video assembly worker</p>
+                      </div>
+                      <span class="score-chip">89</span>
+                    </div>
+                    <p class="surface-copy">
+                      Strong when the request can move into deterministic execution.
+                    </p>
+                    <span class="signal-pill">Direct route</span>
                   </div>
-                  <div class="card-copy">Structured generation with delivery evidence.</div>
-                </div>
-                <div class="surface-card">
-                  <div class="mini-row">
-                    <div class="card-title">Product</div>
-                    <div class="mini-pill">Instant</div>
+
+                  <div class="surface-card scene3-card">
+                    <div class="surface-head">
+                      <div>
+                        <p class="label">Ready listing</p>
+                        <p class="surface-title">Checkout ops package</p>
+                      </div>
+                      <span class="score-chip">84</span>
+                    </div>
+                    <p class="surface-copy">
+                      Strong when part of the answer is already packaged and buyable.
+                    </p>
+                    <span class="signal-pill">Instant add-on</span>
                   </div>
-                  <div class="card-copy">Ready-to-buy assets and add-ons.</div>
                 </div>
-              </div>
-              <div class="surface-card">
-                <div class="mini-row">
-                  <div class="card-title">Pinned match</div>
-                  <div class="mini-pill">94%</div>
+
+                <div class="market-side">
+                  <div class="rail-card scene3-rail">
+                    <p class="label">Request rail</p>
+
+                    <div class="rail-row">
+                      <span class="rail-step rail-step-active">01</span>
+                      <div>
+                        <p class="rail-title">Request drafted</p>
+                        <p class="rail-copy">Scope, timing, and approval path are explicit.</p>
+                      </div>
+                    </div>
+
+                    <div class="rail-row">
+                      <span class="rail-step rail-step-active">02</span>
+                      <div>
+                        <p class="rail-title">Matches scored</p>
+                        <p class="rail-copy">Humans, agents, products, and services are ranked in context.</p>
+                      </div>
+                    </div>
+
+                    <div class="rail-row">
+                      <span class="rail-step">03</span>
+                      <div>
+                        <p class="rail-title">Proposal gate</p>
+                        <p class="rail-copy">Open only for the custom pieces that still need work.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="match-card scene3-match">
+                    <p class="label">Pinned route</p>
+                    <p class="match-title">Direct plus custom if needed</p>
+                    <p class="match-copy">
+                      Boreal keeps the score breakdown, the gating reason, and the next action
+                      attached to the same request.
+                    </p>
+
+                    <div class="metric-grid">
+                      <div class="metric-card">
+                        <p class="metric-label">Best route</p>
+                        <p class="metric-number">94%</p>
+                        <p class="metric-value">Matched path</p>
+                      </div>
+
+                      <div class="metric-card">
+                        <p class="metric-label">Route state</p>
+                        <p class="metric-number">Live</p>
+                        <p class="metric-value">Still on the request</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="card-copy">Score breakdown, gating reasons, and direct invocation all stay attached to the request workspace.</div>
               </div>
             </div>
           </div>
@@ -490,36 +1134,79 @@
 
       <section class="scene scene-4 scene-light">
         <div class="scene-content">
-          <p class="eyebrow scene4-eyebrow">Outcome Delivered</p>
-          <div class="feature-layout">
-            <div class="panel copy-panel scene4-copy">
-              <p class="label">Cut 03</p>
-              <h2 class="feature-title">The thread closes with evidence.</h2>
-              <p class="feature-copy">Boreal tracks the route, the paid state when relevant, the delivery artifact, and the request status that tells everyone what actually happened.</p>
+          <p class="eyebrow scene4-eyebrow">Resolve direct or go custom</p>
+
+          <div class="panel hybrid-shell scene4-shell">
+            <div class="hybrid-copy">
+              <div>
+                <p class="label">Cut 03</p>
+                <h2 class="feature-title scene4-title">Direct when ready. Custom when needed.</h2>
+              </div>
+
+              <p class="feature-copy scene4-copy">
+                Ready supply can move straight to fulfillment. Missing pieces can open
+                proposals. Both paths keep the same request, status, and delivery evidence.
+              </p>
             </div>
-            <div class="panel preview-panel scene4-preview">
-              <div class="frame-header">
-                <div class="window-dots"><span></span><span></span><span></span></div>
-                <div class="mini-pill">Fulfillment</div>
-              </div>
-              <div class="surface-grid two">
-                <div class="surface-card">
-                  <div class="card-title">Delivery Evidence</div>
-                  <div class="card-copy">boreal-launch-explainer.mp4 • preview frame • linked output</div>
-                </div>
-                <div class="surface-card surface-card-soft">
-                  <div class="card-title">Commerce State</div>
-                  <div class="card-copy">Provider-backed route completed with payment-aware trace and delivery receipt.</div>
+
+            <div class="hybrid-stage">
+              <div class="request-node scene4-node">
+                <p class="label label-light">Request</p>
+                <h3 class="request-title">Launch package for Friday</h3>
+                <div class="signal-row">
+                  <span class="mini-pill mini-pill-dark">Approval attached</span>
+                  <span class="mini-pill mini-pill-dark">Due Friday</span>
                 </div>
               </div>
-              <div class="surface-grid two">
-                <div class="surface-card">
-                  <div class="card-title">Request Status</div>
-                  <div class="card-copy">Open → Working → Delivered → Fulfilled</div>
+
+              <div class="branch-line branch-left scene4-branch-left"></div>
+              <div class="branch-line branch-right scene4-branch-right"></div>
+
+              <div class="lane-grid">
+                <div class="lane-card lane-card-dark scene4-lane-left">
+                  <p class="label">Ready supply</p>
+                  <p class="lane-title">Resolve directly</p>
+
+                  <div class="lane-points">
+                    <div class="lane-row">
+                      <p class="lane-row-title">Known package</p>
+                      <p class="lane-copy">Approve once, then move into fulfillment and delivery.</p>
+                    </div>
+
+                    <div class="lane-row">
+                      <p class="lane-row-title">Provider-backed path</p>
+                      <p class="lane-copy">Commerce state stays visible when the route is payment-aware.</p>
+                    </div>
+                  </div>
                 </div>
-                <div class="surface-card">
-                  <div class="card-title">Activity</div>
-                  <div class="card-copy">Every state change stays auditable inside the request workspace.</div>
+
+                <div class="lane-card scene4-lane-right">
+                  <p class="label">Custom work</p>
+                  <p class="lane-title">Open proposals only for what is missing</p>
+
+                  <div class="lane-points">
+                    <div class="lane-row">
+                      <p class="lane-row-title">Invite the right responses</p>
+                      <p class="lane-copy">Only the unresolved pieces become a proposal market.</p>
+                    </div>
+
+                    <div class="lane-row">
+                      <p class="lane-row-title">Keep everything attached</p>
+                      <p class="lane-copy">Price, artifacts, delivery, and review all land back on the request.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="evidence-bar scene4-evidence">
+                <p class="evidence-copy">
+                  One request keeps the approval, the route, the artifact, and the close.
+                </p>
+                <div class="signal-row">
+                  <span class="state-chip state-chip-live">Direct route</span>
+                  <span class="state-chip">Proposal gate</span>
+                  <span class="state-chip">Delivery evidence</span>
+                  <span class="state-chip">Fulfilled</span>
                 </div>
               </div>
             </div>
@@ -528,28 +1215,24 @@
       </section>
 
       <section class="scene scene-5 scene-dark">
-        <div class="scene-glow glow-cyan"></div>
-        <div class="scene-content">
-          <p class="eyebrow eyebrow-light scene5-eyebrow">Who It Is For</p>
-          <div class="audience-stage">
-            <div class="audience-line scene5-line-1">If search can not solve the problem, post the request.</div>
-            <div class="audience-line scene5-line-2">If the market is underpricing the skill, let the request find it.</div>
-            <div class="audience-line scene5-line-3">If the agent keeps hitting walls, route the hard parts through Boreal.</div>
-            <div class="audience-line audience-line-4 scene5-line-4">Boreal is for you.</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="scene scene-6 scene-dark">
-        <div class="scene-glow glow-cyan"></div>
-        <div class="scene-glow glow-mint"></div>
-        <div class="scene-content">
-          <div class="close-card scene6-card">
-            <p class="eyebrow eyebrow-light">Boreal • Public Alpha</p>
+        <div class="scene-glow glow-cyan-top"></div>
+        <div class="scene-glow glow-mint-bottom"></div>
+        <div class="scene-content scene-content-center">
+          <div class="close-card scene5-card">
+            <p class="eyebrow eyebrow-light">Boreal / Public alpha</p>
             <h2 class="brand-wordmark">BOREAL</h2>
-            <p class="brand-tagline">Commerce, headed north.</p>
+            <p class="brand-tagline">Commerce should not end at the prompt.</p>
+            <p class="body-copy body-copy-light brand-body">
+              Boreal keeps requests alive until they become supply, work, and fulfillment.
+            </p>
+            <div class="proof-strip scene5-proof">
+              <span class="proof-chip">Post requests</span>
+              <span class="proof-chip">Search supply first</span>
+              <span class="proof-chip">Approve routes</span>
+              <span class="proof-chip">Track delivery</span>
+            </div>
             <p class="brand-meta">boreal.work</p>
-            <p class="brand-meta">Live today.</p>
+            <p class="brand-meta">Live today</p>
           </div>
         </div>
       </section>
@@ -560,50 +1243,53 @@
       const tl = gsap.timeline({ paused: true });
 
       const sceneIn = (scene, start) => {
-        tl.to(scene, { x: 0, opacity: 1, duration: 0.38, ease: "power2.out" }, start);
+        tl.to(scene, { x: 0, opacity: 1, duration: 0.42, ease: "power2.out" }, start);
       };
 
       const sceneOut = (scene, start) => {
-        tl.to(scene, { x: -2200, opacity: 0, duration: 0.3, ease: "power2.in" }, start);
+        tl.to(scene, { x: -2200, opacity: 0, duration: 0.34, ease: "power2.in" }, start);
       };
 
-      tl.from(".scene1-eyebrow", { y: 20, opacity: 0, duration: 0.36, ease: "power2.out" }, 0.6);
-      tl.from(".scene1-line-1", { y: 36, opacity: 0, duration: 0.48, ease: "power2.out" }, 1.0);
-      tl.from(".scene1-line-2", { y: 28, opacity: 0, duration: 0.42, ease: "power2.out" }, 4.2);
-      sceneOut(".scene-1", 7.6);
+      tl.from(".scene1-eyebrow", { y: 18, opacity: 0, duration: 0.38, ease: "power2.out" }, 0.5);
+      tl.from(".scene1-copy", { x: -54, opacity: 0, duration: 0.54, ease: "power3.out" }, 0.8);
+      tl.from(".scene1-board", { x: 62, opacity: 0, duration: 0.58, ease: "power3.out" }, 0.92);
+      tl.from(".scene1-fragment", { y: 26, opacity: 0, stagger: 0.08, duration: 0.4, ease: "power2.out" }, 1.15);
+      tl.from(".scene1-trace", { y: 18, opacity: 0, duration: 0.42, ease: "power2.out" }, 1.45);
+      sceneOut(".scene-1", 9.0);
 
-      sceneIn(".scene-2", 7.7);
-      tl.from(".scene2-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 8.0);
-      tl.from(".scene2-copy", { x: -44, opacity: 0, duration: 0.42, ease: "power2.out" }, 8.12);
-      tl.from(".scene2-preview", { x: 56, opacity: 0, duration: 0.46, ease: "power2.out" }, 8.22);
-      sceneOut(".scene-2", 13.6);
+      sceneIn(".scene-2", 9.1);
+      tl.from(".scene2-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 9.4);
+      tl.from(".scene2-copy", { x: -42, opacity: 0, duration: 0.44, ease: "power2.out" }, 9.52);
+      tl.from(".scene2-preview", { x: 54, opacity: 0, duration: 0.48, ease: "power2.out" }, 9.62);
+      tl.from(".scene2-prompt", { y: 26, opacity: 0, duration: 0.36, ease: "power2.out" }, 9.9);
+      tl.from(".scene2-arrow", { scaleX: 0, opacity: 0, duration: 0.28, ease: "power2.out" }, 10.12);
+      tl.from(".scene2-request", { y: 26, opacity: 0, duration: 0.38, ease: "power2.out" }, 10.22);
+      tl.from(".scene2-signals span", { y: 18, opacity: 0, stagger: 0.06, duration: 0.28, ease: "power2.out" }, 10.45);
+      sceneOut(".scene-2", 21.2);
 
-      sceneIn(".scene-3", 13.7);
-      tl.from(".scene3-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 14.0);
-      tl.from(".scene3-copy", { x: -44, opacity: 0, duration: 0.42, ease: "power2.out" }, 14.12);
-      tl.from(".scene3-preview", { x: 56, opacity: 0, duration: 0.46, ease: "power2.out" }, 14.22);
-      sceneOut(".scene-3", 19.6);
+      sceneIn(".scene-3", 21.3);
+      tl.from(".scene3-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 21.6);
+      tl.from(".scene3-copy", { x: -42, opacity: 0, duration: 0.44, ease: "power2.out" }, 21.72);
+      tl.from(".scene3-preview", { x: 54, opacity: 0, duration: 0.48, ease: "power2.out" }, 21.82);
+      tl.from(".scene3-card", { y: 24, opacity: 0, stagger: 0.08, duration: 0.34, ease: "power2.out" }, 22.08);
+      tl.from(".scene3-rail .rail-row", { y: 18, opacity: 0, stagger: 0.08, duration: 0.3, ease: "power2.out" }, 22.34);
+      tl.from(".scene3-match", { y: 20, opacity: 0, duration: 0.34, ease: "power2.out" }, 22.58);
+      sceneOut(".scene-3", 33.4);
 
-      sceneIn(".scene-4", 19.7);
-      tl.from(".scene4-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 20.0);
-      tl.from(".scene4-copy", { x: -44, opacity: 0, duration: 0.42, ease: "power2.out" }, 20.12);
-      tl.from(".scene4-preview", { x: 56, opacity: 0, duration: 0.46, ease: "power2.out" }, 20.22);
-      sceneOut(".scene-4", 24.6);
+      sceneIn(".scene-4", 33.5);
+      tl.from(".scene4-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 33.8);
+      tl.from(".scene4-shell", { y: 24, opacity: 0, duration: 0.48, ease: "power3.out" }, 33.94);
+      tl.from(".scene4-node", { y: 26, opacity: 0, scale: 0.96, duration: 0.42, ease: "power3.out" }, 34.26);
+      tl.from(".scene4-branch-left, .scene4-branch-right", { scaleX: 0, opacity: 0, duration: 0.36, stagger: 0.08, ease: "power2.out" }, 34.52);
+      tl.from(".scene4-lane-left, .scene4-lane-right", { y: 28, opacity: 0, stagger: 0.1, duration: 0.38, ease: "power2.out" }, 34.78);
+      tl.from(".scene4-evidence", { y: 20, opacity: 0, duration: 0.34, ease: "power2.out" }, 35.12);
+      sceneOut(".scene-4", 47.4);
 
-      sceneIn(".scene-5", 24.7);
-      tl.from(".scene5-eyebrow", { y: 18, opacity: 0, duration: 0.34, ease: "power2.out" }, 25.0);
-      tl.to(".scene5-line-1", { x: 0, duration: 0.38, ease: "power2.out" }, 25.4);
-      tl.to(".scene5-line-1", { x: -2200, duration: 0.3, ease: "power2.in" }, 29.1);
-      tl.to(".scene5-line-2", { x: 0, duration: 0.38, ease: "power2.out" }, 29.4);
-      tl.to(".scene5-line-2", { x: -2200, duration: 0.3, ease: "power2.in" }, 33.1);
-      tl.to(".scene5-line-3", { x: 0, duration: 0.38, ease: "power2.out" }, 33.4);
-      tl.to(".scene5-line-3", { x: -2200, duration: 0.3, ease: "power2.in" }, 38.1);
-      tl.to(".scene5-line-4", { x: 0, duration: 0.42, ease: "power2.out" }, 38.5);
-      sceneOut(".scene-5", 41.6);
-
-      sceneIn(".scene-6", 41.7);
-      tl.from(".scene6-card", { y: 32, opacity: 0, duration: 0.48, ease: "power2.out" }, 42.2);
-      tl.to(".scene-6", { opacity: 0, duration: 0.42, ease: "power2.in" }, 59.1);
+      sceneIn(".scene-5", 47.5);
+      tl.from(".scene5-card", { y: 28, opacity: 0, duration: 0.56, ease: "power3.out" }, 47.9);
+      tl.from(".scene5-card .eyebrow, .brand-wordmark, .brand-tagline, .brand-body, .brand-meta", { y: 18, opacity: 0, stagger: 0.08, duration: 0.32, ease: "power2.out" }, 48.16);
+      tl.from(".scene5-proof span", { y: 16, opacity: 0, stagger: 0.06, duration: 0.28, ease: "power2.out" }, 48.5);
+      tl.to(".scene-5", { opacity: 0, duration: 0.42, ease: "power2.in" }, 59.1);
 
       window.__timelines["boreal-launch-60"] = tl;
     </script>

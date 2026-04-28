@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
 import { getPublicPaperHref, listFeaturedPublicPapers } from "@/lib/boreal/papers-data"
 import { cn } from "@/lib/utils"
 
@@ -74,18 +75,21 @@ export function AboutPage({
   embedded = false,
   onOpenPaper,
   onOpenPapers,
+  onStartChat,
 }: {
   embedded?: boolean
   onOpenPaper?: (slug: string) => void
   onOpenPapers?: () => void
+  onStartChat?: () => void
 }) {
   const featuredPapers = listFeaturedPublicPapers().slice(0, 4)
   const canOpenEmbeddedPapers = embedded && Boolean(onOpenPaper)
+  const canStartEmbeddedChat = embedded && Boolean(onStartChat)
   const content = (
     <div
       className={cn(
         "mx-auto flex w-full max-w-[1480px] flex-col gap-4",
-        embedded ? "p-4 sm:p-5" : "py-4"
+        embedded ? "" : "py-4"
       )}
     >
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)]">
@@ -110,12 +114,24 @@ export function AboutPage({
             </p>
 
             <div className="flex flex-wrap gap-3">
-              <Button asChild className="rounded-full" size="lg">
-                <Link href="/">
+              {canStartEmbeddedChat && onStartChat ? (
+                <Button
+                  className="rounded-full"
+                  onClick={onStartChat}
+                  size="lg"
+                  type="button"
+                >
                   Start in chat
                   <ArrowRight className="size-4" />
-                </Link>
-              </Button>
+                </Button>
+              ) : (
+                <Button asChild className="rounded-full" size="lg">
+                  <Link href="/">
+                    Start in chat
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              )}
               {canOpenEmbeddedPapers && onOpenPaper ? (
                 <Button
                   className="rounded-full"
@@ -265,7 +281,7 @@ export function AboutPage({
   )
 
   if (embedded) {
-    return content
+    return <FocusSheetFrame>{content}</FocusSheetFrame>
   }
 
   return (

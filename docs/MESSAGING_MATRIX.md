@@ -25,7 +25,7 @@ Across every audience:
 
 - start with the problem of disappearing demand
 - explain Boreal through requests, offers, work threads, delivery, and checkout
-- keep the alpha boundary explicit
+- keep the early-access boundary explicit
 - use `chat-native` for the interface layer
 - use `request-native commerce` for the category layer
 - use `intent-to-fulfillment` for the deeper thesis
@@ -155,7 +155,7 @@ Boreal is building request-native commerce: a market and routing layer where one
 - demand is already being expressed in chat, search, and agent flows
 - current products either stop at answers or split work and commerce into different systems
 - Boreal unifies requests, offers, proposals, fulfillment, and checkout
-- the alpha is already a usable market surface
+- the early access release is already a usable market surface
 - the first paid wedge can validate routed execution without reducing the company to only that wedge
 
 ### Good CTA
@@ -180,7 +180,7 @@ Boreal is where people start with one request and get the best available path to
 - work, products, and services in one market
 - starts with plain-language demand
 - keeps outcomes visible
-- public alpha
+- early access
 
 ## Message Ladder
 
@@ -210,7 +210,7 @@ Boreal is where people start with one request and get the best available path to
 - work thread
 - fulfillment
 - checkout
-- public alpha
+- early access
 
 ### Mostly for technical and investor audiences
 

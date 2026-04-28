@@ -15,8 +15,19 @@ import {
 
 import { Button } from "@/components/ui/button"
 import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from "@/components/ai-elements/prompt-input"
+import { BorealAgentCue } from "@/components/chat/boreal-agent-cue"
+import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
@@ -26,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import {
   formatTagInput,
@@ -53,7 +63,7 @@ export function ProfileBuilderWorkspaceCard({
         <div className="space-y-1">
         <p className="text-sm font-medium">Profile editor</p>
         <p className="text-xs text-muted-foreground">
-          Update the public profile first. Add one primary offer when you want
+          Update the work profile first. Add one primary offer when you want
           paid work routed here.
         </p>
         </div>
@@ -71,7 +81,7 @@ export function ProfileBuilderWorkspaceCard({
         <div className="space-y-2 border border-border p-3">
           <div className="flex items-center gap-2">
             <UserRoundPenIcon className="size-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Profile draft</p>
+            <p className="text-sm font-medium">Work profile draft</p>
           </div>
           <p className="text-sm">
             {draft.profile.headline || "Headline not drafted yet."}
@@ -122,7 +132,7 @@ export function ProfileBuilderWorkspaceCard({
       <div className="flex flex-wrap gap-2">
         <Button onClick={onOpen} size="sm" type="button">
           <SparklesIcon />
-          {hasProfile || hasListing ? "Edit profile" : "Set up profile"}
+          Update profile
         </Button>
       </div>
     </div>
@@ -136,7 +146,7 @@ type ProfileBuilderEditorProps = {
   isWalletReady: boolean
   connectWalletLabel: string
   onConnectWallet: () => void
-  onDraftWithBoreal: () => Promise<void>
+  onDraftWithBoreal: (message: string) => Promise<void>
   onSaveProfile: () => Promise<void>
   onSaveProfileAndListing: () => Promise<void>
   setDraft: Dispatch<SetStateAction<ProfileBuilderDraft>>
@@ -176,10 +186,6 @@ export function ProfileBuilderEditor({
     draft.listing.capabilityTags.length > 0 ||
     draft.listing.priceAmount !== null
   const showOfferEditor = draft.listing.enabled || hasOfferDraftContent
-  const [showProfileDetails, setShowProfileDetails] = useState(
-    () =>
-      draft.profile.availabilityStatus !== "available" || !draft.profile.isPublic
-  )
   const [showOfferDetails, setShowOfferDetails] = useState(
     () =>
       draft.listing.category !== "services" ||
@@ -204,10 +210,10 @@ export function ProfileBuilderEditor({
           </p>
           <div className="space-y-1">
             <h2 className="text-lg font-medium tracking-tight">
-              Public profile and primary offer
+              Work profile and primary offer
             </h2>
             <p className="max-w-3xl text-sm/7 text-muted-foreground">
-              Update the public profile fast. Add or refine one offer only if
+              Update the work profile fast. Add or refine one offer only if
               you want Boreal to route paid work here.
             </p>
           </div>
@@ -219,46 +225,49 @@ export function ProfileBuilderEditor({
           <section className="rounded-[1.25rem] border border-border/80 bg-muted/15 p-4 sm:p-5">
             <div className="space-y-3">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Improve with Boreal</p>
+                <p className="text-sm font-medium">Automated profile optimizer</p>
                 <p className="text-xs text-muted-foreground">
-                  Tell Boreal what changed or what you want improved. It will
-                  rewrite the fields below so you can tighten them fast.
+                  Start with a short prompt. Boreal rewrites the profile and
+                  offer fields below so you can tighten them fast.
                 </p>
               </div>
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                <label className="space-y-2">
-                  <span className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                    Prompt
-                  </span>
-                  <Textarea
-                    className="min-h-24 rounded-xl px-3 py-3 text-sm"
-                    onChange={(event) => setSourceMessage(event.target.value)}
-                    placeholder="Improve my profile for startup strategy work. Make it sharper and clearer for founders."
+              <PromptInput
+                className="w-full"
+                onSubmit={async (input) => {
+                  if (!input.text.trim()) {
+                    return
+                  }
+
+                  setSourceMessage(input.text)
+                  await onDraftWithBoreal(input.text)
+                }}
+              >
+                <PromptInputBody>
+                  <PromptInputTextarea
+                    className="min-h-24 text-sm"
+                    onChange={(event) => setSourceMessage(event.currentTarget.value)}
+                    placeholder="Example: tighten my profile for Solana growth work and draft one clear offer for startup founders."
                     value={sourceMessage}
                   />
-                </label>
-                <Button
-                  className="lg:mb-[1px]"
+                </PromptInputBody>
+              <PromptInputFooter className="items-center justify-between gap-2">
+                <BorealAgentCue />
+                <PromptInputSubmit
                   disabled={isDrafting || sourceMessage.trim().length === 0}
-                  onClick={() => void onDraftWithBoreal()}
                   size="sm"
-                  type="button"
+                  status={isDrafting ? "submitted" : undefined}
                 >
-                  {isDrafting ? (
-                    <LoaderIcon className="animate-spin" />
-                  ) : (
-                    <SparklesIcon />
-                  )}
-                  Improve profile
-                </Button>
-              </div>
+                    Improve profile
+                  </PromptInputSubmit>
+                </PromptInputFooter>
+              </PromptInput>
             </div>
           </section>
 
           <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
             <section className="space-y-4 rounded-[1.25rem] border border-border/80 bg-background p-4 sm:p-5">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Public profile</p>
+                <p className="text-sm font-medium">Work profile</p>
                 <p className="text-xs text-muted-foreground">
                   What Boreal shows when someone checks who you are and what
                   you are reliable for.
@@ -344,64 +353,6 @@ export function ProfileBuilderEditor({
                   placeholder="startup strategy, research, landing pages"
                   value={combinedProfileTags}
                 />
-
-                <div className="rounded-xl border border-border/80 bg-muted/10 p-3">
-                  <button
-                    className="flex w-full items-center justify-between gap-3 text-left"
-                    onClick={() => setShowProfileDetails((current) => !current)}
-                    type="button"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">Advanced profile</p>
-                      <p className="text-xs text-muted-foreground">
-                        Availability and visibility. Use this only if the
-                        defaults are wrong.
-                      </p>
-                    </div>
-                    {showProfileDetails ? (
-                      <ChevronUpIcon className="size-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDownIcon className="size-4 text-muted-foreground" />
-                    )}
-                  </button>
-
-                  {showProfileDetails ? (
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <BuilderSelectField
-                        label="Availability"
-                        onValueChange={(value) =>
-                          setDraft((current) => ({
-                            ...current,
-                            profile: {
-                              ...current.profile,
-                              availabilityStatus:
-                                value === "limited" || value === "unavailable"
-                                  ? value
-                                  : "available",
-                            },
-                          }))
-                        }
-                        options={[
-                          { label: "Available", value: "available" },
-                          { label: "Limited", value: "limited" },
-                          { label: "Unavailable", value: "unavailable" },
-                        ]}
-                        value={draft.profile.availabilityStatus}
-                      />
-
-                      <ToggleField
-                        checked={draft.profile.isPublic}
-                        label="Keep this profile public in Boreal discovery"
-                        onCheckedChange={(checked) =>
-                          setDraft((current) => ({
-                            ...current,
-                            profile: { ...current.profile, isPublic: checked },
-                          }))
-                        }
-                      />
-                    </div>
-                  ) : null}
-                </div>
               </div>
             </section>
 
@@ -449,7 +400,7 @@ export function ProfileBuilderEditor({
                       Connect a payout wallet before publishing paid work
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      You can still save the public profile now. Paid offers need
+                      You can still save the work profile now. Paid offers need
                       a wallet so Boreal knows where proceeds should go.
                     </p>
                   </div>
@@ -733,7 +684,7 @@ export function ProfileBuilderEditor({
               ) : (
                 <CheckIcon />
               )}
-              Save profile
+              Update profile
             </Button>
             <Button
               disabled={isSaving || !canSaveProfile || !canPublishListing}
@@ -777,6 +728,12 @@ export function ProfileBuilderDialog({
   return (
     <Dialog onOpenChange={onOpenChange} open={isOpen}>
       <DialogContent className="max-w-5xl p-0 sm:max-w-5xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Update profile</DialogTitle>
+          <DialogDescription>
+            Draft and edit your Boreal work profile and primary offer.
+          </DialogDescription>
+        </DialogHeader>
         <ProfileBuilderEditor
           connectWalletLabel={connectWalletLabel}
           draft={draft}
@@ -851,23 +808,6 @@ function BuilderSelectField({
           ))}
         </SelectContent>
       </Select>
-    </label>
-  )
-}
-
-function ToggleField({
-  checked,
-  label,
-  onCheckedChange,
-}: {
-  checked: boolean
-  label: string
-  onCheckedChange: (checked: boolean) => void
-}) {
-  return (
-    <label className="flex items-center gap-3 rounded-xl border border-border/80 p-3 text-sm text-muted-foreground md:col-span-2">
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
-      <span>{label}</span>
     </label>
   )
 }

@@ -13,7 +13,7 @@ It is an editorial working map, not the final public whitepaper.
 
 Recommended public product sentence:
 
-`Boreal is a public alpha chat-native market for request-native commerce.  Start with one request, then let Boreal find the best fulfillment path.`
+`Boreal is an early access chat-native market for request-native commerce.  Start with one request, then let Boreal find the best fulfillment path.`
 
 Recommended thesis sentence:
 
@@ -22,7 +22,7 @@ Recommended thesis sentence:
 Why this should lead:
 
 - It matches the current homepage and README more closely than the older merchant-only or protocol-only narratives.
-- It is honest about the current alpha.
+- It is honest about the current early access release.
 - It keeps the wedge clear without letting the wedge replace the product.
 - It leaves room for the bigger protocol and settlement story without claiming that Phase 4 and Phase 5 work is already live.
 - It still leaves room for work, products, services, humans, and agents in the longer-term expansion story.
@@ -38,7 +38,7 @@ Why this should lead:
   - Should keep Boreal grounded as a usable market, not only an infrastructure thesis and not only a narrow paid wedge.
 - `../ROADMAP.md`
   - Best claim boundary document.
-  - Already distinguishes alpha truth from longer-range architecture.
+  - Already distinguishes early-access truth from longer-range architecture.
 - `../MATCHING_ENGINE.md`
   - Good technical expansion of the routing thesis.
 - `../COMMERCE_STANDARDS.md`
@@ -54,7 +54,7 @@ Why this should lead:
   - The thesis is strong, but the live-claim layer is too aggressive for the current repo.
   - It currently reads as if listing-level representatives, libp2p presence, A2A/UCP endpoints per listing, and on-chain escrow are operational, while `../ROADMAP.md` still marks most of that as future work.
   - It should be split cleanly into:
-    - what is live in the public alpha
+    - what is live in early access
     - what is partially built or in progress
     - what is target architecture
   - The table of contents says `What Is Live Today`, but the body section is still titled `MVP Build`, which weakens the document's trust boundary.
@@ -95,7 +95,7 @@ Best reusable ideas:
 Recommended action:
 
 - Recycle into `../COMMERCE_STANDARDS.md`, `../SERVICE_PROVIDER.MD`, future partner docs, and API docs.
-- Do not use this as the main homepage narrative. It is too infrastructure-forward for the current alpha.
+- Do not use this as the main homepage narrative. It is too infrastructure-forward for the current early access release.
 
 ### `../boreal`
 
@@ -156,7 +156,7 @@ Use carefully:
   - too narrow as the umbrella term for all of Boreal today
 - `infrastructure`
   - good in technical and investor docs
-  - too abstract as the lead line for the public alpha homepage
+  - too abstract as the lead line for the early access homepage
 
 Avoid in main navigation and primary homepage copy:
 
@@ -167,7 +167,7 @@ Avoid in main navigation and primary homepage copy:
 
 ## Recommended Whitepaper Rewrite Order
 
-1. Rewrite the abstract so it matches the alpha truth boundary.
+1. Rewrite the abstract so it matches the early-access truth boundary.
 2. Rewrite Section 3 (`What Boreal Has Built`) to separate live surfaces from target surfaces.
 3. Rewrite Section 4 (`Architecture`) so Layers 1 to 3 clearly distinguish current foundation from future expansion.
 4. Rewrite Section 9 (`Settlement and Trust`) to describe current evidence and payment records separately from future escrow and on-chain settlement.

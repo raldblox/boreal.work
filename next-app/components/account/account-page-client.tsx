@@ -17,6 +17,7 @@ import {
   getBorealPrimaryChainFamily,
   getDefaultBorealNetworkKey,
 } from "@/lib/boreal/commerce/networks"
+import { buildAccountSettingsHref } from "@/lib/boreal/navigation/shell-links"
 import {
   buildProfileBuilderDraftFromRecord,
   createEmptyProfileBuilderDraft,
@@ -63,6 +64,8 @@ export function AccountPageClient() {
   const [isDraftingProfileBuilder, setIsDraftingProfileBuilder] =
     useState(false)
   const [isSavingProfileBuilder, setIsSavingProfileBuilder] = useState(false)
+  const [isProfileAvailabilityUpdating, setIsProfileAvailabilityUpdating] =
+    useState(false)
   const [isSettingDefaultPayoutWalletId, setIsSettingDefaultPayoutWalletId] =
     useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -107,8 +110,46 @@ export function AccountPageClient() {
     setIsProfileBuilderOpen(true)
   }
 
-  function closeProfileBuilder() {
-    setIsProfileBuilderOpen(false)
+  async function handleDraftProfileBuilder(message: string) {
+    const trimmedMessage = message.trim()
+
+    if (!trimmedMessage || isDraftingProfileBuilder) {
+      return
+    }
+
+    setNotice(null)
+    setProfileBuilderMessage(trimmedMessage)
+    setIsDraftingProfileBuilder(true)
+
+    try {
+      const response = await fetch("/api/profile-builder/draft", {
+        body: JSON.stringify({
+          message: trimmedMessage,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      })
+      const payload = (await response.json()) as {
+        draft?: ProfileBuilderDraft
+        error?: string
+      }
+
+      if (!response.ok || !payload.draft) {
+        throw new Error(payload.error ?? "Could not draft the profile.")
+      }
+
+      setProfileBuilderDraft((current) =>
+        mergeProfileBuilderDraft(current, payload.draft!)
+      )
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Could not draft the profile."
+      )
+    } finally {
+      setIsDraftingProfileBuilder(false)
+    }
   }
 
   async function handleSetDefaultPayoutWallet(walletAccountId: string) {
@@ -138,42 +179,49 @@ export function AccountPageClient() {
     }
   }
 
-  async function handleDraftProfileBuilder() {
-    if (!profileBuilderMessage.trim() || isDraftingProfileBuilder) {
+  async function handleToggleProfileAvailability(checked: boolean) {
+    if (!ownerExternalId) {
+      setNotice("Sign in with X first before updating your profile.")
       return
     }
 
+    setIsProfileAvailabilityUpdating(true)
     setNotice(null)
-    setIsDraftingProfileBuilder(true)
 
     try {
-      const response = await fetch("/api/profile-builder/draft", {
-        body: JSON.stringify({
-          message: profileBuilderMessage,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      })
-      const payload = (await response.json()) as {
-        draft?: ProfileBuilderDraft
-        error?: string
+      const draft = myProfileRecord
+        ? buildProfileBuilderDraftFromRecord(myProfileRecord)
+        : createEmptyProfileBuilderDraft(session?.user?.name ?? "")
+
+      draft.profile.availabilityStatus = checked ? "available" : "unavailable"
+      draft.profile.isPublic = checked
+
+      const result = await upsertMyProfile(
+        profileBuilderToProfileMutationInput(draft, {
+          displayName:
+            (draft.profile.displayName || session?.user?.name) ?? undefined,
+          externalId: ownerExternalId,
+          handle: undefined,
+        })
+      )
+
+      if (!result.saved) {
+        throw new Error("Could not update profile availability.")
       }
 
-      if (!response.ok || !payload.draft) {
-        throw new Error(payload.error ?? "Could not draft the profile.")
-      }
-
-      setProfileBuilderDraft((current) =>
-        mergeProfileBuilderDraft(current, payload.draft!)
+      setNotice(
+        checked
+          ? "Profile is now available for work."
+          : "Profile is now hidden from Boreal work discovery."
       )
     } catch (error) {
       setNotice(
-        error instanceof Error ? error.message : "Could not draft the profile."
+        error instanceof Error
+          ? error.message
+          : "Could not update profile availability."
       )
     } finally {
-      setIsDraftingProfileBuilder(false)
+      setIsProfileAvailabilityUpdating(false)
     }
   }
 
@@ -237,7 +285,7 @@ export function AccountPageClient() {
         if (!supplyResult.created) {
           throw new Error(
             supplyResult.reason === "missing_payout_wallet"
-              ? `Connect a ${runtimePrimaryChainFamily === "solana" ? "Solana" : "compatible"} wallet first so Boreal knows where payouts should go.`
+              ? "Connect a Solana wallet first so Boreal knows where payouts should go."
               : "Could not publish the offer."
           )
         }
@@ -245,8 +293,8 @@ export function AccountPageClient() {
 
       setNotice(
         includeListing
-          ? "Your public profile and primary offer are now live."
-          : "Your public profile has been updated."
+          ? "Your work profile and primary offer are now live."
+          : "Your work profile has been updated."
       )
       setIsProfileBuilderOpen(false)
     } catch (error) {
@@ -273,7 +321,14 @@ export function AccountPageClient() {
         <p className="max-w-xl text-sm text-muted-foreground">
           Boreal ties requests, offers, payouts, and reviews to your X account.
         </p>
-        <Button onClick={() => void signIn("twitter", { callbackUrl: "/account" })} type="button">
+        <Button
+          onClick={() =>
+            void signIn("twitter", {
+              callbackUrl: buildAccountSettingsHref(),
+            })
+          }
+          type="button"
+        >
           <LogInIcon />
           Sign in with X
         </Button>
@@ -294,8 +349,8 @@ export function AccountPageClient() {
             </Button>
             <h1 className="text-xl font-medium">Account settings</h1>
             <p className="text-sm text-muted-foreground">
-              Package one public profile, one primary offer, and the wallets
-              behind paid work.
+              Set up one public work profile, one primary offer, and the
+              Solana wallet behind paid work.
             </p>
           </div>
         </div>
@@ -305,11 +360,7 @@ export function AccountPageClient() {
           builderSlot={
             isProfileBuilderOpen ? (
               <ProfileBuilderEditor
-                connectWalletLabel={
-                  runtimePrimaryChainFamily === "solana"
-                    ? "Connect Solana wallet"
-                    : "Connect EVM wallet"
-                }
+                connectWalletLabel="Connect Solana wallet"
                 draft={profileBuilderDraft}
                 isDrafting={isDraftingProfileBuilder}
                 isSaving={isSavingProfileBuilder}
@@ -326,18 +377,17 @@ export function AccountPageClient() {
           }
           defaultWalletAddress={defaultWalletAddress}
           isEditingPublicSetup={isProfileBuilderOpen}
+          isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
           isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
           isPrivyAuthenticated={privyAuthenticated}
           isWalletReady={isWalletReady}
           myProfileRecord={myProfileRecord}
           notice={notice}
-          onCloseProfileBuilder={closeProfileBuilder}
           onConnectWallet={login}
           onOpenProfileBuilder={openProfileBuilder}
+          onToggleProfileAvailability={handleToggleProfileAvailability}
           onSetDefaultPayoutWallet={handleSetDefaultPayoutWallet}
           runtimeDefaultNetworkKey={runtimeDefaultNetworkKey}
-          runtimeEnvironment={runtimeEnvironment}
-          runtimePrimaryChainFamily={runtimePrimaryChainFamily}
           walletAccounts={walletAccounts}
         />
       </div>

@@ -29,6 +29,7 @@ import {
   SurfacePill,
 } from "@/components/profiles/profile-surface"
 import type { WorkerProfileDetail } from "@/lib/boreal/integrations/convex/function-refs"
+import { buildProfileSheetHref } from "@/lib/boreal/navigation/shell-links"
 import { cn } from "@/lib/utils"
 
 type ProfileViewProps = {
@@ -138,7 +139,7 @@ export function ProfileView({
                   {actions}
                   {showProfileLink ? (
                     <Button asChild size="sm" type="button" variant="outline">
-                      <Link href={`/p/${profile._id}`}>
+                      <Link href={buildProfileSheetHref(profile._id)}>
                         View full profile
                         <ArrowUpRightIcon />
                       </Link>
@@ -486,10 +487,10 @@ function TaxonomyPanel({
 function ActorPill({ kind }: { kind: "agent" | "human" | "tool" }) {
   const label =
     kind === "agent"
-      ? "Agent profile"
+      ? "Agent"
       : kind === "tool"
-        ? "Tool profile"
-        : "Human profile"
+        ? "Tool"
+        : "Human"
 
   return <SurfacePill>{label}</SurfacePill>
 }

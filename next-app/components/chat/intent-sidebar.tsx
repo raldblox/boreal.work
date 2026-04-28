@@ -29,6 +29,7 @@ type IntentSidebarProps = {
   isSessionsActive: boolean
   intents: SidebarIntentPreview[]
   onOpenAccount?: () => void
+  onOpenProfile?: () => void
   onOpenBorealChat: () => void
   onOpenSessions: () => void
   onCollapse?: () => void
@@ -44,6 +45,7 @@ export function IntentSidebar({
   isSessionsActive,
   intents,
   onOpenAccount,
+  onOpenProfile,
   onOpenBorealChat,
   onOpenSessions,
   onCollapse,
@@ -77,6 +79,7 @@ export function IntentSidebar({
   const user = session?.user
   const isAuthenticated = status === "authenticated"
   const connectedAddress = wallets[0]?.address ?? null
+  const profileAction = onOpenProfile ?? onOpenAccount
 
   return (
     <aside className="flex h-full min-h-0 flex-col bg-foreground/5 text-foreground">
@@ -154,7 +157,7 @@ export function IntentSidebar({
           <div className="flex items-center gap-3">
             <button
               className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-left transition-colors hover:border-border hover:bg-background/70"
-              onClick={onOpenAccount}
+              onClick={profileAction}
               type="button"
             >
               <Avatar className="size-10 rounded-lg border border-border bg-background">

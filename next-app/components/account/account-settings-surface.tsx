@@ -11,10 +11,12 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import type {
   MyProfileRecord,
   WalletAccountRecord,
 } from "@/lib/boreal/integrations/convex/function-refs"
+import { buildProfileSheetHref } from "@/lib/boreal/navigation/shell-links"
 import { cn } from "@/lib/utils"
 
 export function AccountSettingsSurface({
@@ -22,91 +24,54 @@ export function AccountSettingsSurface({
   builderSlot,
   defaultWalletAddress,
   isEditingPublicSetup,
+  isProfileAvailabilityUpdating,
   isPayoutWalletUpdating,
   isPrivyAuthenticated,
   isWalletReady,
   myProfileRecord,
   notice,
-  onCloseProfileBuilder,
   onConnectWallet,
   onOpenProfileBuilder,
+  onToggleProfileAvailability,
   onSetDefaultPayoutWallet,
   runtimeDefaultNetworkKey,
-  runtimeEnvironment,
-  runtimePrimaryChainFamily,
   walletAccounts,
 }: {
   accountName: string | null
   builderSlot?: ReactNode
   defaultWalletAddress: string | null
   isEditingPublicSetup: boolean
+  isProfileAvailabilityUpdating: boolean
   isPayoutWalletUpdating: string | null
   isPrivyAuthenticated: boolean
   isWalletReady: boolean
   myProfileRecord: MyProfileRecord
   notice: string | null
-  onCloseProfileBuilder: () => void
   onConnectWallet: () => void
   onOpenProfileBuilder: () => void
+  onToggleProfileAvailability: (checked: boolean) => Promise<void> | void
   onSetDefaultPayoutWallet: (walletAccountId: string) => Promise<void>
   runtimeDefaultNetworkKey: string
-  runtimeEnvironment: "devnet" | "mainnet" | "testnet"
-  runtimePrimaryChainFamily: "evm" | "solana"
   walletAccounts: WalletAccountRecord
 }) {
   const profile = myProfileRecord?.profile ?? null
   const primarySupply = myProfileRecord?.supplies[0] ?? null
   const hasPublicProfile = Boolean(profile?._id && profile.isPublic)
-  const hasProfileSetup = hasPublicProfile || Boolean(primarySupply)
-  const payoutWalletCount = walletAccounts.filter((account) =>
-    account.roles.includes("payout")
-  ).length
-  const connectWalletLabel =
-    runtimePrimaryChainFamily === "solana"
-      ? "Connect Solana wallet"
-      : "Connect EVM wallet"
+  const isAvailableForWork = Boolean(
+    profile?.isPublic && profile.availabilityStatus === "available"
+  )
+  const connectWalletLabel = isWalletReady
+    ? "Connect wallet"
+    : "Connect Solana"
+  const profileName = profile?.displayName ?? accountName ?? "No work profile yet"
+  const profileHeadline =
+    profile?.headline || "Set a headline so Boreal can introduce your work fast."
+  const profileBio =
+    profile?.bio ||
+    "Add a short bio, a few skills, and one clear offer so people know what to hire you for."
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-border bg-muted/15 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-base font-medium">
-              {accountName ?? "Your account"}
-            </p>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Your X account owns your requests, public identity, primary offer,
-              and payout settings.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusChip
-              label={runtimeEnvironment}
-              tone={runtimeEnvironment === "mainnet" ? "default" : "muted"}
-            />
-            <StatusChip
-              label={`${formatChainFamilyLabel(runtimePrimaryChainFamily)} default`}
-              tone="muted"
-            />
-            <Button
-              onClick={
-                isEditingPublicSetup ? onCloseProfileBuilder : onOpenProfileBuilder
-              }
-              size="sm"
-              type="button"
-              variant={isEditingPublicSetup ? "outline" : "default"}
-            >
-              <CircleUserRoundIcon />
-              {isEditingPublicSetup
-                ? "Done"
-                : hasProfileSetup
-                  ? "Edit profile"
-                  : "Set up profile"}
-            </Button>
-          </div>
-        </div>
-      </section>
-
       {notice ? (
         <section className="rounded-2xl border border-border bg-muted/15 px-4 py-3 text-sm text-muted-foreground">
           {notice}
@@ -117,154 +82,87 @@ export function AccountSettingsSurface({
 
       {!isEditingPublicSetup ? (
         <>
-          <section className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div className="rounded-2xl border border-border p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Public profile</p>
-                    <p className="text-sm text-muted-foreground">
-                      This is how Boreal introduces you to buyers and collaborators.
-                    </p>
-                  </div>
-                  {hasPublicProfile ? (
-                    <Button asChild size="sm" type="button" variant="outline">
-                      <Link href={`/p/${profile!._id}`}>
-                        <ExternalLinkIcon />
-                        View profile
-                      </Link>
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="mt-4 rounded-xl border border-border bg-background p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">
-                      {profile?.displayName ?? accountName ?? "No public profile yet"}
-                    </p>
-                    {profile ? (
-                      <StatusChip
-                        label={profile.isPublic ? "public" : "private"}
-                        tone={profile.isPublic ? "success" : "muted"}
-                      />
-                    ) : null}
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {profile?.headline
-                      ? profile.headline
-                      : "Set a headline and short bio so Boreal can explain what you are good at."}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <StatusChip
-                      label={`${profile?.capabilityTags.length ?? 0} capabilities`}
-                      tone="muted"
-                    />
-                    <StatusChip
-                      label={`${profile?.skillTags.length ?? 0} skills`}
-                      tone="muted"
-                    />
-                    <StatusChip
-                      label={`${myProfileRecord?.supplies.length ?? 0} offers`}
-                      tone="muted"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border p-5">
+          <section className="rounded-2xl border border-border p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <p className="text-base font-medium">Work profile overview</p>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Primary offer</p>
+                  <p className="text-lg font-medium">{profileName}</p>
                   <p className="text-sm text-muted-foreground">
-                    Package one clear ability first, then add more later.
+                    {profileHeadline}
                   </p>
-                </div>
-                <div className="mt-4 rounded-xl border border-border bg-background p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">
-                      {primarySupply?.title ?? "No public offer yet"}
-                    </p>
-                    <StatusChip
-                      label={primarySupply ? "published" : "not published"}
-                      tone={primarySupply ? "success" : "muted"}
-                    />
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {primarySupply?.description
-                      ? truncateCopy(primarySupply.description, 170)
-                      : "Start with one offer buyers can understand in one glance: what it is, who it is for, and what outcome they get."}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {primarySupply?.category ? (
-                      <StatusChip label={primarySupply.category} tone="muted" />
-                    ) : null}
-                    {primarySupply?.supplyType ? (
-                      <StatusChip
-                        label={primarySupply.supplyType.replaceAll("_", " ")}
-                        tone="muted"
-                      />
-                    ) : null}
-                    {primarySupply ? (
-                      <StatusChip
-                        label={formatPricingLabel(
-                          primarySupply.priceAmount,
-                          primarySupply.priceType
-                        )}
-                        tone="muted"
-                      />
-                    ) : null}
-                  </div>
                 </div>
               </div>
+              <AvailabilityToggle
+                checked={isAvailableForWork}
+                disabled={isProfileAvailabilityUpdating}
+                onCheckedChange={(checked) => void onToggleProfileAvailability(checked)}
+              />
+            </div>
+
+            <p className="mt-4 text-sm text-muted-foreground">{profileBio}</p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <StatusChip
+                label={`${profile?.capabilityTags.length ?? 0} capabilities`}
+                tone="muted"
+              />
+              <StatusChip
+                label={`${profile?.skillTags.length ?? 0} skills`}
+                tone="muted"
+              />
+              <StatusChip
+                label={`${myProfileRecord?.supplies.length ?? 0} offers`}
+                tone="muted"
+              />
+              {primarySupply?.title ? (
+                <StatusChip label={primarySupply.title} tone="muted" />
+              ) : null}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                onClick={onOpenProfileBuilder}
+                size="sm"
+                type="button"
+                variant="default"
+              >
+                <CircleUserRoundIcon />
+                Update profile
+              </Button>
+              {hasPublicProfile ? (
+                <Button asChild size="sm" type="button" variant="outline">
+                  <Link href={buildProfileSheetHref(profile!._id!)}>
+                    <ExternalLinkIcon />
+                    View profile
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           </section>
 
           <section className="rounded-2xl border border-border p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Wallets and payouts</p>
-                <p className="text-sm text-muted-foreground">
-                  Paid checkout and paid work approvals use these wallets. Your
-                  payout default is where Boreal expects seller or worker proceeds
-                  to land.
-                </p>
+                <p className="text-base font-medium">Wallets</p>
               </div>
-              {!isPrivyAuthenticated || !isWalletReady ? (
-                <Button
-                  onClick={onConnectWallet}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <WalletIcon />
-                  {connectWalletLabel}
-                </Button>
-              ) : null}
+              <Button
+                onClick={onConnectWallet}
+                size="sm"
+                type="button"
+                variant={!isPrivyAuthenticated || !isWalletReady ? "default" : "outline"}
+              >
+                <WalletIcon />
+                {connectWalletLabel}
+              </Button>
             </div>
 
             {walletAccounts.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                No wallet is synced yet. Connect a{" "}
-                {runtimePrimaryChainFamily === "solana" ? "Solana" : "compatible"}{" "}
-                wallet so Boreal can route paid work and payouts safely.
+                No Solana wallet is synced yet.
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <StatusChip
-                    label={`${walletAccounts.length} synced`}
-                    tone="muted"
-                  />
-                  <StatusChip
-                    label={`${payoutWalletCount} payout-ready`}
-                    tone="muted"
-                  />
-                  {defaultWalletAddress ? (
-                    <StatusChip
-                      label={`active ${formatAddress(defaultWalletAddress)}`}
-                      tone="success"
-                    />
-                  ) : null}
-                </div>
-
                 {walletAccounts.map((account) => {
                   const isActiveWallet =
                     defaultWalletAddress?.toLowerCase() ===
@@ -279,43 +177,17 @@ export function AccountSettingsSurface({
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-medium">
-                              {formatAddress(account.walletAddress)}
-                            </p>
-                            {isActiveWallet ? (
-                              <StatusChip label="active wallet" tone="success" />
-                            ) : null}
-                            {account.isDefaultBuyer ? (
-                              <StatusChip label="buyer default" tone="muted" />
-                            ) : null}
-                            {account.isDefaultPayout ? (
-                              <StatusChip label="payout default" tone="success" />
-                            ) : null}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <StatusChip
-                              label={formatNetworkKeyLabel(account.networkKey)}
-                              tone={networkMatchesRuntime ? "success" : "warning"}
-                            />
-                            <StatusChip
-                              label={formatChainFamilyLabel(account.chainFamily)}
-                              tone="muted"
-                            />
-                            <StatusChip
-                              label={account.environment}
-                              tone={
-                                account.environment === runtimeEnvironment
-                                  ? "success"
-                                  : "warning"
-                              }
-                            />
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                            {account.roles.map((role) => (
-                              <span key={`${account._id}-${role}`}>{role}</span>
-                            ))}
-                          </div>
+                          <p className="text-sm font-medium">Wallet address</p>
+                          <p className="break-all font-mono text-xs text-muted-foreground">
+                            {account.walletAddress}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {account.isDefaultPayout
+                              ? "Default payout wallet."
+                              : isActiveWallet
+                                ? "Connected and ready."
+                                : "Synced to this account."}
+                          </p>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
@@ -340,12 +212,12 @@ export function AccountSettingsSurface({
                                 ) : (
                                   <WalletIcon />
                                 )}
-                                Set as payout wallet
+                                Use for payouts
                               </Button>
                             )
                           ) : (
                             <Button disabled size="sm" type="button" variant="outline">
-                              Payout role missing
+                              Not payout-ready
                             </Button>
                           )}
                         </div>
@@ -353,10 +225,9 @@ export function AccountSettingsSurface({
 
                       {!networkMatchesRuntime ? (
                         <p className="mt-3 text-xs text-muted-foreground">
-                          This wallet is synced, but it does not match the active
-                          network defaults for this deployment. Boreal will block
-                          paid checkout or paid work approval if buyer and payout
-                          wallets do not line up on the same supported network.
+                          This wallet is synced, but it does not match Boreal's
+                          active Solana network:{" "}
+                          {formatNetworkKeyLabel(runtimeDefaultNetworkKey)}.
                         </p>
                       ) : null}
                     </div>
@@ -365,51 +236,36 @@ export function AccountSettingsSurface({
               </div>
             )}
           </section>
-
-          <section className="rounded-2xl border border-border/80 bg-muted/15 p-5">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Network defaults</p>
-              <p className="text-sm text-muted-foreground">
-                This deployment is currently routing payments and payouts through{" "}
-                {formatNetworkKeyLabel(runtimeDefaultNetworkKey)}.
-              </p>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <RuntimeStatCard label="Environment" value={runtimeEnvironment} />
-              <RuntimeStatCard
-                label="Primary chain"
-                value={formatChainFamilyLabel(runtimePrimaryChainFamily)}
-              />
-              <RuntimeStatCard
-                label="Default route"
-                value={formatNetworkKeyLabel(runtimeDefaultNetworkKey)}
-              />
-            </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Mainnet is a deployment setting, not a per-user toggle. Local and dev
-              environments default to Solana devnet unless deployment flags change
-              it.
-            </p>
-          </section>
         </>
       ) : null}
     </div>
   )
 }
 
-function RuntimeStatCard({
-  label,
-  value,
+function AvailabilityToggle({
+  checked,
+  disabled,
+  onCheckedChange,
 }: {
-  label: string
-  value: string
+  checked: boolean
+  disabled: boolean
+  onCheckedChange: (checked: boolean) => void
 }) {
   return (
-    <div className="rounded-xl border border-border bg-background/55 p-4">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-sm font-medium">{value}</p>
+    <div className="inline-flex items-center gap-3 rounded-full border border-border bg-background px-3 py-2">
+      <span
+        className={cn(
+          "text-xs font-medium",
+          checked ? "text-foreground" : "text-muted-foreground"
+        )}
+      >
+        Available for work
+      </span>
+      {disabled ? (
+        <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
+      ) : (
+        <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      )}
     </div>
   )
 }
@@ -437,14 +293,6 @@ function StatusChip({
   )
 }
 
-export function formatAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`
-}
-
-export function formatChainFamilyLabel(chainFamily: "evm" | "solana") {
-  return chainFamily === "evm" ? "EVM" : "Solana"
-}
-
 export function formatNetworkKeyLabel(networkKey: string) {
   return networkKey
     .split(":")
@@ -468,30 +316,4 @@ export function formatNetworkKeyLabel(networkKey: string) {
       return part.charAt(0).toUpperCase() + part.slice(1)
     })
     .join(" ")
-}
-
-function formatPricingLabel(priceAmount: number | null, priceType: string) {
-  if (typeof priceAmount === "number" && Number.isFinite(priceAmount)) {
-    return `$${priceAmount}${priceType === "hourly" ? "/hr" : ""}`
-  }
-
-  if (priceType === "fixed") {
-    return "fixed price"
-  }
-
-  if (priceType === "hourly") {
-    return "hourly"
-  }
-
-  return "scoped quote"
-}
-
-function truncateCopy(value: string, maxLength: number) {
-  const trimmed = value.trim()
-
-  if (trimmed.length <= maxLength) {
-    return trimmed
-  }
-
-  return `${trimmed.slice(0, maxLength).trimEnd()}...`
 }

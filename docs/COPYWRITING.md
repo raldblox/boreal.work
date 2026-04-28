@@ -1,6 +1,6 @@
 # Homepage And Public Copy Direction
 
-This draft is for the public Boreal alpha, not only the first paid wedge.
+This draft is for Boreal's public early access release, not only the first paid wedge.
 
 ## Core direction
 
@@ -40,7 +40,7 @@ This is the preferred founder / brand writing style for essays, posts, launch no
 
 ### Eyebrow badge
 
-`Public alpha`
+`Early access`
 
 ### Eyebrow support
 
@@ -239,7 +239,7 @@ This is the preferred founder / brand writing style for essays, posts, launch no
 
 ### Badge
 
-`Public alpha — open to early testers`
+`Early access — open to early testers`
 
 ### Headline
 

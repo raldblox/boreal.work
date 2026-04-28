@@ -21,6 +21,7 @@ import {
   SurfacePill,
 } from "@/components/profiles/profile-surface"
 import type { BorealAgentStats } from "@/lib/boreal/integrations/convex/function-refs"
+import { buildProfileSheetHref } from "@/lib/boreal/navigation/shell-links"
 
 const capabilities = [
   "Intent extraction",
@@ -123,7 +124,7 @@ export function BorealProfileView({
                   type="button"
                   variant="outline"
                 >
-                  <Link href="/p/boreal-agent">
+                  <Link href={buildProfileSheetHref("boreal-agent")}>
                     View full profile
                     <ArrowUpRightIcon />
                   </Link>

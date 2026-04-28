@@ -1,5 +1,17 @@
+import type { ToolUIPart } from "ai";
+
 import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
 import type { ProfileBuilderDraft } from "@/lib/boreal/schemas/profile-builder";
+
+export type ChatAssistantDebugEvent = {
+  errorText?: string | null;
+  id: string;
+  input?: unknown;
+  output?: unknown;
+  state: ToolUIPart["state"];
+  title: string;
+  type: ToolUIPart["type"];
+};
 
 export type ChatUiContext = {
   browseTab?: "requests" | "workers" | null;

@@ -62,7 +62,7 @@ Swarm Workspace matters because it gives those requests a place where coordinati
 
 ## 5. What is already live
 
-The current Boreal alpha already has the right base object:
+The current Boreal early access product already has the right base object:
 
 - request workboards
 - attached chat

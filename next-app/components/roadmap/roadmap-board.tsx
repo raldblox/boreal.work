@@ -12,7 +12,8 @@ import {
   PauseIcon,
 } from "lucide-react"
 
-import { WorkboardCard, type WorkboardCardTone, type WorkboardTagTone } from "@/components/workboard/workboard-card"
+import type { WorkboardTagTone } from "@/components/workboard/workboard-card"
+import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -72,7 +73,7 @@ const laneSurfaceStyles: Record<
   BoardStatus,
   {
     badge: string
-    cardTone: WorkboardCardTone
+    card: string
     icon: string
     lane: string
     laneHeader: string
@@ -82,7 +83,8 @@ const laneSurfaceStyles: Record<
   in_progress: {
     badge:
       "border-sky-500/20 bg-sky-500/[0.12] text-sky-700 dark:text-sky-200",
-    cardTone: "in_progress",
+    card:
+      "border-sky-500/16 bg-sky-500/[0.045] hover:bg-sky-500/[0.075] dark:border-sky-400/16 dark:bg-sky-400/[0.08] dark:hover:bg-sky-400/[0.11]",
     icon: "text-sky-500 dark:text-sky-300",
     lane: "border-sky-500/15 bg-sky-500/[0.035] dark:border-sky-400/18 dark:bg-sky-400/[0.06]",
     laneHeader:
@@ -92,7 +94,8 @@ const laneSurfaceStyles: Record<
   later: {
     badge:
       "border-amber-500/20 bg-amber-500/[0.12] text-amber-700 dark:text-amber-200",
-    cardTone: "later",
+    card:
+      "border-amber-500/16 bg-amber-500/[0.04] hover:bg-amber-500/[0.07] dark:border-amber-300/16 dark:bg-amber-300/[0.08] dark:hover:bg-amber-300/[0.11]",
     icon: "text-amber-500 dark:text-amber-300",
     lane: "border-amber-500/15 bg-amber-500/[0.035] dark:border-amber-300/18 dark:bg-amber-300/[0.06]",
     laneHeader:
@@ -102,7 +105,8 @@ const laneSurfaceStyles: Record<
   live: {
     badge:
       "border-emerald-500/20 bg-emerald-500/[0.12] text-emerald-700 dark:text-emerald-200",
-    cardTone: "live",
+    card:
+      "border-emerald-500/16 bg-emerald-500/[0.045] hover:bg-emerald-500/[0.075] dark:border-emerald-400/16 dark:bg-emerald-400/[0.08] dark:hover:bg-emerald-400/[0.11]",
     icon: "text-emerald-500 dark:text-emerald-300",
     lane: "border-emerald-500/15 bg-emerald-500/[0.035] dark:border-emerald-400/18 dark:bg-emerald-400/[0.06]",
     laneHeader:
@@ -112,7 +116,8 @@ const laneSurfaceStyles: Record<
   next: {
     badge:
       "border-border bg-background/80 text-foreground dark:bg-background/20",
-    cardTone: "neutral",
+    card:
+      "border-border/80 bg-background/72 hover:bg-background/88 dark:bg-card/65 dark:hover:bg-card/82",
     icon: "text-foreground/80 dark:text-foreground/70",
     lane: "border-border/80 bg-background/65 dark:bg-card/35",
     laneHeader: "border-border/70 bg-muted/45 dark:bg-background/35",
@@ -161,48 +166,24 @@ export function RoadmapBoard({
               <div className="flex items-center gap-2">
                 <LaneIcon className={laneStyles.icon} status={lane.key} />
                 <p className="text-base font-medium tracking-tight">{lane.label}</p>
-                <span className="text-sm text-muted-foreground">{laneTickets.length}</span>
+                <span className="text-sm text-muted-foreground">
+                  {laneTickets.length}
+                </span>
               </div>
               <p className="mt-2 max-w-sm text-sm/6 text-muted-foreground">
                 {lane.description}
               </p>
             </header>
 
-            <div className="flex flex-1 flex-col gap-4 pt-4">
+            <div className="flex flex-1 flex-col gap-3.5 pt-4">
               {laneTickets.map((ticket) => (
-                <WorkboardCard
-                  className="min-w-0"
-                  description={ticket.summary}
-                  eyebrow={ticket.id}
-                  footer={<RoadmapStatusPill status={ticket.status} />}
+                <RoadmapTicketCard
+                  className={laneStyles.card}
                   key={ticket.id}
-                  leadingIcon={
-                    <LaneIcon className={laneStyles.icon} status={ticket.status} />
-                  }
                   onClick={() => setSelectedTicketId(ticket.id)}
-                  stats={[
-                    {
-                      icon: <FileTextIcon className="size-3" />,
-                      label: "report",
-                    },
-                    {
-                      icon: <Link2Icon className="size-3" />,
-                      label: `${ticket.routes.length} routes`,
-                    },
-                  ]}
-                  tags={[
-                    {
-                      label: titleCase(ticket.area),
-                      tone: laneStyles.tagTone,
-                    },
-                    {
-                      icon: <CalendarDaysIcon className="size-3" />,
-                      label: formatCardDate(ticket.updatedAt),
-                      tone: "neutral",
-                    },
-                  ]}
-                  title={ticket.title}
-                  tone={laneStyles.cardTone}
+                  statusBadge={<RoadmapStatusPill status={ticket.status} />}
+                  tagTone={laneStyles.tagTone}
+                  ticket={ticket}
                 />
               ))}
             </div>
@@ -215,9 +196,25 @@ export function RoadmapBoard({
   return (
     <>
       {embedded ? (
-        <div className="h-full min-h-0 w-full overflow-x-auto p-4">
-          {boardLanes}
-        </div>
+        <FocusSheetFrame className="min-h-full">
+          <section className="rounded-[1.35rem] border border-border/80 bg-card/92 px-4 py-4 shadow-[0_18px_42px_-34px_rgba(15,23,42,0.22)] sm:px-5">
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                Public roadmap
+              </p>
+              <h1 className="font-heading text-2xl font-semibold tracking-tight">
+                What is live, what is hardening, and what stays next.
+              </h1>
+              <p className="max-w-3xl text-sm/7 text-muted-foreground">
+                This board stays aligned to shipped Boreal truth. Open a card
+                when you need the exact scope behind a public claim.
+              </p>
+            </div>
+          </section>
+          <div className="w-full overflow-x-auto">
+            {boardLanes}
+          </div>
+        </FocusSheetFrame>
       ) : (
         <main id="main-content" className="min-h-screen bg-background text-foreground">
           <section className="border-b border-border/70 px-4 py-4 sm:px-6 lg:px-10 xl:px-12">
@@ -226,7 +223,7 @@ export function RoadmapBoard({
                 <p className="text-lg font-medium tracking-tight">Roadmap</p>
                 <p className="text-sm text-muted-foreground">
                   {boardSync
-                    ? `Synced ${formatLongDate(boardSync)} · public truth for what is live, what is hardening, and what stays ahead.`
+                    ? `Synced ${formatLongDate(boardSync)} / public truth for what is live, what is hardening, and what stays ahead.`
                     : "Repo-grounded public board"}
                 </p>
               </div>
@@ -260,6 +257,96 @@ export function RoadmapBoard({
         ticket={selectedTicket}
       />
     </>
+  )
+}
+
+function RoadmapTicketCard({
+  className,
+  onClick,
+  statusBadge,
+  tagTone,
+  ticket,
+}: {
+  className?: string
+  onClick: () => void
+  statusBadge: ReactNode
+  tagTone: WorkboardTagTone
+  ticket: BoardTicket
+}) {
+  return (
+    <button
+      className={cn(
+        "flex w-full flex-col overflow-hidden rounded-[1.05rem] border text-left shadow-[0_16px_36px_-30px_rgba(15,23,42,0.34)] transition-colors",
+        className
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      <div className="space-y-3 px-4 py-4">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <span>{ticket.id}</span>
+          <span>/</span>
+          <span>{titleCase(ticket.area)}</span>
+        </div>
+        <h3 className="text-[1.05rem] font-medium leading-6 tracking-tight text-foreground">
+          {ticket.title}
+        </h3>
+        <p className="text-sm/6 text-muted-foreground">{ticket.summary}</p>
+        <div className="flex flex-wrap gap-2">
+          <RoadmapTag label={titleCase(ticket.area)} tone={tagTone} />
+          <RoadmapTag
+            icon={<CalendarDaysIcon className="size-3" />}
+            label={formatCardDate(ticket.updatedAt)}
+            tone="neutral"
+          />
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="inline-flex items-center gap-1.5">
+            <FileTextIcon className="size-3" />
+            report
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Link2Icon className="size-3" />
+            {ticket.routes.length} routes
+          </span>
+        </div>
+        {statusBadge}
+      </div>
+    </button>
+  )
+}
+
+function RoadmapTag({
+  icon,
+  label,
+  tone = "neutral",
+}: {
+  icon?: ReactNode
+  label: string
+  tone?: WorkboardTagTone
+}) {
+  const tagStyles: Record<WorkboardTagTone, string> = {
+    amber:
+      "border-amber-500/20 bg-amber-500/[0.12] text-amber-800 dark:text-amber-200",
+    emerald:
+      "border-emerald-500/20 bg-emerald-500/[0.12] text-emerald-800 dark:text-emerald-200",
+    neutral:
+      "border-border bg-background/70 text-muted-foreground dark:bg-background/20",
+    sky: "border-sky-500/20 bg-sky-500/[0.12] text-sky-800 dark:text-sky-200",
+    violet:
+      "border-violet-500/20 bg-violet-500/[0.12] text-violet-800 dark:text-violet-200",
+  }
+
+  return (
+    <Badge
+      className={cn("h-6 rounded-md px-2.5 text-[11px]", tagStyles[tone])}
+      variant="outline"
+    >
+      {icon}
+      {label}
+    </Badge>
   )
 }
 
@@ -464,3 +551,4 @@ function titleCase(value: string) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
 }
+

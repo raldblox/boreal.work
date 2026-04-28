@@ -1,4 +1,6 @@
-import { ProfilePageClient } from "@/components/profiles/profile-page-client";
+import { redirect } from "next/navigation";
+
+import { buildProfileSheetHref } from "@/lib/boreal/navigation/shell-links";
 
 export default async function PublicProfilePage({
   params,
@@ -7,5 +9,5 @@ export default async function PublicProfilePage({
 }) {
   const { id } = await params;
 
-  return <ProfilePageClient profileId={id} />;
+  redirect(buildProfileSheetHref(id));
 }

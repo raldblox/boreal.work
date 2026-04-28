@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import { ArrowLeft, ArrowRight, LoaderIcon } from "lucide-react"
 
 import { EditorialMarkdown } from "@/components/editorial/editorial-markdown"
 import { Button } from "@/components/ui/button"
+import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
 import {
   extractEditorialDocument,
   getEditorialLeadValue,
@@ -138,9 +139,10 @@ export function PapersFocusBrowser({
     : activePaper?.deck ?? null
 
   return (
-    <div className="mx-auto w-full max-w-[1540px] px-4 py-4 sm:px-5">
+    <FocusSheetFrame>
       <div className="grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-10">
-        <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+        <aside className="lg:sticky lg:top-4 lg:self-start">
+          <div className="space-y-4 lg:max-h-[calc(100svh-11rem)] lg:overflow-y-auto lg:pr-2">
             <div className="rounded-[1.4rem] border border-border/80 bg-muted/20 p-4">
               <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                 Series map
@@ -181,13 +183,13 @@ export function PapersFocusBrowser({
                   >
                     <div className="min-w-0 space-y-1">
                       <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                        {String(index + 1).padStart(2, "0")} ·{" "}
+                        {String(index + 1).padStart(2, "0")} /{" "}
                         {kindLabels[paper.kind]}
                       </p>
                       <p className="text-sm font-medium text-foreground">
                         {paper.title}
                       </p>
-                      <p className="line-clamp-2 text-xs/6 text-muted-foreground">
+                      <p className="line-clamp-1 text-xs/5 text-muted-foreground">
                         {paper.summary}
                       </p>
                     </div>
@@ -197,16 +199,10 @@ export function PapersFocusBrowser({
               </div>
             </div>
 
-            <div className="rounded-[1.4rem] border border-border/80 bg-background p-4">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                Use this layer
-              </p>
-              <div className="mt-4 space-y-3 text-sm/7 text-muted-foreground">
-                <p>Read the flagship first if you want the broad claim.</p>
-                <p>Open the operator notes if you care about delivery, people, and collaboration.</p>
-                <p>Open the builder notes if you care about outside agents, trust, and open runtime supply.</p>
-              </div>
-            </div>
+            <p className="rounded-[1.2rem] border border-border/70 bg-background px-3 py-3 text-xs/6 text-muted-foreground">
+              Start with the flagship. Then move into the operator or builder notes based on why you are here.
+            </p>
+          </div>
         </aside>
 
         <div className="min-w-0">
@@ -215,6 +211,7 @@ export function PapersFocusBrowser({
               isLoading={loadingSlug === activePaper.slug && !activePayload}
               loadError={visibleLoadError}
               onOpenOverview={onOpenOverview}
+              onPaperLinkSelect={onSelectPaper}
               onSelectPaper={onSelectPaper}
               paper={activePaper}
               payload={activePayload}
@@ -233,7 +230,7 @@ export function PapersFocusBrowser({
           )}
         </div>
       </div>
-    </div>
+    </FocusSheetFrame>
   )
 }
 
@@ -344,6 +341,7 @@ function PaperFocusArticleView({
   isLoading,
   loadError,
   onOpenOverview,
+  onPaperLinkSelect,
   onSelectPaper,
   paper,
   payload,
@@ -353,6 +351,7 @@ function PaperFocusArticleView({
   isLoading: boolean
   loadError: string | null
   onOpenOverview: () => void
+  onPaperLinkSelect: (slug: string) => void
   onSelectPaper: (slug: string) => void
   paper: PublicPaperRecord
   payload: PublicPaperPayload | null
@@ -360,6 +359,31 @@ function PaperFocusArticleView({
   subtitle: string | null
 }) {
   const document = payload ? extractEditorialDocument(payload.body) : null
+
+  function handleDocumentClick(event: MouseEvent<HTMLElement>) {
+    const target =
+      event.target instanceof HTMLElement ? event.target : null
+    const anchor = target?.closest("a")
+
+    if (!anchor) {
+      return
+    }
+
+    const next = parseEmbeddedPaperHref(anchor.getAttribute("href"))
+
+    if (!next) {
+      return
+    }
+
+    event.preventDefault()
+
+    if (next === "overview") {
+      onOpenOverview()
+      return
+    }
+
+    onPaperLinkSelect(next)
+  }
 
   return (
     <div className="space-y-8 pb-8">
@@ -409,7 +433,10 @@ function PaperFocusArticleView({
       ) : null}
 
       {document ? (
-        <article className="rounded-[1.8rem] border border-border/80 bg-background px-5 py-6 sm:px-7 sm:py-7">
+        <article
+          className="rounded-[1.8rem] border border-border/80 bg-background px-5 py-6 sm:px-7 sm:py-7"
+          onClickCapture={handleDocumentClick}
+        >
           <EditorialMarkdown>{document.body}</EditorialMarkdown>
         </article>
       ) : null}
@@ -538,7 +565,7 @@ function PaperCollectionSection({
           >
             <div className="min-w-0 space-y-2">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                {kindLabels[paper.kind]} · {paper.readingTime}
+                {kindLabels[paper.kind]} / {paper.readingTime}
               </p>
               <h3 className="font-editorial text-2xl leading-[1.04] font-semibold tracking-[-0.025em] text-foreground">
                 {paper.title}
@@ -561,3 +588,27 @@ function MetaChip({ children }: { children: string }) {
     </span>
   )
 }
+
+function parseEmbeddedPaperHref(href: string | null) {
+  if (!href) {
+    return null
+  }
+
+  const candidate = href.trim()
+
+  if (!candidate.startsWith("/")) {
+    return null
+  }
+
+  if (candidate === "/papers") {
+    return "overview" as const
+  }
+
+  if (!candidate.startsWith("/papers/")) {
+    return null
+  }
+
+  const slug = candidate.slice("/papers/".length).split(/[?#]/, 1)[0]
+  return slug || null
+}
+

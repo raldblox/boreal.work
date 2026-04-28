@@ -10,7 +10,7 @@
 
 Boreal helps people complete work from one request, without choosing tools first. A buyer, operator, or agent starts in chat, describes the outcome, and Boreal routes that demand toward the best executable path: an existing product, a callable provider, a known agent workflow, or the right human team when the work is custom.
 
-The current Boreal alpha is the chat-native interface for this system. It already turns plain-language asks into structured requests, searches public offers, opens proposal flows when the work is custom, tracks delivery and evidence, supports digital listings, and routes supported provider-backed services through payment-aware checkout records.
+The current Boreal early access product is the chat-native interface for this system. It already turns plain-language asks into structured requests, searches public offers, opens proposal flows when the work is custom, tracks delivery and evidence, supports digital listings, and routes supported provider-backed services through payment-aware checkout records.
 
 The long-term thesis is still request-native commerce and intent-to-fulfillment infrastructure. The practical product wedge is simpler: one request in, best fulfillment path out. Boreal exists so demand does not disappear into chat logs, and so commerce does not stop at the prompt.
 
@@ -98,7 +98,7 @@ Boreal is the only platform being built with collective fulfillment as a first-c
 
 ## 3. What Boreal Has Built
 
-Boreal is not a whitepaper company. The following product surface is live in the current alpha, and the sections below distinguish clearly between shipped product, foundation already in the repo, and target architecture.
+Boreal is not a whitepaper company. The following product surface is live in the current early access release, and the sections below distinguish clearly between shipped product, foundation already in the repo, and target architecture.
 
 ### 3.0 Product definition in plain language
 
@@ -117,7 +117,7 @@ This is narrower than the full whitepaper thesis and better for product messagin
 
 ### 3.1 Chat-native request workspace
 
-Boreal's primary interface is chat, but chat is not the durable object. The durable object is the request. In the current alpha, Boreal can:
+Boreal's primary interface is chat, but chat is not the durable object. The durable object is the request. In the current early access release, Boreal can:
 
 - turn a plain-language ask into a structured request workspace
 - persist the request through its lifecycle instead of leaving it in chat history
@@ -129,7 +129,7 @@ This is the core interaction model Boreal should be known for: start in chat, op
 
 ### 3.2 Public market for requests and supply
 
-The current alpha already exposes both sides of the market:
+The current early access release already exposes both sides of the market:
 
 - public requests for unresolved or custom demand
 - public supply for people, agents, products, and services
@@ -140,7 +140,7 @@ This matters because Boreal is not only a chat surface and not only a catalog. I
 
 ### 3.3 Proposal and fulfillment workflow
 
-When existing supply is not enough, Boreal opens custom work instead of dropping the user into email or DMs. The current alpha already supports:
+When existing supply is not enough, Boreal opens custom work instead of dropping the user into email or DMs. The current early access release already supports:
 
 - proposal drafting and submission
 - owner review, approval, and rejection flows
@@ -189,7 +189,7 @@ This is the right place to use `intent-to-fulfillment` as a thesis. It describes
 
 ### 3.7 What is foundation versus target architecture
 
-Some Boreal concepts belong to the future architecture, not to current alpha claims. These include:
+Some Boreal concepts belong to the future architecture, not to current early-access claims. These include:
 
 - listing-level representative agents as a universal default
 - libp2p buyer presence
@@ -198,7 +198,7 @@ Some Boreal concepts belong to the future architecture, not to current alpha cla
 - full trust-score routing
 - collective fulfillment as a production primitive across the market
 
-They remain important because they show where the request-native alpha can grow. They should not be described as universally live today.
+They remain important because they show where the request-native early access product can grow. They should not be described as universally live today.
 
 ### 3.8 Plain-language product labels
 
@@ -222,7 +222,7 @@ Internally, Boreal can still use `intent`, `supply`, `fulfillment`, and other sy
 
 Turn available supply into something Boreal can search, compare, route, and eventually transact against.
 
-In the current alpha, this layer includes the unified supply model, public supply profiles, digital listings, provider-backed capabilities, and the normalization work that makes all of them reachable from the same request surface.
+In the current early access release, this layer includes the unified supply model, public supply profiles, digital listings, provider-backed capabilities, and the normalization work that makes all of them reachable from the same request surface.
 
 In later phases, this layer expands into richer listing behavior, representative agents, protocol exposures, and deeper machine-readable commerce capabilities.
 
@@ -240,7 +240,7 @@ This is Boreal's live center of gravity today: request creation, workspace persi
 
 The system becomes smarter, more interoperable, and more autonomous as outcomes accumulate.
 
-This is where Boreal grows beyond the alpha: stronger ranking, supplier reputation, protocol-native execution, broader external supply aggregation, trust, settlement, and eventually collective fulfillment.
+This is where Boreal grows beyond early access: stronger ranking, supplier reputation, protocol-native execution, broader external supply aggregation, trust, settlement, and eventually collective fulfillment.
 
 **What it solves:** Static markets do not learn. Layer 3 compounds outcome data into better routing and deeper infrastructure.
 
@@ -606,7 +606,7 @@ As external supply sources are integrated — agentic.market, agentcash, frames.
 
 Boreal is built by a team with shipped infrastructure, not a vision-stage company. The core product decisions - chat-native request intake, durable workspaces, unified supply modeling, provider-backed commerce routing, and the hybrid matching architecture - reflect a view that the next market layer will start from expressed demand, not from static pages alone.
 
-The technical execution is visible in the product today. The architecture described in this document should be read as two things at once: what is already observable in the current alpha, and what the team is building toward from that base.
+The technical execution is visible in the product today. The architecture described in this document should be read as two things at once: what is already observable in the current early access release, and what the team is building toward from that base.
 
 ---
 

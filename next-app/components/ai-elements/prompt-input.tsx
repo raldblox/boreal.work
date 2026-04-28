@@ -66,6 +66,7 @@ import type {
 import {
   Children,
   createContext,
+  forwardRef,
   useCallback,
   useContext,
   useEffect,
@@ -954,13 +955,16 @@ export type PromptInputTextareaProps = ComponentProps<
   typeof InputGroupTextarea
 >;
 
-export const PromptInputTextarea = ({
+export const PromptInputTextarea = forwardRef<
+  HTMLTextAreaElement,
+  PromptInputTextareaProps
+>(({
   onChange,
   onKeyDown,
   className,
   placeholder = "What would you like to know?",
   ...props
-}: PromptInputTextareaProps) => {
+}, ref) => {
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
@@ -1063,11 +1067,14 @@ export const PromptInputTextarea = ({
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
       placeholder={placeholder}
+      ref={ref}
       {...props}
       {...controlledProps}
     />
   );
-};
+});
+
+PromptInputTextarea.displayName = "PromptInputTextarea";
 
 export type PromptInputHeaderProps = Omit<
   ComponentProps<typeof InputGroupAddon>,

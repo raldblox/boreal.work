@@ -28,6 +28,7 @@ import {
 } from "@/lib/boreal/one-request/routing";
 import type {
   ChatAssistantResponse,
+  ChatAssistantDebugEvent,
   CatalogItem,
   ChatUiContext,
   MediaArtifact,
@@ -70,6 +71,7 @@ type RequesterIdentity = {
 type ChatAssistantAgentInput = {
   conversationId?: string;
   message: string;
+  onDebugEvent?: (event: ChatAssistantDebugEvent) => void | Promise<void>;
   requester?: RequesterIdentity;
   uiContext?: ChatUiContext;
 };
@@ -162,32 +164,165 @@ export const chatAssistantAgent: ComposableAgent<
 
     await ensureCatalogSeeded();
 
-    const modality = await withRetry(
-      () =>
-        classifyGenerationIntent({
-          embeddingModelId: runtimeConfig.embeddingModel,
-          message: input.message,
-          provider,
-        }),
-      { attempts: 3 },
-    );
+    const modalityDebugId = crypto.randomUUID();
+    await emitDebugEvent(input.onDebugEvent, {
+      id: modalityDebugId,
+      input: {
+        message: input.message,
+      },
+      state: "input-available",
+      title: "Classify request modality",
+      type: "tool-classify-generation-intent",
+    });
 
-    const extractedIntent = await withRetry(
-      () =>
-        extractStructuredIntent({
-          intentModelId: runtimeConfig.intentModel,
+    let modality;
+
+    try {
+      modality = await withRetry(
+        () =>
+          classifyGenerationIntent({
+            embeddingModelId: runtimeConfig.embeddingModel,
+            message: input.message,
+            provider,
+          }),
+        { attempts: 3 },
+      );
+    } catch (error) {
+      await emitDebugEvent(input.onDebugEvent, {
+        errorText:
+          error instanceof Error
+            ? error.message
+            : "Failed to classify request modality.",
+        id: modalityDebugId,
+        input: {
           message: input.message,
-          modalityScores: modality.modalityScores,
-          provider,
-          uiContext: input.uiContext,
-        }),
-      { attempts: 3 },
-    );
+        },
+        state: "output-error",
+        title: "Classify request modality",
+        type: "tool-classify-generation-intent",
+      });
+      throw error;
+    }
+
+    await emitDebugEvent(input.onDebugEvent, {
+      id: modalityDebugId,
+      input: {
+        message: input.message,
+      },
+      output: {
+        modalityScores: modality.modalityScores.map(({ kind, score }) => ({
+          kind,
+          score: Number(score.toFixed(4)),
+        })),
+        primaryMode: modality.modalityScores[0]?.kind ?? "text",
+      },
+      state: "output-available",
+      title: "Classify request modality",
+      type: "tool-classify-generation-intent",
+    });
+
+    const extractionDebugId = crypto.randomUUID();
+    await emitDebugEvent(input.onDebugEvent, {
+      id: extractionDebugId,
+      input: {
+        message: input.message,
+        modalityScores: modality.modalityScores.map(({ kind, score }) => ({
+          kind,
+          score: Number(score.toFixed(4)),
+        })),
+      },
+      state: "input-available",
+      title: "Extract structured intent",
+      type: "tool-extract-structured-intent",
+    });
+
+    let extractedIntent;
+
+    try {
+      extractedIntent = await withRetry(
+        () =>
+          extractStructuredIntent({
+            intentModelId: runtimeConfig.intentModel,
+            message: input.message,
+            modalityScores: modality.modalityScores,
+            provider,
+            uiContext: input.uiContext,
+          }),
+        { attempts: 3 },
+      );
+    } catch (error) {
+      await emitDebugEvent(input.onDebugEvent, {
+        errorText:
+          error instanceof Error
+            ? error.message
+            : "Failed to extract structured intent.",
+        id: extractionDebugId,
+        input: {
+          message: input.message,
+        },
+        state: "output-error",
+        title: "Extract structured intent",
+        type: "tool-extract-structured-intent",
+      });
+      throw error;
+    }
+
+    await emitDebugEvent(input.onDebugEvent, {
+      id: extractionDebugId,
+      input: {
+        message: input.message,
+      },
+      output: {
+        capabilityTags: extractedIntent.capabilityTags,
+        category: extractedIntent.category,
+        extractionNotes: extractedIntent.extractionNotes,
+        intentType: extractedIntent.intentType,
+        keywords: extractedIntent.keywords,
+        missingDetails: extractedIntent.missingDetails,
+        needsClarification: extractedIntent.needsClarification,
+        requestedOutputTypes: extractedIntent.requestedOutputTypes,
+        routeTarget: extractedIntent.routeTarget,
+        routing: extractedIntent.routing,
+        shouldSearchCatalog: extractedIntent.shouldSearchCatalog,
+      },
+      state: "output-available",
+      title: "Extract structured intent",
+      type: "tool-extract-structured-intent",
+    });
+
     const intent = refineIntentForRequestLifecycle(
       extractedIntent,
       input.message,
       input.uiContext,
     );
+    await emitDebugEvent(input.onDebugEvent, {
+      id: crypto.randomUUID(),
+      input: {
+        extractedIntent: {
+          intentType: extractedIntent.intentType,
+          needsClarification: extractedIntent.needsClarification,
+          requestedOutputTypes: extractedIntent.requestedOutputTypes,
+          routeTarget: extractedIntent.routeTarget,
+          routing: extractedIntent.routing,
+          shouldSearchCatalog: extractedIntent.shouldSearchCatalog,
+        },
+        uiContext: input.uiContext ?? null,
+      },
+      output: {
+        catalogQuery: intent.catalogQuery,
+        handlingMode: getRequestHandlingMode(intent),
+        intentType: intent.intentType,
+        needsClarification: intent.needsClarification,
+        persistence: intent.persistence,
+        requestedOutputTypes: intent.requestedOutputTypes,
+        routeTarget: intent.routeTarget,
+        routing: intent.routing,
+        shouldSearchCatalog: intent.shouldSearchCatalog,
+      },
+      state: "output-available",
+      title: "Refine routed request",
+      type: "tool-refine-request-lifecycle",
+    });
 
     const relatedCatalogItems = intent.shouldSearchCatalog
       ? await withRetry(
@@ -356,6 +491,13 @@ export const chatAssistantAgent: ComposableAgent<
     };
   },
 };
+
+async function emitDebugEvent(
+  callback: ChatAssistantAgentInput["onDebugEvent"],
+  event: ChatAssistantDebugEvent,
+) {
+  await callback?.(event);
+}
 
 async function continueApprovedRequestThread(input: {
   input: ChatAssistantAgentInput;

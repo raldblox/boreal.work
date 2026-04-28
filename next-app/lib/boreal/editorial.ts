@@ -51,7 +51,7 @@ export function extractEditorialDocument(markdown: string) {
   }
 
   return {
-    body: lines.slice(index).join("\n").trim(),
+    body: normalizeEditorialBody(lines.slice(index).join("\n").trim()),
     leadFields,
     title,
   }
@@ -62,4 +62,18 @@ export function getEditorialLeadValue(
   label: string
 ) {
   return leadFields.find((field) => field.label === label)?.value ?? null
+}
+
+function normalizeEditorialBody(markdown: string) {
+  return markdown
+    .split("\n")
+    .map((line) => stripHeadingNumbering(line))
+    .join("\n")
+}
+
+function stripHeadingNumbering(line: string) {
+  return line.replace(
+    /^(#{2,6}\s+)(?:\d+(?:\.\d+)*[.)]?|[IVXLC]+[.)]?)\s+/i,
+    "$1"
+  )
 }

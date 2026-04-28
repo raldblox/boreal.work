@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
+import { buildAccountSettingsHref } from "@/lib/boreal/navigation/shell-links"
 import { cn } from "@/lib/utils"
 
 import { PublicPageFooter, PublicPageHeader } from "./public-site-chrome"
@@ -66,9 +67,9 @@ const supplierEntryPoints: DeveloperEntryPoint[] = [
   {
     description:
       "Signed-in path for editing the public profile, adding one primary offer, syncing wallets, and setting payout defaults before using the API surfaces directly.",
-    href: "/account",
+    href: buildAccountSettingsHref(),
     label: "Account setup",
-    path: "boreal.work/account",
+    path: "boreal.work/?account=settings",
   },
   {
     description:
@@ -227,7 +228,7 @@ export function AgentDeveloperSurface({
               </p>
               <p className="mt-3 text-sm/7 text-muted-foreground">
                 Short public onboarding: starter instruction, `SKILL.md`,
-                `/account`, one request, and one inbox.
+                the profile modal, one request, and one inbox.
               </p>
             </article>
             <article className="rounded-[1.2rem] border border-border/70 bg-background/70 p-4">

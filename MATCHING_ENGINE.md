@@ -37,6 +37,59 @@ Matching is not one algorithm.  It is a pipeline:
 
 If Boreal tries to solve everything with "semantic similarity", quality will look impressive in demos and fail in production.  Availability, price, trust, latency, geography, concurrency, and evidence quality are not semantic problems.  They are structured feasibility and marketplace policy problems.
 
+### 1.1 Classification Comes Before Matching
+
+The weakest breakpoint in the current repo is not scoring weight.  It is request classification.
+
+Right now, Boreal has:
+
+- `intentType` such as `demand`, `supply`, or `informational`
+- a UI or tool-oriented `routeTarget`
+- broad listing descriptors on `supplies` such as `supplyType`, `actorKind`, `fulfillmentKind`, and `deliveryType`
+
+That is enough to power chat behavior and a first ranking loop.  It is not enough to decide, cheaply and reliably, whether a request is:
+
+- a direct tool or generation route
+- a product or catalog purchase
+- an x402 provider-backed API call
+- async human or agent work
+- collective work
+- onboarding or profile setup
+
+For Boreal, request classification must happen before candidate retrieval.  The engine should not start from "all active supplies" and hope ranking will clean up the pool later.
+
+The correct order is:
+
+1. classify the request into a market and execution family
+2. derive the allowed candidate pool
+3. fetch only from the relevant supply slices
+4. run retrieval and ranking inside that slice
+
+Important separation:
+
+- `routeTarget` should stay a UI or execution hint
+- request classification should become the canonical market-routing contract
+
+### 1.2 What Classification Must Decide
+
+Every persisted request should answer five questions before matching begins:
+
+1. Is this market work at all, or just informational or onboarding?
+2. Is the user trying to buy a product, invoke a provider service, or hire custom labor?
+3. Can fulfillment happen instantly, or is it asynchronous scoped work?
+4. Should payment be cart checkout, x402 prepay, or escrow-prefund?
+5. Which supply families are even eligible to compete?
+
+Recommended request-class decisions:
+
+| Decision | Purpose |
+| --- | --- |
+| `routeFamily` | broad path such as informational, onboarding, direct generation, product purchase, provider service, or custom work |
+| `executionKind` | instant download, direct tool, direct provider, async human, async agent, async collective, or hybrid |
+| `paymentMode` | none, catalog checkout, x402 prepay, or quote then escrow |
+| `matchingMode` | none, catalog, provider capability, worker market, or collective market |
+| `candidatePool` | actor kinds, supply types, fulfillment kinds, delivery types, and direct-invoke requirements allowed for retrieval |
+
 ## 2. What The Engine Must Optimize
 
 For Boreal, a "good match" is not just relevance.  It is expected successful fulfillment under constraints.
@@ -70,6 +123,7 @@ Secondary objectives:
 ```text
 intent arrives
   -> structured extraction
+  -> request classification
   -> capability normalization
   -> embeddings + lexical query build
   -> candidate generation
@@ -85,6 +139,28 @@ intent arrives
   -> outcome logging
   -> model and score updates
 ```
+
+### 3.2 Fetch Policy By Request Class
+
+Request classification should choose the fetch path before broad retrieval.
+
+| Request class | Primary fetch path | Matching note |
+| --- | --- | --- |
+| informational | no market fetch | answer directly or search docs |
+| onboarding or profile setup | no market fetch | use profile or supply builder flow |
+| direct generation | native tool route or direct specialist route | skip broad marketplace matching |
+| product purchase | `supplies` + `supplyProducts` where cart and product constraints fit | product ranking, not worker matching |
+| provider service | `serviceCapabilities` + `supplies` + `supplyProviderServices` | prefilter on direct invoke, provider health, and payment protocol |
+| custom human or agent work | `supplies` + `supplyServiceOffers` + optional agent or collective adjunct tables | this is the main worker-market matching path |
+| collective work | `supplies` + `supplyCollectives` + service-offer metadata | preserve member-role and split compatibility |
+
+The classification layer should also decide when not to fetch at all.  Many requests should never hit the broad marketplace:
+
+- direct image, speech, or video generation
+- profile or supply publishing
+- simple informational catalog lookup
+
+This saves both runtime cost and ranking noise.
 
 ### 3.2 Retrieval Layers
 
@@ -457,6 +533,45 @@ type MatchingIntent = {
   body: string;
   category: string;
   intentType: "demand" | "supply";
+  classification: {
+    routeFamily:
+      | "informational"
+      | "onboarding"
+      | "direct_generation"
+      | "product_purchase"
+      | "provider_service"
+      | "custom_work";
+    executionKind:
+      | "none"
+      | "instant_download"
+      | "direct_tool"
+      | "direct_provider"
+      | "async_human"
+      | "async_agent"
+      | "async_collective"
+      | "hybrid";
+    paymentMode:
+      | "none"
+      | "catalog_checkout"
+      | "x402_prepay"
+      | "quote_then_escrow";
+    matchingMode:
+      | "none"
+      | "catalog"
+      | "provider_capability"
+      | "worker_market"
+      | "collective_market";
+    candidatePool: {
+      actorKinds: Array<"human" | "agent" | "tool">;
+      supplyTypes: Array<"product" | "capability" | "agent_tool" | "collective">;
+      fulfillmentKinds: Array<"digital" | "service" | "hybrid" | "physical">;
+      deliveryTypes: Array<"instant" | "async" | "scoped" | "recurring">;
+      requiresCartEnabled: boolean | null;
+      requiresDirectInvoke: boolean | null;
+      requiresSourceProvider: boolean;
+    };
+  };
+  routeTarget: string | null;
   requestedOutputTypes: Array<
     "text" | "image_generation" | "speech_generation" | "video_generation"
   >;
@@ -512,7 +627,14 @@ type SupplyListing = {
   title: string;
   description: string;
   category: string;
+  marketKind:
+    | "product"
+    | "service_offer"
+    | "provider_service"
+    | "direct_agent"
+    | "collective_offer";
   supplyType: "product" | "capability" | "agent_tool" | "collective";
+  actorKind: "human" | "agent" | "tool";
   status: "active" | "paused" | "suspended" | "draft";
   delivery: {
     type: "instant" | "async" | "scoped" | "recurring";
@@ -585,19 +707,37 @@ type SupplyListing = {
 
 ### 7.3 Recommended Schema Delta Against Current Convex Tables
 
-Keep `supplies` as the canonical listing table, but add richer nested objects or adjunct tables.
+Keep `supplies` as the canonical listing table.  Do not fragment discovery into disconnected top-level markets.  But do add type-specific adjunct tables so routing, matching, and fetch logic can avoid abusing one broad listing record for every fulfillment type.
 
 Recommended additions:
 
 | Table | Purpose |
 | --- | --- |
+| `requestClassifications` or nested classification on `intents` | canonical classifier output used before retrieval |
 | `capabilityTaxonomy` | canonical nodes, aliases, parents, modality, domain |
+| `supplyProducts` | product-specific metadata such as download or access shape, variants, SKU, and cart policy |
+| `supplyServiceOffers` | async service scope, acceptance criteria, schedule rules, and evidence expectations |
+| `supplyProviderServices` | provider invocation, x402, endpoint, quote, and health metadata |
+| `supplyAgentRuntimes` | connected-agent executor, callback, status-push, and runtime-control metadata |
+| `supplyCollectives` | collective defaults, member constraints, split defaults, and role rules |
 | `supplyExamples` | example intents and deliverables per supplier, embedded |
 | `supplyAvailabilitySnapshots` | next available, backlog, concurrency, heartbeat |
 | `supplyReservations` | temporary capacity holds for Tier 2 fast-route |
 | `matchCandidates` | all evaluated candidates with stage-by-stage breakdown |
 | `supplierStats` | denormalized smoothed acceptance, fulfillment, SLA metrics |
 | `intentAnalogs` | historical similar fulfilled intents for training and inspection |
+
+Why subtype tables matter:
+
+- product fetch should not load worker-only fields
+- provider-service matching should not scan human-service metadata first
+- worker-market routing should not confuse instant paid APIs with scoped labor
+- collective execution needs constraints that do not belong on every supply row
+
+The canonical pattern should be:
+
+- `supplies` for one searchable market row
+- subtype tables keyed by `supplyId` for specialized fetch and ranking data
 
 Recommended `matchCandidates` shape:
 

@@ -81,7 +81,7 @@ function ScrollArea({
       {blur && showTopBlur ? (
         <GradualBlur
           className="rounded-t-[inherit]"
-          divCount={3}
+          divCount={5}
           height={blurHeight}
           opacity={1}
           position="top"

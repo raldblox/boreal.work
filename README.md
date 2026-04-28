@@ -72,6 +72,14 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-28`: Deepened `SUPPLY_LIST.md` into a concrete Convex subtype schema plan: what stays on canonical `supplies`, proposed subtype table shapes and indexes, ownership rules, write and read paths, and the migration sequence for class-aware supply storage.
+- `2026-04-28`: Added `SUPPLY_LIST.md` as the repo-truthful supply inventory and build-tracker spec: current supported supply classes, sample buyer scenarios, delivery shapes, current Convex table map, needed subtype tables, and the priority build order for routing, matching, and fetching.
+- `2026-04-28`: Raised request classification to a first-class architecture priority in `MATCHING_ENGINE.md`, `ROADMAP.md`, and `EARLY_ACCESS.md`: Boreal now explicitly treats classifier-first routing, prefiltered fetch paths, and subtype supply tables under canonical `supplies` rows as the main matching-quality breakpoint.
+- `2026-04-28`: Reframed `EARLY_ACCESS.md` around open early access with funded-work boundaries: public browsing and intake can stay open, while mainnet hardening, x402 payment-before-execution, future escrow-backed async labor, payout verification, and release ops now define the real paid-launch bar.
+- `2026-04-28`: Added `EARLY_ACCESS.md` as the phase-based release tracker for Boreal's early access, separating broad capability inventory in `ROADMAP.md` from the narrower question of what must be true before access widens.
+- `2026-04-28`: Added a real app-shell performance baseline for repeat visits: `/` and `/chat` now render an immediate shell skeleton, Boreal registers a service worker that caches the shell and static assets for offline repeat loads, and `/offline` is now the honest fallback route when live network data is unavailable.
+- `2026-04-28`: Split public agent surfaces more cleanly: the homepage no longer carries the onboarding card, `/agents` is now the operator-facing onboarding route and focus-sheet tab, and `/developers/agents` stays the lower-level technical contract surface behind it.
+- `2026-04-28`: Hardened the public agent-owner onboarding path: `/developers/agents` now points operators to `/account` for signed-in profile and offer setup, `SKILL.md` and `one-inbox-api.md` now show the minimum working `POST /api/v1/supplies` payload, and the public docs now describe profile, offer, request, inbox, and payout flow as one sequence.
 - `2026-04-28`: Approved advisory specialists can now take over the next turn inside the same request thread: Boreal locks the best matched specialist, the specialist asks the first scoped follow-up in-thread, owner replies are treated as specialist follow-up instead of generic Boreal chat, and `npm run smoke:request-thread-specialists` verifies the handoff plan.  The request UI now also treats video-provider access failures as provider-fix or automatic reopen-for-workers situations instead of a blind retry loop.
 - `2026-04-28`: Tightened Boreal request preview and recovery UX again: matched-worker cards can now approve a team directly into the request, provider-unavailable video routes reopen for workers immediately, request and discovery profile buttons stay inside Boreal through a focus sheet instead of leaving the shell, and older Boreal sessions still load from the top of the audit timeline instead of mid-stream.
 - `2026-04-28`: Reworked Boreal's paper browsing flow: the chat-shell focus sheet now keeps paper browsing and full article reading inside the sheet, the active focused tab and active paper sync through URL query state, and returning to Boreal chat clears any open focused sheet state.
@@ -105,7 +113,7 @@ Operator note:
 - `2026-04-27`: Implemented the supplier-side `one inbox` contract in `ONE_INBOX_API.md` as the live companion to the `one request` demand contract.
 - `2026-04-27`: Shipped the live agent-only one-request contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, request status and event routes, seeded specialist payout metadata, and `npm run smoke:one-request`.
 - `2026-04-27`: Locked the next agent-only `one request` plan in `ONE_REQUEST_API.md`: `POST /api/v1/requests`, message-only demand intake, SIWX + x402, Solana devnet payment, seeded specialist payouts, and an end-to-end smoke target.
-- `2026-04-26`: Reframed `MVP.md` as Boreal's first paid launch wedge inside the broader public alpha and consolidated most narrative/brand docs under `docs/`.
+- `2026-04-26`: Reframed `MVP.md` as Boreal's first paid launch wedge inside the broader early access release and consolidated most narrative/brand docs under `docs/`.
 - `2026-04-26`: Added a preserved `remotion/src/generations/request-native-2026/` video generation with three app-truthful Boreal compositions, isolated render scripts, and `@remotion/player` preview support.
 - `2026-04-26`: Added `presentations/boreal-pitch-deck/` as the editable PowerPoint workspace for Boreal's pitch deck, preview renders, and headless QA reports.
 - `2026-04-26`: Switched Boreal's commerce defaults to Solana devnet locally, added explicit mainnet / EVM network flags, and wired canonical network metadata through wallet, transaction, and settlement records.
@@ -115,9 +123,11 @@ Operator note:
 
 - `WHITEPAPER.md` is the product and architecture source of truth.
 - `ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
+- `EARLY_ACCESS.md` is the phase-based release tracker for Boreal's early access: auditable phases, funded-work boundaries, verification commands, and the conditions required before broader mainnet-ready paid release.
+- `SUPPLY_LIST.md` is the supply inventory and build-tracker spec: the supported market classes today, what delivery looks like for each one, and what subtype tables or flow work still need to be built.
 - `AGENTS.md` is the contributor control surface; when shipped behavior, public contracts, agent-control flows, or roadmap-relevant architecture changes, update `ROADMAP.md` and the most specific contract doc in the same patch.
-- `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal alpha.
-- `MATCHING_ENGINE.md` is the search, discovery, and ranking architecture for Boreal's next matching phase.
+- `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal early access release.
+- `MATCHING_ENGINE.md` is the search, discovery, ranking, request-classification, and fetch-path architecture for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
 - `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the request-side `Workboard`, the later `Swarm Workspace` upgrade path, the shell IA, and the libp2p-versus-Convex responsibility split.
 - `CONNECT_AGENT_GUIDE.md` is the advanced runtime-adapter guide for Boreal's live and next `Connect agent` UX, connector modes, auth/session bootstrap, and optional owner-runtime control plane.  Do not use it as the front-door product story.
@@ -150,7 +160,8 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/components/editorial` contains the reusable editorial shell, index rows, and longform typography system used by `/papers` and intended for future audit-report or document-heavy surfaces.
 - `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.
 - `next-app/app/account` is the dedicated settings surface for public profile setup, offers, wallet sync, and payout defaults.
-- `next-app/app/developers/agents` is the public guide for agent customers, suppliers, and developers integrating with Boreal's request-first and specialist-agent surfaces.
+- `next-app/app/agents` is the operator-facing onboarding surface for agent owners.  It is also the `Agent` focus-sheet tab inside the Boreal shell and should stay the shortest public handoff into `SKILL.md`, `/account`, one request, and one inbox.
+- `next-app/app/developers/agents` is the lower-level technical guide for agent customers, suppliers, and developers integrating with Boreal's request-first and specialist-agent surfaces after the `/agents` onboarding step.
 - `next-app/app/p/[id]` exposes public profile pages for humans and agents, including `boreal-agent`.
 - `next-app/lib/boreal` contains the Boreal runtime: agents, tools, integrations, DAL, prompt selection, and shared schemas.
 - `next-app/convex` is the source of truth for intents, chats, proposals, fulfillments, artifacts, profiles, supplies, commerce, and service-provider state.
@@ -162,7 +173,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/app/api/v1/agents/` exposes the listing-ready specialist registry surface, including canonical v1 routes, input/output schemas, and normalized price metadata for direct agents.
 - `next-app/app/api/v1/auth/siwx/challenge/route.ts`, `next-app/app/api/v1/auth/siwx/verify/route.ts`, and `next-app/app/api/v1/requests/` expose Boreal's live request-first agent contract.
 - `next-app/app/api/v1/requests/[requestToken]/status/route.ts`, `next-app/app/api/v1/requests/[requestToken]/evidence/route.ts`, and `next-app/app/api/v1/requests/[requestToken]/heartbeat/route.ts` let advanced connected runtimes report progress, evidence, and liveness back into the same private one-request workboard.
-- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.  `SKILL.md` plus the versioned request and inbox contracts are the front door.
+- `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.  `/agents` plus `SKILL.md` are the public onboarding front door, while `/account` is the signed-in manual setup path for profile and offer publishing.
 - `next-app/public/connect-agent-quickstart.md` is the public short-form quick-connect note for operators who need the minimal advanced-runtime HTTP contract and prompt.
 - `ONE_REQUEST_API.md` is the live source of truth for the pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
 - `ONE_INBOX_API.md` is the live supplier-side companion contract, where matched suppliers watch demand, claim or propose on work, deliver through requests, and track payout readiness.

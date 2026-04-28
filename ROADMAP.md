@@ -12,12 +12,13 @@ Boreal's public story should now be simple:
 
 That is the lens for the roadmap below. The product is no longer just a bundle of chat behaviors. It is becoming a request-native work network and commerce layer.
 
-- Boreal is already a real public alpha for request-native commerce, delivered through a chat-native interface: chat intake, request workboards, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
+- Boreal is already a real early access release for request-native commerce, delivered through a chat-native interface: chat intake, request workboards, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
 - Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Privy-backed x402 payment initiation, and Agentic Market discovery sync.
 - Boreal now also has a real matching layer in the product surface: persisted match candidates, request-level score breakdowns, gated-out reasons, refinement actions, and pinned matches inside the request workboard.
 - Public profiles are no longer just static identity cards; they now carry cached analytics snapshots for activity, fulfillment, ratings, listings, buyer/seller behavior, and recent handled work.
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
+- Boreal now has a first honest offline repeat-visit path: the shell can render from cached route and static assets through a service worker, while live request, inbox, and market data still depend on the network.
 - Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first devnet defaults and explicit mainnet / EVM routing flags.
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
@@ -37,7 +38,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, external agent identity, portable reputation, recommendation quality, relay-backed collaboration, and generalized collective settlement.
-- Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
+- Boreal is effectively between Milestone A and Milestone B: the early-access surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
 
 ## Continuous Roadmap Execution Cadence
@@ -52,13 +53,13 @@ Goal: keep roadmap work moving every week instead of only after major feature pu
 
 ## Documentation And Positioning Consolidation
 
-Goal: make the written story match the live alpha, preserve the strongest Boreal language, and keep public copy aligned on one clean brand voice.
+Goal: make the written story match the live early access product, preserve the strongest Boreal language, and keep public copy aligned on one clean brand voice.
 
 - [x] Create `docs/POSITIONING_TRIAGE.md` to classify what to keep, rewrite, recycle, and archive from earlier Boreal repos
 - [x] Create `docs/CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
-- [x] Rewrite the top of `WHITEPAPER.md` and its `What Boreal Has Built` / `What Is Live Today` sections so live alpha claims are separated from target architecture
+- [x] Rewrite the top of `WHITEPAPER.md` and its `What Boreal Has Built` / `What Is Live Today` sections so live early-access claims are separated from target architecture
 - [ ] Finish the rest of `WHITEPAPER.md` so `live today`, `in progress`, and `target architecture` stay clearly separated end to end
-- [x] Align `README.md`, chat zero-state copy, the `/about` feature/spec page, `ROADMAP.md`, and public alpha messaging on one canonical naming stack:
+- [x] Align `README.md`, chat zero-state copy, the `/about` feature/spec page, `ROADMAP.md`, and early access messaging on one canonical naming stack:
   - `chat-native` for the interface layer
   - `request-native` for the system and category layer
   - `intent-to-fulfillment` for the thesis layer
@@ -74,11 +75,12 @@ Goal: make the written story match the live alpha, preserve the strongest Boreal
 - [x] Publish `SWARM_WORKSPACE_SPEC.md` to lock the current `Workboard` naming, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex split before deeper collaboration work lands
 - [x] Publish a versioned agent-operator troubleshooting matrix across auth, `402`, inbox, delivery, payout, callbacks, and webhooks
 - [x] Publish behavior-first examples for agent owners: find work, post work, track progress, deliver work, and check payout
+- [x] Publish one explicit public agent-owner onboarding flow that points operators to `/account` for UI setup and to `SIWX` plus `/api/v1/supplies` for API-side offer publishing before request and inbox work begins
 - [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
 - [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
 - [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`
 - [ ] Archive `../boreal-work` as a previous attention-gate branch, pulling forward only reusable qualification and scoring ideas
-- [ ] Publish a separate litepaper or one-pager if Boreal still needs a more visionary investor and partner narrative than the public alpha story
+- [ ] Publish a separate litepaper or one-pager if Boreal still needs a more visionary investor and partner narrative than the public early access story
 
 ## Phase 0 - Foundation Built
 
@@ -171,6 +173,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 ### Product Surface
 
 - [x] `/` now acts as the chat-native landing state, while `/about` carries the feature/spec narrative and `/roadmap` carries the public-safe Jira-style status board
+- [x] Repeat visits can reopen a cached Boreal shell with route loading skeletons and an explicit offline fallback, even when live content is unavailable
 - [x] Signed-in owner request tracking in the left sidebar
 - [x] Public browsing of supply and public requests in the right rail
 - [x] Request workboard with `Chat`, `Activity`, `Team`, and `Workboard`
@@ -205,6 +208,10 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Hybrid matching foundation: lexical retrieval, embedding similarity, structured filters, and hard gates
 - [x] Match event logging with score breakdown
 - [x] Matching workspace UX with explanations, gated-out reasons, refinement, and pinning
+- [ ] Separate request market classification from the current UI-oriented `routeTarget`, with canonical persisted fields such as `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and allowed candidate-pool filters
+- [ ] Use request classification to choose the fetch path before ranking: direct tool route, product catalog, provider-backed x402 service, async worker market, or collective market
+- [ ] Add subtype supply tables keyed off canonical `supplies` rows so products, async service offers, provider services, connected agents, and collectives can each carry the fields matching actually needs
+- [ ] Push classifier-derived hard filters into candidate generation so `supplyType`, `actorKind`, `fulfillmentKind`, `deliveryType`, execution surface, and payment protocol narrow the pool before broad ranking
 - [ ] Full hybrid retrieval: BM25 + vector similarity + structured filters
 - [ ] Historical analog retrieval across prior fulfilled work
 - [ ] LLM reranking over top candidates
@@ -230,7 +237,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 
 - [x] Can claim: chat-native request intake, request workboards, proposals, public supply and request discovery, human and agent profiles, digital listings, cart flow, and provider-backed checkout routing for supported services
 - [x] Can claim: Boreal is a chat-native interface for request-native commerce
-- [x] Can claim: Boreal is building intent-to-fulfillment infrastructure, as long as the live alpha boundary stays explicit
+- [x] Can claim: Boreal is building intent-to-fulfillment infrastructure, as long as the live early-access boundary stays explicit
 - [ ] Cannot claim yet: on-chain escrow, full ACP/UCP interoperability, libp2p presence, trust-score routing, or generalized autonomous settlement
 
 ## Phase 3 - Supply Registry, External Aggregation, and Agent Market Depth
@@ -247,6 +254,10 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Cached analytics on profiles for activity, ratings, listings, buyer/seller signals, and recent handled work
 - [x] Digital product and service listings within the unified supply model
 - [x] Cart and checkout records connected to supply listings
+- [ ] Add `marketKind` and `subtypeVersion` to canonical `supplies` rows so every listing has a stable fetch identity beyond `supplyType`
+- [ ] Add subtype tables for `supplyProducts`, `supplyServiceOffers`, `supplyProviderServices`, `supplyAgentRuntimes`, `supplyCollectives`, `supplyAvailabilitySnapshots`, and `supplyStats`
+- [ ] Update `createSupplyEntry`, public `/api/v1/supplies`, provider sync, and connected-agent onboarding so they upsert base `supplies` rows plus the right subtype rows in one write path
+- [ ] Backfill current listings into subtype tables using deterministic `marketKind` rules from `SUPPLY_LIST.md`
 - [ ] Rich public product/catalog pages with deeper structured metadata and merchant-grade presentation
 - [ ] Strong matching based on capabilities, trust, availability, price, delivery type, and execution surface
 
@@ -323,6 +334,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Payout execution progression from `pending` -> `processing` -> `paid`, with aggregate settlement movement to `paid_out` or `failed`
 - [x] Dedicated payout smoke covering supplier delivery -> payout processing -> settlement completion
 - [x] Public onboarding docs that explain `one request` for buyers and `one inbox` for suppliers as the two-sided agent contract
+- [ ] Publish a versioned machine-readable `/api/v1/supplies` contract so agent-owner onboarding is not only described through `SKILL.md`, `ONE_INBOX_API.md`, and `/developers/agents`
 
 ### Machine-Facing Lifecycle Delivery
 
@@ -394,11 +406,30 @@ Goal: extend Boreal from core protocol-facing commerce into deeper agent-native 
 
 ### Swarm Workspace
 
+- [ ] Create a default per-request `Workspace` object and shell on request open, even before live coordination is enabled
+- [ ] Split dormant request `Workspace` state from paid live `Swarm Workspace` sessions so simple requests avoid unnecessary live infra
 - [ ] Explicit workboard-upgrade event from a normal request into a paid Swarm Workspace session
-- [ ] Assignment and decomposition primitives inside one request workboard
-- [ ] Validator lane and richer progress-event surfaces inside the workspace
-- [ ] Relay-backed real-time collaboration plane for upgraded requests
-- [ ] Owner-visible live coordination state, not only artifact and activity replay
+- [ ] Assignment, decomposition, and handoff primitives inside one request workspace
+- [ ] Validator lane, blocker state, and richer progress-event surfaces inside the workspace
+- [ ] Relay or session-broker service for upgraded requests: bootstrap peer, auth admission, relay reservation, and presence fanout
+- [ ] libp2p plus WebRTC live collaboration plane for upgraded requests, with Convex remaining the system of record
+- [ ] Shared-state layer for live notes, canvas state, and focus sync using a CRDT such as Yjs or Automerge instead of raw transport messages only
+- [ ] Peer-binding and role-scoped join tokens for owner, worker, validator, and agent participants
+- [ ] Auto-join or invite flow for approved workers and connected agents when a Swarm Workspace session opens
+- [ ] Owner-visible live coordination state: who is here, what is active, blockers, recent artifacts, and last validated state
+
+References for fulfillment:
+
+- Boreal product and architecture baseline: [SWARM_WORKSPACE_SPEC.md](./SWARM_WORKSPACE_SPEC.md) and [AGENT_NETWORK.md](./AGENT_NETWORK.md)
+- libp2p browser connectivity overview: <https://libp2p.io/docs/browser-connectivity/>
+- libp2p WebRTC browser connectivity guide: <https://libp2p.io/docs/webrtc-browser-connectivity/>
+- libp2p universal-connectivity `js-peer` reference repo: <https://github.com/libp2p/universal-connectivity/tree/main/js-peer>
+- libp2p circuit relay v2 docs: <https://docs.libp2p.io/concepts/nat/circuit-relay/>
+- libp2p browser-to-server WebRTC notes: <https://libp2p.io/blog/libp2p-webrtc-browser-to-server/>
+- Yjs docs for shared notes and canvas state: <https://docs.yjs.dev/>
+- Automerge docs as alternate CRDT path: <https://automerge.org/docs/>
+- Workspace-awareness research baseline: <https://www.cs.usask.ca/faculty/gutwin/1998/effects-techreport/html/report.html>
+- SWARM landscape and collaboration prompts: <https://swarm.thecanteenapp.com/> and <https://thecanteenapp.com/analysis/2026/03/27/multi-agent-landscape.html>
 
 ## Phase 6 - Network Intelligence and Collective Fulfillment
 
@@ -452,11 +483,12 @@ Goal: make the system compound from usage and support larger, multi-party work.
 
 ## Immediate Next Actions
 
-- [ ] Last reviewed: 2026-04-27  (update this date whenever this list is reordered or materially rewritten)
+- [ ] Last reviewed: 2026-04-28  (update this date whenever this list is reordered or materially rewritten)
+- [ ] Publish the versioned machine-readable `/api/v1/supplies` contract and keep the public agent-owner onboarding path aligned across `/developers/agents`, `/account`, `SKILL.md`, and `ONE_INBOX_API.md`
+- [ ] Expand smoke coverage beyond the current lifecycle script into product search, cart/checkout, profile builder, provider-backed service flows, and wallet-required scenarios
 - [ ] Finalize the remaining wallet and payment policy beyond the new schema base: payout preferences, split/escrow rules, and recovery paths for failed or cancelled paid flows
 - [ ] Expand the commerce scenario registry coverage across consultations, physical services, milestone work, refunds, disputes, and split-settlement paths
 - [ ] Implement the runtime ACP/UCP/A2A-facing listing descriptors and stable public protocol endpoints on top of the new schema fields
-- [ ] Expand smoke coverage beyond the current lifecycle script into product search, cart/checkout, profile builder, provider-backed service flows, and wallet-required scenarios
 - [ ] Execute the documentation and positioning consolidation workstream
 - [ ] Finish the matching engine quality layer: BM25, historical analog retrieval, reranking, and rematch scheduling
 - [ ] Build revision-request loops and richer deadline/SLA signals into the request workboard

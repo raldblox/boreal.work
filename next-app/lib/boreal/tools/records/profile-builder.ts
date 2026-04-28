@@ -174,7 +174,7 @@ export function profileBuilderToSupplyMutationArgs(input: {
     deliveryType: input.draft.deliveryType,
     description:
       normalizeOptionalText(input.draft.listingDescription) ??
-      "Public supply listing published from Boreal profile builder.",
+      "Public supply listing published from Boreal public setup workspace.",
     estimatedDeliveryLabel: normalizeOptionalText(input.draft.estimatedDeliveryLabel),
     ownerDisplayName: input.ownerDisplayName,
     ownerExternalId: input.ownerExternalId,

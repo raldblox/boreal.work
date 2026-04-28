@@ -1,5 +1,7 @@
-import { AccountPageClient } from "@/components/account/account-page-client"
+import { redirect } from "next/navigation"
+
+import { buildAccountSettingsHref } from "@/lib/boreal/navigation/shell-links"
 
 export default function AccountPage() {
-  return <AccountPageClient />
+  redirect(buildAccountSettingsHref())
 }
