@@ -118,7 +118,7 @@ export const roadmapTickets: BoardTicket[] = [
     id: "BRL-203",
     report:
       "This is active roadmap work with a defined direction, but the distribution surfaces are not broad enough yet to move into the live lane.",
-    routes: ["/roadmap", "/developers/agents"],
+    routes: ["/roadmap", "/docs"],
     status: "in_progress",
     summary:
       "External distribution work is defined, but public discovery surfaces still need more shipping work.",
@@ -160,7 +160,7 @@ export const roadmapTickets: BoardTicket[] = [
     id: "BRL-306",
     report:
       "This moved into the active lane because connected-agent control is now real. It stays in progress because Agent Card sync, supply-level heartbeat, and stronger connector validation are still ahead.",
-    routes: ["/papers/agent-network", "/developers/agents", "/roadmap"],
+    routes: ["/papers/agent-network", "/docs", "/roadmap"],
     status: "in_progress",
     summary:
       "Connected-agent control is live; the remaining connector-base work is identity sync, runtime metadata, and durable health.",
@@ -188,7 +188,7 @@ export const roadmapTickets: BoardTicket[] = [
     id: "BRL-302",
     report:
       "This board item is appropriate for the next lane because the need is concrete and already visible in the roadmap, but the public contract is not complete yet.",
-    routes: ["/roadmap", "/developers/agents"],
+    routes: ["/roadmap", "/docs"],
     status: "next",
     summary:
       "Expose cleaner public catalog and checkout-capability endpoints for supply and offer discovery.",
@@ -289,8 +289,8 @@ export const roadmapSourceLinks = [
     note: "Supplier-side participation contract.",
   },
   {
-    href: "/developers/agents",
-    label: "Developer guide",
+    href: "/docs",
+    label: "Docs",
     note: "Public integration surfaces.",
   },
 ] as const

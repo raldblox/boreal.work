@@ -12,13 +12,19 @@ export function PublicPageHeader({
   activeHref,
   eyebrow,
 }: {
-  activeHref?: string
+  activeHref?: string | readonly string[]
   eyebrow: string
 }) {
+  const activeHrefs = Array.isArray(activeHref)
+    ? activeHref
+    : activeHref
+      ? [activeHref]
+      : []
+
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
       <Link className="flex items-center gap-3" href="/">
-        <span className="flex size-10 shrink-0 items-center justify-center border border-border bg-muted/30">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[1rem] border border-border bg-muted/30">
           <Logo size={18} />
         </span>
         <div>
@@ -35,8 +41,10 @@ export function PublicPageHeader({
         {publicSiteLinks.map((link) => (
           <Link
             className={cn(
-              "border border-border px-3 py-2 transition-colors hover:bg-muted/40",
-              activeHref === link.href ? "bg-muted/45 text-foreground" : ""
+              "rounded-full border border-border bg-background/80 px-3.5 py-2 transition-colors hover:bg-muted/40",
+              activeHrefs.includes(link.href)
+                ? "bg-foreground text-background hover:bg-foreground"
+                : ""
             )}
             href={link.href}
             key={link.href}
@@ -44,8 +52,8 @@ export function PublicPageHeader({
             {link.label}
           </Link>
         ))}
-        <Button asChild className="rounded-none" size="sm">
-          <Link href="/">Open chat</Link>
+        <Button asChild className="rounded-full" size="sm">
+          <Link href="/">Start a request</Link>
         </Button>
       </div>
     </header>
@@ -56,7 +64,7 @@ export function PublicPageFooter() {
   return (
     <footer className="border-t border-border pt-4">
       <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <p>Open early access.  One request in.  Best fulfillment path out.</p>
+        <p>Open early access.  Request first.  Fulfillment attached.</p>
         <div className="flex flex-wrap gap-4">
           {publicSiteLinks.map((link) => (
             <Link className="hover:text-foreground" href={link.href} key={link.href}>
@@ -64,7 +72,7 @@ export function PublicPageFooter() {
             </Link>
           ))}
           <Link className="hover:text-foreground" href="/">
-            Open chat
+            Start a request
           </Link>
         </div>
       </div>

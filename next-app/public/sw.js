@@ -4,6 +4,7 @@ const CACHED_SHELL_ROUTES = [
   "/",
   "/about",
   "/chat",
+  "/docs",
   "/developers/agents",
   "/offline",
   "/papers",

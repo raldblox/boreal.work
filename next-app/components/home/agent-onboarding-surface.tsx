@@ -124,15 +124,15 @@ export function AgentOnboardingSurface({
         <Card className="rounded-[1.35rem] border border-border/80 bg-card/92 py-0 shadow-[0_18px_44px_-36px_rgba(15,23,42,0.18)]">
           <CardHeader className="gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
             <CardTitle className="font-heading text-xl font-semibold tracking-tight">
-              Need technical docs?
+              Need deeper docs?
             </CardTitle>
             <CardDescription className="text-sm/7">
-              Use the developer surface only when you want the lower-level contracts.
+              Open the docs surface when you need the lower-level contracts.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 px-4 py-4 sm:px-5">
             <Button asChild className="justify-start rounded-[1rem]" variant="outline">
-              <Link href="/developers/agents">Developers</Link>
+              <Link href="/docs">Docs</Link>
             </Button>
             <Button asChild className="justify-start rounded-[1rem]" variant="outline">
               <Link href="/one-request-api.md">one request</Link>

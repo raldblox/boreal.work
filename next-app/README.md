@@ -7,7 +7,7 @@
 - `/` is the marketing homepage and route index into the live product surface.
 - `/chat` is the main operating surface for requests, supply discovery, proposals, workboards, and cart/checkout activity.
 - `/account` is the dedicated settings surface for public profile setup, offer publishing, wallet sync, and payout defaults.
-- `/developers/agents` is the public developer and agent-owner guide for Boreal's request-first agent surface, registry, supplier path, and direct execution routes.
+- `/docs` is the public docs entry surface for Boreal's request-first agent surface, registry, supplier path, and direct execution routes.  Legacy `/developers/agents` remains available.
 - `/chat?browse=workers` opens the public supply directory.
 - `/chat?browse=requests` opens the public request directory.
 - `/chat?prompt=...` seeds the composer without auto-sending, which is how homepage CTAs route into supply-listing and request-posting flows.

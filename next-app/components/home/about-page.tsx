@@ -16,61 +16,86 @@ import { cn } from "@/lib/utils"
 import { PaperCard } from "./paper-card"
 import { PublicPageFooter, PublicPageHeader } from "./public-site-chrome"
 
-const productStats = [
+type CapabilitySpec = {
+  className?: string
+  label: string
+  note: string
+  value: string
+}
+
+const capabilitySpecs: CapabilitySpec[] = [
   {
-    label: "Home route",
-    note: "The real front door is the chat shell, where a request can start before the user chooses a stack.",
-    value: "/",
-  },
-  {
+    className: "sm:col-span-2",
     label: "Category",
-    note: "Chat-native interface for request-native commerce.",
-    value: "Work network",
+    note: "Chat is the interface. The request stays the system record.",
+    value: "Request-native commerce",
   },
   {
-    label: "Supply side",
-    note: "Humans, agents, products, services, and provider-backed execution live in the same market.",
+    label: "Front door",
+    note: "A request can begin before the user chooses a stack, vendor, or runtime.",
+    value: "Chat shell",
+  },
+  {
+    label: "Supply model",
+    note: "People, agents, direct offers, and provider-backed execution live in one market.",
     value: "Mixed supply",
   },
-] as const
+  {
+    className: "sm:col-span-2",
+    label: "Live today",
+    note: "Public browsing, request intake, specialist routing, and supplier onboarding are already available in early access.",
+    value: "Browse, request, route, onboard",
+  },
+  {
+    label: "Payment boundary",
+    note: "Premium execution begins only after the supported payment or funded-work boundary is met.",
+    value: "Funding first",
+  },
+  {
+    label: "Release truth",
+    note: "No claim of finished escrow, mature settlement, or broad mainnet readiness.",
+    value: "Open early access",
+  },
+]
 
 const executionPath = [
   {
-    body: "The user starts with the outcome they need, not a premature decision about tools, providers, or workflows.",
-    title: "Start with one request",
+    body: "Start with the outcome, not a tool decision. Boreal treats the request as the first real object in the system.",
+    title: "State the work",
   },
   {
-    body: "Boreal checks the best path forward first: direct offers, known supply, provider-backed services, or specialist agents before custom work opens.",
-    title: "Route the best path forward",
+    body: "Boreal checks the fastest qualified path first: direct offers, known supply, provider-backed services, or specialist agents before custom work opens.",
+    title: "Route the best path",
   },
   {
-    body: "If the work needs judgment, customization, or a team, Boreal keeps the request alive through proposal, delivery, proof, payout, and reputation.",
-    title: "Let completion compound",
+    body: "If the work needs judgment, custom scope, or a team, delivery, proof, payout, and reputation stay attached to the same thread.",
+    title: "Keep completion attached",
   },
 ] as const
 
-const positioningPanels = [
+const principles = [
   {
-    body: "Boreal is not another chatbot with a glossy shell. Chat is only the interface layer around a real work network and commerce system.",
+    body: "Boreal does not confuse conversation with the product. Chat is only the entry surface around a real work system.",
     icon: BriefcaseBusinessIcon,
-    title: "Not just another chatbot",
+    title: "Chat is the surface",
   },
   {
-    body: "Most systems preserve conversation, listings, or analytics. Boreal preserves the request, so the work itself can stay attached from start to finish.",
+    body: "Most systems preserve conversation, listings, or analytics. Boreal preserves the request so the work can stay legible from start to finish.",
     icon: PackageIcon,
-    title: "The request is the record",
+    title: "The request stays intact",
   },
   {
     body: "Humans and agents both belong on the supply side. The market should route to the best mix instead of forcing one execution model too early.",
     icon: HandshakeIcon,
-    title: "Humans and agents share one market",
+    title: "One market, mixed execution",
   },
   {
-    body: "Harder work should begin in a request workboard, then deepen into richer collaboration only when the request truly needs it.",
+    body: "Harder work can deepen into richer coordination, but only when the request truly needs it.",
     icon: NetworkIcon,
-    title: "Workboards before swarm theater",
+    title: "Escalate only when needed",
   },
 ] as const
+
 export function AboutPage({
   embedded = false,
   onOpenPaper,
@@ -96,22 +121,27 @@ export function AboutPage({
         <div className="rounded-[1.35rem] border border-border/80 bg-card/92 shadow-[0_14px_36px_-34px_rgba(15,23,42,0.18)]">
           <div className="border-b border-border/70 px-4 py-4 sm:px-5">
             <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              Open early access
+              About Boreal
             </p>
             <h1 className="mt-2 max-w-5xl font-heading text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
-              Boreal turns visible demand into fulfillable work.
+              A request should become work.
             </h1>
           </div>
 
           <div className="space-y-6 px-4 py-5 sm:px-5 sm:py-6">
             <p className="max-w-4xl text-base/8 text-muted-foreground sm:text-lg/8">
-              Boreal is in open early access today. A request can begin in
-              chat, in a doc, in a thread, in a terminal, or in an agent
-              workflow. Too often it stops at discussion, fragments across
-              tools, or gets reduced to analytics instead of becoming
-              accountable execution. Boreal starts with the request, routes the
-              best path forward, and keeps proof, payout, and reputation
-              attached to the same work thread.
+              Boreal is a request-native commerce surface for work that begins
+              in chat, docs, threads, terminals, or other agents. Too often a
+              request stops at discussion, fragments across tools, or disappears
+              into analytics. Boreal keeps the request intact, routes the best
+              path forward, and leaves delivery, proof, payout, and reputation
+              attached to the same thread.
+            </p>
+
+            <p className="max-w-3xl text-sm/7 text-muted-foreground sm:text-base/8">
+              Public browsing and intake are already open. Paid execution still
+              begins only after the supported payment or funded-work boundary is
+              met.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -122,13 +152,13 @@ export function AboutPage({
                   size="lg"
                   type="button"
                 >
-                  Start in chat
+                  Start a request
                   <ArrowRight className="size-4" />
                 </Button>
               ) : (
                 <Button asChild className="rounded-full" size="lg">
                   <Link href="/">
-                    Start in chat
+                    Start a request
                     <ArrowRight className="size-4" />
                   </Link>
                 </Button>
@@ -158,40 +188,33 @@ export function AboutPage({
           <div className="border-b border-border/70 px-4 py-4 sm:px-5">
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
               <BotIcon className="size-3.5" />
-              Positioning guardrail
+              Capability sheet
             </div>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight">
-              Keep the public story honest
+              Product summary at a glance
             </h2>
           </div>
 
-          <div className="space-y-4 px-4 py-4 sm:px-5">
-            <div className="rounded-[1.2rem] border border-border/70 bg-background px-4 py-4">
-              <p className="text-sm/7 text-muted-foreground">
-                Do not frame Boreal as only a chatbot, only human fallback, or
-                already-finished settlement infrastructure. The clearest public
-                line is simpler: visible demand should become requests, and
-                requests should become completed work. Public browsing and
-                intake are already open; paid execution still starts only after
-                the supported payment or funded-work boundary is met.
-              </p>
-            </div>
-
-            <div className="grid gap-px overflow-hidden rounded-[1.2rem] border border-border/70 bg-border">
-              {productStats.map((stat) => (
-                <article className="bg-background px-4 py-4" key={stat.label}>
+          <div className="grid gap-3 px-4 py-4 sm:grid-cols-2 sm:px-5">
+            {capabilitySpecs.map((spec) => (
+              <article
+                className={cn(
+                  "flex min-h-[10.5rem] flex-col justify-between rounded-[1.2rem] border border-border/70 bg-background/88 p-4",
+                  spec.className
+                )}
+                key={spec.label}
+              >
+                <div>
                   <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                    {stat.label}
+                    {spec.label}
                   </p>
-                  <p className="mt-3 font-heading text-2xl font-semibold tracking-tight">
-                    {stat.value}
+                  <p className="mt-3 max-w-[18rem] font-heading text-2xl font-semibold tracking-tight sm:text-[2rem]">
+                    {spec.value}
                   </p>
-                  <p className="mt-2 text-sm/7 text-muted-foreground">
-                    {stat.note}
-                  </p>
-                </article>
-              ))}
-            </div>
+                </div>
+                <p className="mt-5 text-sm/7 text-muted-foreground">{spec.note}</p>
+              </article>
+            ))}
           </div>
         </aside>
       </section>
@@ -203,7 +226,7 @@ export function AboutPage({
               Core flow
             </p>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight">
-              How Boreal should behave
+              From first ask to fulfilled work
             </h2>
           </div>
           <div className="grid gap-px overflow-hidden rounded-b-[1.35rem] bg-border">
@@ -222,7 +245,7 @@ export function AboutPage({
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {positioningPanels.map((panel) => {
+          {principles.map((panel) => {
             const Icon = panel.icon
 
             return (
@@ -244,14 +267,18 @@ export function AboutPage({
       </section>
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="max-w-2xl">
             <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
               Linked papers
             </p>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight">
-              Read the narrative layer in full
+              Longer reading, same product truth
             </h2>
+            <p className="mt-2 text-sm/7 text-muted-foreground">
+              The papers hold the thesis in full and stay tied to the live
+              product surface rather than a separate brand story.
+            </p>
           </div>
           {embedded && onOpenPapers ? (
             <Button

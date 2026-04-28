@@ -226,6 +226,7 @@ type CenterSheetView = "about" | "agent" | "developers" | "papers" | "roadmap"
 const centerSheetViewByHref = {
   "/about": "about",
   "/agents": "agent",
+  "/docs": "developers",
   "/developers/agents": "developers",
   "/papers": "papers",
   "/roadmap": "roadmap",
@@ -234,7 +235,7 @@ const centerSheetViewByHref = {
 const centerSheetHrefByView: Record<CenterSheetView, string> = {
   about: "/about",
   agent: "/agents",
-  developers: "/developers/agents",
+  developers: "/docs",
   papers: "/papers",
   roadmap: "/roadmap",
 }
@@ -242,7 +243,7 @@ const centerSheetHrefByView: Record<CenterSheetView, string> = {
 const centerSheetTitleByView: Record<CenterSheetView, string> = {
   about: "About",
   agent: "Agent",
-  developers: "Developers",
+  developers: "Docs",
   papers: "Papers",
   roadmap: "Roadmap",
 }

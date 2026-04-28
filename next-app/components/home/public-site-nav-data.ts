@@ -21,7 +21,7 @@ export const publicSiteLinks: PublicSiteLink[] = [
     label: "Agent",
   },
   {
-    href: "/developers/agents",
-    label: "Developers",
+    href: "/docs",
+    label: "Docs",
   },
 ]
