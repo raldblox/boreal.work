@@ -43,12 +43,12 @@ type RoadmapBoardProps = {
 
 const laneOrder = [
   {
-    description: "Named next-step work already queued in the public roadmap.",
+    description: "Named next-step work already queued to improve how visible demand becomes finished work.",
     key: "next",
     label: "Next",
   },
   {
-    description: "Actively being hardened right now across the live product.",
+    description: "Active hardening work across routing, commerce depth, and request-side execution quality.",
     key: "in_progress",
     label: "In Progress",
   },
@@ -58,7 +58,7 @@ const laneOrder = [
     label: "Live",
   },
   {
-    description: "Important later-stage work outside the current claim boundary.",
+    description: "Important later-stage work outside the current public claim boundary.",
     key: "later",
     label: "Later",
   },
@@ -226,7 +226,7 @@ export function RoadmapBoard({
                 <p className="text-lg font-medium tracking-tight">Roadmap</p>
                 <p className="text-sm text-muted-foreground">
                   {boardSync
-                    ? `Synced ${formatLongDate(boardSync)}`
+                    ? `Synced ${formatLongDate(boardSync)} · public truth for what is live, what is hardening, and what stays ahead.`
                     : "Repo-grounded public board"}
                 </p>
               </div>

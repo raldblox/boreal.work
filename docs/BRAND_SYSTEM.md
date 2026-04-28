@@ -1,58 +1,37 @@
 # Boreal Brand System
 
-This document consolidates Boreal's current brand foundation from:
+This document is the working source of truth for Boreal's brand positioning, verbal identity, and message discipline.
 
+It consolidates and updates the current repo-backed narrative from:
+
+- `../README.md`
 - `../WHITEPAPER.md`
 - `COPYWRITING.md`
 - `CHARACTER.md`
 - `CATEGORY_LANGUAGE_RESEARCH.md`
 - `POSITIONING_TRIAGE.md`
 
-It is the working source of truth for brand positioning, verbal identity, and message discipline.
-
-## Current State
-
-Yes, Boreal already has meaningful brand material in the repo.
-
-What exists already:
-
-- category and positioning research
-- homepage and launch copy direction
-- product character and conversational tone
-- naming guardrails
-- tagline and repeated thesis lines
-
-What does not exist yet as one unified system:
-
-- a single brand document
-- a clear distinction between company voice and product-agent voice
-- message hierarchy by audience
-- explicit do / do not say rules for public marketing
-- a compact brand essence that can be reused in decks, landing pages, product copy, video scripts, and outreach
-
-This file fills that gap.
-
 ## Brand Core
 
 ### Brand thesis
 
-Boreal is building request-native commerce: an intent-to-fulfillment layer for work, products, and services.
+Boreal is building request-native commerce: a work network and commerce layer that turns visible demand into fulfillable work.
 
 ### Product description
 
-Boreal is a chat-native market for request-native commerce.
+Boreal is a chat-native interface for request-native commerce.
 
 ### What Boreal does
 
-Boreal turns chat into structured requests, routes them to supply, opens proposals when the work is custom, and keeps fulfillment or checkout attached to the same request.
+Boreal turns a request into a durable work object. It can route to existing offers, open proposals when the work is custom, keep delivery and proof attached, and let payout and reputation compound from completion.
 
 ### Tagline
 
 `Commerce, headed north.`
 
-Use as a brand line, not as the main explanatory sentence.
+Use this as a brand line, not as the main explanatory sentence.
 
-## Brand Positioning Stack
+## Category Stack
 
 Use different language at different layers.
 
@@ -78,6 +57,17 @@ Use for:
 - company description
 - launch messaging
 
+### Market layer
+
+`work network and commerce layer`
+
+Use for:
+
+- founder posts
+- partner narrative
+- business-facing explanation
+- category framing for people who already understand marketplaces, workflow software, and online services
+
 ### Interface layer
 
 `chat-native`
@@ -86,136 +76,199 @@ Use for:
 
 - homepage
 - onboarding
-- product UX explanation
+- UX explanation
 - demos
-
-### Market layer
-
-`market for work, products, and services`
-
-Use for:
-
-- public-facing product explanation
-- landing page
-- first-touch copy
 
 ## Brand Essence
 
 ### In one sentence
 
-Boreal is where expressed demand becomes structured work, matched supply, accountable fulfillment, and supported checkout.
+Boreal turns visible demand into structured, fulfillable work.
 
 ### In one paragraph
 
-Boreal is a chat-native market for request-native commerce. People and agents start with a plain-language request. Boreal turns that request into a durable workspace, checks existing supply first, opens proposals when the work is custom, and keeps delivery or checkout visible until the outcome is complete.
+A lot of demand is already visible across chat, docs, terminals, prompts, support queues, search behavior, and internal workflows. Most of it still does not become accountable execution. Boreal exists to close that gap. It starts with a request, routes toward the best path forward, and keeps the work, proof, payout, and reputation attached to the same thread.
 
 ### In founder language
 
-Boreal exists because demand keeps getting expressed in chat, search, and prompts, but most of it disappears instead of getting fulfilled.
+The internet is very good at producing intent, and increasingly good at measuring it. It is still bad at turning that intent into completed work.
 
 ## Brand Personality
 
 Boreal should feel:
 
 - direct
-- calm
+- clear
+- literate
 - operational
 - credible
 - modern
-- unsentimental
+- calm under pressure
 - ambitious without overclaiming
 
 Boreal should not feel:
 
 - hype-first
 - mystical
-- over-futuristic
+- abstract for its own sake
 - salesy
 - cute
-- corporate-bureaucratic
+- over-corporate
 - vague
+- buzzword-heavy
+
+## Editorial Voice
+
+Boreal's strongest public writing should feel **clean, literary, and direct**.
+
+The goal is not to sound ornate. The goal is to make the reader feel the problem clearly, then accept the category shift naturally.
+
+### Preferred writing moves
+
+#### 1. Contrast
+
+Use tension between what already exists and what is still missing.
+
+Examples:
+
+- `We have more ways than ever to ask for things. We still do not turn enough of that into completed work.`
+- `Modern companies are good at measuring demand. They are still worse than they should be at fulfilling it.`
+
+#### 2. Accumulation
+
+Stack familiar places where demand appears until the reader recognizes the pattern.
+
+Examples:
+
+- `A request can start in chat, in a thread, in a doc, in a terminal, in an agent prompt, in the middle of someone else's workflow.`
+- `The demand is visible in search interest, heatmaps, and analytics.`
+
+Use this to create recognition, not to show off coverage. Usually 3 to 6 examples is enough.
+
+#### 3. Reversal
+
+Show that what looks like progress is often only observation.
+
+Examples:
+
+- `Most of it goes nowhere. Or rather, it goes somewhere easier.`
+- `It becomes search interest, heatmaps, and analytics — something to measure, not something to fulfill.`
+
+#### 4. Redefinition
+
+Reframe Boreal away from the nearest shallow category.
+
+Examples:
+
+- `Boreal is not just another chatbot.`
+- `Boreal is a work network and commerce layer built around the request.`
+
+#### 5. Thesis line
+
+Land one sentence that can carry the whole post or page.
+
+Examples:
+
+- `Observation is not fulfillment.`
+- `The internet is full of intent, but still bad at turning that intent into completed work.`
+- `The request should become the system of record.`
 
 ## Voice Principles
 
-### 1. Start from the problem, not the abstraction
+### 1. Start from the felt problem
 
 Prefer:
 
-- `Turn chat into a request`
-- `Keep delivery attached`
-- `Match supply first`
+- `A lot of demand is visible long before it becomes work.`
+- `A request can start anywhere and still fail to become execution.`
+- `Observation is not fulfillment.`
 
-Avoid opening with:
+Avoid leading with:
 
 - `orchestration`
 - `protocol layer`
 - `composable infrastructure`
+- `coordination primitives`
 
-Those can appear later, but they should not lead most public copy.
+Those can appear later. They should not carry the first paragraph.
 
 ### 2. Sound operational, not promotional
 
 Prefer:
 
 - `Post what you need`
-- `List what you sell`
+- `Route the best path`
 - `Compare proposals`
-- `Track fulfillment`
+- `Keep proof attached`
+- `Build reputation from finished work`
 
 Avoid:
 
 - `revolutionary`
 - `game-changing`
-- `seamless`
 - `supercharge`
+- `seamless`
+- `unlocking the future`
 
-### 3. Be specific about what is live
+### 3. Use business-legible specifics when helpful
 
-Prefer:
-
-- `public alpha`
-- `provider-backed checkout for supported services`
-- `proposal and fulfillment workflows`
-
-Avoid:
-
-- implying universal escrow
-- implying full protocol interoperability
-- implying every listing has a fully autonomous representative today
-
-### 4. Use short, durable nouns
+For more analytical or operator-heavy audiences, it is good to acknowledge how demand is already observed.
 
 Prefer:
 
-- `Request`
-- `Supply`
-- In public UI copy, prefer `Offers` when the meaning is a seller-facing listing people can hire or buy
-- `Proposal`
-- `Workspace`
-- `Fulfillment`
+- `search interest`
+- `heatmaps`
+- `analytics`
+- `support queues`
+- `workflow exhaust`
 
-Avoid replacing these with new synonyms unless there is a strong reason.
+But keep the list short. Two or three examples are usually stronger than seven.
 
-## Voice By Surface
+### 4. Keep request and intent distinct
 
-### Company / brand voice
+Use:
+
+- `intent` when describing the broader phenomenon or thesis
+- `request` when describing the Boreal object, workflow, or product surface
+
+Good pattern:
+
+- `Intent is everywhere. Boreal turns it into requests. Requests turn into fulfillable work.`
+
+### 5. Treat completion as the center of gravity
+
+Boreal copy should repeatedly return to:
+
+- completion
+- proof
+- payout
+- reputation
+- accountability
+- fulfillment
+
+The point is not just that work starts. The point is that work closes well.
+
+## Company Voice vs Product Voice
+
+### Company / founder voice
 
 Purpose:
 
-- explain Boreal clearly
-- position the company
-- describe the category
+- explain the thesis
+- frame the category
+- make the problem feel obvious
 
 Tone:
 
 - crisp
-- grounded
+- elegant
 - explanatory
 - restrained
+- slightly literary, never flowery
 
 Example:
 
-`Boreal is a chat-native market for request-native commerce. It turns plain-language asks into requests, then routes them to supply, proposals, fulfillment, and checkout.`
+`We have more ways than ever to ask for things. A request can begin almost anywhere. Most of it still does not become completed work.`
 
 ### Product / UI voice
 
@@ -223,7 +276,7 @@ Purpose:
 
 - help users act
 - reduce ambiguity
-- move requests toward resolution
+- move work forward
 
 Tone:
 
@@ -252,76 +305,58 @@ Important:
 
 - this is not identical to company brand voice
 - the agent voice is narrower and more operational
+- the company voice can be more essay-like than the product agent should ever be
 
 ## Messaging Hierarchy
 
-### Public homepage
+### Homepage and about page
 
 Lead with:
 
+- the demand-to-fulfillment gap
 - chat-native interface
 - request-native commerce
-- market for work, products, and services
+- one request becoming one durable work thread
 
-Do not lead with:
-
-- protocol names
-- settlement architecture
-- deep infrastructure language
-
-### Whitepaper
+### Whitepaper and flagship paper
 
 Lead with:
 
 - intent-to-fulfillment
-- request-native commerce
-- demand that should not disappear
+- the difference between observed demand and fulfilled demand
+- the request as the system of record
 
-Then expand into:
-
-- routing
-- supply aggregation
-- protocol depth
-- settlement roadmap
-
-### Investor / partner materials
+### Roadmap and product truth pages
 
 Lead with:
 
-- intent-to-fulfillment infrastructure
-- request-native commerce
-- the bridge between work marketplaces and agentic commerce
+- what is live
+- what is getting hardened
+- what remains outside the current claim boundary
 
-### Seller-side materials
-
-Lead with:
-
-- listing exposure
-- selling
-- readiness for human and agent demand
-- representative language where appropriate
-
-### Request-side materials
+### Investor and partner materials
 
 Lead with:
 
-- start with a request
-- match supply first
-- open proposals when custom work is needed
-- keep fulfillment attached
+- work network
+- commerce layer
+- conversion from visible demand into structured execution
+- mixed human and agent supply
 
 ## Terms To Use
 
 - `request-native commerce`
 - `intent-to-fulfillment`
+- `work network`
+- `commerce layer`
 - `chat-native`
-- `market for work, products, and services`
-- `public alpha`
-- `Supply`
 - `Requests`
-- `Proposal`
-- `Workboard`
+- `Offers`
+- `Proposals`
+- `Work thread`
 - `Fulfillment`
+- `Proof`
+- `Reputation`
 
 ## Terms To Use Carefully
 
@@ -329,72 +364,49 @@ Lead with:
 - `representative`
 - `agentic commerce`
 - `protocol-native`
+- `swarm`
 
-These are valid, but they should be context-specific and usually secondary.
+These are valid, but usually belong later in the explanation.
 
 ## Terms To Avoid As Primary Brand Language
 
 - `AI gatekeeper`
 - `attention protection`
-- `agent registry`
-- `orchestration platform`
 - `intent-to-task`
-- `alpha market`
+- `orchestration platform`
+- `super app`
+- `future of work` as a standalone claim
 
-These either describe an older product branch, feel too abstract, or are too narrow.
-
-## Brand Proof Points
-
-Current proof points Boreal can credibly repeat:
-
-- chat-native request intake
-- request workboards
-- public requests and supply
-- proposals and fulfillment workflows
-- human and agent profiles
-- product and service listings
-- cart and provider-backed checkout records
-- autonomous worker participation
+These either flatten Boreal into the wrong category or sound too generic.
 
 ## Reusable Message Lines
 
-### Best short lines
+### Short lines
 
-- `Commerce for humans and agents starts with a request.`
+- `Observation is not fulfillment.`
 - `Start in chat. Operate through requests.`
-- `Commerce should not end at the prompt.`
+- `The request should become the system of record.`
+- `Visible demand should become completed work.`
 
-### Best explanatory lines
+### Explanatory lines
 
-- `Boreal turns chat into structured requests, then routes them to supply, proposals, fulfillment, and checkout.`
-- `Some requests resolve through existing supply. Others need proposals. Boreal keeps both paths attached to the same request.`
+- `A lot of demand is visible long before it becomes work.`
+- `Boreal turns a request into something that can be routed, quoted, completed, verified, and paid.`
+- `The internet is getting better at measuring demand than fulfilling it.`
 
-### Best founder line
+### Founder lines
 
-- `Demand keeps getting expressed. Boreal makes sure it does not disappear.`
-
-## What Is Still Missing
-
-Still worth creating later:
-
-- visual identity rules
-- logo usage rules
-- color and typography rules
-- pitch-deck message hierarchy
-- audience-specific messaging for:
-  - buyers
-  - sellers
-  - agents
-  - partners
-  - investors
-- brand examples of good and bad copy
+- `Most of it goes nowhere. Or rather, it goes somewhere easier.`
+- `It becomes search interest, heatmaps, and analytics — something to observe, not something to fulfill.`
+- `Finished work should compound into proof, payout, and reputation.`
 
 ## Practical Rule
 
-If a sentence makes Boreal sound like only a chatbot, only a freelance marketplace, or only a protocol spec, it is incomplete.
+If a sentence makes Boreal sound like only a chatbot, only a freelance marketplace, only a dashboard, or only a protocol spec, it is incomplete.
 
-The brand has to preserve all three layers:
+The brand has to preserve all four layers:
 
-- chat-native interface
-- request-native system
-- intent-to-fulfillment thesis
+- visible demand
+- request-native workflow
+- mixed human and agent supply
+- fulfillment with proof, payout, and reputation attached

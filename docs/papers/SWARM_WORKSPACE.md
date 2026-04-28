@@ -1,43 +1,68 @@
 # Swarm Workspace
 
-Subtitle: Where humans and agents should actually collaborate
+Subtitle: Where difficult requests should become live coordination
 
 ## Abstract
 
-The multi-agent question is not only how agents collaborate.  It is where collaboration lives, how it stays observable, and how it turns into accountable delivery.
+The multi-agent question is not only how agents collaborate. It is where collaboration lives, how it stays observable, and how it turns into accountable delivery.
 
-For Boreal, the best answer starts from the request workboard that already exists.  `Swarm Workspace` is the upgrade path when a request needs deeper coordination, richer presence, or a paid live operations layer.  The goal is not more chat.  The goal is a workspace where everyone can see the same request, state, artifacts, blockers, and proof while the work is still in motion.
+For Boreal, the best answer begins with the request workboard that already exists. `Swarm Workspace` is the upgrade path when a request needs deeper coordination, richer presence, or a paid live operations layer. The goal is not more chat. The goal is a workspace where everyone can see the same request, state, artifacts, blockers, and proof while the work is still in motion.
 
-## 1. Why chat alone is not enough
+## 1. Chat is a good front door and a weak control room
 
-Chat is a good front door.  It is a poor control room.
+Chat is useful because it lowers the cost of starting.
 
-Pure chat fails when:
+It is weaker when:
 
-- work spans multiple participants
-- artifacts need versioned context
+- the work spans multiple participants
+- artifacts need durable context
 - blockers need visibility
-- a buyer wants to audit what happened
+- the owner wants an audit trail
 - handoffs happen across tools or runtimes
 
-This is why Boreal should not stop at "AI chat with plugins".  The request needs a workspace around it.
+That is why Boreal should not stop at "AI chat with plugins." The request needs a workspace around it.
 
-## 2. What a swarm workspace should do
+## 2. The workspace should open from a real request
 
-A request-native workspace should make several things visible:
+The workspace should not begin as an empty canvas.
+
+It should open from a real request with:
+
+- an owner
+- a scope
+- an execution path
+- a delivery target
+- a commercial outcome attached
+
+That anchor matters because it keeps coordination economically meaningful. Without it, collaboration turns into theater or admin overhead.
+
+## 3. What a swarm workspace should make visible
+
+A request-native workspace should make several things legible at once:
 
 - who is participating
 - what role each participant plays
 - what state the work is in
 - what artifacts were produced
-- what blockers are unresolved
+- what blockers remain
 - what proof exists for delivery
+- how payout and reputation will close out
 
-That surface should work for human owners, human suppliers, and external agents.
+This surface should work for owners, human suppliers, and external agents.
 
-## 3. What is already live
+## 4. Why this matters for hard requests
 
-The current Boreal alpha already has the right starting point:
+Simple work can often resolve through direct execution or one supplier.
+
+Harder requests are different. They are expensive, ambiguous, high-stakes, or multi-disciplinary. They may need several people, several agents, or several phases of work.
+
+Those are the requests most likely to die in scattered threads and handoffs.
+
+Swarm Workspace matters because it gives those requests a place where coordination can stay attached to the work instead of leaking into private side channels.
+
+## 5. What is already live
+
+The current Boreal alpha already has the right base object:
 
 - request workboards
 - attached chat
@@ -47,82 +72,55 @@ The current Boreal alpha already has the right starting point:
 - delivery
 - payout-aware lifecycle records
 
-That means Boreal does not need to invent a new core object for collaboration.  It needs to deepen the request workboard it already has, then add a live-session layer only when the request actually needs one.
+That means Boreal does not need a new core object for collaboration. It needs to deepen the request workboard it already has, then open a richer coordination layer only when the request actually needs one.
 
-## 4. Why the workspace should open from a request
-
-The workspace should not begin as an empty shared canvas.  It should open from a real request with an owner, a scope, and a delivery target already attached.
-
-That matters because the request gives the workspace:
-
-- a clear objective
-- an accountable owner
-- a live supply context
-- a reason to keep artifacts and status attached
-- a path from collaboration into payout and reputation
-
-Without that anchor, multi-agent collaboration becomes theater or admin overhead.
-
-## 5. The product role of Swarm Workspace
+## 6. The product role of Swarm Workspace
 
 Swarm Workspace should be the public name for the expanded collaboration layer.
 
 Its job is to become the place where:
 
 - a request opens into a live work canvas
-- outside agents post updates without owning the whole UI
-- humans can watch or intervene
+- outside agents can post updates without owning the full UI
+- humans can watch, intervene, or take over specific parts
 - delivery evidence stays attached
 - the final outcome is reviewable
 
-The workspace should feel like a virtual operations room, not a static ticket form.
+It should feel more like an operations room than a chat transcript.
 
-## 6. Target architecture, not shipped claim
+## 7. This is target architecture, not current claim
 
-Long-term, the strongest technical direction is a decentralized collaboration plane with:
+Long-term, the strongest technical direction is a richer collaboration plane with:
 
-- libp2p for peer discovery and durable coordination primitives
-- WebRTC for browser-reachable real-time channels
-- relay or remote node infrastructure for participants that cannot connect directly
-- attachment and event models that can still fall back to Boreal-managed persistence
+- relay-backed real-time coordination
+- browser-reachable channels
+- stronger assignment and decomposition primitives
+- validator lanes
+- fallback persistence in Boreal-managed records
 
-This should be framed as target architecture, not as a shipped claim.
+That should be framed as target architecture, not shipped claim.
 
-## 7. Why a paid workspace can make sense
+## 8. Why a paid workspace can make sense
 
 Opening a serious collaborative workspace costs real resources:
 
-- routing work
+- routing effort
 - coordination overhead
 - storage
 - real-time messaging
 - monitoring
 - artifact retention
 
-That means it is reasonable for Boreal to treat the full swarm workspace as a premium surface opened by a real request, not as a free-floating canvas detached from commerce.
-
-## 8. Visualization matters
-
-The owner should not have to infer collaboration from logs alone.
-
-The workspace should make visible:
-
-- active participants
-- state transitions
-- artifacts created
-- dependency chains
-- completion and payout status
-
-That is how trust is built without demanding that every owner read raw transcripts.
+That makes it reasonable for Boreal to treat the full swarm workspace as a premium surface opened by a real request, not as a free-floating canvas detached from commerce.
 
 ## 9. Boreal's advantage
 
-Many tools can create shared canvases.  Fewer can bind that canvas to:
+Many tools can create shared canvases. Fewer can bind that canvas to:
 
 - a live request
 - a real market
-- payment and payout
-- public or private reputation
+- proof and payout
+- durable reputation
 
 That binding is what makes the workspace economically meaningful instead of ornamental.
 

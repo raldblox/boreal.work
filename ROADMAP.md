@@ -1,8 +1,16 @@
 # Boreal Roadmap
 
-This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked items are only for functionality that is observable in the current repository as of April 26, 2026.  Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
+This roadmap translates `WHITEPAPER.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 28, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
 
 ## Current Readout
+
+Boreal's public story should now be simple:
+
+- demand is already visible across chat, docs, terminals, prompts, and workflows
+- most of it still does not become completed work
+- Boreal turns that demand into requests and keeps the request attached through fulfillment
+
+That is the lens for the roadmap below. The product is no longer just a bundle of chat behaviors. It is becoming a request-native work network and commerce layer.
 
 - Boreal is already a real public alpha for request-native commerce, delivered through a chat-native interface: chat intake, request workboards, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
 - Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Privy-backed x402 payment initiation, and Agentic Market discovery sync.
@@ -32,18 +40,33 @@ This roadmap translates `WHITEPAPER.md` into implementation phases.  Checked ite
 - Boreal is effectively between Milestone A and Milestone B: the public-alpha surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
 
+## Continuous Roadmap Execution Cadence
+
+Goal: keep roadmap work moving every week instead of only after major feature pushes.
+
+- [x] Start a dated cadence section in `ROADMAP.md` so roadmap progress can be reviewed incrementally
+- [ ] Keep a rolling "Now / Next / Risks" update in this section at least once per week
+- [ ] For each shipped contract or flow change, add one explicit roadmap status update in the same patch
+- [ ] Mirror roadmap-priority changes into `next-app/app/roadmap` in the same patch when public board labels or status lanes are affected
+- [ ] Add a short "last reviewed" stamp to the `Immediate Next Actions` list whenever priorities are reordered
+
 ## Documentation And Positioning Consolidation
 
-Goal: make the written story match the live alpha while recycling the strongest prior Boreal work instead of rewriting from zero.
+Goal: make the written story match the live alpha, preserve the strongest Boreal language, and keep public copy aligned on one clean brand voice.
 
 - [x] Create `docs/POSITIONING_TRIAGE.md` to classify what to keep, rewrite, recycle, and archive from earlier Boreal repos
 - [x] Create `docs/CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
 - [x] Rewrite the top of `WHITEPAPER.md` and its `What Boreal Has Built` / `What Is Live Today` sections so live alpha claims are separated from target architecture
 - [ ] Finish the rest of `WHITEPAPER.md` so `live today`, `in progress`, and `target architecture` stay clearly separated end to end
-- [ ] Align `README.md`, chat zero-state copy, the `/about` feature/spec page, `ROADMAP.md`, and public alpha messaging on one canonical naming stack:
+- [x] Align `README.md`, chat zero-state copy, the `/about` feature/spec page, `ROADMAP.md`, and public alpha messaging on one canonical naming stack:
   - `chat-native` for the interface layer
   - `request-native` for the system and category layer
   - `intent-to-fulfillment` for the thesis layer
+- [x] Establish the public editorial voice in `docs/BRAND_SYSTEM.md` and `docs/COPYWRITING.md`:
+  - clean, literary, direct
+  - use contrast, accumulation, reversal, redefinition, and thesis lines
+  - distinguish `intent` from `request`
+  - keep completion, proof, payout, and reputation at the center
 - [x] Add a permanent roadmap-hygiene rule to the main docs so shipped behavior, public contracts, and agent-control changes update `ROADMAP.md` and the most specific contract docs in the same patch
 - [x] Publish `CONNECT_AGENT_GUIDE.md` as a legacy internal runtime note so dormant connector work stays documented without becoming the public product story
 - [x] Reposition public agent-owner docs around Boreal as a work network, with `SKILL.md`, `llms.txt`, `ONE_REQUEST_API.md`, and `ONE_INBOX_API.md` as the main integration contract
@@ -429,6 +452,7 @@ Goal: make the system compound from usage and support larger, multi-party work.
 
 ## Immediate Next Actions
 
+- [ ] Last reviewed: 2026-04-27  (update this date whenever this list is reordered or materially rewritten)
 - [ ] Finalize the remaining wallet and payment policy beyond the new schema base: payout preferences, split/escrow rules, and recovery paths for failed or cancelled paid flows
 - [ ] Expand the commerce scenario registry coverage across consultations, physical services, milestone work, refunds, disputes, and split-settlement paths
 - [ ] Implement the runtime ACP/UCP/A2A-facing listing descriptors and stable public protocol endpoints on top of the new schema fields

@@ -18,59 +18,58 @@ import { PublicPageFooter, PublicPageHeader } from "./public-site-chrome"
 const productStats = [
   {
     label: "Home route",
-    note: "The actual product home is the chat shell, not a detached marketing page.",
+    note: "The real front door is the chat shell, where a request can start before the user chooses a stack.",
     value: "/",
   },
   {
     label: "Category",
     note: "Chat-native interface for request-native commerce.",
-    value: "Request-native",
+    value: "Work network",
   },
   {
     label: "Supply side",
-    note: "Humans, agents, products, services, and provider-backed execution.",
-    value: "Mixed market",
+    note: "Humans, agents, products, services, and provider-backed execution live in the same market.",
+    value: "Mixed supply",
   },
 ] as const
 
 const executionPath = [
   {
-    body: "The user starts in plain language instead of choosing tools, providers, or protocol terms first.",
+    body: "The user starts with the outcome they need, not a premature decision about tools, providers, or workflows.",
     title: "Start with one request",
   },
   {
-    body: "Boreal should check direct executable supply, provider-backed services, and known offers before opening custom work.",
-    title: "Route the fastest qualified path",
+    body: "Boreal checks the best path forward first: direct offers, known supply, provider-backed services, or specialist agents before custom work opens.",
+    title: "Route the best path forward",
   },
   {
-    body: "If the work needs judgment, customization, or collaboration, Boreal keeps the thread attached through proposal, delivery, proof, and payout.",
-    title: "Keep the work alive",
+    body: "If the work needs judgment, customization, or a team, Boreal keeps the request alive through proposal, delivery, proof, payout, and reputation.",
+    title: "Let completion compound",
   },
 ] as const
 
 const positioningPanels = [
   {
-    body: "Boreal is a market first.  Chat is the interface layer that makes demand legible and operable.",
+    body: "Boreal is not another chatbot with a glossy shell. Chat is only the interface layer around a real work network and commerce system.",
     icon: BriefcaseBusinessIcon,
     title: "Not just another chatbot",
   },
   {
-    body: "The durable object is the request.  That is how matching, delivery, review, and reputation stay attached.",
+    body: "Most systems preserve conversation, listings, or analytics. Boreal preserves the request, so the work itself can stay attached from start to finish.",
     icon: PackageIcon,
     title: "The request is the record",
   },
   {
-    body: "Humans and agents both belong on the supply side.  Boreal should route to the best path, not force a single stack.",
+    body: "Humans and agents both belong on the supply side. The market should route to the best mix instead of forcing one execution model too early.",
     icon: HandshakeIcon,
     title: "Humans and agents share one market",
   },
   {
-    body: "Harder work should move through a request workboard first, then upgrade into a Swarm Workspace only when realtime coordination is worth opening.",
+    body: "Harder work should begin in a request workboard, then deepen into richer collaboration only when the request truly needs it.",
     icon: NetworkIcon,
-    title: "Workboards first",
+    title: "Workboards before swarm theater",
   },
 ] as const
-
 export function AboutPage({
   embedded = false,
   onOpenPaper,
@@ -93,19 +92,21 @@ export function AboutPage({
         <div className="rounded-[1.35rem] border border-border/80 bg-card/92 shadow-[0_14px_36px_-34px_rgba(15,23,42,0.18)]">
           <div className="border-b border-border/70 px-4 py-4 sm:px-5">
             <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              What Boreal is now
+              What Boreal is building
             </p>
             <h1 className="mt-2 max-w-5xl font-heading text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
-              Boreal is a request-native market that starts in chat and stays attached to the work.
+              Boreal turns visible demand into fulfillable work.
             </h1>
           </div>
 
           <div className="space-y-6 px-4 py-5 sm:px-5 sm:py-6">
             <p className="max-w-4xl text-base/8 text-muted-foreground sm:text-lg/8">
-              People should be able to start with one request, not a stack
-              decision.  Boreal turns that ask into a live work thread, checks
-              the best executable path first, and keeps proposals, delivery,
-              checkout, and proof attached while the outcome is still in motion.
+              A request can begin in chat, in a doc, in a thread, in a terminal,
+              or in an agent workflow. Too often it stops at discussion,
+              fragments across tools, or gets reduced to analytics instead of
+              becoming accountable execution. Boreal starts with the request,
+              routes the best path forward, and keeps proof, payout, and
+              reputation attached to the same work thread.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -143,17 +144,17 @@ export function AboutPage({
               Positioning guardrail
             </div>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight">
-              Boreal should stay honest
+              Keep the public story honest
             </h2>
           </div>
 
           <div className="space-y-4 px-4 py-4 sm:px-5">
             <div className="rounded-[1.2rem] border border-border/70 bg-background px-4 py-4">
               <p className="text-sm/7 text-muted-foreground">
-                Do not present Boreal as only human fallback, only paid agentic
-                services, or finished protocol-native settlement infrastructure.
-                The tighter public line is still: submit one request, Boreal
-                finds the best way to fulfill it.
+                Do not frame Boreal as only a chatbot, only human fallback, or
+                already-finished settlement infrastructure. The clearest public
+                line is simpler: visible demand should become requests, and
+                requests should become completed work.
               </p>
             </div>
 

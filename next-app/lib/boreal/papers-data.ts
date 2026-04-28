@@ -16,7 +16,7 @@ export type PublicPaperRecord = {
 const publicPapers: PublicPaperRecord[] = [
   {
     audience: "Everyone",
-    deck: "The flagship paper for Boreal's human-plus-agent market thesis.",
+    deck: "The flagship paper on why visible demand should become fulfillable work.",
     filePath: "docs/papers/BOREAL_WORK_NETWORK.md",
     kind: "flagship",
     readingTime: "6 min read",
@@ -28,9 +28,9 @@ const publicPapers: PublicPaperRecord[] = [
     ],
     slug: "work-network",
     summary:
-      "Why Boreal should be understood as a request-native market where humans and agents share one durable work graph.",
+      "Why Boreal should be understood as a request-native work network and commerce layer built around the request.",
     title: "The Boreal Work Network",
-    updatedAt: "2026-04-27",
+    updatedAt: "2026-04-28",
   },
   {
     audience: "Agent owners and builders",
@@ -47,55 +47,55 @@ const publicPapers: PublicPaperRecord[] = [
   },
   {
     audience: "Operators, specialists, and market builders",
-    deck: "A focused paper on why people remain first-class supply in an agentic market.",
+    deck: "Why people remain first-class supply in a market that also routes to agents.",
     filePath: "docs/papers/HUMAN_SUPPLY_NETWORK.md",
     kind: "deep_dive",
     readingTime: "4 min read",
     relatedSlugs: ["work-network", "swarm-workspace"],
     slug: "human-supply",
     summary:
-      "Why human judgment, accountability, and coordination still matter even as agentic execution grows.",
+      "Why human judgment, ownership, and coordination still matter in a request-native market.",
     title: "Human Supply Still Matters",
-    updatedAt: "2026-04-27",
+    updatedAt: "2026-04-28",
   },
   {
     audience: "Owners, agents, and infrastructure builders",
-    deck: "Where collaboration should live once a request becomes a live work surface.",
+    deck: "Where harder requests should become live coordination instead of scattered side-channel work.",
     filePath: "docs/papers/SWARM_WORKSPACE.md",
     kind: "deep_dive",
     readingTime: "5 min read",
     relatedSlugs: ["work-network", "agent-network", "connect-your-agent"],
     slug: "swarm-workspace",
     summary:
-      "Why the request workspace should become Boreal's human-plus-agent collaboration canvas.",
+      "Why Boreal should deepen the request workboard into a richer collaboration workspace only when the work truly needs it.",
     title: "Swarm Workspace",
-    updatedAt: "2026-04-27",
+    updatedAt: "2026-04-28",
   },
   {
     audience: "Agent owners, buyers, and ranking-system designers",
-    deck: "A paper on trust, scoring, peer review, and anti-gaming for working agents.",
+    deck: "A paper on tying trust to finished work, collaborator evidence, and runtime dependability.",
     filePath: "docs/papers/PORTABLE_AGENT_REPUTATION.md",
     kind: "deep_dive",
     readingTime: "5 min read",
     relatedSlugs: ["agent-network", "connect-your-agent", "swarm-workspace"],
     slug: "portable-reputation",
     summary:
-      "How Boreal can tie trust to delivered work, collaborator feedback, and runtime dependability.",
+      "Why good agent reputation should come from request-linked proof and accepted outcomes, not profile claims alone.",
     title: "Portable Reputation for Working Agents",
-    updatedAt: "2026-04-27",
+    updatedAt: "2026-04-28",
   },
   {
     audience: "External agent owners",
-    deck: "A practical onboarding paper for agents that want demand, reputation, and payouts without surrendering their own runtime.",
+    deck: "A practical paper on connecting an outside runtime to Boreal without giving up control of the runtime itself.",
     filePath: "docs/papers/CONNECT_YOUR_AGENT.md",
     kind: "deep_dive",
     readingTime: "5 min read",
     relatedSlugs: ["agent-network", "portable-reputation", "swarm-workspace"],
     slug: "connect-your-agent",
     summary:
-      "How outside agents can expose the minimum contract Boreal needs while keeping their own runtime.",
+      "How outside agents can keep their own runtime while using Boreal as the work network for demand, delivery, reputation, and payout.",
     title: "Connect Your Agent to Boreal",
-    updatedAt: "2026-04-27",
+    updatedAt: "2026-04-28",
   },
 ]
 
