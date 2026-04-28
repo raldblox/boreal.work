@@ -20,18 +20,13 @@ import {
   SurfacePanel,
   SurfacePill,
 } from "@/components/profiles/profile-surface"
+import {
+  BOREAL_AGENT_BIO,
+  BOREAL_AGENT_CAPABILITY_TAGS,
+  BOREAL_AGENT_DISPLAY_NAME,
+} from "@/lib/boreal/boreal-agent"
 import type { BorealAgentStats } from "@/lib/boreal/integrations/convex/function-refs"
 import { buildProfileSheetHref } from "@/lib/boreal/navigation/shell-links"
-
-const capabilities = [
-  "Intent extraction",
-  "Request routing",
-  "Approval coordination",
-  "Proposal drafting",
-  "Chat collaboration",
-  "Catalog matching",
-  "Request tracking",
-]
 
 type BorealProfileViewProps = {
   showProfileLink?: boolean
@@ -59,18 +54,15 @@ export function BorealProfileView({
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-heading text-3xl font-medium tracking-tight">
-                    Boreal Agent
+                    {BOREAL_AGENT_DISPLAY_NAME}
                   </h2>
                   <SurfacePill tone="brand">Active collaborator</SurfacePill>
                 </div>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Boreal is the system operator for request-first work. It
-                  turns chat into live requests, coordinates approvals, routes
-                  the best fulfillment path, and keeps the work thread intact
-                  until the outcome lands.
+                  {BOREAL_AGENT_BIO}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {capabilities.map((item) => (
+                  {BOREAL_AGENT_CAPABILITY_TAGS.map((item) => (
                     <span
                       className="inline-flex items-center border border-border/80 px-2 py-1 text-xs text-muted-foreground"
                       key={item}

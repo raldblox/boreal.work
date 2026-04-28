@@ -1,8 +1,15 @@
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-
-const BOREAL_EXTERNAL_ID = "agent:boreal";
-const BOREAL_HANDLE = "boreal-agent";
+import {
+  BOREAL_AGENT_BIO,
+  BOREAL_AGENT_CAPABILITY_TAGS,
+  BOREAL_AGENT_DISPLAY_NAME,
+  BOREAL_AGENT_EXTERNAL_ID,
+  BOREAL_AGENT_HANDLE,
+  BOREAL_AGENT_HEADLINE,
+  BOREAL_AGENT_PRODUCT_LABELS,
+  BOREAL_AGENT_SKILL_TAGS,
+} from "../lib/boreal/boreal-agent";
 
 type RequestedOutputType = "image_generation" | "speech_generation" | "text" | "video_generation";
 
@@ -116,20 +123,12 @@ export async function refreshBorealProfileAnalytics(ctx: MutationCtx) {
   const borealUser = await ensureBorealUser(ctx);
   const analytics = await computeBorealProfileAnalytics(ctx, borealUser._id);
   await upsertProfileAnalytics(ctx, borealUser, analytics, {
-    bio: "Boreal Agent is the system operator for request-first work. It turns chat into live requests, coordinates approvals, routes the best fulfillment path, and keeps the work thread intact until the outcome lands.",
-    capabilityTags: [
-      "intent extraction",
-      "request routing",
-      "approval coordination",
-      "proposal drafting",
-      "chat collaboration",
-      "catalog matching",
-      "request tracking",
-    ],
-    headline: "Core request orchestration agent",
+    bio: BOREAL_AGENT_BIO,
+    capabilityTags: [...BOREAL_AGENT_CAPABILITY_TAGS],
+    headline: BOREAL_AGENT_HEADLINE,
     isPublic: true,
-    productLabels: ["request routing", "approval flow", "work thread ops"],
-    skillTags: ["llm routing", "market orchestration", "thread coordination"],
+    productLabels: [...BOREAL_AGENT_PRODUCT_LABELS],
+    skillTags: [...BOREAL_AGENT_SKILL_TAGS],
   });
 
   return analytics;
@@ -406,23 +405,23 @@ async function ensureBorealUser(ctx: MutationCtx) {
   const existing = await ctx.db
     .query("users")
     .withIndex("by_externalId", (queryBuilder) =>
-      queryBuilder.eq("externalId", BOREAL_EXTERNAL_ID),
+      queryBuilder.eq("externalId", BOREAL_AGENT_EXTERNAL_ID),
     )
     .unique();
 
   if (existing) {
     await ctx.db.patch(existing._id, {
       actorKind: "agent",
-      displayName: "Boreal Agent",
-      handle: BOREAL_HANDLE,
+      displayName: BOREAL_AGENT_DISPLAY_NAME,
+      handle: BOREAL_AGENT_HANDLE,
       updatedAt: Date.now(),
     });
 
     return {
       ...existing,
       actorKind: "agent" as const,
-      displayName: "Boreal Agent",
-      handle: BOREAL_HANDLE,
+      displayName: BOREAL_AGENT_DISPLAY_NAME,
+      handle: BOREAL_AGENT_HANDLE,
     };
   }
 
@@ -430,9 +429,9 @@ async function ensureBorealUser(ctx: MutationCtx) {
   const userId = await ctx.db.insert("users", {
     actorKind: "agent",
     createdAt: now,
-    displayName: "Boreal Agent",
-    externalId: BOREAL_EXTERNAL_ID,
-    handle: BOREAL_HANDLE,
+    displayName: BOREAL_AGENT_DISPLAY_NAME,
+    externalId: BOREAL_AGENT_EXTERNAL_ID,
+    handle: BOREAL_AGENT_HANDLE,
     trustScore: 100,
     updatedAt: now,
   });
@@ -440,9 +439,9 @@ async function ensureBorealUser(ctx: MutationCtx) {
   return {
     _id: userId,
     actorKind: "agent" as const,
-    displayName: "Boreal Agent",
-    externalId: BOREAL_EXTERNAL_ID,
-    handle: BOREAL_HANDLE,
+    displayName: BOREAL_AGENT_DISPLAY_NAME,
+    externalId: BOREAL_AGENT_EXTERNAL_ID,
+    handle: BOREAL_AGENT_HANDLE,
   };
 }
 

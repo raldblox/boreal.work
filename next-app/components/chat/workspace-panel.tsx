@@ -23,6 +23,15 @@ import {
   convexFunctionRefs,
   type SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs"
+import {
+  BOREAL_AGENT_BIO,
+  BOREAL_AGENT_CAPABILITY_TAGS,
+  BOREAL_AGENT_DIRECT_SUPPLY_ID,
+  BOREAL_AGENT_DISCOVERY_ALIASES,
+  BOREAL_AGENT_DISPLAY_NAME,
+  BOREAL_AGENT_HEADLINE,
+  BOREAL_AGENT_PROFILE_ID,
+} from "@/lib/boreal/boreal-agent"
 import { cn } from "@/lib/utils"
 
 import { RequestListCard } from "./request-list-card"
@@ -274,12 +283,33 @@ function SupplyCard({
   onViewProfile: (profileId: string) => void
 }) {
   const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
-  const isBorealAgentListing = listing.seller?.profileId === "boreal-agent"
+  const profileId = listing.seller?.profileId ?? null
+  const isBorealAgentListing = profileId === BOREAL_AGENT_PROFILE_ID
   const supportsDirectInvoke =
     isBorealAgentListing && listing.supportsDirectInvoke && !!onInvokeListing
+  const isProfileClickable = Boolean(profileId)
 
   return (
-    <div className="space-y-3 border border-transparent p-3 transition-colors hover:border-border hover:bg-foreground/5">
+    <div
+      aria-label={isProfileClickable ? `Open ${listing.title} profile` : undefined}
+      className={cn(
+        "space-y-3 border border-transparent p-3 transition-colors",
+        isProfileClickable && "cursor-pointer hover:border-border hover:bg-foreground/5 focus-visible:border-border focus-visible:bg-foreground/5 focus-visible:outline-none"
+      )}
+      onClick={isProfileClickable ? () => onViewProfile(profileId!) : undefined}
+      onKeyDown={
+        isProfileClickable
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                onViewProfile(profileId!)
+              }
+            }
+          : undefined
+      }
+      role={isProfileClickable ? "button" : undefined}
+      tabIndex={isProfileClickable ? 0 : undefined}
+    >
       <div className="flex items-start gap-3">
         <div className="flex size-10 items-center justify-center border border-border">
           <Icon className="size-4 text-muted-foreground" />
@@ -347,21 +377,14 @@ function SupplyCard({
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {supportsDirectInvoke ? (
               <Button
-                onClick={() => onInvokeListing?.(listing)}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onInvokeListing?.(listing)
+                }}
                 size="sm"
                 type="button"
               >
                 Use
-              </Button>
-            ) : null}
-            {listing.seller?.profileId ? (
-              <Button
-                onClick={() => onViewProfile(listing.seller!.profileId!)}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                View profile
               </Button>
             ) : null}
           </div>
@@ -372,23 +395,16 @@ function SupplyCard({
 }
 
 const BOREAL_AGENT_HUMAN_OPTIMIZER: CatalogEntry = {
-  _id: "boreal-agent-human-profile-optimizer",
+  _id: BOREAL_AGENT_DIRECT_SUPPLY_ID,
   actorKind: "agent",
   averageRating: null,
   brand: "Boreal",
-  capabilityTags: [
-    "profile-optimizer",
-    "profile-optimizer-human",
-    "human-supply",
-    "discovery",
-    "work-profile",
-  ],
+  capabilityTags: [...BOREAL_AGENT_CAPABILITY_TAGS],
   category: "operations",
   checkoutProtocol: null,
   currency: "USD",
   deliveryType: "instant",
-  description:
-    "Directly rewrite your human work profile, sharpen discovery metadata, and draft a stronger first offer in one Boreal pass.",
+  description: BOREAL_AGENT_BIO,
   estimatedDeliveryLabel: "Instant draft",
   executionSurface: "sdk",
   executorUrl: null,
@@ -407,18 +423,18 @@ const BOREAL_AGENT_HUMAN_OPTIMIZER: CatalogEntry = {
   reviewCount: 0,
   seller: {
     actorKind: "agent",
-    displayName: "Boreal Agent",
+    displayName: BOREAL_AGENT_DISPLAY_NAME,
     handle: null,
-    profileId: "boreal-agent",
+    profileId: BOREAL_AGENT_PROFILE_ID,
   },
   sourceListingUrl: null,
   sourceProviderKey: "manual",
-  subtitle: null,
+  subtitle: BOREAL_AGENT_HEADLINE,
   supplyType: "capability",
   supportsDirectInvoke: true,
   supportsPrivyWallet: true,
   successProbability: 100,
-  title: "Boreal Agent",
+  title: BOREAL_AGENT_DISPLAY_NAME,
   trustScore: 96,
 }
 
@@ -438,11 +454,11 @@ function compareDiscoverySupplyListings(left: CatalogEntry, right: CatalogEntry)
 }
 
 function getDiscoverySupplyPriority(listing: CatalogEntry) {
-  if (listing._id === BOREAL_AGENT_HUMAN_OPTIMIZER._id) {
+  if (listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID) {
     return 0
   }
 
-  if (listing.seller?.profileId === "boreal-agent") {
+  if (listing.seller?.profileId === BOREAL_AGENT_PROFILE_ID) {
     return 1
   }
 
@@ -450,6 +466,10 @@ function getDiscoverySupplyPriority(listing: CatalogEntry) {
 }
 
 function matchesCatalogListing(listing: CatalogEntry, normalizedQuery: string) {
+  const aliases =
+    listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID
+      ? BOREAL_AGENT_DISCOVERY_ALIASES
+      : []
   const haystack = [
     listing.title,
     listing.subtitle,
@@ -457,6 +477,7 @@ function matchesCatalogListing(listing: CatalogEntry, normalizedQuery: string) {
     listing.category,
     listing.seller?.displayName,
     ...listing.capabilityTags,
+    ...aliases,
   ]
     .filter(Boolean)
     .join(" ")

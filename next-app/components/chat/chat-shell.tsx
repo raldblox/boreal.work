@@ -178,6 +178,10 @@ import {
   type BorealShellAccountView,
   type BorealShellModal,
 } from "@/lib/boreal/navigation/shell-links"
+import {
+  BOREAL_AGENT_DIRECT_SUPPLY_ID,
+  BOREAL_AGENT_EXTERNAL_ID,
+} from "@/lib/boreal/boreal-agent"
 import { cn } from "@/lib/utils"
 import { usePayment } from "@/hooks/use-payment"
 import {
@@ -492,7 +496,7 @@ export function ChatShell() {
   const activeProfileLookup = activeProfileId
     ? activeProfileId === "boreal-agent"
       ? {
-          externalId: "agent:boreal",
+          externalId: BOREAL_AGENT_EXTERNAL_ID,
           kind: "externalId" as const,
         }
       : parseProfileLookup(activeProfileId)
@@ -1007,7 +1011,7 @@ export function ChatShell() {
   }
 
   async function handleInvokeListing(listing: CatalogEntry) {
-    if (listing.capabilityTags.includes("profile-optimizer-human")) {
+    if (listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID) {
       await invokeHumanProfileOptimizer()
     }
   }

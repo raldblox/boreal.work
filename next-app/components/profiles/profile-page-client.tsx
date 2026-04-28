@@ -5,6 +5,7 @@ import { LoaderIcon } from "lucide-react"
 import { useQuery } from "convex/react"
 
 import { ProfileView } from "@/components/profiles/profile-view"
+import { BOREAL_AGENT_EXTERNAL_ID } from "@/lib/boreal/boreal-agent"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 
 export function ProfilePageClient({ profileId }: { profileId: string }) {
@@ -16,7 +17,7 @@ export function ProfilePageClient({ profileId }: { profileId: string }) {
       : convexFunctionRefs.getPublicProfile,
     isBorealProfile
       ? {
-          externalId: "agent:boreal",
+          externalId: BOREAL_AGENT_EXTERNAL_ID,
           ownerExternalId: session?.user?.id,
         }
       : {
