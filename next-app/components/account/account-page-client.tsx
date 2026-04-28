@@ -5,10 +5,10 @@ import Link from "next/link"
 import { useMutation, useQuery } from "convex/react"
 import { usePrivy } from "@privy-io/react-auth"
 import { signIn, useSession } from "next-auth/react"
-import { ArrowLeftIcon, LoaderIcon, LogInIcon, WalletIcon } from "lucide-react"
+import { ArrowLeftIcon, LoaderIcon, LogInIcon } from "lucide-react"
 
 import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
-import { ProfileBuilderDialog } from "@/components/chat/profile-builder"
+import { ProfileBuilderEditor } from "@/components/chat/profile-builder"
 import { Button } from "@/components/ui/button"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import { usePayment } from "@/hooks/use-payment"
@@ -105,6 +105,10 @@ export function AccountPageClient() {
     setProfileBuilderDraft(base)
     setProfileBuilderMessage("")
     setIsProfileBuilderOpen(true)
+  }
+
+  function closeProfileBuilder() {
+    setIsProfileBuilderOpen(false)
   }
 
   async function handleSetDefaultPayoutWallet(walletAccountId: string) {
@@ -241,7 +245,7 @@ export function AccountPageClient() {
 
       setNotice(
         includeListing
-          ? "Your public profile and first offer are now live."
+          ? "Your public profile and primary offer are now live."
           : "Your public profile has been updated."
       )
       setIsProfileBuilderOpen(false)
@@ -290,27 +294,44 @@ export function AccountPageClient() {
             </Button>
             <h1 className="text-xl font-medium">Account settings</h1>
             <p className="text-sm text-muted-foreground">
-              Manage your public profile, offers, wallets, and payout defaults.
+              Package one public profile, one primary offer, and the wallets
+              behind paid work.
             </p>
           </div>
-          {!privyAuthenticated || !isWalletReady ? (
-            <Button onClick={login} type="button" variant="outline">
-              <WalletIcon />
-              {runtimePrimaryChainFamily === "solana"
-                ? "Connect Solana wallet"
-                : "Connect EVM wallet"}
-            </Button>
-          ) : null}
         </div>
 
         <AccountSettingsSurface
           accountName={session?.user?.name ?? null}
+          builderSlot={
+            isProfileBuilderOpen ? (
+              <ProfileBuilderEditor
+                connectWalletLabel={
+                  runtimePrimaryChainFamily === "solana"
+                    ? "Connect Solana wallet"
+                    : "Connect EVM wallet"
+                }
+                draft={profileBuilderDraft}
+                isDrafting={isDraftingProfileBuilder}
+                isSaving={isSavingProfileBuilder}
+                isWalletReady={isWalletReady}
+                onConnectWallet={login}
+                onDraftWithBoreal={handleDraftProfileBuilder}
+                onSaveProfile={() => saveProfileBuilder(false)}
+                onSaveProfileAndListing={() => saveProfileBuilder(true)}
+                setDraft={setProfileBuilderDraft}
+                setSourceMessage={setProfileBuilderMessage}
+                sourceMessage={profileBuilderMessage}
+              />
+            ) : null
+          }
           defaultWalletAddress={defaultWalletAddress}
+          isEditingPublicSetup={isProfileBuilderOpen}
           isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
           isPrivyAuthenticated={privyAuthenticated}
           isWalletReady={isWalletReady}
           myProfileRecord={myProfileRecord}
           notice={notice}
+          onCloseProfileBuilder={closeProfileBuilder}
           onConnectWallet={login}
           onOpenProfileBuilder={openProfileBuilder}
           onSetDefaultPayoutWallet={handleSetDefaultPayoutWallet}
@@ -320,27 +341,6 @@ export function AccountPageClient() {
           walletAccounts={walletAccounts}
         />
       </div>
-
-      <ProfileBuilderDialog
-        connectWalletLabel={
-          runtimePrimaryChainFamily === "solana"
-            ? "Connect Solana wallet"
-            : "Connect EVM wallet"
-        }
-        draft={profileBuilderDraft}
-        isDrafting={isDraftingProfileBuilder}
-        isOpen={isProfileBuilderOpen}
-        isSaving={isSavingProfileBuilder}
-        isWalletReady={isWalletReady}
-        onConnectWallet={login}
-        onDraftWithBoreal={handleDraftProfileBuilder}
-        onOpenChange={setIsProfileBuilderOpen}
-        onSaveProfile={() => saveProfileBuilder(false)}
-        onSaveProfileAndListing={() => saveProfileBuilder(true)}
-        setDraft={setProfileBuilderDraft}
-        setSourceMessage={setProfileBuilderMessage}
-        sourceMessage={profileBuilderMessage}
-      />
     </>
   )
 }

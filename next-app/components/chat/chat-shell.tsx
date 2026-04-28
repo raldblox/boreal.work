@@ -64,6 +64,7 @@ import {
 } from "@/components/chat/profile-builder"
 import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { ProfileView } from "@/components/profiles/profile-view"
+import { AgentOnboardingSurface } from "@/components/home/agent-onboarding-surface"
 import { AgentDeveloperSurface } from "@/components/home/agent-developer-surface"
 import { AboutPage } from "@/components/home/about-page"
 import { PapersFocusBrowser } from "@/components/home/papers-focus-browser"
@@ -200,10 +201,11 @@ type ChatMessage = {
 type BorealTimelineSession = BorealChatSessionRecord[number]
 
 type CenterViewTab = "activity" | "chat" | "participants" | "workspace"
-type CenterSheetView = "about" | "developers" | "papers" | "roadmap"
+type CenterSheetView = "about" | "agent" | "developers" | "papers" | "roadmap"
 
 const centerSheetViewByHref = {
   "/about": "about",
+  "/agents": "agent",
   "/developers/agents": "developers",
   "/papers": "papers",
   "/roadmap": "roadmap",
@@ -211,6 +213,7 @@ const centerSheetViewByHref = {
 
 const centerSheetHrefByView: Record<CenterSheetView, string> = {
   about: "/about",
+  agent: "/agents",
   developers: "/developers/agents",
   papers: "/papers",
   roadmap: "/roadmap",
@@ -218,6 +221,7 @@ const centerSheetHrefByView: Record<CenterSheetView, string> = {
 
 const centerSheetTitleByView: Record<CenterSheetView, string> = {
   about: "About",
+  agent: "Agent",
   developers: "Developers",
   papers: "Papers",
   roadmap: "Roadmap",
@@ -738,6 +742,11 @@ export function ChatShell() {
   }
 
   function openProfileBuilder() {
+    if (!activeProfileBuilderWorkspace && typeof window !== "undefined") {
+      window.location.assign("/account")
+      return
+    }
+
     setProfileBuilderDraft(buildInitialProfileBuilderDraft())
     setProfileBuilderMessage(
       activeProfileBuilderWorkspace?.sourceBrief ?? composerText.trim()
@@ -2074,7 +2083,7 @@ export function ChatShell() {
       const draftedProfile = payload.draft
 
       if (!response.ok || !draftedProfile) {
-        throw new Error(payload.error ?? "Could not draft the profile builder.")
+        throw new Error(payload.error ?? "Could not draft the public setup.")
       }
 
       setProfileBuilderDraft((current) =>
@@ -2084,7 +2093,7 @@ export function ChatShell() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Could not draft the profile builder."
+          : "Could not draft the public setup."
       )
     } finally {
       setIsDraftingProfileBuilder(false)
@@ -2186,9 +2195,9 @@ export function ChatShell() {
           kind: "profile_builder",
           sourceBrief: profileBuilderMessage,
           subtitle: includeListing
-            ? "Your public profile was saved and the first offer is now published."
-            : "Your public profile was saved. Publish an offer whenever you are ready.",
-          title: "Profile and offer setup",
+            ? "Your public profile was saved and the primary offer is now published."
+            : "Your public profile was saved. Publish the primary offer whenever you are ready.",
+          title: "Public profile and primary offer",
         })
       }
 
@@ -2197,7 +2206,7 @@ export function ChatShell() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Could not save the profile builder."
+          : "Could not save the public setup."
       )
     } finally {
       setIsSavingProfileBuilder(false)
@@ -2427,6 +2436,10 @@ export function ChatShell() {
     })
   }
 
+  function openAgentOnboarding() {
+    openCenterSheet("agent")
+  }
+
   function openEmbeddedPaper(slug: string) {
     setCenterSheetView("papers")
     setCenterSheetPaperSlug(slug)
@@ -2594,7 +2607,10 @@ export function ChatShell() {
                       embedded
                       onOpenPaper={openEmbeddedPaper}
                       onOpenPapers={openPapersOverview}
+                      onStartChat={handleClearSelection}
                     />
+                  ) : centerSheetView === "agent" ? (
+                    <AgentOnboardingSurface embedded />
                   ) : centerSheetView === "developers" ? (
                     <AgentDeveloperSurface embedded />
                   ) : centerSheetView === "papers" ? (
@@ -2691,6 +2707,14 @@ export function ChatShell() {
                             variant="outline"
                           >
                             Browse requests
+                          </Button>
+                          <Button
+                            onClick={openAgentOnboarding}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            Agent
                           </Button>
                           <Button
                             onClick={openPapersOverview}
@@ -3048,6 +3072,14 @@ export function ChatShell() {
                               variant="outline"
                             >
                               Browse requests
+                            </Button>
+                            <Button
+                              onClick={openAgentOnboarding}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Agent
                             </Button>
                             <Button
                               onClick={openPapersOverview}
@@ -3474,12 +3506,15 @@ function AccountSettingsDialog({
           <div className="px-6 py-6">
             <AccountSettingsSurface
               accountName={accountName}
+              builderSlot={undefined}
               defaultWalletAddress={defaultWalletAddress}
+              isEditingPublicSetup={false}
               isPayoutWalletUpdating={isPayoutWalletUpdating}
               isPrivyAuthenticated={isPrivyAuthenticated}
               isWalletReady={isWalletReady}
               myProfileRecord={myProfileRecord}
               notice={notice}
+              onCloseProfileBuilder={() => onOpenChange(false)}
               onConnectWallet={onConnectWallet}
               onOpenProfileBuilder={onOpenProfileBuilder}
               onSetDefaultPayoutWallet={onSetDefaultPayoutWallet}
@@ -6532,6 +6567,7 @@ function parseProfileLookup(value: string) {
 function normalizeCenterSheetView(value: string | null): CenterSheetView | null {
   if (
     value === "about" ||
+    value === "agent" ||
     value === "developers" ||
     value === "papers" ||
     value === "roadmap"
@@ -7311,8 +7347,8 @@ function buildWorkspaceFromRequestDetail(
               : detail.intent.status === "in_progress" ||
                 detail.intent.status === "claimed"
                 ? "Boreal delivered an editable draft. Review it, then save the profile and publish the offer when ready."
-                : "Open the setup form manually, or approve Boreal to draft a stronger profile and first offer from this brief.",
-      title: "Profile and offer setup",
+                : "Open the profile editor manually, or approve Boreal to draft a stronger profile and primary offer from this brief.",
+      title: "Profile editor",
     }
   }
 
