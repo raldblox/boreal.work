@@ -30,6 +30,7 @@
 - For the app in `next-app/`, use `npm run smoke:connected-agents` for the deterministic advanced-runtime smoke covering HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
 - For the app in `next-app/`, use `npm run smoke:hermes-bridge` for the deterministic local Hermes bridge smoke covering the minimal advanced-runtime HTTP contract.
 - For the app in `next-app/`, use `npm run smoke:request-callbacks` for the deterministic advanced-runtime callback smoke covering private one-request status, evidence, heartbeat, delivery, and payout-readiness progression.
+- For the app in `next-app/`, use `npm run smoke:request-recovery` for the deterministic automatic-route recovery smoke covering market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - For the app in `next-app/`, use `npm run smoke:request-thread-specialists` for the deterministic approved-specialist thread smoke covering first follow-up handoff plus the next-turn execution plan for advisory routes.
 - For the app in `next-app/`, use `npm run smoke:video-route` for the deterministic video-request contract smoke covering default duration and size policy plus rejection of unsupported video settings before approval.
 - For the app in `next-app/`, use `npm run smoke:payouts` for the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and aggregate settlement `paid_out`.
@@ -114,8 +115,8 @@
 - Capability questions about Boreal agents, offers, or services should route to direct catalog lookup with top specialized options, not to tracked-work approval.
 - Qualified advisory asks should preview best-fit specialist routes before approval, and approval should run that matched route instead of reopening a generic clarification loop.
 - Approved advisory specialists that need more context should own the next turn inside the same request thread instead of bouncing the user back to generic Boreal chat.  Owner replies in that request should be treated as follow-up to the approved specialist.
-- Video-provider access failures should surface as provider-access problems first, not as misleading retry bugs.  Boreal should reopen the request for workers automatically when the video route is unavailable and keep the ranked matches attached for direct team approval.
-- If automatic route execution fails, surface the real execution error in the request timeline and let the owner reopen the request for workers instead of trapping them in a blind retry-only loop.
+- Video-provider access failures should surface as provider-access problems first, not as misleading retry bugs.
+- Market-eligible automatic routes that fail should reopen safely for workers instead of dead-ending in a blocked retry loop.  Keep the real execution error in the timeline and keep ranked matches attached for direct team approval.
 - Request match cards should expose worker-approval actions first.  In Boreal request surfaces and discovery rails, prefer `Invite`, `Approve to team`, and profile focus-sheet actions over cart, endpoint-preview, or provider-page actions.
 - Connected HTTP and MCP runtimes are advanced adapters, not the front-door product story.  Boreal stays the system of record, persists the same thread, and exposes one-request callback routes for status, evidence, and heartbeat updates when that advanced path is intentionally used.
 - Boreal-specific click surfaces in chat and discovery should open connection or work-network controls, not a Boreal profile-first modal.

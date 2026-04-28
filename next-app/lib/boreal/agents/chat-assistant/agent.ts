@@ -56,6 +56,10 @@ import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-inten
 import { withRetry } from "@/lib/boreal/utils/retry";
 import { isVideoProviderAccessUnavailableError } from "@/lib/boreal/request-route-errors";
 import {
+  buildAutoReopenForWorkersCopy,
+  shouldAutoReopenRequestForWorkers,
+} from "@/lib/boreal/request-recovery";
+import {
   buildInitialInteractiveFollowUpQuestion,
   buildInteractiveExecutionMessage,
   isInteractiveRequestAgentKey,
@@ -941,33 +945,27 @@ async function reopenBlockedRequestForWorkers(input: {
   message: string;
   relatedCatalogItems: CatalogItem[];
 }) {
+  const recoveryCopy = buildAutoReopenForWorkersCopy({
+    assignedAgent: input.assignedAgent,
+    message: input.message,
+    routeTarget: input.input.request.routeTarget,
+  });
+
   await approveRequestDraft({
     assignedAgent: input.assignedAgent,
     assignedToolNames: input.assignedToolNames,
-    assistantMessage:
-      "Motion Video Studio is unavailable under the current OpenAI project or key, so Boreal reopened this request for workers immediately. Matched offers and proposals stay attached here.",
+    assistantMessage: recoveryCopy.approvalMessage,
     intentId: input.input.input.intentId,
     ownerExternalId: input.input.input.ownerExternalId,
     status: "open",
   });
 
   return {
-    assistantMessage:
-      `Motion Video Studio is unavailable under the current OpenAI project or key. Boreal reopened this request for workers immediately so you can approve a team instead of waiting on the blocked route. Last error: ${input.message}`,
+    assistantMessage: recoveryCopy.assistantMessage,
     intentId: input.input.input.intentId,
     relatedCatalogItems: input.relatedCatalogItems,
     workspace: buildApprovedWorkerWorkspace(input.input.request),
   };
-}
-
-function shouldAutoReopenRequestForWorkers(
-  routeTarget: ToolRoute,
-  message: string,
-) {
-  return (
-    routeTarget === "video_generation" &&
-    isVideoProviderAccessUnavailableError(message)
-  );
 }
 
 function mapMatchedSupplyApprovalError(

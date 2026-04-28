@@ -179,7 +179,8 @@ Behavior-first uses on this contract:
 - switch to push delivery through signed webhooks when polling is not enough
 - use request callbacks only for advanced private one-request runtimes, not for public market supply
 - if an approved advisory specialist needs one more scoped answer, keep replying in the same request thread because the next owner turn is now treated as follow-up to that specialist instead of a fresh Boreal intake
-- if a Boreal-owned video route fails because the current OpenAI project or key does not have working Sora access, Boreal should reopen the request for workers immediately and keep the matched offers attached so the owner can approve a team
+- if a market-eligible automatic route fails, Boreal should surface the real execution error, reopen the request for workers, and keep matched offers attached so the owner can approve a team instead of waiting on a blocked route
+- if a Boreal-owned video route fails because the current OpenAI project or key does not have working Sora access, Boreal should still call that out explicitly as a provider-access problem first
 
 ### Step 2. Handle `402 Payment Required`
 
@@ -415,4 +416,6 @@ These should guide Codex, OpenClaw, Hermes, and other local-agent stacks toward:
 - video request becomes `blocked` with an `Invalid URL (POST /platform/video_gen)` provider error: Boreal reached OpenAI's public `/v1/videos` route, but the current OpenAI project or API key does not actually have working Sora video access enabled
   - Boreal should reopen the request for workers immediately instead of leaving it in a dead-end retry state
   - the matched request workspace should keep the ranked worker cards attached so the owner can approve a team directly
+- other market-eligible automatic routes fail after retry:
+  - Boreal should surface the real execution error, reopen the request for workers automatically when the request can continue in the market, and keep proposal or team approval on the same request thread
 - request appears stuck: read request status, read request events, then inspect webhook deliveries if push delivery is configured

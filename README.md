@@ -72,6 +72,7 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Finished `EA-1.6` in `EARLY_ACCESS.md` by generalizing automatic-route recovery: market-eligible Boreal routes now reopen safely for workers after automatic failure instead of only the video-provider path doing so, the real execution error stays in the request timeline, and `npm run smoke:request-recovery` now verifies the recovery rule deterministically.
 - `2026-04-29`: Finished `EA-0.5` in `EARLY_ACCESS.md` by tightening the live public story around open early access: `/`, `/about`, the Boreal agent connection surface, and the public copy source docs now keep browsing and intake open while making the funded-start boundary explicit instead of implying broad mainnet or escrow readiness.
 - `2026-04-28`: Deepened `SUPPLY_LIST.md` into a concrete Convex subtype schema plan: what stays on canonical `supplies`, proposed subtype table shapes and indexes, ownership rules, write and read paths, and the migration sequence for class-aware supply storage.
 - `2026-04-28`: Added `SUPPLY_LIST.md` as the repo-truthful supply inventory and build-tracker spec: current supported supply classes, sample buyer scenarios, delivery shapes, current Convex table map, needed subtype tables, and the priority build order for routing, matching, and fetching.
@@ -204,6 +205,7 @@ From `next-app/`:
 - `npm run smoke:connected-agents` runs the deterministic advanced-runtime chat smoke for HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
 - `npm run smoke:hermes-bridge` runs the deterministic local Hermes bridge smoke for the minimal advanced-runtime HTTP contract.
 - `npm run smoke:request-callbacks` runs the deterministic advanced-runtime callback smoke for request status, evidence, heartbeat, delivery, and payout-readiness progression.
+- `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.
 - `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.

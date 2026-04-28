@@ -72,7 +72,7 @@ Goal: one request can enter Boreal, move forward on one thread, and exit with de
 | `EA-1.3` | `Done` | Preview matched specialist routes before approval and keep follow-up in the same request thread. | request UI, `npm run smoke:request-thread-specialists`, README changelog | Specialist-owned next turn inside the approved request. |
 | `EA-1.4` | `Done` | Capture proposal, approval, delivery, and review lifecycle in deterministic smoke coverage. | `npm run smoke:lifecycle` | Repeatable request lifecycle proof. |
 | `EA-1.5` | `Done` | Protect the public one-request surface with wallet-scoped unpaid-quote and burst guards. | `npm run smoke:one-request-guards`, guard logic in `next-app/lib/boreal/one-request/` | Basic abuse resistance. |
-| `EA-1.6` | `In progress` | Normalize recovery paths when automatic execution fails so requests reopen safely for workers across all route types. | request timeline recovery UX, route-specific reopen logic | Safer failure handling beyond the happy path. |
+| `EA-1.6` | `Done` | Normalize recovery paths when automatic execution fails so requests reopen safely for workers across all route types. | request timeline recovery UX, route-specific reopen logic, `npm run smoke:request-recovery` | Safer failure handling beyond the happy path. |
 | `EA-1.7` | `Not started` | Separate request market classification from the current UI-oriented `routeTarget`: persist `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters on the request. | `MATCHING_ENGINE.md`, `next-app/lib/boreal/schemas/intent.ts`, `next-app/convex/schema.ts` | Classifier-first request contract. |
 | `EA-1.8` | `Not started` | Use request classification to choose fetch and routing paths before broad ranking: direct tool, product catalog, provider x402, async worker market, or collective. | routing layer, matching layer, request lifecycle docs | Cheaper and cleaner retrieval. |
 
@@ -87,6 +87,7 @@ Verification:
 - `cd next-app && npm run smoke:lifecycle`
 - `cd next-app && npm run smoke:one-request`
 - `cd next-app && npm run smoke:one-request-guards`
+- `cd next-app && npm run smoke:request-recovery`
 - `cd next-app && npm run smoke:request-thread-specialists`
 
 Manual replication:
