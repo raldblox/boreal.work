@@ -7,9 +7,16 @@ export type { PublicPaperKind, PublicPaperRecord } from "./papers-data"
 export {
   getPublicPaper,
   getPublicPaperHref,
+  getNextPublicPaper,
+  getPreviousPublicPaper,
   getRelatedPublicPapers,
+  getPublicPaperSequencePosition,
+  getPublicPaperSeriesMeta,
+  getTotalPublicPaperReadingMinutes,
   listFeaturedPublicPapers,
+  listPublicPapersByGroup,
   listPublicPapers,
+  publicPaperKindLabels,
 } from "./papers-data"
 
 function getRepoRoot() {
