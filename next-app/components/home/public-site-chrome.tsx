@@ -56,7 +56,7 @@ export function PublicPageFooter() {
   return (
     <footer className="border-t border-border pt-4">
       <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <p>One request in.  Best fulfillment path out.</p>
+        <p>Open early access.  One request in.  Best fulfillment path out.</p>
         <div className="flex flex-wrap gap-4">
           {publicSiteLinks.map((link) => (
             <Link className="hover:text-foreground" href={link.href} key={link.href}>

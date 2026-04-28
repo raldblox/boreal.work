@@ -72,6 +72,7 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Finished `EA-0.5` in `EARLY_ACCESS.md` by tightening the live public story around open early access: `/`, `/about`, the Boreal agent connection surface, and the public copy source docs now keep browsing and intake open while making the funded-start boundary explicit instead of implying broad mainnet or escrow readiness.
 - `2026-04-28`: Deepened `SUPPLY_LIST.md` into a concrete Convex subtype schema plan: what stays on canonical `supplies`, proposed subtype table shapes and indexes, ownership rules, write and read paths, and the migration sequence for class-aware supply storage.
 - `2026-04-28`: Added `SUPPLY_LIST.md` as the repo-truthful supply inventory and build-tracker spec: current supported supply classes, sample buyer scenarios, delivery shapes, current Convex table map, needed subtype tables, and the priority build order for routing, matching, and fetching.
 - `2026-04-28`: Raised request classification to a first-class architecture priority in `MATCHING_ENGINE.md`, `ROADMAP.md`, and `EARLY_ACCESS.md`: Boreal now explicitly treats classifier-first routing, prefiltered fetch paths, and subtype supply tables under canonical `supplies` rows as the main matching-quality breakpoint.

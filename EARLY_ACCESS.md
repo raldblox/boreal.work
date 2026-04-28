@@ -40,7 +40,7 @@ Goal: public language matches shipped reality, and release tracking has one audi
 | `EA-0.2` | `Done` | Keep `ROADMAP.md` as broad capability tracker instead of public launch gate. | `ROADMAP.md`, `/roadmap`, contributor docs | Public-safe roadmap and separate release gate. |
 | `EA-0.3` | `Done` | Add a dedicated phase-based early access tracker with explicit exit criteria. | `EARLY_ACCESS.md` | One release-order source of truth. |
 | `EA-0.4` | `Done` | Keep docs honest about payment boundary and devnet-vs-mainnet state. | `ONE_REQUEST_API.md`, `SERVICE_PROVIDER.MD` | No false mainnet settlement claim. |
-| `EA-0.5` | `In progress` | Tighten all public homepage and launch copy to match the current open early access promise without overclaiming mainnet or escrow readiness. | `/`, `/about`, `docs/COPYWRITING.md`, `docs/MESSAGING_MATRIX.md` | A public story that matches current operations. |
+| `EA-0.5` | `Done` | Tighten all public homepage and launch copy to match the current open early access promise without overclaiming mainnet or escrow readiness. | `/`, `/about`, `docs/COPYWRITING.md`, `docs/MESSAGING_MATRIX.md` | A public story that matches current operations. |
 
 After this phase:
 

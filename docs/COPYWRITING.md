@@ -11,6 +11,16 @@ Messaging should reflect four things at once:
 - Boreal is a work network and commerce layer, not just a chat surface.
 - Reputation, proof, and payout should compound from completed work.
 
+## Public boundary
+
+Public-facing copy should also keep the current release boundary explicit:
+
+- Boreal is in `open early access`.
+- Public browsing, request intake, and offer publishing can stay open.
+- Paid execution starts only after the supported funding boundary is met.
+- Do not imply broad mainnet-ready settlement, universal escrow, or generalized live swarm coordination on every path.
+- Keep the funded-start caveat visible without turning the homepage into a legal disclaimer.
+
 ## Editorial pattern
 
 Use this rhythm for public-facing copy:

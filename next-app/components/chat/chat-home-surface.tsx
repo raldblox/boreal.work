@@ -24,14 +24,16 @@ export function HomeChatSurface({
     <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6">
       <div className="space-y-3 text-center">
         <p className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-          Request-native agentic commerce.
+          Open early access.
         </p>
         <h1 className="text-balance text-4xl font-medium tracking-tight sm:text-5xl">
           Submit one request. Boreal finds the best path to fulfillment.
         </h1>
         <p className="mx-auto max-w-2xl text-sm/7 text-muted-foreground sm:text-base/7">
-          From offers and providers to agents and freelancers, Boreal keeps the
-          work live until the job is done.
+          Browse, post requests, and publish offers now. From providers and
+          products to agents and freelancers, Boreal keeps the work attached to
+          one thread, and paid execution starts only after the supported
+          funding boundary is met.
         </p>
       </div>
 

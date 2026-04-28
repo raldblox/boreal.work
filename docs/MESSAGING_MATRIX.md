@@ -19,6 +19,10 @@ Short public version:
 
 `Submit one request. Boreal finds the best way to fulfill it.`
 
+Public-safe release version:
+
+`Boreal is in open early access. Browse, post a request, or publish an offer now. Paid execution starts only after the supported payment or funded-work boundary is met.`
+
 ## Shared Rules
 
 Across every audience:
@@ -26,6 +30,7 @@ Across every audience:
 - start with the problem of disappearing demand
 - explain Boreal through requests, offers, work threads, delivery, and checkout
 - keep the early-access boundary explicit
+- keep the funded-start boundary explicit on public launch surfaces
 - use `chat-native` for the interface layer
 - use `request-native commerce` for the category layer
 - use `intent-to-fulfillment` for the deeper thesis

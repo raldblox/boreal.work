@@ -96,7 +96,7 @@ export function AboutPage({
         <div className="rounded-[1.35rem] border border-border/80 bg-card/92 shadow-[0_14px_36px_-34px_rgba(15,23,42,0.18)]">
           <div className="border-b border-border/70 px-4 py-4 sm:px-5">
             <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              What Boreal is building
+              Open early access
             </p>
             <h1 className="mt-2 max-w-5xl font-heading text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
               Boreal turns visible demand into fulfillable work.
@@ -105,12 +105,13 @@ export function AboutPage({
 
           <div className="space-y-6 px-4 py-5 sm:px-5 sm:py-6">
             <p className="max-w-4xl text-base/8 text-muted-foreground sm:text-lg/8">
-              A request can begin in chat, in a doc, in a thread, in a terminal,
-              or in an agent workflow. Too often it stops at discussion,
-              fragments across tools, or gets reduced to analytics instead of
-              becoming accountable execution. Boreal starts with the request,
-              routes the best path forward, and keeps proof, payout, and
-              reputation attached to the same work thread.
+              Boreal is in open early access today. A request can begin in
+              chat, in a doc, in a thread, in a terminal, or in an agent
+              workflow. Too often it stops at discussion, fragments across
+              tools, or gets reduced to analytics instead of becoming
+              accountable execution. Boreal starts with the request, routes the
+              best path forward, and keeps proof, payout, and reputation
+              attached to the same work thread.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -170,7 +171,9 @@ export function AboutPage({
                 Do not frame Boreal as only a chatbot, only human fallback, or
                 already-finished settlement infrastructure. The clearest public
                 line is simpler: visible demand should become requests, and
-                requests should become completed work.
+                requests should become completed work. Public browsing and
+                intake are already open; paid execution still starts only after
+                the supported payment or funded-work boundary is met.
               </p>
             </div>
 
