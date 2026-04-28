@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Boreal Launch • HeyGen Pattern</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #071311;
+      }
+
+      #master-root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        background:
+          radial-gradient(circle at 16% 18%, rgba(34, 193, 243, 0.18), transparent 30%),
+          radial-gradient(circle at 84% 78%, rgba(98, 255, 206, 0.12), transparent 24%),
+          linear-gradient(180deg, #081412 0%, #071311 100%);
+      }
+
+      [data-composition-id="master"] > div[data-composition-id] {
+        position: absolute;
+        inset: 0;
+      }
+
+      .bed {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(120deg, rgba(255, 255, 255, 0.03), transparent 28%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 24%);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="master-root"
+      data-composition-id="master"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="52"
+    >
+      <div class="bed"></div>
+
+      <div
+        id="c-opening"
+        data-composition-id="opening"
+        data-composition-src="compositions/opening.html"
+        data-start="0"
+        data-duration="8"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="c-request"
+        data-composition-id="request"
+        data-composition-src="compositions/request.html"
+        data-start="8"
+        data-duration="8"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="c-routing"
+        data-composition-id="routing"
+        data-composition-src="compositions/routing.html"
+        data-start="16"
+        data-duration="10"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="c-proof"
+        data-composition-id="proof"
+        data-composition-src="compositions/proof.html"
+        data-start="26"
+        data-duration="9"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="c-audience"
+        data-composition-id="audience"
+        data-composition-src="compositions/audience.html"
+        data-start="35"
+        data-duration="8"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="c-close"
+        data-composition-id="close"
+        data-composition-src="compositions/close.html"
+        data-start="43"
+        data-duration="9"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines.master = gsap.timeline({ paused: true });
+    </script>
+  </body>
+  </html>

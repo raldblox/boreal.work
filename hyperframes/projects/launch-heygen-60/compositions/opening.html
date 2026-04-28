@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Syne"; src: url("../fonts/syne-700-normal.woff2") format("woff2"); font-weight: 700; }
+      @font-face { font-family: "Manrope"; src: url("../fonts/manrope-400-normal.woff2") format("woff2"); font-weight: 400; }
+      @font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono-500-normal.woff2") format("woff2"); font-weight: 500; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; }
+      .stage { position: relative; width: 1920px; height: 1080px; color: #f7faf9; }
+      .glow { position: absolute; border-radius: 999px; filter: blur(80px); }
+      .glow-a { width: 540px; height: 540px; left: 120px; top: 60px; background: rgba(34, 193, 243, 0.22); }
+      .glow-b { width: 440px; height: 440px; right: 200px; bottom: 80px; background: rgba(98, 255, 206, 0.14); }
+      .frame { position: absolute; inset: 54px; border: 1px solid rgba(247,250,249,0.12); border-radius: 36px; background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)); }
+      .eyebrow, .meta { font-family: "Geist Mono", monospace; letter-spacing: 0.22em; text-transform: uppercase; }
+      .eyebrow { position: absolute; top: 106px; left: 114px; font-size: 18px; color: rgba(247,250,249,0.7); }
+      .meta { position: absolute; right: 114px; bottom: 96px; font-size: 16px; color: rgba(247,250,249,0.58); }
+      .headline { position: absolute; left: 108px; top: 232px; display: flex; flex-direction: column; gap: 18px; max-width: 1220px; }
+      .headline-line { font-family: "Syne", sans-serif; font-size: 116px; line-height: 0.92; letter-spacing: -0.07em; }
+      .sub { position: absolute; left: 114px; bottom: 120px; width: 640px; font-family: "Manrope", sans-serif; font-size: 29px; line-height: 1.35; color: rgba(247,250,249,0.72); }
+      .pill { position: absolute; right: 114px; top: 116px; padding: 14px 18px; border-radius: 999px; border: 1px solid rgba(247,250,249,0.12); background: rgba(255,255,255,0.05); font-family: "Geist Mono", monospace; font-size: 15px; color: #62ffce; }
+    </style>
+  </head>
+  <body>
+    <div data-composition-id="opening" data-width="1920" data-height="1080" data-start="0" data-duration="8">
+      <div class="stage">
+        <div class="glow glow-a"></div>
+        <div class="glow glow-b"></div>
+        <div class="frame clip" data-start="0" data-duration="8" data-track-index="1"></div>
+        <div class="eyebrow clip" data-start="0" data-duration="8" data-track-index="2">Boreal</div>
+        <div class="pill clip" data-start="0" data-duration="8" data-track-index="6">public alpha • request-native commerce</div>
+        <div class="headline clip" data-start="0" data-duration="8" data-track-index="3">
+          <div class="headline-line line-1">Your problem has</div>
+          <div class="headline-line line-2">an answer somewhere.</div>
+          <div class="headline-line line-3">Boreal finds it.</div>
+        </div>
+        <div class="sub clip" data-start="0" data-duration="8" data-track-index="4">A HeyGen-style modular launch cut for Boreal: one request in, the best fulfillment path forward, and the close attached to proof.</div>
+        <div class="meta clip" data-start="0" data-duration="8" data-track-index="5">launch video • root + sub-compositions</div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.from('.frame', { opacity: 0, scale: 0.98, duration: 0.7, ease: 'power2.out' })
+        .from('.eyebrow, .pill', { opacity: 0, y: 18, duration: 0.45, stagger: 0.08, ease: 'power2.out' }, 0.12)
+        .from('.headline-line', { opacity: 0, y: 80, duration: 0.8, stagger: 0.14, ease: 'power3.out' }, 0.24)
+        .from('.sub, .meta', { opacity: 0, y: 26, duration: 0.55, stagger: 0.06, ease: 'power2.out' }, 0.95)
+        .to('.stage', { opacity: 0, duration: 0.5, ease: 'power2.inOut' }, 7.2);
+      window.__timelines.opening = tl;
+    </script>
+  </body>
+  </html>

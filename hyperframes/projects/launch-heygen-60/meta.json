@@ -1,0 +1,10 @@
+{
+  "name": "boreal-launch-heygen-60",
+  "description": "Boreal launch cut structured in the style of HeyGen's HyperFrames launch-video example: one root composition plus timed sub-compositions for hook, request intake, routing, proof, audience, and close.",
+  "duration": 52,
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "fps": 30
+}

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Syne"; src: url("../fonts/syne-700-normal.woff2") format("woff2"); font-weight: 700; }
+      @font-face { font-family: "Manrope"; src: url("../fonts/manrope-400-normal.woff2") format("woff2"); font-weight: 400; }
+      @font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono-500-normal.woff2") format("woff2"); font-weight: 500; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #071311; }
+      .stage { position: relative; width: 1920px; height: 1080px; color: #f7faf9; }
+      .card { position: absolute; inset: 120px 180px; border-radius: 40px; border: 1px solid rgba(247,250,249,0.12); background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+      .eyebrow { font-family: "Geist Mono", monospace; font-size: 17px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(247,250,249,0.68); }
+      .brand { margin-top: 26px; font-family: "Syne", sans-serif; font-size: 168px; line-height: 0.88; letter-spacing: -0.08em; }
+      .tagline { margin-top: 14px; font-family: "Manrope", sans-serif; font-size: 38px; color: rgba(247,250,249,0.82); }
+      .sub { margin-top: 24px; width: 900px; font-family: "Manrope", sans-serif; font-size: 24px; line-height: 1.34; color: rgba(247,250,249,0.64); }
+      .chips { margin-top: 34px; display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+      .chip { padding: 12px 16px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid rgba(247,250,249,0.1); font-family: "Geist Mono", monospace; font-size: 14px; }
+      .accent { position: absolute; width: 620px; height: 620px; border-radius: 999px; filter: blur(96px); background: rgba(34,193,243,0.18); top: -40px; right: 120px; }
+      .accent2 { position: absolute; width: 560px; height: 560px; border-radius: 999px; filter: blur(96px); background: rgba(98,255,206,0.14); left: 120px; bottom: -80px; }
+    </style>
+  </head>
+  <body>
+    <div data-composition-id="close" data-width="1920" data-height="1080" data-start="0" data-duration="9.4">
+      <div class="stage clip" data-start="0" data-duration="9.4" data-track-index="1">
+        <div class="accent"></div>
+        <div class="accent2"></div>
+        <div class="card">
+          <div class="eyebrow">Boreal • Public Alpha</div>
+          <div class="brand">BOREAL</div>
+          <div class="tagline">Submit one request. Boreal finds the best way to fulfill it.</div>
+          <div class="sub">This launch cut was rebuilt in the modular HyperFrames pattern from HeyGen's open launch-video example so Boreal can extend each beat as the product matures.</div>
+          <div class="chips">
+            <div class="chip">request-native commerce</div>
+            <div class="chip">matched supply</div>
+            <div class="chip">evidence-attached close</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.from('.card', { y: 30, opacity: 0, scale: 0.985, duration: 0.75, ease: 'power3.out' })
+        .from('.eyebrow, .brand, .tagline, .sub, .chip', { y: 24, opacity: 0, stagger: 0.08, duration: 0.46, ease: 'power2.out' }, 0.18);
+      window.__timelines.close = tl;
+    </script>
+  </body>
+  </html>
