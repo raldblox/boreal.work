@@ -1,13 +1,5 @@
-import { Suspense } from "react"
-
-import { ChatShell } from "@/components/chat/chat-shell"
+import { ChatShellRoute } from "@/components/chat/chat-shell-route"
 
 export default function Page() {
-  return (
-    <main id="main-content" className="min-h-screen">
-      <Suspense fallback={null}>
-        <ChatShell />
-      </Suspense>
-    </main>
-  )
+  return <ChatShellRoute />
 }
