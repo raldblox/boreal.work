@@ -321,6 +321,7 @@ export function ChatShell() {
   const publicPapers = useMemo(() => listPublicPapers(), [])
   const activeIntentId = searchParams.get("request")
   const seededPrompt = searchParams.get("prompt")
+  const chatMode = normalizeChatMode(searchParams.get("chat"))
   const requestedCenterTab = searchParams.get("view")
   const requestedCenterSheet = normalizeCenterSheetView(searchParams.get("sheet"))
   const requestedPaperSlug = normalizePublicPaperSlug(
@@ -456,12 +457,25 @@ export function ChatShell() {
       ? { intentId: activeIntentId, ownerExternalId }
       : "skip"
   )
+  const activeProfileLookup =
+    activeProfileId && activeProfileId !== "boreal-agent"
+      ? parseProfileLookup(activeProfileId)
+      : null
   const profileSheetDetail = useQuery(
     convexFunctionRefs.getPublicProfile,
-    activeProfileId && activeProfileId !== "boreal-agent"
+    activeProfileLookup?.kind === "profileId"
       ? {
         ownerExternalId,
-        profileId: activeProfileId,
+        profileId: activeProfileLookup.profileId,
+      }
+      : "skip"
+  ) as WorkerProfileDetail | undefined
+  const profileSheetDetailByExternalId = useQuery(
+    convexFunctionRefs.getPublicProfileByExternalId,
+    activeProfileLookup?.kind === "externalId"
+      ? {
+        externalId: activeProfileLookup.externalId,
+        ownerExternalId,
       }
       : "skip"
   ) as WorkerProfileDetail | undefined
@@ -490,6 +504,10 @@ export function ChatShell() {
     Boolean(activeIntentId) &&
     requestDetailResult === undefined
   const requestDetail = (requestDetailResult ?? null) as RequestDetail | null
+  const resolvedProfileSheetDetail =
+    activeProfileLookup?.kind === "externalId"
+      ? profileSheetDetailByExternalId
+      : profileSheetDetail
   const requestNotificationCounts = useMemo(
     () => getDetailRequestNotificationCounts(requestDetail),
     [requestDetail]
@@ -1366,6 +1384,11 @@ export function ChatShell() {
       return
     }
 
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X before approving tracked work.")
+      return
+    }
+
     setErrorMessage(null)
     setIsApprovingRequest(true)
 
@@ -1574,6 +1597,11 @@ export function ChatShell() {
 
   async function handleOpenRequestForWorkers() {
     if (!activeIntentId || isApprovingRequest) {
+      return
+    }
+
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X before opening tracked work to workers.")
       return
     }
 
@@ -1826,6 +1854,11 @@ export function ChatShell() {
     intentId = activeIntentId ?? pendingApprovalIntentId
   ) {
     if (!intentId || approvingMatchedSupplyId) {
+      return
+    }
+
+    if (!ownerExternalId) {
+      setErrorMessage("Sign in with X before approving a worker.")
       return
     }
 
@@ -2266,6 +2299,28 @@ export function ChatShell() {
     setWorkspace(emptyWorkspace)
   }
 
+  function handleOpenSessions() {
+    setErrorMessage(null)
+    updateWorkspaceUrl({
+      chat: "sessions",
+      paper: null,
+      request: null,
+      sheet: null,
+      view: null,
+    })
+    setMatchQueryDraft(null)
+    setProposalDraft(emptyProposalDraft())
+    setProposalMessage("")
+    setDeliveryDraft(emptyDeliveryDraft())
+    setOptimisticReviewRating(null)
+    setMessages([])
+    setConversationId(undefined)
+    setPendingApprovalIntentId(null)
+    setIsMobileIntentSidebarOpen(false)
+    setIsMobileWorkspaceOpen(false)
+    setWorkspace(emptyWorkspace)
+  }
+
   function handleReturnHome() {
     setErrorMessage(null)
     updateWorkspaceUrl({
@@ -2282,6 +2337,7 @@ export function ChatShell() {
     setOptimisticReviewRating(null)
     setMessages([])
     setConversationId(undefined)
+    setPendingApprovalIntentId(null)
     setIsMobileIntentSidebarOpen(false)
     setIsMobileWorkspaceOpen(false)
     setWorkspace(emptyWorkspace)
@@ -2425,12 +2481,17 @@ export function ChatShell() {
     return () => window.clearTimeout(timeout)
   }, [errorMessage])
 
+  const isSessionsView = !activeIntentId && chatMode === "sessions"
   const isHomeView =
     !activeIntentId &&
-    displayedMessages.length === 0 &&
-    borealTimelineSessions.length === 0
+    !isSessionsView &&
+    displayedMessages.length === 0
+  const isLiveBorealChatView =
+    !activeIntentId &&
+    !isSessionsView &&
+    displayedMessages.length > 0
   const shouldShowFooterComposer =
-    isXAuthenticated && shouldShowChatComposer && !isHomeView
+    isXAuthenticated && shouldShowChatComposer && !isHomeView && !isSessionsView
 
   return (
       <>
@@ -2441,8 +2502,9 @@ export function ChatShell() {
               <CollapsedRequestsRail
                 accountImageUrl={session?.user?.image ?? null}
                 accountName={session?.user?.name ?? null}
-                borealChatActive={!activeIntentId}
+                borealChatActive={!activeIntentId && !isSessionsView}
                 borealChatSessionCount={borealChatSessions.length}
+                isSessionsActive={isSessionsView}
                 onOpenBorealChat={handleClearSelection}
                 onOpenAccount={() => {
                   if (!isXAuthenticated) {
@@ -2453,6 +2515,7 @@ export function ChatShell() {
                   setIsAccountDialogOpen(true)
                 }}
                 onExpand={() => setShowIntentSidebar(true)}
+                onOpenSessions={handleOpenSessions}
                 requestCount={visibleSidebarIntents.length}
               />
             }
@@ -2461,11 +2524,13 @@ export function ChatShell() {
             expandedContent={
               <IntentSidebar
                 borealChatSessionCount={borealChatSessions.length}
-                isBorealChatActive={!activeIntentId}
+                isBorealChatActive={!activeIntentId && !isSessionsView}
+                isSessionsActive={isSessionsView}
                 intents={visibleSidebarIntents}
                 onOpenAccount={() => setIsAccountDialogOpen(true)}
                 onOpenBorealChat={handleClearSelection}
                 onCollapse={() => setShowIntentSidebar(false)}
+                onOpenSessions={handleOpenSessions}
                 onOpenPendingApprovals={() => {
                   const nextIntent = pendingApprovalIntents[0]
                   if (nextIntent) {
@@ -2552,7 +2617,7 @@ export function ChatShell() {
                   title={
                     activeProfileId === "boreal-agent"
                       ? "Boreal Agent"
-                      : profileSheetDetail?.profile.displayName ?? "Profile"
+                      : resolvedProfileSheetDetail?.profile.displayName ?? "Profile"
                   }
                 >
                   {activeProfileId === "boreal-agent" ? (
@@ -2562,12 +2627,12 @@ export function ChatShell() {
                         stats={borealProfileStats}
                       />
                     </div>
-                  ) : profileSheetDetail === undefined ? (
+                  ) : resolvedProfileSheetDetail === undefined ? (
                     <div className="flex min-h-[24rem] items-center justify-center text-sm text-muted-foreground">
                       <LoaderIcon className="mr-2 size-4 animate-spin" />
                       Loading profile
                     </div>
-                  ) : !profileSheetDetail ? (
+                  ) : !resolvedProfileSheetDetail ? (
                     <div className="flex min-h-[24rem] items-center justify-center px-6 text-center">
                       <div className="space-y-2 border border-border p-8">
                         <p className="text-lg font-medium">Profile not found</p>
@@ -2579,7 +2644,7 @@ export function ChatShell() {
                   ) : (
                     <div className="min-h-full">
                       <ProfileView
-                        detail={profileSheetDetail}
+                        detail={resolvedProfileSheetDetail}
                         showProfileLink={false}
                       />
                     </div>
@@ -3030,10 +3095,37 @@ export function ChatShell() {
                         })}
                       />
                     </div>
-                  ) : (
+                  ) : isSessionsView ? (
                     <Conversation className="h-full min-h-0">
                       <ConversationContent className={CHAT_RAIL_CLASS}>
-                        {!activeIntentId && hasMoreBorealSessions ? (
+                        <div className="space-y-3 rounded-2xl border border-border bg-card px-4 py-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">Sessions</p>
+                            <p className="text-xs text-muted-foreground">
+                              Past Boreal sessions stay here as audit history.
+                              They are not fed back into a fresh chat unless you
+                              explicitly reopen tracked work.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              onClick={handleClearSelection}
+                              size="sm"
+                              type="button"
+                            >
+                              Back to Boreal chat
+                            </Button>
+                            <Button
+                              onClick={() => openMarketplaceTab("workers")}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Browse offers
+                            </Button>
+                          </div>
+                        </div>
+                        {hasMoreBorealSessions ? (
                           <div className="flex justify-center">
                             <Button
                               onClick={() =>
@@ -3047,33 +3139,44 @@ export function ChatShell() {
                             </Button>
                           </div>
                         ) : null}
-                        {activeIntentId
-                          ? displayedMessages.map((message) => (
-                            <Message from={message.role} key={message.id}>
-                              <MessageContent>
-                                {message.content.trim().length > 0 ? (
-                                  <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
-                                    {message.content}
-                                  </MessageResponse>
-                                ) : (
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <LoaderIcon className="size-4 animate-spin" />
-                                    <span>Routing request</span>
-                                  </div>
-                                )}
-                              </MessageContent>
-                            </Message>
-                          ))
-                          : borealTimelineSessions.map((session, index) => (
+                        {borealTimelineSessions.length > 0 ? (
+                          borealTimelineSessions.map((session, index) => (
                             <BorealTimelineSessionBlock
                               key={`${session.conversation.conversationId}-${session.conversation.latestMessageAt}-${index}`}
                               activeApprovalIntentId={pendingApprovalIntentId}
-                              onApproveRequest={handleApproveRequest}
                               onDiscardRequest={handleCancelRequest}
                               onOpenRequest={openConversationRequestById}
                               session={session}
                             />
-                          ))}
+                          ))
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                            No sessions yet. Start in Boreal chat and they will
+                            show up here as audit history.
+                          </div>
+                        )}
+                      </ConversationContent>
+                      <ConversationScrollButton />
+                    </Conversation>
+                  ) : isLiveBorealChatView ? (
+                    <Conversation className="h-full min-h-0">
+                      <ConversationContent className={CHAT_RAIL_CLASS}>
+                        {displayedMessages.map((message) => (
+                          <Message from={message.role} key={message.id}>
+                            <MessageContent>
+                              {message.content.trim().length > 0 ? (
+                                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
+                                  {message.content}
+                                </MessageResponse>
+                              ) : (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <LoaderIcon className="size-4 animate-spin" />
+                                  <span>Routing request</span>
+                                </div>
+                              )}
+                            </MessageContent>
+                          </Message>
+                        ))}
                         {hasRenderableInlineWorkspace(effectiveWorkspace) ? (
                           <InlineWorkspaceCard
                             approvalIntentId={pendingApprovalIntentId}
@@ -3096,10 +3199,20 @@ export function ChatShell() {
                             workspace={effectiveWorkspace}
                           />
                         ) : null}
-
                       </ConversationContent>
                       <ConversationScrollButton />
                     </Conversation>
+                  ) : (
+                    <div className={HOME_PANEL_CLASS}>
+                      <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-3 text-center">
+                        <p className="text-lg font-medium">
+                          Boreal chat is ready for a fresh session.
+                        </p>
+                        <Button onClick={handleClearSelection} type="button">
+                          Back to Boreal chat
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -3110,33 +3223,46 @@ export function ChatShell() {
                 show={shouldShowFooterComposer}
               >
                 <div className={CHAT_COMPOSER_CLASS}>
-                  <PromptInputTools className="w-full flex-wrap justify-start gap-2">
-                    <Button
-                      onClick={() => setIsCartOpen(true)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <ShoppingCartIcon />
-                      Cart
-                      {activeCart?.itemCount ? ` (${activeCart.itemCount})` : ""}
-                    </Button>
-                    <Button
-                      onClick={login}
-                      size="sm"
-                      type="button"
-                      variant={privyAuthenticated ? "secondary" : "ghost"}
-                    >
-                      <WalletIcon />
-                      {privyReady
-                        ? privyAuthenticated
-                          ? "Connected"
-                          : runtimePrimaryChainFamily === "solana"
-                            ? "Connect Solana"
-                            : "Connect Wallet"
-                        : "Wallet"}
-                    </Button>
-                  </PromptInputTools>
+                  {(activeCart?.itemCount ?? 0) > 0 ||
+                  (!activeIntentId &&
+                    (!privyAuthenticated || !defaultWalletAddress)) ? (
+                    <PromptInputTools className="w-full flex-wrap justify-start gap-2">
+                      {(activeCart?.itemCount ?? 0) > 0 ? (
+                        <Button
+                          onClick={() => setIsCartOpen(true)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <ShoppingCartIcon />
+                          Cart
+                          {activeCart?.itemCount
+                            ? ` (${activeCart.itemCount})`
+                            : ""}
+                        </Button>
+                      ) : null}
+                      {!activeIntentId &&
+                      (!privyAuthenticated || !defaultWalletAddress) ? (
+                        <Button
+                          onClick={login}
+                          size="sm"
+                          type="button"
+                          variant={privyAuthenticated ? "secondary" : "ghost"}
+                        >
+                          <WalletIcon />
+                          {privyReady
+                            ? privyAuthenticated
+                              ? runtimePrimaryChainFamily === "solana"
+                                ? "Connect Solana"
+                                : "Connect wallet"
+                              : runtimePrimaryChainFamily === "solana"
+                                ? "Connect Solana"
+                                : "Connect wallet"
+                            : "Wallet"}
+                        </Button>
+                      ) : null}
+                    </PromptInputTools>
+                  ) : null}
 
                   {isArchivedTranscript ? (
                     <div className="border border-border px-4 py-3 text-xs text-muted-foreground">
@@ -3205,11 +3331,13 @@ export function ChatShell() {
       >
         <IntentSidebar
           borealChatSessionCount={borealChatSessions.length}
-          isBorealChatActive={!activeIntentId}
+          isBorealChatActive={!activeIntentId && !isSessionsView}
+          isSessionsActive={isSessionsView}
           intents={visibleSidebarIntents}
           onOpenAccount={() => setIsAccountDialogOpen(true)}
           onOpenBorealChat={handleClearSelection}
           onCollapse={() => setIsMobileIntentSidebarOpen(false)}
+          onOpenSessions={handleOpenSessions}
           onOpenPendingApprovals={() => {
             const nextIntent = pendingApprovalIntents[0]
             if (nextIntent) {
@@ -3472,13 +3600,11 @@ function MobileSidebarDrawer({
 
 function BorealTimelineSessionBlock({
   activeApprovalIntentId,
-  onApproveRequest,
   onDiscardRequest,
   onOpenRequest,
   session,
 }: {
   activeApprovalIntentId: string | null
-  onApproveRequest: (intentId?: string | null) => Promise<void>
   onDiscardRequest: (intentId: string) => Promise<void>
   onOpenRequest: (requestId: string) => void
   session: BorealTimelineSession
@@ -3492,7 +3618,7 @@ function BorealTimelineSessionBlock({
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border" />
         <span className="shrink-0 text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-          Session · {formatBorealSessionTime(session.conversation.latestMessageAt)}
+          Session / {formatBorealSessionTime(session.conversation.latestMessageAt)}
         </span>
         <div className="h-px flex-1 bg-border" />
       </div>
@@ -3518,69 +3644,80 @@ function BorealTimelineSessionBlock({
       ))}
 
       {sortedRequests.map((linkedRequest) => (
-        <div
-          className="rounded-2xl border border-border bg-card px-4 py-3"
-          key={linkedRequest.id}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">{linkedRequest.title}</p>
-              <p className="mt-1 text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                {linkedRequest.status === "proposed"
-                  ? linkedRequest.needsClarification
-                    ? "Needs scope"
-                    : linkedRequest.id === activeApprovalIntentId
-                      ? "Review matched routes"
-                      : "Awaiting approval"
-                  : linkedRequest.status.replaceAll("_", " ")}
-              </p>
+        (() => {
+          const isProposedDraft = linkedRequest.status === "proposed"
+          const isActiveDraft =
+            isProposedDraft &&
+            !linkedRequest.needsClarification &&
+            linkedRequest.id === activeApprovalIntentId
+
+          return (
+            <div
+              className="rounded-2xl border border-border bg-card px-4 py-3"
+              key={linkedRequest.id}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{linkedRequest.title}</p>
+                  <p className="mt-1 text-xs tracking-[0.16em] text-muted-foreground uppercase">
+                    {isProposedDraft
+                      ? linkedRequest.needsClarification
+                        ? "Needs scope"
+                        : isActiveDraft
+                          ? "Draft open"
+                          : "Awaiting approval"
+                      : linkedRequest.status.replaceAll("_", " ")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isProposedDraft &&
+                  !linkedRequest.needsClarification &&
+                  !isActiveDraft ? (
+                    <>
+                      <Button
+                        onClick={() => onOpenRequest(linkedRequest.id)}
+                        size="sm"
+                        type="button"
+                      >
+                        Open draft
+                      </Button>
+                      <Button
+                        onClick={() => void onDiscardRequest(linkedRequest.id)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        Discard
+                      </Button>
+                    </>
+                  ) : isActiveDraft ? (
+                    <span className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                      Reviewing now
+                    </span>
+                  ) : (
+                    <Button
+                      onClick={() => onOpenRequest(linkedRequest.id)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      Open request
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {isProposedDraft ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {linkedRequest.needsClarification
+                    ? "This draft still needs clearer scope. Open it and reply in chat before Boreal turns it into tracked work."
+                    : isActiveDraft
+                      ? "The top route is already expanded below. Invite the highlighted route when you want Boreal to start tracked work."
+                      : "Open the draft, then invite the route you want Boreal to start with."}
+                </p>
+              ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              {linkedRequest.status === "proposed" &&
-              !linkedRequest.needsClarification &&
-              linkedRequest.id !== activeApprovalIntentId ? (
-                <>
-                  <Button
-                    onClick={() => void onApproveRequest(linkedRequest.id)}
-                    size="sm"
-                    type="button"
-                  >
-                    Approve route
-                  </Button>
-                  <Button
-                    onClick={() => void onDiscardRequest(linkedRequest.id)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    Discard
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => onOpenRequest(linkedRequest.id)}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {linkedRequest.status === "proposed" &&
-                  linkedRequest.id === activeApprovalIntentId
-                    ? "Open draft"
-                    : "Open request"}
-                </Button>
-              )}
-            </div>
-          </div>
-          {linkedRequest.status === "proposed" ? (
-            <p className="mt-3 text-xs text-muted-foreground">
-              {linkedRequest.needsClarification
-                ? "This draft still needs clearer scope. Open it and reply in chat before Boreal turns it into tracked work."
-                : linkedRequest.id === activeApprovalIntentId
-                  ? "The best matched routes are already expanded below. Approve the highlighted route card when you want Boreal to open tracked work."
-                  : "Approve only when you want Boreal to open tracked work and run the matched route."}
-            </p>
-          ) : null}
-        </div>
+          )
+        })()
       ))}
     </div>
   )
@@ -3945,7 +4082,7 @@ function InlineRequestActionEvent({
     <div className="space-y-3 border border-border p-4">
       <p className="text-sm font-medium">{actionState.title}</p>
       <p className="text-xs text-muted-foreground">{actionState.description}</p>
-      {actionState.kind === "approval" ? (
+      {actionState.kind === "approval" && !isMatchedCatalogRoute ? (
         <div className="space-y-3 border border-border p-4">
           <div className="flex items-start gap-3">
             <div className="flex size-9 items-center justify-center border border-border">
@@ -3990,7 +4127,9 @@ function InlineRequestActionEvent({
                 .join(" / ")}
             </span>
             <span className="border border-border px-2 py-1">
-              {intent.routeTarget.replaceAll("_", " ")}
+              {isMatchedCatalogRoute
+                ? "specialist route"
+                : intent.routeTarget.replaceAll("_", " ")}
             </span>
           </div>
         </div>
@@ -4035,12 +4174,6 @@ function InlineRequestActionEvent({
             </span>
           ))}
         </div>
-      ) : null}
-      {actionState.kind === "approval" && isMatchedCatalogRoute ? (
-        <p className="text-xs text-muted-foreground">
-          Approve the highlighted route card below when you want Boreal to lock
-          the strongest match and start tracked work.
-        </p>
       ) : null}
       {actionState.kind === "blocked" && blockedErrorMessage ? (
         <div className="border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-muted-foreground">
@@ -4129,6 +4262,24 @@ function InlineRequestActionEvent({
           </>
         ) : null}
         {actionState.kind === "awaiting_reply" ? (
+          <>
+            <Button
+              disabled={isRefreshingRequest}
+              onClick={() => void onRefreshRequest()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isRefreshingRequest ? (
+                <LoaderIcon className="animate-spin" />
+              ) : (
+                <RefreshCwIcon />
+              )}
+              Refresh
+            </Button>
+          </>
+        ) : null}
+        {actionState.kind === "waiting_specialist" ? (
           <>
             <Button
               disabled={isRefreshingRequest}
@@ -6193,6 +6344,10 @@ function getRequestActionState(
   const status = intent.status
   const handlingMode = getRequestHandlingMode(intent)
   const awaitingSpecialistReply = isAwaitingSpecialistReply(activity, intent)
+  const waitingOnSpecialistResponse = isWaitingOnSpecialistResponse(
+    activity,
+    intent
+  )
 
   if (reviewPending) {
     return {
@@ -6226,7 +6381,7 @@ function getRequestActionState(
           : handlingMode === "workers"
             ? "Approve to publish this request for workers and proposals. No one is assigned yet."
             : isMatchedCatalogRoute
-              ? "Approve to let Boreal run the best matched specialist route for this request."
+              ? "The strongest matched specialist is already highlighted below. Approve that route card when you want Boreal to start tracked work."
               : "Approve to let Boreal Agent take the first pass on this request.",
       kind: "approval" as const,
       title:
@@ -6235,7 +6390,7 @@ function getRequestActionState(
           : handlingMode === "workers"
             ? "Open for workers"
             : isMatchedCatalogRoute
-              ? "Approve matched route"
+              ? "Best route ready"
               : "Approve Boreal Agent",
     }
   }
@@ -6262,10 +6417,23 @@ function getRequestActionState(
     }
   }
 
+  if (
+    waitingOnSpecialistResponse &&
+    (status === "claimed" || status === "in_progress") &&
+    access?.isOwner
+  ) {
+    return {
+      description:
+        "Your reply is in. Boreal is waiting for the approved specialist to answer in this same request thread.",
+      kind: "waiting_specialist" as const,
+      title: "Waiting on specialist",
+    }
+  }
+
   if ((status === "claimed" || status === "in_progress") && access?.isOwner) {
     return {
       description:
-        "Work is active. Refresh the workboard when you need the latest state, or mark it fulfilled when the final delivery happened in chat.",
+        "Work is active. Refresh when you need the latest state, and only mark it fulfilled after the final delivery lands in chat.",
       kind: "in_flight" as const,
       title: "Work in flight",
     }
@@ -6341,6 +6509,24 @@ function normalizeCenterViewTab(value: string | null): CenterViewTab {
   }
 
   return "chat"
+}
+
+function normalizeChatMode(value: string | null) {
+  return value === "sessions" ? "sessions" : null
+}
+
+function parseProfileLookup(value: string) {
+  if (value.startsWith("external:")) {
+    return {
+      externalId: value.slice("external:".length),
+      kind: "externalId" as const,
+    }
+  }
+
+  return {
+    kind: "profileId" as const,
+    profileId: value,
+  }
 }
 
 function normalizeCenterSheetView(value: string | null): CenterSheetView | null {
@@ -6984,6 +7170,9 @@ function ActivityThreadPanel({
 
 function labelActivity(type: string) {
   const labels: Record<string, string> = {
+    detected: "Intent detected",
+    "matching.completed": "Matching updated",
+    "matching.empty": "No matches found",
     "request.approved": "Request approved",
     "request.awaiting_approval": "Awaiting approval",
     "request.blocked": "Execution blocked",
@@ -6994,6 +7183,7 @@ function labelActivity(type: string) {
     "request.opened_for_workers": "Opened for workers",
     "request.retrying": "Retry started",
     "request.team_assigned": "Team assigned",
+    "thread.message_posted": "Reply posted",
   }
 
   return labels[type] ?? type.replace("request.", "").replaceAll("_", " ")
@@ -7025,7 +7215,9 @@ function describeActivityPayload(payload: Record<string, unknown>) {
     parts.push(`Rating: ${payload.rating}/5`)
   }
 
-  if (typeof payload.routeTarget === "string") {
+  if (typeof payload.routeLabel === "string" && payload.routeLabel.trim().length > 0) {
+    parts.push(`Route: ${payload.routeLabel}`)
+  } else if (typeof payload.routeTarget === "string") {
     parts.push(`Route: ${payload.routeTarget.replaceAll("_", " ")}`)
   }
 
@@ -7062,6 +7254,39 @@ function isAwaitingSpecialistReply(
     (intent.status === "claimed" || intent.status === "in_progress") &&
     latestActivity.type === "request.follow_up"
   )
+}
+
+function isWaitingOnSpecialistResponse(
+  activity: RequestDetail["activity"],
+  intent: NonNullable<RequestDetail["intent"]>
+) {
+  if (intent.status !== "claimed" && intent.status !== "in_progress") {
+    return false
+  }
+
+  let sawOwnerReplyAfterFollowUp = false
+
+  for (let index = activity.length - 1; index >= 0; index -= 1) {
+    const entry = activity[index]
+
+    if (!entry) {
+      continue
+    }
+
+    if (entry.type === "request.delivered" || entry.type === "request.blocked") {
+      return false
+    }
+
+    if (entry.type === "request.follow_up") {
+      return sawOwnerReplyAfterFollowUp
+    }
+
+    if (entry.type === "thread.message_posted") {
+      sawOwnerReplyAfterFollowUp = true
+    }
+  }
+
+  return false
 }
 
 function buildWorkspaceFromRequestDetail(

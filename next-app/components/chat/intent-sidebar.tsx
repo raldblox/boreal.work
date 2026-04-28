@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useWallets } from "@privy-io/react-auth"
 import { signIn, signOut, useSession } from "next-auth/react"
 import {
+  HistoryIcon,
   LoaderIcon,
   LogInIcon,
   LogOutIcon,
@@ -25,9 +26,11 @@ import { RequestSidebarSection } from "./intent-sidebar-sections"
 type IntentSidebarProps = {
   borealChatSessionCount: number
   isBorealChatActive: boolean
+  isSessionsActive: boolean
   intents: SidebarIntentPreview[]
   onOpenAccount?: () => void
   onOpenBorealChat: () => void
+  onOpenSessions: () => void
   onCollapse?: () => void
   onOpenPendingApprovals?: () => void
   onSelect: (intent: SidebarIntentPreview, view?: RequestNavigationView) => void
@@ -38,9 +41,11 @@ type IntentSidebarProps = {
 export function IntentSidebar({
   borealChatSessionCount,
   isBorealChatActive,
+  isSessionsActive,
   intents,
   onOpenAccount,
   onOpenBorealChat,
+  onOpenSessions,
   onCollapse,
   onOpenPendingApprovals,
   onSelect,
@@ -105,9 +110,19 @@ export function IntentSidebar({
             <MessagesSquareIcon />
             Boreal chat
           </span>
-          <span className="font-mono text-xs">
-            {borealChatSessionCount}
+        </Button>
+        <Button
+          size={"lg"}
+          className="w-full justify-between"
+          onClick={onOpenSessions}
+          type="button"
+          variant={isSessionsActive ? "default" : "ghost"}
+        >
+          <span className="flex items-center gap-2">
+            <HistoryIcon className="size-4" />
+            Sessions
           </span>
+          <span className="font-mono text-xs">{borealChatSessionCount}</span>
         </Button>
         {pendingApprovalCount > 0 ? (
           <Button

@@ -413,6 +413,77 @@ export const getPublicProfile = query({
   },
 });
 
+export const getPublicProfileByExternalId = query({
+  args: {
+    externalId: v.string(),
+    ownerExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const targetUser = await getUserByExternalId(ctx, args.externalId);
+    const ownerUser = await getUserByExternalId(ctx, args.ownerExternalId);
+
+    if (!targetUser) {
+      return null;
+    }
+
+    const profile = await getProfileByUser(
+      ctx,
+      targetUser._id,
+      targetUser.externalId,
+    );
+
+    if (!profile) {
+      return null;
+    }
+
+    const isMine = !!(ownerUser && profile.userId === ownerUser._id);
+
+    if (!profile.isPublic && !isMine) {
+      return null;
+    }
+
+    const supplies = profile.userId
+      ? await ctx.db
+          .query("supplies")
+          .withIndex("by_supplierUserId", (queryBuilder) =>
+            queryBuilder.eq("supplierUserId", profile.userId),
+          )
+          .order("desc")
+          .take(24)
+      : [];
+
+    return {
+      profile: {
+        _id: profile._id,
+        actorKind: targetUser.actorKind,
+        availabilityStatus: profile.availabilityStatus,
+        avatarUrl: profile.avatarUrl ?? null,
+        bio: profile.bio ?? "",
+        capabilityTags: profile.capabilityTags,
+        displayName: profile.displayName,
+        handle: profile.handle ?? null,
+        headline: profile.headline ?? "",
+        isMine,
+        isPublic: profile.isPublic,
+        productLabels: profile.productLabels,
+        skillTags: profile.skillTags,
+      },
+      analytics: readProfileAnalytics(profile),
+      supplies: supplies.map((supply) => ({
+        _id: supply._id,
+        category: supply.category,
+        deliveryType: supply.deliveryType,
+        description: supply.description,
+        priceAmount: supply.priceAmount ?? null,
+        priceType: supply.priceType,
+        status: supply.status,
+        supplyType: supply.supplyType,
+        title: supply.title,
+      })),
+    };
+  },
+});
+
 export const getBorealAgentStats = query({
   args: {},
   handler: async (ctx) => {

@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   ArrowLeftIcon,
   CircleUserRoundIcon,
+  HistoryIcon,
   LoaderIcon,
   MessagesSquareIcon,
   PackageIcon,
@@ -307,18 +308,22 @@ export function CollapsedRequestsRail({
   accountName,
   borealChatActive,
   borealChatSessionCount,
+  isSessionsActive,
   onOpenBorealChat,
   onOpenAccount,
   onExpand,
+  onOpenSessions,
   requestCount,
 }: {
   accountImageUrl: string | null
   accountName: string | null
   borealChatActive: boolean
   borealChatSessionCount: number
+  isSessionsActive: boolean
   onOpenBorealChat: () => void
   onOpenAccount: () => void
   onExpand: () => void
+  onOpenSessions: () => void
   requestCount: number
 }) {
   const requestBadge = requestCount > 99 ? "99+" : String(requestCount)
@@ -346,7 +351,7 @@ export function CollapsedRequestsRail({
 
       <div className="flex flex-col items-center gap-2 px-4 py-4">
         <button
-          aria-label={`Open Boreal chat with ${borealChatSessionCount} prior sessions`}
+          aria-label="Open Boreal chat"
           className={cn(
             "relative flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background/70 text-foreground transition-colors hover:bg-background",
             borealChatActive && "border-primary/30 bg-primary/10 text-primary",
@@ -355,6 +360,17 @@ export function CollapsedRequestsRail({
           type="button"
         >
           <MessagesSquareIcon className="size-4" />
+        </button>
+        <button
+          aria-label={`Open sessions with ${borealChatSessionCount} prior sessions`}
+          className={cn(
+            "relative flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background/70 text-foreground transition-colors hover:bg-background",
+            isSessionsActive && "border-primary/30 bg-primary/10 text-primary",
+          )}
+          onClick={onOpenSessions}
+          type="button"
+        >
+          <HistoryIcon className="size-4" />
           <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[0.55rem] leading-none font-semibold text-primary-foreground">
             {borealBadge}
           </span>

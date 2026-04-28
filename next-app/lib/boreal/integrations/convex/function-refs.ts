@@ -869,6 +869,11 @@ export const convexFunctionRefs = {
     { ownerExternalId?: string; profileId: string },
     WorkerProfileDetail
   >("profiles:getPublicProfile"),
+  getPublicProfileByExternalId: makeFunctionReference<
+    "query",
+    { externalId: string; ownerExternalId?: string },
+    WorkerProfileDetail
+  >("profiles:getPublicProfileByExternalId"),
   getBorealAgentStats: makeFunctionReference<
     "query",
     Record<string, never>,

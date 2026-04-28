@@ -415,6 +415,7 @@ async function continueApprovedRequestThread(input: {
           assignedAgent: threadPlan.agent.identity.displayName,
           assignedToolNames: [threadPlan.agent.key],
           awaitingUserReply: true,
+          routeLabel: threadPlan.agent.identity.displayName,
           routeTarget: request.routeTarget,
         }),
         activityType: "request.follow_up",
@@ -453,6 +454,7 @@ async function continueApprovedRequestThread(input: {
       activityPayload: JSON.stringify({
         assignedAgent: threadPlan.agent.identity.displayName,
         assignedToolNames: [threadPlan.agent.key],
+        routeLabel: threadPlan.agent.identity.displayName,
         routeTarget: request.routeTarget,
       }),
       activityType: "request.delivered",
@@ -490,6 +492,7 @@ async function continueApprovedRequestThread(input: {
         assignedAgent: threadPlan.agent.identity.displayName,
         assignedToolNames: [threadPlan.agent.key],
         error: message,
+        routeLabel: threadPlan.agent.identity.displayName,
         routeTarget: request.routeTarget,
       }),
       activityType: "request.blocked",
@@ -1214,6 +1217,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
         assignedAgent,
         assignedToolNames: [leadSelection.agent.key],
         awaitingUserReply: true,
+        routeLabel: assignedAgent,
         routeTarget: input.request.routeTarget,
       }),
       activityType: "request.follow_up",
@@ -1257,6 +1261,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     await appendRequestExecution({
       activityPayload: JSON.stringify({
         assignedAgent,
+        routeLabel: assignedAgent,
         routeTarget: input.request.routeTarget,
         selectedAgentKeys: input.routePlan.selected.map(
           (selection) => selection.agent.key,
@@ -1314,6 +1319,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
       activityPayload: JSON.stringify({
         assignedAgent,
         error: message,
+        routeLabel: assignedAgent,
         routeTarget: input.request.routeTarget,
         selectedAgentKeys: input.routePlan.selected.map(
           (selection) => selection.agent.key,
@@ -1528,14 +1534,12 @@ function buildApprovalMessage(
       `This is a qualified ${modeLabel} request.`,
       intent.summary,
       primary
-        ? `Best fit right now: ${primary}.`
+        ? `Top match: ${primary}.`
         : "Boreal already found a strong direct route for the first pass.",
       alternates.length > 0
-        ? `Also matched: ${alternates.join(", ")}.`
-        : catalogItems.length > 1
-          ? `I also found ${catalogItems.length - 1} alternate match${catalogItems.length === 2 ? "" : "es"} to compare.`
-          : "No extra artifacts were started yet.",
-      "Review the matched routes below, then approve when you want Boreal to open tracked work and run the best route.",
+        ? `Alternates are attached below: ${alternates.join(", ")}.`
+        : "The top route is already expanded below.",
+      "Invite the highlighted route when you want Boreal to start tracked work.",
     ].join("\n\n");
   }
 
@@ -1727,7 +1731,7 @@ function buildRoutePreviewCatalogItems(
       actorKind: "agent",
       displayName: selection.agent.identity.displayName,
       handle: selection.agent.identity.handle,
-      profileId: null,
+      profileId: `external:${selection.agent.identity.externalId}`,
     },
     sourceListingUrl: null,
     sourceProviderKey: "manual",
