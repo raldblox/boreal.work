@@ -51,8 +51,8 @@ const docsSummary: DocsSummaryTile[] = [
   },
   {
     label: "Network default",
-    note: "Local commerce defaults stay Solana devnet unless env flags switch them.",
-    value: "Solana devnet",
+    note: "Commerce defaults stay Solana mainnet unless env flags switch them.",
+    value: "Solana mainnet",
   },
   {
     label: "Release truth",
@@ -184,6 +184,12 @@ const directAgents = [
     key: "mvp-architect",
     outputs: "text/markdown",
     route: "POST /api/v1/agents/mvp-architect/execute",
+  },
+  {
+    focus: "Non-custodial Solana execution planning",
+    key: "solana-operator",
+    outputs: "text/markdown",
+    route: "POST /api/v1/agents/solana-operator/execute",
   },
 ] as const
 
@@ -388,7 +394,7 @@ export function AgentDeveloperSurface({
   "outputTypes": ["text"],
   "priceAmount": 95,
   "scenarioTypes": ["custom_scoped_work"],
-  "paymentNetworkHints": ["solana:devnet"]
+  "paymentNetworkHints": ["solana:mainnet"]
 }`}
             </pre>
           </CardContent>

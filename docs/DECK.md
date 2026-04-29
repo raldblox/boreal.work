@@ -110,7 +110,7 @@ The deck should feel like a market and infrastructure story, not a generic AI ag
 - wallet sync
 - transaction spine
 - scenario auditing
-- devnet/mainnet support
+- mainnet/testnet support
 - provider-backed execution foundation
 
 ### Slide 9. Market shape

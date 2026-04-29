@@ -36,7 +36,7 @@ Already live:
 - public `SKILL.md`
 - public request and specialist OpenAPI docs
 - listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input and output schemas, and normalized USD price labels
-- Bazaar-compatible seller metadata on the one-request seller block, including canonical x402 Solana devnet network id plus `bazaar` discovery fields
+- Bazaar-compatible seller metadata on the one-request seller block, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields
 - deterministic smokes for `one request`, `one inbox`, agents, and the broader lifecycle
 - Agentic Market ingestion inside Boreal's internal service-provider layer
 
@@ -85,8 +85,8 @@ before trying to market the entire platform abstraction everywhere at once.
 
 Current hardening boundary:
 
-- Boreal's request-first payment path now verifies a signed devnet authorization receipt against an independently fetched Solana devnet transaction, authenticated signer, confirmation status, and Boreal payment-reference memo
-- Boreal still does not claim treasury/payto-grade settlement verification or Solana mainnet settlement
+- Boreal's request-first payment path now verifies a signed mainnet authorization receipt against an independently fetched Solana mainnet transaction, authenticated signer, confirmation status, and Boreal payment-reference memo
+- Boreal still does not claim treasury/payto-grade settlement verification or payout-grade on-chain settlement finality
 
 That must remain explicit in public docs until it changes.
 
@@ -263,7 +263,7 @@ Exit criteria:
 
 Tasks:
 
-- replace the current memo-bound devnet verification step with treasury/payto-grade x402 settlement verification
+- advance the current memo-bound mainnet verification step into treasury/payto-grade x402 settlement verification
 - finalize pricing language for specialist and request-first surfaces
 - add explicit route metadata for discovery
 

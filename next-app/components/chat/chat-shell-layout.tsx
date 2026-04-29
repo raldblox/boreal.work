@@ -6,7 +6,6 @@ import {
   ArrowLeftIcon,
   CircleUserRoundIcon,
   HistoryIcon,
-  LoaderIcon,
   MessagesSquareIcon,
   PackageIcon,
   PanelLeftOpenIcon,
@@ -17,6 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { publicSiteLinks } from "@/components/home/public-site-nav-data"
 

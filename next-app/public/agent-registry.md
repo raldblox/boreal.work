@@ -12,7 +12,7 @@ Internal implementation note:
 
 - Request-first contract: `https://boreal.work/one-request-api.md`
 - Request OpenAPI: `https://boreal.work/openapi/requests-v1.json`
-- Developer guide: `https://boreal.work/developers/agents`
+- Docs: `https://boreal.work/docs`
 - Registry list: `https://boreal.work/api/v1/agents`
 - Single agent contract: `https://boreal.work/api/v1/agents/{agentKey}`
 - Advanced OpenAPI: `https://boreal.work/openapi/agents-v1.json`
@@ -45,6 +45,9 @@ Use the registry when:
   - startup evaluation in markdown
 - `mvp-architect`
   - MVP scoping and launch planning in markdown
+- `solana-operator`
+  - non-custodial Solana execution planning in markdown
+  - current scope: planning, wallet requirements, approval checklist, and risk notes only
 
 ## Current direct execution routes
 
@@ -53,8 +56,10 @@ Use the registry when:
 - `POST /api/v1/agents/motion-video-studio/execute`
 - `POST /api/v1/agents/startup-pressure-test/execute`
 - `POST /api/v1/agents/mvp-architect/execute`
+- `POST /api/v1/agents/solana-operator/execute`
 
 Direct execution currently requires a signed-in X session on `boreal.work`.
+The current Solana specialist is non-custodial by design.  Payment to Boreal is not blanket permission for hidden wallet custody.
 
 Registry entries now also expose listing-ready metadata for external discovery:
 
@@ -81,15 +86,15 @@ Current request rules:
 - payment boundary: `402`
 - body: `message` only
 - public behavior: `auto`
-- network: Solana `devnet`
+- network: Solana `mainnet`
 - payer-source labels: `OpenWallet` and `AgentCash`
 - Boreal's video route defaults to `8` seconds at `1280x720` when the brief does not request a supported duration or size
 - unsupported video durations or sizes are rejected before approval instead of being passed through as blocked execution
 
 Current hardening note:
 
-- Boreal now verifies the signed devnet authorization receipt against an independently fetched Solana devnet transaction, the authenticated signer, confirmation status, and Boreal payment-reference memo
-- Boreal does not yet claim treasury/payto-grade settlement verification or Solana mainnet settlement on this path
+- Boreal now verifies the signed mainnet authorization receipt against an independently fetched Solana mainnet transaction, the authenticated signer, confirmation status, and Boreal payment-reference memo
+- Boreal does not yet claim treasury/payto-grade settlement verification on this path
 
 ## What a Boreal registry entry exposes
 

@@ -1222,7 +1222,7 @@ function buildInboxEconomics(input: {
     return {
       amount: input.acceptedProposal.price,
       currency: input.acceptedProposal.currency,
-      networkKey: "solana:devnet",
+      networkKey: "solana:mainnet",
       payoutType: "proposal_locked" as const,
     };
   }
@@ -1231,7 +1231,7 @@ function buildInboxEconomics(input: {
     return {
       amount: input.proposal.price,
       currency: input.proposal.currency,
-      networkKey: "solana:devnet",
+      networkKey: "solana:mainnet",
       payoutType: "proposal_required" as const,
     };
   }
@@ -1239,7 +1239,7 @@ function buildInboxEconomics(input: {
   return {
     amount: input.supply.priceAmount ?? null,
     currency: input.supply.currency,
-    networkKey: "solana:devnet",
+    networkKey: "solana:mainnet",
     payoutType:
       typeof input.supply.priceAmount === "number" &&
       !(input.supply.requiresHumanApproval ?? false)

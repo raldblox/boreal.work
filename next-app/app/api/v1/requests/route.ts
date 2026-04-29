@@ -35,6 +35,7 @@ import type {
   OneRequestRoutePlan,
   OneRequestRouteSelection,
 } from "@/lib/boreal/one-request/types";
+import { getDefaultSolanaNetworkKey } from "@/lib/boreal/solana-network";
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
 
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
 
     const requestFingerprint = createRequestFingerprint(message);
     const idempotencyKey = getIdempotencyKey(request, requestFingerprint);
+    const networkKey = getDefaultSolanaNetworkKey();
     const convex = createConvexServerClient();
     const existing = await convex.query(api.requestApi.findSessionForCaller, {
       idempotencyKey,
@@ -154,7 +156,7 @@ export async function POST(request: Request) {
         intentId: persisted.intentId as Id<"intents">,
         intentKey: persisted.intentKey,
         message,
-        networkKey: "solana:devnet",
+        networkKey,
         ownerDisplayName: caller.displayName,
         ownerExternalId: caller.externalId,
         paymentProtocol: "x402",
@@ -222,7 +224,7 @@ export async function POST(request: Request) {
         intentId: persisted.intentId as Id<"intents">,
         intentKey: persisted.intentKey,
         message,
-        networkKey: "solana:devnet",
+        networkKey,
         ownerDisplayName: caller.displayName,
         ownerExternalId: caller.externalId,
         paymentProtocol: "x402",
@@ -657,7 +659,7 @@ function buildExistingPaymentResponse(
       authorizationMessage: session.quoteAuthorizationMessage,
       currency: "USD",
       expiresAt: session.quoteExpiresAt,
-      networkKey: "solana:devnet",
+      networkKey: getDefaultSolanaNetworkKey(),
       payerSources: ["openwallet", "agentcash"],
       paymentReference,
       paymentProtocol: "x402",
@@ -753,7 +755,11 @@ function reviveRoutePlan(route: Record<string, unknown>): OneRequestRoutePlan {
     currency: "USD",
     estimatedMinutes: Number(route.estimatedMinutes ?? 3),
     keywords: Array.isArray(route.keywords) ? route.keywords.map(String) : [],
-    networkKey: "solana:devnet",
+    networkKey:
+      route.networkKey === "solana:mainnet" ||
+      route.networkKey === "solana:testnet"
+        ? route.networkKey
+        : getDefaultSolanaNetworkKey(),
     paymentProtocol: "x402",
     routeTarget:
       (route.routeTarget as

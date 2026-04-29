@@ -36,7 +36,7 @@
 - `app/api/agents/[agentKey]/route.ts` returns one agent registry entry and its declared execution contract.
 - `app/api/agents/[agentKey]/execute/route.ts` runs one signed-in direct agent through Boreal-owned routes and credentials.
 - `public/llms.txt`, `public/SKILL.md`, `public/agent-registry.md`, `public/one-request-api.md`, `public/one-inbox-api.md`, `public/connect-agent-quickstart.md`, `public/openapi/requests-v1.json`, `public/openapi/agents-v1.json`, and `public/openapi/webhooks-v1.json` are the current public integration artifacts for agent customers and suppliers.
-- `../ONE_REQUEST_API.md` is the source of truth for the live pure-agent premium demand contract around `POST /api/v1/requests`, `SIWX` wallet auth, and Boreal's current `402` payment flow on Solana devnet.
+- `../ONE_REQUEST_API.md` is the source of truth for the live pure-agent premium demand contract around `POST /api/v1/requests`, `SIWX` wallet auth, and Boreal's current `402` payment flow on Solana mainnet.
 - `public/one-inbox-api.md` mirrors the live supplier-side market contract around matched demand, request participation actions, delivery, and payout tracking.
 - `../ONE_INBOX_API.md` is the source of truth for the live supplier-side `one inbox` abstraction that complements the live request-first demand contract.
 - `app/api/requests` contains lifecycle endpoints for approval, retry, delivery, proposals, messages, and fulfillment actions.
@@ -112,10 +112,10 @@ npm run agent:watch:all -- --prod
 - `npm run convex:reset:dev` clears all app tables on the current selected Convex development deployment and then reseeds the built-in agent users, profiles, and supplies.
 - `AGENT-REGISTRY.md` documents the direct agent registry contract, current built-in agents, route shapes, and the owner workflow for registering new callable supply.
 - `ONE_REQUEST_API.md` is the source of truth for the live request-first contract and smoke target for pure agent demand intake.
-- The current payment confirmation model on `/api/v1/requests` requires a signed devnet authorization receipt plus Boreal verification of the referenced Solana devnet transaction, authenticated signer, confirmation status, and payment-reference memo. If the seller pay-to address is configured, Boreal also requires the verified transaction to mention that pay-to address.
-- Boreal still does not claim treasury/payto-grade settlement verification or Solana mainnet settlement on that path.
-- Boreal defaults to Solana `devnet` for wallet/payment routing unless overridden by environment.
-- Set `BOREAL_CHAIN_ENV=mainnet` or `NEXT_PUBLIC_BOREAL_CHAIN_ENV=mainnet` in deployment to switch commerce defaults to mainnet.
+- The current payment confirmation model on `/api/v1/requests` requires a signed mainnet authorization receipt plus Boreal verification of the referenced Solana mainnet transaction, authenticated signer, confirmation status, and payment-reference memo. If the seller pay-to address is configured, Boreal also requires the verified transaction to mention that pay-to address.
+- Boreal still does not claim treasury/payto-grade settlement verification on that path.
+- Boreal defaults to Solana `mainnet` for wallet/payment routing unless overridden by environment.
+- Set `BOREAL_CHAIN_ENV=testnet` or the matching `NEXT_PUBLIC_...` flag only when a non-mainnet environment is intentionally needed.
 - Set `BOREAL_PRIMARY_CHAIN_FAMILY=evm` or `NEXT_PUBLIC_BOREAL_PRIMARY_CHAIN_FAMILY=evm` if the deployment should prefer EVM wallets; Solana remains the default and Base is the primary EVM target.
 - The autonomous worker scripts use Node's native `--experimental-strip-types` execution, so no extra TypeScript runner dependency is required on Node 24+.
 - Built-in autonomous agents now default to the shared Solana wallet `CxkLjW31HqX4Mp7JuDmSRBxEALqbnj8HWHn48FRWD4yS` and shared EVM wallet `0x339f616BA1A347ef40d3EdD5278c0B44315E0836`, unless `BOREAL_AGENT_DEFAULT_SOLANA_WALLET` or `BOREAL_AGENT_DEFAULT_EVM_WALLET` overrides them.

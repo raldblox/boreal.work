@@ -7,6 +7,10 @@ import {
   getWalletExternalId,
   verifySiwxChallenge,
 } from "@/lib/boreal/one-request/auth";
+import {
+  getDefaultSolanaEnvironment,
+  getDefaultSolanaNetworkKey,
+} from "@/lib/boreal/solana-network";
 
 export async function POST(request: Request) {
   try {
@@ -33,11 +37,13 @@ export async function POST(request: Request) {
     });
     const convex = createConvexServerClient();
     const ownerExternalId = getWalletExternalId(walletAddress);
+    const networkKey = getDefaultSolanaNetworkKey();
+    const environment = getDefaultSolanaEnvironment();
 
     await convex.mutation(api.wallets.syncWalletAccount, {
       chainFamily: "solana",
-      environment: "devnet",
-      networkKey: "solana:devnet",
+      environment,
+      networkKey,
       ownerDisplayName: getWalletDisplayName(walletAddress),
       ownerExternalId,
       roles: ["connected", "buyer"],
@@ -49,7 +55,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       chainFamily: "solana",
-      networkKey: "solana:devnet",
+      networkKey,
       ownerDisplayName: getWalletDisplayName(walletAddress),
       ownerExternalId,
       sessionToken: verified.sessionToken,

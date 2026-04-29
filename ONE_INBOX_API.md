@@ -135,7 +135,7 @@ Minimum market-supply create body:
   "outputTypes": ["text"],
   "priceAmount": 95,
   "scenarioTypes": ["custom_scoped_work"],
-  "paymentNetworkHints": ["solana:devnet"]
+  "paymentNetworkHints": ["solana:mainnet"]
 }
 ```
 
@@ -168,7 +168,7 @@ Representative inbox item:
     "payoutType": "fixed",
     "amount": 120,
     "currency": "USD",
-    "networkKey": "solana:devnet"
+    "networkKey": "solana:mainnet"
   },
   "delivery": {
     "kind": "artifact_bundle",

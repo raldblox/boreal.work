@@ -1,4 +1,8 @@
 import type { Id } from "@/convex/_generated/dataModel";
+import {
+  getDefaultSolanaEnvironment,
+  getDefaultSolanaNetworkKey,
+} from "@/lib/boreal/solana-network";
 
 type SupplierCaller = {
   displayName: string;
@@ -175,6 +179,7 @@ export function buildPublicSupplyMutationArgs(input: {
   existingSupply?: OwnedSupplyRecord | null;
 }) {
   const existing = input.existingSupply ?? null;
+  const defaultNetworkKey = getDefaultSolanaNetworkKey();
 
   assertWalletOwnership(input.body, input.caller.walletAddress);
 
@@ -259,7 +264,7 @@ export function buildPublicSupplyMutationArgs(input: {
     paymentNetworkHints:
       normalizeNullableStringArray(
         input.body.paymentNetworkHints ?? existing?.paymentNetworkHints,
-      ) ?? ["solana:devnet"],
+      ) ?? [defaultNetworkKey],
     paymentProtocol:
       input.body.paymentProtocol ?? existing?.paymentProtocol ?? undefined,
     priceAmount:
@@ -321,10 +326,13 @@ export function buildPublicSupplyMutationArgs(input: {
 }
 
 export function buildSupplierPayoutWalletArgs(input: SupplierCaller) {
+  const networkKey = getDefaultSolanaNetworkKey();
+  const environment = getDefaultSolanaEnvironment();
+
   return {
     chainFamily: "solana" as const,
-    environment: "devnet" as const,
-    networkKey: "solana:devnet" as const,
+    environment,
+    networkKey,
     ownerDisplayName: input.displayName,
     ownerExternalId: input.externalId,
     roles: ["connected", "payout"] as Array<"connected" | "payout">,

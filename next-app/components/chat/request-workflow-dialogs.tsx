@@ -4,7 +4,6 @@ import type { Dispatch, ReactNode, SetStateAction } from "react"
 import {
   CheckIcon,
   FileIcon,
-  LoaderIcon,
   PackageIcon,
   SparklesIcon,
   Trash2Icon,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import {
   Select,
   SelectContent,

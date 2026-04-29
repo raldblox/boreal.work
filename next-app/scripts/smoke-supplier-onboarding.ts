@@ -27,8 +27,8 @@ async function main() {
 
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: buyer.displayName,
     ownerExternalId: buyerExternalId,
     roles: ["connected", "buyer"],
@@ -39,8 +39,8 @@ async function main() {
   });
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: supplier.displayName,
     ownerExternalId: supplierExternalId,
     roles: ["connected", "payout"],
@@ -70,7 +70,7 @@ async function main() {
     ownerDisplayName: supplier.displayName,
     ownerExternalId: supplierExternalId,
     ownerHandle: "supplier-bot",
-    paymentNetworkHints: ["solana:devnet"],
+    paymentNetworkHints: ["solana:mainnet"],
     paymentProtocol: "x402",
     priceAmount: 95,
     priceType: "fixed",
@@ -112,7 +112,7 @@ async function main() {
     ownerDisplayName: supplier.displayName,
     ownerExternalId: supplierExternalId,
     outputTypes: ["text"],
-    paymentNetworkHints: ["solana:devnet"],
+    paymentNetworkHints: ["solana:mainnet"],
     paymentProtocol: "x402",
     priceAmount: ownedAfterCreate!.supply.priceAmount ?? 95,
     priceType: ownedAfterCreate!.supply.priceType,

@@ -53,7 +53,7 @@ const capabilitySpecs: CapabilitySpec[] = [
   },
   {
     label: "Release truth",
-    note: "No claim of finished escrow, mature settlement, or broad mainnet readiness.",
+    note: "Solana mainnet is now the default. Finished escrow and treasury-grade settlement are still not claimed.",
     value: "Open early access",
   },
 ]

@@ -3,6 +3,11 @@ import {
   verifyPaymentReceipt,
 } from "./auth.ts";
 import type { OneRequestPaymentReceipt } from "./types.ts";
+import {
+  getDefaultSolanaNetworkKey,
+  getDefaultSolanaRpcUrl,
+  type BorealSolanaNetworkKey,
+} from "../solana-network.ts";
 
 type SolanaRpcResponse<T> = {
   error?: {
@@ -54,18 +59,17 @@ export type OneRequestPaymentVerification = {
   blockTime: number | null;
   confirmationStatus: string | null;
   memo: string;
-  networkKey: "solana:devnet";
+  networkKey: BorealSolanaNetworkKey;
   payToAddress: string | null;
   rpcUrl: string;
   slot: number | null;
   txHash: string;
-  verificationMethod: "solana_devnet_memo" | "solana_devnet_memo_payto";
+  verificationMethod: "solana_memo" | "solana_memo_payto";
   verifiedAt: number;
   walletAddress: string;
 };
 
 const SOLANA_MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
-const DEFAULT_SOLANA_DEVNET_RPC_URL = "https://api.devnet.solana.com";
 
 export async function verifyOneRequestPayment(input: {
   amount: number;
@@ -97,14 +101,15 @@ export async function verifyOneRequestPayment(input: {
     quoteToken: input.quoteToken,
     requestToken: input.requestToken,
   });
-  const rpcUrl = getSolanaDevnetRpcUrl();
+  const networkKey = getDefaultSolanaNetworkKey();
+  const rpcUrl = getDefaultSolanaRpcUrl();
   const transaction = await getConfirmedTransaction({
     rpcUrl,
     txHash,
   });
 
   if (transaction.meta?.err) {
-    throw new Error("Solana devnet transaction failed on chain.");
+    throw new Error("Solana transaction failed on chain.");
   }
 
   const signatures = transaction.transaction?.signatures ?? [];
@@ -150,7 +155,7 @@ export async function verifyOneRequestPayment(input: {
     !["confirmed", "finalized"].includes(confirmationStatus)
   ) {
     throw new Error(
-      `Solana devnet transaction is not confirmed yet (status: ${confirmationStatus}).`,
+      `Solana transaction is not confirmed yet (status: ${confirmationStatus}).`,
     );
   }
 
@@ -158,21 +163,17 @@ export async function verifyOneRequestPayment(input: {
     blockTime: transaction.blockTime ?? null,
     confirmationStatus,
     memo: matchedMemo,
-    networkKey: "solana:devnet",
+    networkKey,
     payToAddress,
     rpcUrl,
     slot: transaction.slot ?? null,
     txHash,
     verificationMethod: payToAddress
-      ? "solana_devnet_memo_payto"
-      : "solana_devnet_memo",
+      ? "solana_memo_payto"
+      : "solana_memo",
     verifiedAt: Date.now(),
     walletAddress: input.walletAddress,
   };
-}
-
-function getSolanaDevnetRpcUrl() {
-  return process.env.BOREAL_SOLANA_DEVNET_RPC_URL?.trim() || DEFAULT_SOLANA_DEVNET_RPC_URL;
 }
 
 async function getConfirmedTransaction(input: {
@@ -193,7 +194,7 @@ async function getConfirmedTransaction(input: {
   });
 
   if (!result) {
-    throw new Error("Solana devnet transaction proof could not be found.");
+    throw new Error("Solana transaction proof could not be found.");
   }
 
   return result;
@@ -215,7 +216,7 @@ async function getConfirmationStatus(input: {
   }
 
   if (status.err) {
-    throw new Error("Solana devnet transaction proof failed during signature status verification.");
+    throw new Error("Solana transaction proof failed during signature status verification.");
   }
 
   return status.confirmationStatus ?? null;
@@ -240,13 +241,13 @@ async function callSolanaRpc<T>(input: {
   });
 
   if (!response.ok) {
-    throw new Error(`Solana devnet RPC returned ${response.status}.`);
+    throw new Error(`Solana RPC returned ${response.status}.`);
   }
 
   const payload = (await response.json()) as SolanaRpcResponse<T>;
 
   if (payload.error) {
-    throw new Error(`Solana devnet RPC error: ${payload.error.message}`);
+    throw new Error(`Solana RPC error: ${payload.error.message}`);
   }
 
   return payload.result;

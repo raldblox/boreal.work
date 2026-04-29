@@ -111,7 +111,7 @@ async function createSession(
     intentId: undefined,
     intentKey: undefined,
     message: `Smoke guard session ${input.idempotencyKey}`,
-    networkKey: "solana:devnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: input.ownerExternalId,
     ownerExternalId: input.ownerExternalId,
     paymentProtocol: "x402",

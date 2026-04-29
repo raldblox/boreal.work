@@ -8,6 +8,7 @@ import type {
   OneRequestRoutePlan,
   OneRequestRouteSelection,
 } from "./types";
+import { getDefaultSolanaNetworkKey } from "../solana-network.ts";
 
 const AUTO_ROUTE_SCORE_THRESHOLD = 28;
 
@@ -103,7 +104,7 @@ export function buildAutoRoutePlan(input: OneRequestIntentContext): OneRequestRo
     currency: "USD",
     estimatedMinutes: Math.max(2, selected.length * 3),
     keywords: input.intent.keywords,
-    networkKey: "solana:devnet",
+    networkKey: getDefaultSolanaNetworkKey(),
     paymentProtocol: "x402",
     routeTarget: input.intent.routeTarget,
     selected,

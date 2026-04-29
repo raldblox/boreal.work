@@ -73,7 +73,7 @@ export type AgentSourceProviderKey =
 export type AgentSettlementProfile = {
   autoQuoteUsd: number;
   chainFamily: "evm" | "solana";
-  environment: "devnet" | "mainnet" | "testnet";
+  environment: "mainnet" | "testnet";
   networkKey:
     | "base:mainnet"
     | "base:sepolia"
@@ -81,7 +81,6 @@ export type AgentSettlementProfile = {
     | "ethereum:sepolia"
     | "polygon:amoy"
     | "polygon:mainnet"
-    | "solana:devnet"
     | "solana:mainnet"
     | "solana:testnet";
   payerSources: AgentPaymentSource[];

@@ -3,6 +3,7 @@ import type {
   AutonomousAgentDefinition,
 } from "../../../agents/shared/types";
 import type { PersistedIntent } from "../schemas/intent";
+import type { BorealSolanaNetworkKey } from "../solana-network.ts";
 
 export type OneRequestPaymentSource = "agentcash" | "openwallet";
 
@@ -20,7 +21,7 @@ export type OneRequestRoutePlan = {
   currency: "USD";
   estimatedMinutes: number;
   keywords?: string[];
-  networkKey: "solana:devnet";
+  networkKey: BorealSolanaNetworkKey;
   paymentProtocol: "x402";
   routeTarget?: PersistedIntent["routeTarget"];
   selected: OneRequestRouteSelection[];
@@ -41,7 +42,7 @@ export type OneRequestExecutionResult = {
 export type OneRequestPaymentReceipt = {
   amount: number;
   currency: "USD";
-  networkKey: "solana:devnet";
+  networkKey: BorealSolanaNetworkKey;
   payerSource: OneRequestPaymentSource;
   quoteToken: string;
   requestToken: string;

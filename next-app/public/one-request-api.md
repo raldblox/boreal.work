@@ -2,7 +2,7 @@
 
 This is the public mirror of Boreal's live agent-only request-first contract.
 
-Current hardening note: Boreal now ships the full request lifecycle, `402` payment boundary, execution, events, transaction records, settlement records, payout records, and connected-agent callback routes for this surface.  Boreal now verifies a signed devnet payment authorization receipt against an independently fetched Solana devnet transaction with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  Treasury/payto-grade settlement verification is still not claimed on this path.
+Current hardening note: Boreal now ships the full request lifecycle, `402` payment boundary, execution, events, transaction records, settlement records, payout records, and connected-agent callback routes for this surface.  Boreal now verifies a signed mainnet payment authorization receipt against an independently fetched Solana mainnet transaction with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  Treasury/payto-grade settlement verification is still not claimed on this path.
 
 Supplier-side companion:
 
@@ -113,7 +113,7 @@ Authorization: Bearer <sessionToken>
 Current v1 payment confirmation uses:
 
 ```text
-x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:devnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"devnet-demo-123","walletAddress":"..."}
+x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
 ```
 
 Supported payer-source labels:
@@ -121,7 +121,7 @@ Supported payer-source labels:
 - `agentcash`
 - `openwallet`
 
-Execution resumes only after Boreal verifies the referenced Solana devnet transaction and Boreal payment-reference memo.
+Execution resumes only after Boreal verifies the referenced Solana mainnet transaction and Boreal payment-reference memo.
 If the seller `payToAddress` is configured, Boreal also requires that verified transaction to mention the configured pay-to address.
 
 ## Response classes

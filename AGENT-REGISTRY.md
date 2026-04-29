@@ -26,7 +26,7 @@ This is the current pattern for media-generation agents and structured advisory 
 
 - Registry version: `boreal-agent-registry/v1`
 - Current live auth mode for direct execution: `x-session`
-- Current live request-first auth and payment: `SIWX` + Boreal's `402` devnet payment contract
+- Current live request-first auth and payment: `SIWX` + Boreal's `402` mainnet payment contract
 - Registry entries for direct specialists now expose listing-ready metadata:
   - canonical `/api/v1/agents/*` execution routes
   - request-first route hints back to `POST /api/v1/requests`
@@ -64,13 +64,13 @@ Rules:
 - v1 behavior: `auto`
 - wallet auth: `SIWX`
 - payment boundary: `402`
-- network: Solana `devnet`
+- network: Solana `mainnet`
 - payment sources: OpenWallet or AgentCash
 
 Current hardening note:
 
-- Boreal now verifies the signed devnet authorization receipt against an independently fetched Solana devnet transaction, the authenticated signer, confirmation status, and Boreal payment-reference memo
-- Boreal does not yet claim treasury/payto-grade settlement verification or Solana mainnet settlement on this path
+- Boreal now verifies the signed mainnet authorization receipt against an independently fetched Solana mainnet transaction, the authenticated signer, confirmation status, and Boreal payment-reference memo
+- Boreal does not yet claim treasury/payto-grade settlement verification on this path
 
 The registry remains important, but it should not be the first demand API a caller has to understand.
 
@@ -190,6 +190,14 @@ If the current OpenAI project or API key does not actually expose the video rout
 - `mvp-architect`
   - 2-week MVP scoping and assumption testing
   - route: `/api/v1/agents/mvp-architect/execute`
+
+### Solana specialist
+
+- `solana-operator`
+  - non-custodial Solana execution planning in markdown
+  - route: `/api/v1/agents/solana-operator/execute`
+  - current scope: planning, wallet requirements, approval checklist, and risk notes only
+  - must not imply hidden server-side execution from the user's wallet until a real Privy approval path exists
 
 ## Registry Entry Shape
 
@@ -332,7 +340,7 @@ This smoke verifies:
 For the next premium `one request` flow, direct agents that can participate in `auto` execution must also be ready for:
 
 - deterministic quote generation
-- Solana devnet payment compatibility
+- Solana mainnet payment compatibility
 - payout-ready wallet metadata
 - inclusion in the end-to-end one-request smoke lifecycle
 
@@ -351,3 +359,4 @@ For the next premium `one request` flow, direct agents that can participate in `
 - Public agents should read like callable supply, not hidden internal jobs.
 - Direct execution contracts must stay stable enough for other agent owners to follow.
 - Registry metadata should be specific enough for developers, providers, and freelancers to understand what the agent does without exposing private system prompts or internal routing heuristics.
+- Solana-specialist direct routes must stay non-custodial by default until Boreal ships explicit user approval for onchain signing.  Payment to Boreal is not blanket permission for hidden wallet custody.

@@ -4,6 +4,7 @@ import { mathExpertAgent } from "./profiles/math-expert.ts";
 import { motionVideoStudioAgent } from "./profiles/motion-video-studio.ts";
 import { mvpArchitectAgent } from "./profiles/mvp-architect.ts";
 import { researchAnalystAgent } from "./profiles/research-analyst.ts";
+import { solanaOperatorAgent } from "./profiles/solana-operator.ts";
 import { startupPressureTestAgent } from "./profiles/startup-pressure-test.ts";
 import { voiceoverStudioAgent } from "./profiles/voiceover-studio.ts";
 import { buildRegistryListing } from "./shared/registry.ts";
@@ -15,6 +16,7 @@ export const autonomousAgents = [
   motionVideoStudioAgent,
   mvpArchitectAgent,
   researchAnalystAgent,
+  solanaOperatorAgent,
   startupPressureTestAgent,
   voiceoverStudioAgent,
 ] as const;

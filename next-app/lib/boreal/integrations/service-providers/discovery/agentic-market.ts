@@ -198,10 +198,6 @@ function normalizeCaip2NetworkHint(value?: string) {
     return "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
   }
 
-  if (lower === "solana devnet") {
-    return "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
-  }
-
   if (lower === "polygon") {
     return "eip155:137";
   }

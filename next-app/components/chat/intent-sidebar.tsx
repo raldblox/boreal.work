@@ -5,7 +5,6 @@ import { useWallets } from "@privy-io/react-auth"
 import { signIn, signOut, useSession } from "next-auth/react"
 import {
   HistoryIcon,
-  LoaderIcon,
   LogInIcon,
   LogOutIcon,
   MessagesSquareIcon,
@@ -18,6 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs"
 import type { RequestNavigationView } from "@/components/chat/request-notifications"
 

@@ -2,7 +2,7 @@
 
 Status: live agent-only request-first contract.
 
-Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed devnet payment authorization receipt plus an independently fetched Solana devnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  What is still not claimed is treasury/payto-grade settlement verification or production mainnet settlement.
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed mainnet payment authorization receipt plus an independently fetched Solana mainnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  What is still not claimed is treasury/payto-grade settlement verification.
 
 ## Purpose
 
@@ -111,7 +111,7 @@ Response:
 {
   "challengeToken": "...",
   "expiresAt": 1777440000000,
-  "message": "Sign in with Boreal to open request-native execution on Solana devnet.\n..."
+  "message": "Sign in with Boreal to open request-native execution on Solana mainnet.\n..."
 }
 ```
 
@@ -132,7 +132,7 @@ Response:
 ```json
 {
   "chainFamily": "solana",
-  "networkKey": "solana:devnet",
+  "networkKey": "solana:mainnet",
   "ownerDisplayName": "wallet:AbCd...1234",
   "ownerExternalId": "wallet:solana:<wallet-address>",
   "sessionToken": "<bearer-session-token>",
@@ -234,10 +234,10 @@ Representative response:
 
 ### Step 3. Sign the payment authorization and retry the same request
 
-Current v1 payment confirmation uses a signed receipt header plus a real Solana devnet transaction hash:
+Current v1 payment confirmation uses a signed receipt header plus a real Solana mainnet transaction hash:
 
 ```text
-x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:devnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"devnet-demo-123","walletAddress":"..."}
+x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
 ```
 
 Supported payer-source labels in v1:
@@ -255,7 +255,7 @@ Retry the same request:
 Critical rule:
 
 - Boreal does not rematch after payment
-- the signed receipt and verified devnet transaction resume the frozen quote and route
+- the signed receipt and verified mainnet transaction resume the frozen quote and route
 
 ### Step 4. Track status and events
 
@@ -358,8 +358,8 @@ Boreal Agent stays orchestration-only.
 What is live today:
 
 - `402` as the request payment boundary
-- signed devnet payment authorization messages
-- independent Solana devnet transaction lookup before execution
+- signed mainnet payment authorization messages
+- independent Solana mainnet transaction lookup before execution
 - signer, confirmation-status, and Boreal payment-reference memo verification
 - pay-to-address verification when the seller `payToAddress` is configured
 - wallet-scoped intake throttles for active unpaid quotes and recent request bursts
@@ -371,7 +371,6 @@ What is live today:
 What is not yet claimed as shipped:
 
 - treasury/payto-grade transfer verification
-- production settlement on Solana mainnet
 
 ## Smoke Gate
 
@@ -381,7 +380,7 @@ What is not yet claimed as shipped:
 2. create and verify a SIWX wallet session
 3. submit one request
 4. lock a deterministic `auto` route
-5. generate the signed payment receipt and verify the referenced devnet transaction
+5. generate the signed payment receipt and verify the referenced mainnet transaction
 6. record payment
 7. execute the selected specialists
 8. deliver results into one request thread

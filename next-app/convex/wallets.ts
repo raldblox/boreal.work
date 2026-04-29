@@ -134,7 +134,7 @@ export async function syncWalletAccountRecord(
   input: {
     chainFamily?: "evm" | "solana";
     chainId?: string;
-    environment?: "devnet" | "mainnet" | "testnet";
+    environment?: "mainnet" | "testnet";
     networkKey?: string;
     ownerDisplayName?: string;
     ownerExternalId?: string;
@@ -146,7 +146,7 @@ export async function syncWalletAccountRecord(
   },
 ): Promise<
   | {
-      environment: "devnet" | "mainnet" | "testnet";
+      environment: "mainnet" | "testnet";
       profileId: Id<"profiles"> | undefined;
       userId: string | undefined;
       walletAccountId: Id<"walletAccounts">;

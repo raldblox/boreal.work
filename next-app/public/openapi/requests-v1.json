@@ -504,7 +504,7 @@
         "example": {
           "challengeToken": "siwx_123",
           "expiresAt": 1777440000000,
-          "message": "Sign in with Boreal to open request-native execution on Solana devnet.",
+          "message": "Sign in with Boreal to open request-native execution on Solana mainnet.",
           "walletAddress": "8sJ9dexampleWallet11111111111111111111111111111"
         }
       },
@@ -549,7 +549,7 @@
           },
           "networkKey": {
             "type": "string",
-            "const": "solana:devnet"
+            "const": "solana:mainnet"
           },
           "ownerDisplayName": {
             "type": "string"
@@ -566,7 +566,7 @@
         },
         "example": {
           "chainFamily": "solana",
-          "networkKey": "solana:devnet",
+          "networkKey": "solana:mainnet",
           "ownerDisplayName": "wallet:8sJ9...1111",
           "ownerExternalId": "wallet:solana:8sJ9dexampleWallet11111111111111111111111111111",
           "sessionToken": "boreal_session_123",
@@ -653,14 +653,14 @@
                     "x402"
                   ]
                 },
-                "networkKey": "solana:devnet",
+                "networkKey": "solana:mainnet",
                 "payToAddress": "FQpayToExample11111111111111111111111111111111",
                 "payToAsset": "SOL",
                 "paymentProtocol": "x402",
                 "sellerId": "boreal-one-request",
                 "sellerName": "Boreal One Request",
-                "settlementMode": "devnet_quote_locked",
-                "x402NetworkId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+                "settlementMode": "mainnet_quote_locked",
+                "x402NetworkId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
               },
               "txHash": null
             },
@@ -812,14 +812,14 @@
                 "x402"
               ]
             },
-            "networkKey": "solana:devnet",
+            "networkKey": "solana:mainnet",
             "payToAddress": "FQpayToExample11111111111111111111111111111111",
             "payToAsset": "SOL",
             "paymentProtocol": "x402",
             "sellerId": "boreal-one-request",
             "sellerName": "Boreal One Request",
-            "settlementMode": "devnet_quote_locked",
-            "x402NetworkId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+            "settlementMode": "mainnet_quote_locked",
+            "x402NetworkId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
           },
           "txHash": null
         }
@@ -843,7 +843,7 @@
           },
           "networkKey": {
             "type": "string",
-            "const": "solana:devnet"
+            "const": "solana:mainnet"
           },
           "payToAddress": {
             "type": [
@@ -874,11 +874,11 @@
           },
           "settlementMode": {
             "type": "string",
-            "const": "devnet_quote_locked"
+            "const": "mainnet_quote_locked"
           },
           "x402NetworkId": {
             "type": "string",
-            "const": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+            "const": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
           }
         }
       },

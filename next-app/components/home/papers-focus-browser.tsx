@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState, type MouseEvent } from "react"
-import { ArrowLeft, ArrowRight, LoaderIcon } from "lucide-react"
+import { ArrowLeft, ArrowRight } from "lucide-react"
 
 import { EditorialMarkdown } from "@/components/editorial/editorial-markdown"
 import { PapersHubPage } from "@/components/home/papers-hub-page"
 import { Button } from "@/components/ui/button"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
 import {
   extractEditorialDocument,

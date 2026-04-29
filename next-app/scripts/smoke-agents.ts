@@ -13,6 +13,7 @@ const expectedDirectAgents = [
   "image-studio",
   "motion-video-studio",
   "mvp-architect",
+  "solana-operator",
   "startup-pressure-test",
   "voiceover-studio",
 ] as const;

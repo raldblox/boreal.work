@@ -27,8 +27,8 @@ async function main() {
 
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: buyer.displayName,
     ownerExternalId: buyerExternalId,
     roles: ["connected", "buyer"],
@@ -39,8 +39,8 @@ async function main() {
   });
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: supplier.displayName,
     ownerExternalId: supplierExternalId,
     roles: ["connected", "payout"],

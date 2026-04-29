@@ -6,11 +6,11 @@ import {
   CheckIcon,
   CircleUserRoundIcon,
   ExternalLinkIcon,
-  LoaderIcon,
   WalletIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import type {
   MyProfileRecord,
@@ -303,10 +303,6 @@ export function formatNetworkKeyLabel(networkKey: string) {
 
       if (part === "mainnet") {
         return "Mainnet"
-      }
-
-      if (part === "devnet") {
-        return "Devnet"
       }
 
       if (part === "testnet") {

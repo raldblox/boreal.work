@@ -1,10 +1,10 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { LoaderIcon } from "lucide-react"
 import { useQuery } from "convex/react"
 
 import { ProfileView } from "@/components/profiles/profile-view"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { BOREAL_AGENT_EXTERNAL_ID } from "@/lib/boreal/boreal-agent"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 

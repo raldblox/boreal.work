@@ -5,7 +5,6 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  LoaderIcon,
   PlusIcon,
   SparklesIcon,
   StoreIcon,
@@ -22,6 +21,7 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input"
 import { BorealAgentCue } from "@/components/chat/boreal-agent-cue"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import {
   Dialog,
   DialogContent,

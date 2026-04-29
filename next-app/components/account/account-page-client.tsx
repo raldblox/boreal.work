@@ -5,11 +5,12 @@ import Link from "next/link"
 import { useMutation, useQuery } from "convex/react"
 import { usePrivy } from "@privy-io/react-auth"
 import { signIn, useSession } from "next-auth/react"
-import { ArrowLeftIcon, LoaderIcon, LogInIcon } from "lucide-react"
+import { ArrowLeftIcon, LogInIcon } from "lucide-react"
 
 import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
 import { ProfileBuilderEditor } from "@/components/chat/profile-builder"
 import { Button } from "@/components/ui/button"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import { usePayment } from "@/hooks/use-payment"
 import {

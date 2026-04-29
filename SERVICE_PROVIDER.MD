@@ -27,7 +27,7 @@ For that surface:
 - the request body should require only `message`
 - `SIWX` proves wallet ownership
 - Boreal uses `402` as the payment boundary
-- Solana `devnet` is the only supported settlement network in v1
+- Solana `mainnet` is the supported settlement network in v1
 - OpenWallet or AgentCash should be the payer source
 - Boreal freezes the route and quote before payment and resumes the same request after payment
 
@@ -38,8 +38,8 @@ Important distinction:
 
 Current hardening note:
 
-- payment confirmation is currently a signed devnet payment authorization receipt plus Boreal transaction, settlement, and payout records
-- Boreal does not yet claim independent on-chain Solana receipt verification for this path
+- payment confirmation is currently a signed mainnet payment authorization receipt plus independently fetched Solana mainnet transaction verification, Boreal transaction, settlement, and payout records
+- Boreal still does not claim treasury/payto-grade settlement verification or payout-grade on-chain payout verification for this path
 
 ## Implementation Progress
 
@@ -471,7 +471,7 @@ Core flow:
 Current official x402 network docs say:
 
 - `@x402/svm` supports Solana clusters with SPL Token Program and Token2022 tokens
-- the CDP facilitator supports Solana mainnet and Solana devnet
+- the CDP facilitator supports Solana mainnet and additional non-mainnet Solana clusters
 - CAIP-2 ids are used for Solana networks
 
 This makes x402 the strongest Solana-aligned payment rail in this research set.

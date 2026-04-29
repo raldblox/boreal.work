@@ -1,4 +1,4 @@
-export type BorealChainEnvironment = "devnet" | "mainnet" | "testnet";
+export type BorealChainEnvironment = "mainnet" | "testnet";
 export type BorealChainFamily = "evm" | "solana";
 export type BorealSupportedNetworkKey =
   | "base:mainnet"
@@ -7,7 +7,6 @@ export type BorealSupportedNetworkKey =
   | "ethereum:sepolia"
   | "polygon:amoy"
   | "polygon:mainnet"
-  | "solana:devnet"
   | "solana:mainnet"
   | "solana:testnet";
 
@@ -69,13 +68,6 @@ const NETWORKS: Record<BorealSupportedNetworkKey, NetworkDescriptor> = {
     key: "polygon:mainnet",
     label: "Polygon Mainnet",
   },
-  "solana:devnet": {
-    caip2: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-    chainFamily: "solana",
-    environment: "devnet",
-    key: "solana:devnet",
-    label: "Solana Devnet",
-  },
   "solana:mainnet": {
     caip2: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     chainFamily: "solana",
@@ -124,7 +116,7 @@ export function getBorealChainEnvironment(
     process.env.NEXT_PUBLIC_BOREAL_CHAIN_ENV ??
     process.env.NEXT_PUBLIC_SOLANA_ENV ??
     process.env.SOLANA_ENV ??
-    "devnet";
+    "mainnet";
   const normalized = candidate.trim().toLowerCase();
 
   if (normalized === "mainnet") {
@@ -135,7 +127,7 @@ export function getBorealChainEnvironment(
     return "testnet";
   }
 
-  return "devnet";
+  return "mainnet";
 }
 
 export function getBorealPrimaryChainFamily(
@@ -158,15 +150,11 @@ export function getDefaultBorealNetworkKey(input?: {
   const chainFamily = input?.chainFamily ?? getBorealPrimaryChainFamily();
 
   if (chainFamily === "solana") {
-    if (environment === "mainnet") {
-      return "solana:mainnet" satisfies BorealSupportedNetworkKey;
-    }
-
     if (environment === "testnet") {
       return "solana:testnet" satisfies BorealSupportedNetworkKey;
     }
 
-    return "solana:devnet" satisfies BorealSupportedNetworkKey;
+    return "solana:mainnet" satisfies BorealSupportedNetworkKey;
   }
 
   if (environment === "mainnet") {
@@ -235,8 +223,6 @@ export function normalizeBorealNetworkKey(
       return "polygon:amoy";
     case "solana":
       return "solana:mainnet";
-    case "solana devnet":
-      return "solana:devnet";
     case "solana testnet":
       return "solana:testnet";
     default:

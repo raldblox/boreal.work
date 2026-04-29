@@ -829,7 +829,7 @@ function inferEnvironmentFromNetworkKey(networkKey: string) {
     return "testnet" as const;
   }
 
-  return "devnet" as const;
+  return "mainnet" as const;
 }
 
 function safeParseJson(value: string) {

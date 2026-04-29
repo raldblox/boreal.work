@@ -19,8 +19,8 @@ async function main() {
 
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: buyer.displayName,
     ownerExternalId: buyer.externalId,
     roles: ["connected", "buyer"],
@@ -31,8 +31,8 @@ async function main() {
   });
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: supplier.displayName,
     ownerExternalId: supplier.externalId,
     roles: ["connected", "payout"],
@@ -48,7 +48,7 @@ async function main() {
     currency: "USD",
     idempotencyKey: `callbacks-${now}`,
     message: "Connected agent callback smoke request",
-    networkKey: "solana:devnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: buyer.displayName,
     ownerExternalId: buyer.externalId,
     paymentProtocol: "x402",
@@ -85,7 +85,7 @@ async function main() {
     paymentVerificationJson: JSON.stringify({
       confirmed: true,
       memoMatched: true,
-      networkKey: "solana:devnet",
+      networkKey: "solana:mainnet",
     }),
     requestToken,
     txHash: `tx-callbacks-${now}`,

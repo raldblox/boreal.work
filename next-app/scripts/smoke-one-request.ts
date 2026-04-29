@@ -38,14 +38,14 @@ async function main() {
     payoutKeyPair.publicKey.export({ format: "der", type: "spki" }).subarray(-32),
   );
 
-  process.env.BOREAL_ONE_REQUEST_PAYTO_SOLANA_DEVNET = payoutAddress;
+  process.env.BOREAL_ONE_REQUEST_PAYTO_SOLANA_MAINNET = payoutAddress;
   const seller = getOneRequestSellerMetadata();
 
   assert.equal(seller.paymentProtocol, "x402", "seller metadata should stay x402");
   assert.equal(
     seller.x402NetworkId,
-    "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-    "seller metadata should expose the canonical x402 Solana devnet network id",
+    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "seller metadata should expose the canonical x402 Solana mainnet network id",
   );
   assert.equal(
     seller.bazaar.category,
@@ -95,8 +95,8 @@ async function main() {
 
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName,
     ownerExternalId,
     roles: ["connected", "buyer"],
@@ -186,7 +186,7 @@ async function main() {
     intentId: pipeline.intentId as Id<"intents">,
     intentKey: pipeline.intentKey,
     message,
-    networkKey: "solana:devnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName,
     ownerExternalId,
     paymentProtocol: "x402",
@@ -308,12 +308,12 @@ async function main() {
     throw new Error("Unable to start local Solana RPC mock server.");
   }
 
-  process.env.BOREAL_SOLANA_DEVNET_RPC_URL = `http://127.0.0.1:${rpcAddress.port}`;
+  process.env.BOREAL_SOLANA_MAINNET_RPC_URL = `http://127.0.0.1:${rpcAddress.port}`;
   const txHash = paymentReceiptHash(now);
   const paymentReceipt = {
     amount: routePlan!.totalQuoteUsd,
     currency: "USD" as const,
-    networkKey: "solana:devnet" as const,
+    networkKey: "solana:mainnet" as const,
     payerSource: "agentcash" as const,
     quoteToken,
     requestToken,
@@ -346,7 +346,7 @@ async function main() {
   );
   assert.equal(
     paymentVerification.verificationMethod,
-    "solana_devnet_memo_payto",
+    "solana_memo_payto",
     "payment verification should switch to the pay-to-aware mode when configured",
   );
 
@@ -494,7 +494,7 @@ async function main() {
 }
 
 function paymentReceiptHash(seed: number) {
-  return `devnet-smoke-${seed}`;
+  return `mainnet-smoke-${seed}`;
 }
 
 function encodeBase58(buffer: Uint8Array) {

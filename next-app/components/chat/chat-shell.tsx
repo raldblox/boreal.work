@@ -27,7 +27,6 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   FileIcon,
-  LoaderIcon,
   MessagesSquareIcon,
   MicIcon,
   MinusIcon,
@@ -115,6 +114,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,

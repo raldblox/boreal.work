@@ -27,8 +27,8 @@ async function main() {
 
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: buyer.displayName,
     ownerExternalId: buyerExternalId,
     roles: ["connected", "buyer"],
@@ -39,8 +39,8 @@ async function main() {
   });
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerDisplayName: supplier.displayName,
     ownerExternalId: supplierExternalId,
     roles: ["connected", "payout"],
@@ -194,7 +194,7 @@ async function main() {
   const paid = await client.mutation(api.payouts.markPayoutPaid, {
     payoutToken: payout!.payoutToken,
     processor: "smoke-payouts",
-    txHash: `devnet-payout-${now}`,
+    txHash: `mainnet-payout-${now}`,
   });
 
   assert.equal(paid.updated, true, "expected payout to complete");

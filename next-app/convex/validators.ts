@@ -137,7 +137,6 @@ export const paymentProtocolValidator = v.union(
 );
 
 export const chainEnvironmentValidator = v.union(
-  v.literal("devnet"),
   v.literal("mainnet"),
   v.literal("testnet"),
 );
@@ -154,7 +153,6 @@ export const networkKeyValidator = v.union(
   v.literal("ethereum:sepolia"),
   v.literal("polygon:amoy"),
   v.literal("polygon:mainnet"),
-  v.literal("solana:devnet"),
   v.literal("solana:mainnet"),
   v.literal("solana:testnet"),
 );

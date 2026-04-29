@@ -1,3 +1,12 @@
+import {
+  getDefaultSolanaCaip2,
+  getDefaultSolanaNetworkKey,
+  getDefaultSolanaPayToAddress,
+  getDefaultSolanaSettlementMode,
+  type BorealSolanaNetworkKey,
+  type BorealSolanaSettlementMode,
+} from "../solana-network.ts";
+
 export type OneRequestBazaarMetadata = {
   category: "agentic-commerce";
   discoverable: boolean;
@@ -6,21 +15,26 @@ export type OneRequestBazaarMetadata = {
 
 export type OneRequestSellerMetadata = {
   bazaar: OneRequestBazaarMetadata;
-  networkKey: "solana:devnet";
+  networkKey: BorealSolanaNetworkKey;
   payToAddress: string | null;
   payToAsset: "SOL" | null;
   paymentProtocol: "x402";
   sellerId: "boreal-one-request";
   sellerName: string;
-  settlementMode: "devnet_quote_locked";
-  x402NetworkId: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
+  settlementMode: BorealSolanaSettlementMode;
+  x402NetworkId:
+    | "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+    | "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+    | "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z";
 };
 
 const DEFAULT_SELLER_NAME = "Boreal";
-const X402_SOLANA_DEVNET_NETWORK_ID = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
 
 export function getOneRequestSellerMetadata(): OneRequestSellerMetadata {
-  const payToAddress = process.env.BOREAL_ONE_REQUEST_PAYTO_SOLANA_DEVNET?.trim() || null;
+  const payToAddress = getDefaultSolanaPayToAddress();
+  const networkKey = getDefaultSolanaNetworkKey();
+  const settlementMode = getDefaultSolanaSettlementMode();
+  const networkLabelTag = networkKey.replace(":", "-");
 
   return {
     bazaar: {
@@ -31,16 +45,16 @@ export function getOneRequestSellerMetadata(): OneRequestSellerMetadata {
         "request-routing",
         "specialist-execution",
         "wallet-auth",
-        "solana-devnet",
+        networkLabelTag,
       ],
     },
-    networkKey: "solana:devnet",
+    networkKey,
     payToAddress,
     payToAsset: payToAddress ? "SOL" : null,
     paymentProtocol: "x402",
     sellerId: "boreal-one-request",
     sellerName: process.env.BOREAL_ONE_REQUEST_SELLER_NAME?.trim() || DEFAULT_SELLER_NAME,
-    settlementMode: "devnet_quote_locked",
-    x402NetworkId: X402_SOLANA_DEVNET_NETWORK_ID,
+    settlementMode,
+    x402NetworkId: getDefaultSolanaCaip2(),
   };
 }

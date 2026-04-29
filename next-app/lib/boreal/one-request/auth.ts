@@ -6,10 +6,16 @@ import {
   verify as verifySignature,
 } from "node:crypto";
 
+import {
+  getDefaultSolanaNetworkKey,
+  getDefaultSolanaNetworkLabel,
+  type BorealSolanaNetworkKey,
+} from "../solana-network.ts";
+
 type SessionPayload = {
   exp: number;
   iat: number;
-  networkKey: "solana:devnet";
+  networkKey: BorealSolanaNetworkKey;
   purpose: "boreal-agent-session";
   walletAddress: string;
 };
@@ -17,7 +23,7 @@ type SessionPayload = {
 type ChallengePayload = {
   exp: number;
   iat: number;
-  networkKey: "solana:devnet";
+  networkKey: BorealSolanaNetworkKey;
   nonce: string;
   purpose: "boreal-siwx-challenge";
   walletAddress: string;
@@ -26,17 +32,17 @@ type ChallengePayload = {
 const BOREAL_HOST = "boreal.work";
 const DEFAULT_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CHALLENGE_TTL_MS = 10 * 60 * 1000;
-const SOLANA_DEVNET = "solana:devnet" as const;
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
 export function createSiwxChallenge(input: { walletAddress: string }) {
   const issuedAt = Date.now();
   const expiresAt = issuedAt + DEFAULT_CHALLENGE_TTL_MS;
+  const networkKey = getDefaultSolanaNetworkKey();
   const payload: ChallengePayload = {
     exp: expiresAt,
     iat: issuedAt,
-    networkKey: SOLANA_DEVNET,
+    networkKey,
     nonce: randomUUID(),
     purpose: "boreal-siwx-challenge",
     walletAddress: input.walletAddress,
@@ -83,10 +89,11 @@ export function verifySiwxChallenge(input: {
 
 export function createSessionToken(input: { walletAddress: string }) {
   const issuedAt = Date.now();
+  const networkKey = getDefaultSolanaNetworkKey();
   const payload: SessionPayload = {
     exp: issuedAt + DEFAULT_SESSION_TTL_MS,
     iat: issuedAt,
-    networkKey: SOLANA_DEVNET,
+    networkKey,
     purpose: "boreal-agent-session",
     walletAddress: input.walletAddress,
   };
@@ -140,7 +147,7 @@ export function buildPaymentAuthorizationMessage(input: {
     `Request: ${input.requestToken}`,
     `Quote: ${input.quoteToken}`,
     `Amount: ${input.amount} ${input.currency}`,
-    `Network: ${SOLANA_DEVNET}`,
+    `Network: ${getDefaultSolanaNetworkKey()}`,
     `Reference: ${paymentReference}`,
     "Purpose: authorize one Boreal auto route execution",
   ].join("\n");
@@ -181,7 +188,7 @@ export function verifyPaymentReceipt(input: {
   receipt: {
     amount: number;
     currency: string;
-    networkKey: "solana:devnet";
+    networkKey: BorealSolanaNetworkKey;
     quoteToken: string;
     requestToken: string;
     signature: string;
@@ -193,7 +200,7 @@ export function verifyPaymentReceipt(input: {
   walletAddress: string;
 }) {
   if (!input.receipt.txHash?.trim()) {
-    throw new Error("Payment receipt must include a Solana devnet transaction hash.");
+    throw new Error("Payment receipt must include a Solana transaction hash.");
   }
 
   if (input.receipt.walletAddress !== input.walletAddress) {
@@ -205,7 +212,7 @@ export function verifyPaymentReceipt(input: {
     input.receipt.requestToken !== input.requestToken ||
     input.receipt.amount !== input.amount ||
     input.receipt.currency !== input.currency ||
-    input.receipt.networkKey !== SOLANA_DEVNET
+    input.receipt.networkKey !== getDefaultSolanaNetworkKey()
   ) {
     throw new Error("Payment receipt does not match the locked quote.");
   }
@@ -232,6 +239,8 @@ export function verifyPaymentReceipt(input: {
 }
 
 function buildChallengeMessage(payload: ChallengePayload) {
+  const label = getDefaultSolanaNetworkLabel().toLowerCase();
+
   return [
     `${BOREAL_HOST} wants you to sign in with your Solana account`,
     `Address: ${payload.walletAddress}`,
@@ -241,7 +250,7 @@ function buildChallengeMessage(payload: ChallengePayload) {
     `Nonce: ${payload.nonce}`,
     `Issued At: ${new Date(payload.iat).toISOString()}`,
     `Expiration Time: ${new Date(payload.exp).toISOString()}`,
-    `Statement: Sign this message to access the Boreal one-request agent API.`,
+    `Statement: Sign this message to access the Boreal one-request agent API on ${label}.`,
   ].join("\n");
 }
 

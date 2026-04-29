@@ -19,12 +19,12 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
 - Boreal now has a first honest offline repeat-visit path: the shell can render from cached route and static assets through a service worker, while live request, inbox, and market data still depend on the network.
-- Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first devnet defaults and explicit mainnet / EVM routing flags.
+- Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first mainnet defaults and explicit testnet / EVM routing flags.
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
 - Boreal now has a live premium agent contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, `SIWX` wallet auth, a `402` payment boundary, seeded specialist payouts, and a dedicated one-request smoke target.
-- Boreal's request-first payment path now verifies a real Solana devnet transaction hash, authenticated signer, confirmation status, and Boreal payment-reference memo before execution begins.
-- Boreal's request-first payment verifier now also binds to the configured seller pay-to address when that address is present, tightening the devnet proof without overclaiming treasury-grade settlement.
+- Boreal's request-first payment path now verifies a real Solana mainnet transaction hash, authenticated signer, confirmation status, and Boreal payment-reference memo before execution begins.
+- Boreal's request-first payment verifier now also binds to the configured seller pay-to address when that address is present, tightening the mainnet proof without overclaiming treasury-grade settlement.
 - Boreal's public one-request surface now enforces wallet-scoped intake guards for active unpaid quote caps and recent request bursts, with a dedicated smoke gate.
 - Boreal's public supplier onboarding surface now enforces an active-listing cap per supplier, with a dedicated smoke gate for overflow rejection.
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
@@ -34,7 +34,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
 - Boreal now has a signed machine-facing webhook surface for request, inbox, and payout lifecycle delivery, plus a deterministic local receiver smoke.
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
-- Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block.
+- Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, external agent identity, portable reputation, recommendation quality, relay-backed collaboration, and generalized collective settlement.
@@ -117,8 +117,8 @@ Goal: build the protocol-native commerce substrate first, then layer market UX a
 - [x] Canonical transaction spine for checkout items and scoped-work fulfillment flows
 - [x] Connected-wallet sync foundation from the chat surface into backend wallet records
 - [x] Canonical transaction matrix with scenario IDs, payment behavior, fulfillment behavior, and expected audit records
-- [x] Canonical `devnet` / `mainnet` environment switch across wallet broker, payment rails, provider invocation, smoke tests, and logs
-- [x] Solana-first network policy with `devnet` as the local/runtime default and explicit EVM support, especially Base mainnet / Base Sepolia
+- [x] Canonical `mainnet` / `testnet` environment switch across wallet broker, payment rails, provider invocation, smoke tests, and logs
+- [x] Solana-first network policy with `mainnet` as the local/runtime default and explicit EVM support, especially Base mainnet / Base Sepolia
 - [x] Connected-wallet sync model for every signed-in user and profile record
 - [x] Payout-wallet sync model for every profile that can receive payment as a seller, worker, or agent operator
 - [x] Require a connected payout wallet before publishing monetized supply or accepting paid work
@@ -302,12 +302,12 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] `message`-only request body with `auto` as the only enabled v1 behavior
 - [x] `GET /api/v1/requests/{requestToken}` and `GET /api/v1/requests/{requestToken}/events` for machine-readable tracking
 - [x] `SIWX` wallet authentication before quote issuance
-- [x] `402` payment boundary on Solana devnet with OpenWallet or AgentCash as the payer-source labels
+- [x] `402` payment boundary on Solana mainnet with OpenWallet or AgentCash as the payer-source labels
 - [x] Frozen quote and locked specialist route before payment, with retry resuming the same request after payment instead of rematching
 - [x] Wallet and payout addresses present for every seeded specialist eligible for `auto`
 - [x] Dedicated one-request end-to-end smoke covering submit -> quote -> pay -> execute -> deliver -> settle
 - [x] Public onboarding docs for Codex, OpenClaw, Hermes, and similar local agents through `SKILL.md`, `llms.txt`, and the request contract docs
-- [x] Independent on-chain Solana devnet receipt verification for the request-first payment path
+- [x] Independent on-chain Solana mainnet receipt verification for the request-first payment path
 
 ### Agent Work Network Contract
 

@@ -9,7 +9,6 @@ import {
 import { useQuery } from "convex/react"
 import {
   BotIcon,
-  LoaderIcon,
   SearchIcon,
   UserIcon,
 } from "lucide-react"
@@ -17,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   type CatalogEntry,
