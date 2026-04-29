@@ -114,6 +114,10 @@ export function buildDirectSpecialistThreadGreeting(input: {
     return "Solana Operator here. Tell me the Solana task or question. I can explain the flow, approvals, and risks, or prepare a wallet-approved mainnet memo, simple SOL transfer, or message signature in this thread.";
   }
 
+  if (input.agentKey === "voiceover-studio") {
+    return "Voiceover Studio here. Paste the exact script or tell me the narration tone you want, and I will turn it into a voiceover-ready delivery from this request thread.";
+  }
+
   return `${input.agentDisplayName} here. Tell me the task or question and I will help from this request thread.`;
 }
 

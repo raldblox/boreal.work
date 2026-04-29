@@ -80,6 +80,7 @@ npm run docs:sync:public
 ```
 
 ## Changelog
+- `2026-04-30`: Fixed mounted direct specialist artifacts in request threads: when a mounted direct specialist returns image, audio, or video output, Boreal now persists that artifact through request metadata and renders it inline in the same request thread instead of stopping at a generic completion shell.  This restores the intended `Voiceover Studio` inline audio path and keeps mounted video jobs in progress until delivery.
 - `2026-04-30`: Added request-scoped local runtime invites: active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, the same request thread can route follow-up into that runtime without auto-adding Boreal Agent to the team, and team cards now show live runtime-health or activity-based presence instead of a fake always-online state.
 - `2026-04-30`: Added mounted Solana starter prompts in Boreal chat: selecting `Solana Operator` now shows click-to-fill sample prompts for the actually shipped safe paths first, including memo recording, wallet-message signing, simple SOL transfer, swap or stake planning, and wallet-safety review.
 - `2026-04-30`: Added transport-only local model bridge presets for advanced connected-agent operators: `npm run agent:bridge:ollama`, `npm run agent:bridge:lmstudio`, and `npm run agent:bridge:local-model` now expose Boreal's HTTP executor contract to operator-owned local runtimes without forwarding Boreal Agent hidden prompts or replacing the default cloud Boreal agent.

@@ -53,6 +53,7 @@ import type {
 import type {
   OneRequestRoutePlan,
   OneRequestRouteSelection,
+  OneRequestExecutionResult,
 } from "@/lib/boreal/one-request/types";
 import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent";
 import { searchCatalog } from "@/lib/boreal/tools/catalog/search-catalog";
@@ -104,6 +105,14 @@ type ApprovedExecutionResult = {
   requestStatus: "blocked" | "fulfilled" | "in_progress";
   workspace: WorkspaceState;
   artifact?: MediaArtifact;
+};
+
+type SpecialistExecutionOutcome = {
+  activityType: "request.delivered" | "request.started";
+  assistantMessage: string;
+  artifact?: MediaArtifact;
+  requestStatus: "fulfilled" | "in_progress";
+  workspace: WorkspaceState;
 };
 
 export const chatAssistantAgent: ComposableAgent<
@@ -1924,50 +1933,59 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     }
 
     const assistantMessage = buildSpecialistExecutionMessage(results);
+    const outcome = buildSpecialistExecutionOutcome({
+      relatedCatalogItems,
+      results,
+    });
     const assignedAgent = input.routePlan.selected
       .map((selection) => selection.agent.identity.displayName)
       .join(", ");
+    const assignedToolNames = input.routePlan.selected.map(
+      (selection) => selection.agent.key,
+    );
 
     await appendRequestExecution({
       activityPayload: JSON.stringify({
         assignedAgent,
         routeLabel: assignedAgent,
         routeTarget: input.request.routeTarget,
-        selectedAgentKeys: input.routePlan.selected.map(
-          (selection) => selection.agent.key,
-        ),
+        selectedAgentKeys: assignedToolNames,
       }),
-      activityType: "request.delivered",
+      activityType: outcome.activityType,
       assignedAgent,
-      assignedToolNames: input.routePlan.selected.map(
-        (selection) => selection.agent.key,
-      ),
-      assistantMessage,
+      assignedToolNames,
+      assistantMessage: outcome.assistantMessage,
       intentId: input.input.intentId,
       ownerExternalId: input.input.ownerExternalId,
-      status: "fulfilled",
+      status: outcome.requestStatus,
     });
 
+    if (outcome.artifact) {
+      await saveArtifactMetadata({
+        artifactKind: toArtifactKind(outcome.artifact),
+        conversationId: input.request.conversationId ?? crypto.randomUUID(),
+        intentKey: input.request.intentKey,
+        mediaType:
+          outcome.artifact.kind === "video"
+            ? "video/mp4"
+            : outcome.artifact.mediaType,
+        metadataJson: JSON.stringify(outcome.artifact),
+        provider: input.provider.key,
+        remoteId:
+          outcome.artifact.kind === "video"
+            ? outcome.artifact.jobId
+            : undefined,
+        status: toArtifactStatus(outcome.artifact),
+        subtitle: outcome.workspace.subtitle,
+        title: outcome.artifact.title,
+      });
+    }
+
     return {
-      assistantMessage,
+      assistantMessage: outcome.assistantMessage,
       intentId: input.input.intentId,
       relatedCatalogItems,
-      workspace:
-        relatedCatalogItems.length > 0
-          ? ({
-              highlightedId: relatedCatalogItems[0]?.id,
-              items: relatedCatalogItems,
-              kind: "catalog",
-              subtitle:
-                "Boreal routed this request through the strongest matched specialists.",
-              title: "Matched route",
-            } satisfies WorkspaceState)
-          : ({
-              kind: "empty",
-              subtitle:
-                "The matched specialist route completed. Request history stays in the chat timeline.",
-              title: "Route complete",
-            } satisfies WorkspaceState),
+      workspace: outcome.workspace,
     };
   } catch (error) {
     const message =
@@ -2667,25 +2685,163 @@ function mergePreviewCatalogItems(
   });
 }
 
+function buildSpecialistExecutionOutcome(input: {
+  relatedCatalogItems: CatalogItem[];
+  results: OneRequestExecutionResult[];
+}): SpecialistExecutionOutcome {
+  const firstArtifact = input.results
+    .map((result) => toMediaArtifactFromExecutionResult(result.result))
+    .find(Boolean);
+  const hasQueuedVideo = input.results.some(
+    (result) =>
+      result.result.kind === "video_generation" &&
+      result.result.status !== "completed",
+  );
+  const requestStatus = hasQueuedVideo ? "in_progress" : "fulfilled";
+  const activityType =
+    requestStatus === "fulfilled" ? "request.delivered" : "request.started";
+
+  if (firstArtifact) {
+    return {
+      activityType,
+      assistantMessage: buildSpecialistExecutionMessage(input.results),
+      artifact: firstArtifact,
+      requestStatus,
+      workspace: {
+        artifact: firstArtifact,
+        kind: "artifact",
+        subtitle: buildWorkspaceArtifactSubtitle(firstArtifact),
+        title: firstArtifact.title,
+      },
+    };
+  }
+
+  return {
+    activityType,
+    assistantMessage: buildSpecialistExecutionMessage(input.results),
+    requestStatus,
+    workspace:
+      input.relatedCatalogItems.length > 0
+        ? ({
+            highlightedId: input.relatedCatalogItems[0]?.id,
+            items: input.relatedCatalogItems,
+            kind: "catalog",
+            subtitle:
+              "Boreal routed this request through the strongest matched specialists.",
+            title: "Matched route",
+          } satisfies WorkspaceState)
+        : ({
+            kind: "empty",
+            subtitle:
+              requestStatus === "fulfilled"
+                ? "The matched specialist route completed. Request history stays in the chat timeline."
+                : "The matched specialist route started and will keep updating in this request thread.",
+            title: requestStatus === "fulfilled" ? "Route complete" : "Route started",
+          } satisfies WorkspaceState),
+  };
+}
+
 function buildSpecialistExecutionMessage(
-  results: Awaited<ReturnType<typeof executeAutoRoute>>,
+  results: OneRequestExecutionResult[],
 ) {
-  if (results.length === 1 && results[0]?.result.kind === "text") {
-    return [
-      `${results[0].result.title} completed this request.`,
-      results[0].result.content,
-    ].join("\n\n");
+  if (results.length === 1) {
+    return buildSingleSpecialistExecutionMessage(results[0]!.result);
   }
 
   return results
     .map((result) => {
-      if (result.result.kind !== "text") {
-        return `${result.result.title} completed this request.`;
+      if (result.result.kind === "text") {
+        return [`## ${result.result.title}`, result.result.content].join("\n\n");
       }
 
-      return [`## ${result.result.title}`, result.result.content].join("\n\n");
+      return `## ${result.result.title}\n\n${buildNonTextSpecialistExecutionSummary(result.result)}`;
     })
     .join("\n\n");
+}
+
+function buildSingleSpecialistExecutionMessage(result: OneRequestExecutionResult["result"]) {
+  if (result.kind === "text") {
+    return [`${result.title} completed this request.`, result.content].join(
+      "\n\n",
+    );
+  }
+
+  return `${result.title} ${buildNonTextSpecialistExecutionSummary(result)}`;
+}
+
+function buildNonTextSpecialistExecutionSummary(
+  result: Exclude<OneRequestExecutionResult["result"], { kind: "text" }>,
+) {
+  if (result.kind === "image_generation") {
+    return "completed this request. The generated output is attached here.";
+  }
+
+  if (result.kind === "speech_generation") {
+    return "completed this request. The audio deliverable is attached here.";
+  }
+
+  if (result.status === "completed") {
+    return "completed this request. Playback and download are attached here.";
+  }
+
+  return "queued the render and will keep this request updated until delivery.";
+}
+
+function toMediaArtifactFromExecutionResult(
+  result: OneRequestExecutionResult["result"],
+): MediaArtifact | null {
+  if (result.kind === "image_generation") {
+    return {
+      base64: result.base64,
+      kind: "image",
+      mediaType: result.mediaType,
+      prompt: result.prompt,
+      title: result.title,
+    };
+  }
+
+  if (result.kind === "speech_generation") {
+    return {
+      base64: result.base64,
+      format: result.format,
+      kind: "audio",
+      mediaType: result.mediaType,
+      title: result.title,
+      transcript: result.transcript,
+      voice: result.voice,
+    };
+  }
+
+  if (result.kind === "video_generation") {
+    return {
+      jobId: result.jobId,
+      kind: "video",
+      model: result.model,
+      progress: result.progress,
+      prompt: result.prompt,
+      seconds: result.seconds,
+      size: result.size,
+      status: result.status,
+      title: result.title,
+    };
+  }
+
+  return null;
+}
+
+function buildWorkspaceArtifactSubtitle(artifact: MediaArtifact) {
+  if (artifact.kind === "image") {
+    return "Generated image output";
+  }
+
+  if (artifact.kind === "audio") {
+    return `Voice: ${artifact.voice}`;
+  }
+
+  return buildVideoSettingsSummary({
+    seconds: artifact.seconds,
+    size: artifact.size,
+  });
 }
 
 function requestNeedsApproval(intent: PersistedIntent) {

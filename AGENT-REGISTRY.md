@@ -182,6 +182,7 @@ In-product chat behavior:
 - `voiceover-studio`
   - direct speech generation
   - route: `/api/v1/agents/voiceover-studio/execute`
+  - mounted specialist behavior: speech-generation requests should persist the audio artifact in Boreal request metadata and render the player inline in the same request thread instead of closing with a generic completion shell
 - `motion-video-studio`
   - direct video job creation
   - route: `/api/v1/agents/motion-video-studio/execute`
