@@ -6149,6 +6149,11 @@ function RequestWorkersPanel({
                     <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
                       {participant.status}
                     </span>
+                    {participant.role ? (
+                      <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                        {participant.role}
+                      </span>
+                    ) : null}
                     {isSolanaWalletReady &&
                       isSolanaOperatorIdentity({
                         displayName: participant.displayName,

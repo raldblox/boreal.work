@@ -33,6 +33,7 @@
     "smoke:mounted-agent-starter-prompts": "node --experimental-strip-types scripts/smoke-mounted-agent-starter-prompts.ts",
     "smoke:solana-thread-actions": "node --experimental-strip-types scripts/smoke-solana-thread-actions.ts",
     "smoke:solana-specialist-route": "node --import ./scripts/register-path-aliases.mjs --experimental-strip-types scripts/smoke-solana-specialist-route.ts",
+    "smoke:swarm-team-blueprint": "node --experimental-strip-types scripts/smoke-swarm-team-blueprint.ts",
     "smoke:request-thread-specialists": "node --experimental-strip-types scripts/smoke-request-thread-specialists.ts",
     "smoke:service-provider-adapters": "node --experimental-strip-types scripts/smoke-service-provider-adapters.ts",
     "smoke:supplier-capacity": "node --experimental-strip-types scripts/smoke-supplier-capacity.ts",

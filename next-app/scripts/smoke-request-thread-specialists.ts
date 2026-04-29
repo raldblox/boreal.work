@@ -27,6 +27,7 @@ const baseDetail: RequestDetail = {
     agent: "Startup Pressure Test",
     provider: "boreal-agent",
     runtimeSupplyIds: [],
+    team: null,
     tools: ["startup-pressure-test"],
   },
   catalogItems: [],

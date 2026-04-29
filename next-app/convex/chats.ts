@@ -71,6 +71,7 @@ function sanitizeStoredIntentSummary(intent: {
 
 export const recordIntentPipeline = mutation({
   args: {
+    assignedTeamJson: v.optional(v.string()),
     assistantMessage: v.string(),
     conversationId: v.optional(v.string()),
     initialStatus: v.optional(intentStatusValidator),
@@ -188,6 +189,7 @@ export const recordIntentPipeline = mutation({
       actorKind: "human",
       approvalRequestedAt: status === "proposed" ? now : undefined,
       assetPrompt: args.intent.assetPrompt,
+      assignedTeamJson: args.assignedTeamJson,
       body: args.intent.body,
       budgetType: "open",
       capabilityTags: args.intent.capabilityTags,
@@ -321,6 +323,7 @@ export const recordIntentPipeline = mutation({
 export const approveRequest = mutation({
   args: {
     assignedAgent: v.optional(v.string()),
+    assignedTeamJson: v.optional(v.string()),
     assignedToolNames: v.optional(v.array(v.string())),
     assistantMessage: v.optional(v.string()),
     intentId: v.id("intents"),
@@ -359,6 +362,7 @@ export const approveRequest = mutation({
     await ctx.db.patch(args.intentId, {
       approvedAt: now,
       assignedAgent: args.assignedAgent,
+      assignedTeamJson: args.assignedTeamJson ?? intent.assignedTeamJson,
       assignedToolNames: args.assignedToolNames,
       startedAt:
         nextStatus === "claimed" || nextStatus === "in_progress"
@@ -816,6 +820,7 @@ export const appendRequestExecution = mutation({
     activityPayload: v.optional(v.string()),
     activityType: v.string(),
     assignedAgent: v.optional(v.string()),
+    assignedTeamJson: v.optional(v.string()),
     assignedToolNames: v.optional(v.array(v.string())),
     assistantMessage: v.string(),
     intentId: v.id("intents"),
@@ -862,6 +867,7 @@ export const appendRequestExecution = mutation({
 
     await ctx.db.patch(args.intentId, {
       assignedAgent: args.assignedAgent ?? intent.assignedAgent,
+      assignedTeamJson: args.assignedTeamJson ?? intent.assignedTeamJson,
       assignedToolNames: args.assignedToolNames ?? intent.assignedToolNames,
       completedAt:
         args.status === "fulfilled" || args.status === "closed"

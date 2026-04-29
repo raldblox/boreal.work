@@ -1,8 +1,10 @@
 import { makeFunctionReference } from "convex/server";
 
 import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
+import type { RequestTeamBlueprint } from "@/lib/boreal/swarm/team-blueprint";
 
 export type RecordIntentPipelineArgs = {
+  assignedTeamJson?: string;
   assistantMessage: string;
   conversationId?: string;
   initialStatus?: string;
@@ -537,6 +539,7 @@ export type RequestDetail = {
     agent: string | null;
     provider: string;
     runtimeSupplyIds: string[];
+    team: RequestTeamBlueprint | null;
     tools: string[];
   } | null;
   catalogItems: CatalogEntry[];
@@ -728,6 +731,7 @@ export const convexFunctionRefs = {
       activityPayload?: string;
       activityType: string;
       assignedAgent?: string;
+      assignedTeamJson?: string;
       assignedToolNames?: string[];
       assistantMessage: string;
       intentId: string;
@@ -800,6 +804,7 @@ export const convexFunctionRefs = {
     "mutation",
     {
       assignedAgent?: string;
+      assignedTeamJson?: string;
       assignedToolNames?: string[];
       assistantMessage?: string;
       intentId: string;

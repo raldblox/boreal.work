@@ -86,7 +86,15 @@ cd next-app
 npm run smoke:legacy-media-workers
 ```
 
+Smoke the first bundled-swarm team blueprint layer:
+
+```bash
+cd next-app
+npm run smoke:swarm-team-blueprint
+```
+
 ## Changelog
+- `2026-04-30`: Added the first durable swarm-team execution layer for mounted direct specialists.  Requests now persist explicit `lead` and `worker` team roles plus a default execution mode, the `Team` tab surfaces those roles, and users can say `ask team:` inside a multi-agent request thread to trigger a real grouped round instead of relying on ambiguous multi-select behavior.
 - `2026-04-30`: Fixed the legacy autonomous media-worker path so built-in `image-studio`, `voiceover-studio`, and `motion-video-studio` can use their direct artifact executors instead of falling back to markdown-only delivery shells.  Image, audio, and queued video artifact metadata now attach through the worker fulfillment path, and `npm run smoke:legacy-media-workers` pins that behavior.
 - `2026-04-30`: Fixed mounted direct specialist artifacts in request threads: when a mounted direct specialist returns image, audio, or video output, Boreal now persists that artifact through request metadata and renders it inline in the same request thread instead of stopping at a generic completion shell.  This restores the intended `Voiceover Studio` inline audio path and keeps mounted video jobs in progress until delivery.
 - `2026-04-30`: Added request-scoped local runtime invites: active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, the same request thread can route follow-up into that runtime without auto-adding Boreal Agent to the team, and team cards now show live runtime-health or activity-based presence instead of a fake always-online state.
@@ -246,6 +254,7 @@ From `next-app/`:
 - `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - `npm run smoke:solana-specialist-route` runs the deterministic Solana quick-action smoke for `solana` work classification, no generic text-work clarification, and `solana-operator` as the top matched specialist.
 - `npm run smoke:solana-thread-actions` runs the deterministic mounted-thread Solana smoke for action planning, hidden marker parsing, and unsigned mainnet memo or transfer transaction compilation.
+- `npm run smoke:swarm-team-blueprint` runs the deterministic bundle-team smoke for lead or worker role assignment, blueprint serialization, and the explicit `ask team:` request-thread directive.
 - `npm run smoke:mounted-agent-starter-prompts` runs the deterministic starter-prompt smoke for the mounted Solana Operator prompt list: shipped inventory, direct-action parsing, transfer-template clarification, and planning-only prompts staying non-executing.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:service-provider-adapters` verifies curated AgentCash and Frames adapter output plus `PAYMENT-REQUIRED` header parsing for the provider fallback layer.

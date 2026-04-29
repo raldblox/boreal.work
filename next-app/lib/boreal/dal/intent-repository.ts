@@ -50,6 +50,7 @@ export async function appendConversationAssistantMessage(args: {
 
 export async function approveRequestDraft(args: {
   assignedAgent?: string;
+  assignedTeamJson?: string;
   assignedToolNames?: string[];
   assistantMessage?: string;
   intentId: string;
@@ -80,6 +81,7 @@ export async function appendRequestExecution(args: {
   activityPayload?: string;
   activityType: string;
   assignedAgent?: string;
+  assignedTeamJson?: string;
   assignedToolNames?: string[];
   assistantMessage: string;
   intentId: string;

@@ -107,7 +107,7 @@ export function buildDirectSpecialistThreadGreeting(input: {
   const teammateNames = (input.teammateNames ?? []).filter(Boolean);
 
   if (teammateNames.length > 1) {
-    return `${teammateNames.join(", ")} are on this request. Tell us the task or question and we will continue from this thread.`;
+    return `${teammateNames.join(", ")} are on this request. Tell us the task or question and we will continue from this thread. Say "ask team:" if you want each agent to weigh in.`;
   }
 
   if (input.agentKey === "solana-operator") {

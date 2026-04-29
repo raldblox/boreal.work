@@ -66,6 +66,13 @@ import { startVideoGeneration } from "@/lib/boreal/tools/media/start-video-gener
 import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-intent-response";
 import { withRetry } from "@/lib/boreal/utils/retry";
 import {
+  buildDirectAgentTeamBlueprint,
+  serializeRequestTeamBlueprint,
+  shouldAskTeam,
+  stripTeamDirective,
+  type RequestTeamBlueprint,
+} from "@/lib/boreal/swarm/team-blueprint";
+import {
   buildAutoReopenForWorkersCopy,
   shouldAutoReopenRequestForWorkers,
 } from "@/lib/boreal/request-recovery";
@@ -966,9 +973,13 @@ export async function approvePersistedRequest(input: {
     const assignedAgentLabel = selectedRoutePlan.selected
       .map((selection) => selection.agent.identity.displayName)
       .join(", ");
+    const assignedTeamJson = serializeAssignedTeamFromSelections(
+      selectedRoutePlan.selected,
+    );
 
     await approveRequestDraft({
       assignedAgent: assignedAgentLabel,
+      assignedTeamJson,
       assignedToolNames: specialistToolNames,
       assistantMessage: `Request approved. Boreal locked the best route: ${assignedAgentLabel}.`,
       intentId: input.intentId,
@@ -1023,6 +1034,25 @@ function resolveAssignedTextThreadAgents(assignedToolNames: string[]) {
     );
 }
 
+function serializeAssignedTeamFromAgents(
+  agents: Array<{
+    identity: {
+      displayName: string;
+    };
+    key: string;
+  }>,
+) {
+  return serializeRequestTeamBlueprint(buildDirectAgentTeamBlueprint(agents));
+}
+
+function serializeAssignedTeamFromSelections(
+  selections: OneRequestRouteSelection[],
+) {
+  return serializeAssignedTeamFromAgents(
+    selections.map((selection) => selection.agent),
+  );
+}
+
 async function buildAssignedTextSpecialistThreadReply(input: {
   agents: NonNullable<ReturnType<typeof resolveAssignedTextThreadAgents>[number]>[];
   latestOwnerMessage: string;
@@ -1033,6 +1063,8 @@ async function buildAssignedTextSpecialistThreadReply(input: {
 }) {
   const teammateNames = input.agents.map((agent) => agent.identity.displayName);
   const leadAgent = input.agents[0];
+  const teamBlueprint =
+    input.requestDetail.assignment?.team ?? buildDirectAgentTeamBlueprint(input.agents);
 
   if (!leadAgent) {
     return `${BOREAL_AGENT_DISPLAY_NAME} is ready in this request thread. Tell me what you need next.`;
@@ -1046,14 +1078,47 @@ async function buildAssignedTextSpecialistThreadReply(input: {
     });
   }
 
-  if (leadAgent.key === "solana-operator") {
+  if (input.agents.length > 1 && shouldAskTeam(input.latestOwnerMessage)) {
+    return buildAssignedTextTeamRoundReply({
+      agents: input.agents,
+      latestOwnerMessage:
+        stripTeamDirective(input.latestOwnerMessage) || input.latestOwnerMessage,
+      provider: input.provider,
+      request: input.request,
+      requestDetail: input.requestDetail,
+      runtimeConfig: input.runtimeConfig,
+      teamBlueprint,
+    });
+  }
+
+  return buildSingleAssignedTextSpecialistReply({
+    agent: leadAgent,
+    latestOwnerMessage: input.latestOwnerMessage,
+    provider: input.provider,
+    request: input.request,
+    requestDetail: input.requestDetail,
+    runtimeConfig: input.runtimeConfig,
+    teammateNames,
+  });
+}
+
+async function buildSingleAssignedTextSpecialistReply(input: {
+  agent: NonNullable<ReturnType<typeof resolveAssignedTextThreadAgents>[number]>;
+  latestOwnerMessage: string;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+  teammateNames?: string[];
+}) {
+  if (input.agent.key === "solana-operator") {
     return buildSolanaOperatorThreadReply({
       latestOwnerMessage: input.latestOwnerMessage,
       provider: input.provider,
       request: input.request,
       requestDetail: input.requestDetail,
       runtimeConfig: input.runtimeConfig,
-    })
+    });
   }
 
   const recentThread = input.requestDetail.messages
@@ -1063,17 +1128,10 @@ async function buildAssignedTextSpecialistThreadReply(input: {
         `${message.sender.displayName} (${message.role}): ${message.body.trim()}`,
     )
     .join("\n");
-  const specialistBlock = input.agents
-    .map(
-      (agent, index) =>
-        `${index + 1}. ${agent.identity.displayName} | ${agent.directExecution?.description ?? agent.profile.bio}`,
-    )
-    .join("\n");
   const { text } = await generateText({
     model: input.provider.getAssistantModel(input.runtimeConfig.assistantModel),
     prompt: [
-      `Assigned specialists:`,
-      specialistBlock,
+      `Assigned specialist: ${input.agent.identity.displayName}`,
       `Request title: ${input.request.title}`,
       `Request summary: ${input.request.summary}`,
       `Original request body: ${input.request.body}`,
@@ -1090,10 +1148,10 @@ async function buildAssignedTextSpecialistThreadReply(input: {
       "- keep the reply concise and useful",
     ].join("\n"),
     system: [
-      `You are ${leadAgent.identity.displayName}.`,
-      leadAgent.directExecution?.description ?? leadAgent.profile.bio,
-      teammateNames.length > 1
-        ? `You are replying as the lead specialist for a mounted team: ${teammateNames.join(", ")}.`
+      `You are ${input.agent.identity.displayName}.`,
+      input.agent.directExecution?.description ?? input.agent.profile.bio,
+      input.teammateNames && input.teammateNames.length > 1
+        ? `You are replying as the lead specialist for a mounted team: ${input.teammateNames.join(", ")}.`
         : "You are the assigned specialist for this request.",
     ].join(" "),
   });
@@ -1101,11 +1159,97 @@ async function buildAssignedTextSpecialistThreadReply(input: {
   return (
     text.trim() ||
     buildDirectSpecialistThreadGreeting({
-      agentDisplayName: leadAgent.identity.displayName,
-      agentKey: leadAgent.key,
-      teammateNames,
+      agentDisplayName: input.agent.identity.displayName,
+      agentKey: input.agent.key,
+      teammateNames: input.teammateNames,
     })
   );
+}
+
+async function buildAssignedTextTeamRoundReply(input: {
+  agents: NonNullable<ReturnType<typeof resolveAssignedTextThreadAgents>[number]>[];
+  latestOwnerMessage: string;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+  teamBlueprint: RequestTeamBlueprint | null;
+}) {
+  const leadAgent = input.agents[0];
+
+  if (!leadAgent) {
+    return `${BOREAL_AGENT_DISPLAY_NAME} is ready in this request thread. Tell me what you need next.`;
+  }
+
+  const teammateNames = input.agents.map((agent) => agent.identity.displayName);
+  const memberReplies = await Promise.all(
+    input.agents.map(async (agent) => ({
+      agent,
+      reply: await buildSingleAssignedTextSpecialistReply({
+        agent,
+        latestOwnerMessage: input.latestOwnerMessage,
+        provider: input.provider,
+        request: input.request,
+        requestDetail: input.requestDetail,
+        runtimeConfig: input.runtimeConfig,
+        teammateNames,
+      }),
+    })),
+  );
+  const synthesisPrompt = memberReplies
+    .map(
+      ({ agent, reply }, index) =>
+        `${index + 1}. ${agent.identity.displayName} (${resolveTeamRoleLabel(input.teamBlueprint, agent.key)})\n${reply}`,
+    )
+    .join("\n\n");
+  const { text } = await generateText({
+    model: input.provider.getAssistantModel(input.runtimeConfig.assistantModel),
+    prompt: [
+      `Request title: ${input.request.title}`,
+      `Request summary: ${input.request.summary}`,
+      `Original request body: ${input.request.body}`,
+      `Latest owner message: ${input.latestOwnerMessage}`,
+      "Team replies:",
+      synthesisPrompt,
+      "Response rules:",
+      "- speak as the lead specialist for the team",
+      "- synthesize the team replies into one coherent answer",
+      "- keep the request in progress",
+      "- do not ask for review",
+      "- stay concise",
+    ].join("\n"),
+    system: [
+      `You are ${leadAgent.identity.displayName}.`,
+      "You are leading a Boreal request-team round.",
+      "Summarize the useful combined answer first, then include compact team notes only if they add real value.",
+    ].join(" "),
+  });
+
+  const synthesis = text.trim();
+
+  if (synthesis) {
+    return [
+      synthesis,
+      "",
+      "Team notes",
+      ...memberReplies.map(
+        ({ agent, reply }) => `${agent.identity.displayName}: ${reply}`,
+      ),
+    ].join("\n");
+  }
+
+  return memberReplies
+    .map(({ agent, reply }) => `${agent.identity.displayName}\n${reply}`)
+    .join("\n\n");
+}
+
+function resolveTeamRoleLabel(
+  teamBlueprint: RequestTeamBlueprint | null,
+  agentKey: string,
+) {
+  const role = teamBlueprint?.members.find((member) => member.agentKey === agentKey)?.role;
+
+  return role ?? "worker";
 }
 
 async function buildSolanaOperatorThreadReply(input: {
@@ -1313,6 +1457,9 @@ export async function retryPersistedRequest(input: {
         .map((selection) => selection.agent.identity.displayName)
         .join(", ")
     : executionAgentId;
+  const assignedTeamJson = selectedRoutePlan
+    ? serializeAssignedTeamFromSelections(selectedRoutePlan.selected)
+    : undefined;
 
   await appendRequestExecution({
     activityPayload: JSON.stringify({
@@ -1322,6 +1469,7 @@ export async function retryPersistedRequest(input: {
     }),
     activityType: "request.retrying",
     assignedAgent: retryAgentLabel,
+    assignedTeamJson,
     assignedToolNames: retryToolNames,
     assistantMessage: selectedRoutePlan
       ? `Retrying this request with ${retryAgentLabel}.`
@@ -1823,6 +1971,9 @@ async function runApprovedSpecialistExecutionForRequest(input: {
             .join(", "),
           provider: input.request.provider,
           runtimeSupplyIds: [],
+          team: buildDirectAgentTeamBlueprint(
+            input.routePlan.selected.map((selection) => selection.agent),
+          ),
           tools: input.routePlan.selected.map((selection) => selection.agent.key),
         },
         catalogItems: [],
@@ -1890,6 +2041,9 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     const assignedToolNames = input.routePlan.selected.map(
       (selection) => selection.agent.key,
     );
+    const assignedTeamJson = serializeAssignedTeamFromSelections(
+      input.routePlan.selected,
+    );
 
     await appendRequestExecution({
       activityPayload: JSON.stringify({
@@ -1901,6 +2055,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
       }),
       activityType: "thread.reply_posted",
       assignedAgent,
+      assignedTeamJson,
       assignedToolNames,
       assistantMessage,
       intentId: input.input.intentId,
@@ -1943,6 +2098,9 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     const assignedToolNames = input.routePlan.selected.map(
       (selection) => selection.agent.key,
     );
+    const assignedTeamJson = serializeAssignedTeamFromSelections(
+      input.routePlan.selected,
+    );
 
     await appendRequestExecution({
       activityPayload: JSON.stringify({
@@ -1953,6 +2111,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
       }),
       activityType: outcome.activityType,
       assignedAgent,
+      assignedTeamJson,
       assignedToolNames,
       assistantMessage: outcome.assistantMessage,
       intentId: input.input.intentId,
@@ -1998,6 +2157,9 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     const assignedToolNames = input.routePlan.selected.map(
       (selection) => selection.agent.key,
     );
+    const assignedTeamJson = serializeAssignedTeamFromSelections(
+      input.routePlan.selected,
+    );
     const shouldAutoReopenForWorkers = shouldAutoReopenRequestForWorkers(
       input.request.routeTarget,
       message,
@@ -2015,6 +2177,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
       }),
       activityType: "request.blocked",
       assignedAgent,
+      assignedTeamJson,
       assignedToolNames,
       assistantMessage:
         `The matched specialist route could not complete this request automatically. Last error: ${message}. Retry it or reopen it for workers.`,
@@ -2526,7 +2689,11 @@ async function startMountedRequestExecution(input: {
   const assignedToolNames = input.routePlan.selected.map(
     (selection) => selection.agent.key,
   );
+  const assignedTeamJson = serializeAssignedTeamFromSelections(
+    input.routePlan.selected,
+  );
   const persistedResult = await saveIntentPipelineRecord({
+    assignedTeamJson,
     assistantMessage:
       input.routePlan.selected.length === 1
         ? `Boreal opened a work thread for ${assignedAgentLabel} and started the request immediately.`
@@ -2542,6 +2709,7 @@ async function startMountedRequestExecution(input: {
 
   await approveRequestDraft({
     assignedAgent: assignedAgentLabel,
+    assignedTeamJson,
     assignedToolNames,
     assistantMessage:
       input.routePlan.selected.length === 1

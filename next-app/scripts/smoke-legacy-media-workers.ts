@@ -29,6 +29,7 @@ const baseDetail: RequestDetail = {
     agent: "Voiceover Studio",
     provider: "boreal-agent",
     runtimeSupplyIds: [],
+    team: null,
     tools: ["voiceover-studio"],
   },
   catalogItems: [],

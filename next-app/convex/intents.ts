@@ -20,6 +20,7 @@ import {
 } from "./collectives";
 import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtime.ts";
 import { shouldFetchRequestMatches } from "../lib/boreal/request-matching-policy.ts";
+import { parseRequestTeamBlueprint } from "../lib/boreal/swarm/team-blueprint.ts";
 import { persistIntentMatchCandidates } from "./matching";
 import { listIntentMatchCandidates } from "./supplies";
 
@@ -374,6 +375,7 @@ export const getRequestDetail = query({
         agent: intent.assignedAgent ?? null,
         provider: intent.provider,
         runtimeSupplyIds: (intent.invitedRuntimeSupplyIds ?? []).map(String),
+        team: parseRequestTeamBlueprint(intent.assignedTeamJson),
         tools: intent.assignedToolNames ?? [],
       },
       catalogItems,
@@ -963,6 +965,7 @@ async function getRequestParticipants(
   ctx: any,
   intent: {
     assignedAgent?: string;
+    assignedTeamJson?: string;
     assignedToolNames?: string[];
     invitedRuntimeSupplyIds?: string[];
     intentKey: string;
@@ -979,6 +982,7 @@ async function getRequestParticipants(
       }
     | undefined,
 ) {
+  const assignedTeam = parseRequestTeamBlueprint(intent.assignedTeamJson);
   const participants: Array<{
     displayName: string;
     externalId: string | null;
@@ -999,8 +1003,22 @@ async function getRequestParticipants(
   }> = [];
   const assignedAgent = intent.assignedAgent;
   const assignedDirectAgents = (intent.assignedToolNames ?? [])
-    .map((toolName) => DIRECT_AGENT_PARTICIPANTS[toolName.trim().toLowerCase()])
-    .filter(Boolean);
+    .map((toolName) => {
+      const agentKey = toolName.trim().toLowerCase();
+      const participant = DIRECT_AGENT_PARTICIPANTS[agentKey];
+
+      return participant ? { ...participant, agentKey } : null;
+    })
+    .filter(
+      (
+        participant,
+      ): participant is {
+        agentKey: string;
+        displayName: string;
+        externalId: string;
+        handle: string;
+      } => Boolean(participant),
+    );
   const invitedRuntimeSupplies = (
     await Promise.all(
       (intent.invitedRuntimeSupplyIds ?? []).map((supplyId) => ctx.db.get(supplyId)),
@@ -1141,11 +1159,11 @@ async function getRequestParticipants(
       continue;
     }
 
-    participants.push({
-      displayName: directAgent.displayName,
-      externalId: directAgent.externalId,
-      handle: directAgent.handle,
-      kind: "agent",
+      participants.push({
+        displayName: directAgent.displayName,
+        externalId: directAgent.externalId,
+        handle: directAgent.handle,
+        kind: "agent",
       connectorHealthStatus: null,
       connectorLastHeartbeatAt: null,
       connectorLastTestedAt: null,
@@ -1153,8 +1171,10 @@ async function getRequestParticipants(
       lastActivityAt: null,
       mcpServerUrl: null,
       profileId: null,
-      role: null,
-      runtimeSupplyId: null,
+        role:
+          assignedTeam?.members.find((member) => member.agentKey === directAgent.agentKey)?.role ??
+          null,
+        runtimeSupplyId: null,
       status: intent.status,
       supportsDirectInvoke: false,
       title: null,

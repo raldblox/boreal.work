@@ -209,6 +209,7 @@ export default defineSchema({
     approvalRequestedAt: v.optional(v.number()),
     approvedAt: v.optional(v.number()),
     assignedAgent: v.optional(v.string()),
+    assignedTeamJson: v.optional(v.string()),
     assignedToolNames: v.optional(v.array(v.string())),
     assetPrompt: v.optional(v.string()),
     body: v.string(),

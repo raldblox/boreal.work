@@ -281,6 +281,7 @@ export async function POST(request: Request) {
       caller,
       initialStatus: "open",
       persistedIntent,
+      routePlan,
       userMessage: message,
     });
     const quoteAuthorizationMessage = buildPaymentAuthorizationMessage({

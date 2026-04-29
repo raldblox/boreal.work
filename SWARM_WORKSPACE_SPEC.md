@@ -256,6 +256,7 @@ These can start in Convex even before libp2p ships.
 - add `Swarm Workspace available` card inside `Workboard`
 - add `available` and `active` workspace states
 - add request-level assignment and readiness summaries
+- add request-scoped bundle blueprints before live sessions: `lead`, `worker`, and later `validator` roles, plus explicit execution policies such as `lead_only` or `fanout_merge`
 
 ### Phase C: live session shell
 
@@ -308,6 +309,7 @@ This spec is correctly implemented when:
 - users no longer see `workspace` used for three different meanings
 - `Workboard` clearly means structured request execution
 - `Swarm Workspace` clearly means live upgraded collaboration
+- simple mounted teams can already persist a non-chaotic lead-first bundle blueprint before realtime swarm sessions exist
 - the product can add libp2p later without renaming the shell again
 
 ## 13. Immediate repo changes required

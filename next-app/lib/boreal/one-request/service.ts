@@ -14,6 +14,10 @@ import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
 import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent";
 import { extractStructuredIntent } from "@/lib/boreal/tools/llm/extract-structured-intent";
 import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-intent-response";
+import {
+  buildDirectAgentTeamBlueprint,
+  serializeRequestTeamBlueprint,
+} from "@/lib/boreal/swarm/team-blueprint";
 
 import { executeAutoRoute } from "./routing";
 import type {
@@ -85,9 +89,18 @@ export async function persistOneRequestThread(input: {
   caller: OneRequestCaller;
   initialStatus: "blocked" | "open";
   persistedIntent: PersistedIntent;
+  routePlan?: OneRequestRoutePlan | null;
   userMessage: string;
 }) {
   return saveIntentPipelineRecord({
+    assignedTeamJson:
+      input.routePlan
+        ? serializeRequestTeamBlueprint(
+            buildDirectAgentTeamBlueprint(
+              input.routePlan.selected.map((selection) => selection.agent),
+            ),
+          )
+        : undefined,
     assistantMessage: input.assistantMessage,
     conversationId: input.persistedIntent.conversationId,
     initialStatus: input.initialStatus,
@@ -106,6 +119,12 @@ export async function executeAndPersistOneRequest(input: {
   persistedIntent: PersistedIntent;
   routePlan: OneRequestRoutePlan;
 }) {
+  const assignedTeamJson = serializeRequestTeamBlueprint(
+    buildDirectAgentTeamBlueprint(
+      input.routePlan.selected.map((selection) => selection.agent),
+    ),
+  );
+
   await appendRequestExecution({
     activityPayload: JSON.stringify({
       agentKeys: input.routePlan.selected.map((selection) => selection.agent.key),
@@ -113,6 +132,7 @@ export async function executeAndPersistOneRequest(input: {
     }),
     activityType: "request.execution_started",
     assignedAgent: "Boreal Agent",
+    assignedTeamJson,
     assignedToolNames: input.routePlan.selected.map((selection) => selection.agent.key),
     assistantMessage: `Executing the locked auto route across ${input.routePlan.selected
       .map((selection) => selection.agent.identity.displayName)
