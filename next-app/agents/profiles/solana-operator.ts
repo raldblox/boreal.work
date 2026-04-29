@@ -15,7 +15,7 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
   key: "solana-operator",
   profile: {
     availabilityStatus: "available",
-    bio: "Prepares non-custodial Solana execution plans for swaps, staking, transfers, launches, vault deposits, and wallet-safety reviews.",
+    bio: "Planning-only Solana specialist for swaps, staking, transfers, launches, vault deposits, and wallet-safety reviews. It does not sign or send transactions yet.",
     capabilityTags: [
       "solana planning",
       "non-custodial execution",
@@ -23,7 +23,7 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
       "defi operations",
       "transaction review",
     ],
-    headline: "Non-custodial Solana action planner",
+    headline: "Planning-only Solana action planner",
     isPublic: true,
     productLabels: ["swap plan", "staking checklist", "wallet safety review"],
     skillTags: ["transaction planning", "risk review", "approval checklist"],
@@ -40,7 +40,7 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
     checkoutProtocol: "custom",
     deliveryType: "instant",
     description:
-      "Direct Solana specialist that returns a non-custodial execution plan, approval checklist, and risk notes instead of taking custody of funds.",
+      "Planning-only Solana specialist that returns a non-custodial execution plan, approval checklist, and risk notes. It does not sign, send, or control a connected wallet yet.",
     executorUrl: "/api/agents/solana-operator/execute",
     fulfillmentKind: "digital",
     isCartEnabled: false,
@@ -50,7 +50,7 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
     scenarioTypes: ["consultation"],
     sourceProviderKey: "manual",
     supplyType: "capability",
-    supportsPrivyWallet: true,
+    supportsPrivyWallet: false,
     title: "Solana Operator",
   },
   settlement: buildDefaultAgentSettlement(),
@@ -122,11 +122,10 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
   directExecution: {
     auth: "x-session",
     description:
-      "Builds a non-custodial Solana execution plan with wallet, approval, and risk guidance.",
+      "Planning-only Solana specialist. Explains wallet setup, approvals, risks, and next steps, but does not sign or send transactions yet.",
     exampleRequest: {
       request:
         "Swap 150 USDC into SOL on mainnet, then stake the resulting SOL with an approval-first flow.",
-      walletMode: "privy",
     },
     fields: [
       {
@@ -137,7 +136,7 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
       },
       {
         description:
-          "Optional wallet mode such as privy, phantom, backpack, or server wallet.",
+          "Optional wallet context such as phantom, backpack, or privy. Used for planning only right now.",
         name: "walletMode",
         required: false,
         type: "string",
@@ -202,7 +201,7 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
         content,
         contentType: "text/markdown" as const,
         kind: "text" as const,
-        title: "Solana execution plan",
+        title: "Solana planning brief",
       };
     },
     outputKinds: ["text"],

@@ -124,6 +124,19 @@ function main() {
         descriptor.outputSchema.oneOf.length > 0,
       `protocol descriptor output schema missing for ${key}`,
     );
+
+    if (key === "solana-operator") {
+      assert.equal(
+        agent.supplyEntry.supportsPrivyWallet,
+        false,
+        "solana-operator should not claim Privy wallet execution before the bridge exists",
+      );
+      assert.match(
+        agent.directExecution!.description,
+        /planning-only|does not sign|does not send/i,
+        "solana-operator description should stay honest about planning-only scope",
+      );
+    }
   }
 
   for (const agent of autonomousAgents) {
@@ -148,6 +161,14 @@ function main() {
       true,
       `expected payment network hint for ${agent.key}`,
     );
+
+    if (agent.key === "solana-operator") {
+      assert.equal(
+        syncArgs.supportsPrivyWallet,
+        false,
+        "solana-operator sync metadata should not advertise Privy wallet execution yet",
+      );
+    }
 
     if (agent.directExecution) {
       assert.equal(

@@ -148,6 +148,20 @@ export const roadmapTickets: BoardTicket[] = [
     updatedAt: "2026-04-29",
   },
   {
+    area: "solana specialist",
+    evidence:
+      "Solana Operator is live as a planning-only specialist today, while the repo still lacks a real Solana Agent Kit dependency, signer bridge, and approval-first transaction path.",
+    id: "BRL-107",
+    report:
+      "This belongs in progress, not live execution, because the current Solana route is honest planning only. The next milestone is a real wallet-adapter bridge with preview, approval, submission, and confirmation inside the request thread.",
+    routes: ["/agents", "/agent-registry.md", "/roadmap"],
+    status: "in_progress",
+    summary:
+      "Solana planning is live, but real signer-backed Solana execution still needs the Agent Kit install, wallet bridge, and approval-first request flow.",
+    title: "Solana wallet bridge",
+    updatedAt: "2026-04-29",
+  },
+  {
     area: "commerce spine",
     evidence:
       "Wallet sync, a 402 boundary, Solana mainnet verification, payout progression, and provider-backed checkout states already write through the same transaction spine.",
