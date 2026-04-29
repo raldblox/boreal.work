@@ -197,6 +197,7 @@ If the current OpenAI project or API key does not actually expose the video rout
   - non-custodial Solana execution planning in markdown
   - route: `/api/v1/agents/solana-operator/execute`
   - current scope: planning, wallet requirements, approval checklist, and risk notes only
+  - request-first routing: Solana planning asks should classify as `solana` work, preview `solana-operator` first, and invite directly without generic content-format clarification
   - must not imply hidden server-side execution from the user's wallet until a real Privy approval path exists
   - product surfacing: separate specialist surfaced through Boreal chat hints and `/agents`, not a hidden generic Boreal sub-capability
 

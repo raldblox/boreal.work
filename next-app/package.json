@@ -27,6 +27,7 @@
     "smoke:request-classification": "node --experimental-strip-types scripts/smoke-request-classification.ts",
     "smoke:request-fetch-paths": "node --experimental-strip-types scripts/smoke-request-fetch-paths.ts",
     "smoke:request-recovery": "node --experimental-strip-types scripts/smoke-request-recovery.ts",
+    "smoke:solana-specialist-route": "node --import ./scripts/register-path-aliases.mjs --experimental-strip-types scripts/smoke-solana-specialist-route.ts",
     "smoke:request-thread-specialists": "node --experimental-strip-types scripts/smoke-request-thread-specialists.ts",
     "smoke:service-provider-adapters": "node --experimental-strip-types scripts/smoke-service-provider-adapters.ts",
     "smoke:supplier-capacity": "node --experimental-strip-types scripts/smoke-supplier-capacity.ts",

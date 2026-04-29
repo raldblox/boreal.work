@@ -72,6 +72,7 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Hardened the Solana starter path end to end: Solana quick-action asks now classify as `solana` specialist work instead of generic text work, they skip the content-format clarification loop, `solana-operator` becomes the top matched route with a direct invite path, and `npm run smoke:solana-specialist-route` verifies the exact starter prompt.
 - `2026-04-29`: Surfaced `solana-operator` in the main frontend instead of leaving it buried in docs: Boreal chat now shows a Solana specialist quick action and starter prompt, `/agents` now spotlights the route directly, and the normal built-in agent seed plus smoke flow still brings `solana-operator` back after reset-and-seed.
 - `2026-04-29`: Refreshed the public roadmap surface and its source docs: `ROADMAP.md` now carries a milestone readout, `EARLY_ACCESS.md` no longer repeats outdated blockers that were already shipped, and `/roadmap` now reads like a synced feature showcase with live milestones, active hardening tracks, next moves, and clearer phase status.
 - `2026-04-29`: Finished `EA-6.5` in `EARLY_ACCESS.md` by turning `/account` into a real merchant self-serve surface for native offers: owned listings now show up inline, Boreal-native offers can be edited safely through the existing supply upsert path, provider-synced listings stay visible but read-only, and the profile builder now switches between `publish` and `update` based on the selected listing.
@@ -220,6 +221,7 @@ From `next-app/`:
 - `npm run smoke:request-classification` runs the deterministic classifier-first request-contract smoke for persisted `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters.
 - `npm run smoke:request-fetch-paths` runs the deterministic fetch-policy smoke for `catalog_lookup`, `direct_tool`, `provider_x402`, `worker_market`, and `collective_market` plus direct auto-route gating.
 - `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
+- `npm run smoke:solana-specialist-route` runs the deterministic Solana quick-action smoke for `solana` work classification, no generic text-work clarification, and `solana-operator` as the top matched specialist.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:service-provider-adapters` verifies curated AgentCash and Frames adapter output plus `PAYMENT-REQUIRED` header parsing for the provider fallback layer.
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.

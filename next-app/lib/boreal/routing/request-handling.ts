@@ -32,6 +32,11 @@ const deliverableNounPattern =
   /\b(tutorial|guide|explainer|lesson|course|article|post|script|outline|deck|presentation|landing page|copy|brief|proposal|plan|website|web app|app|product page|workflow|agent|bot)\b/i;
 const advisoryRequestPattern =
   /\b(pressure test|startup idea|business idea|idea critique|idea review|fatal flaw|mvp|launch plan|go[- ]to[- ]market|gtm|validate (this|my|our) idea|review my idea|audit|critique|evaluate|assess|analy[sz]e|brainstorm|research)\b/i;
+const solanaPlatformPattern =
+  /\b(solana|jupiter|raydium|orca|meteora|phantom|backpack|spl|anchor)\b/i;
+const solanaActionPattern =
+  /\b(swap|stake|staking|unstake|validator|wallet|approval|approve|transaction|token|airdrop|bridge|defi|risk)\b/i;
+const mainnetSolanaActionPattern = /\bmainnet\b.*\b(swap|stake|staking|wallet)\b/i;
 
 const workerLedPattern =
   /\b(website|web app|app|mobile app|frontend|backend|full[- ]stack|landing page|design system|dashboard|api integration|automation|smart contract|marketplace|platform|saas)\b/i;
@@ -63,7 +68,8 @@ export function refineIntentForRequestLifecycle(
   const text = buildIntentText(intent, message);
   const supplyOnboarding = isLikelySupplyOnboardingRequest(text);
   const capabilityLookup = isCapabilityLookupRequest(text);
-  const advisoryRequest = isLikelyAdvisoryRequest(text);
+  const solanaWork = isLikelySolanaWorkRequest(text);
+  const advisoryRequest = solanaWork || isLikelyAdvisoryRequest(text);
   const workerLed = isLikelyWorkerLedRequest(text);
   const textOnly = isTextOnlyIntent(intent.requestedOutputTypes);
 
@@ -187,9 +193,11 @@ export function refineIntentForRequestLifecycle(
   const nextIntent: IntentExtraction = {
     ...intent,
     category:
-      advisoryRequest && intent.category.trim().toLowerCase() === "general"
-        ? "advisory"
-        : intent.category,
+      solanaWork
+        ? "solana"
+        : advisoryRequest && intent.category.trim().toLowerCase() === "general"
+          ? "advisory"
+          : intent.category,
     catalogQuery: buildQualifiedCatalogQuery(intent, message),
     intentType: "demand",
     missingDetails,
@@ -199,12 +207,16 @@ export function refineIntentForRequestLifecycle(
       isUnresolved: needsClarification,
       reason: workerLed
         ? "Tracked as a worker-led request."
-        : "Tracked as a Boreal-handled text deliverable request.",
+        : solanaWork
+          ? "Tracked as a Solana specialist request."
+          : "Tracked as a Boreal-handled text deliverable request.",
       shouldPersist: true,
     },
     responseInstructions: workerLed
       ? "Do not fulfill inline. Treat this as a tracked request, gather clarification when needed, and open it for worker proposals after approval."
-      : advisoryRequest
+      : solanaWork
+        ? "Do not answer with generic clarification. Treat this as qualified Solana work, preview Solana Operator first, then wait for approval or invite before durable execution."
+        : advisoryRequest
         ? "Do not answer with generic clarification. Treat this as a qualified tracked request, preview the best matching specialist route first, then wait for approval before durable execution."
         : "Do not answer inline right away. Treat this as a tracked text-deliverable request, gather missing scope details, then wait for approval before generating the final output.",
     routeTarget: needsClarification
@@ -224,6 +236,7 @@ export function refineIntentForRequestLifecycle(
       intent.suggestedReplies,
       workerLed,
       advisoryRequest,
+      solanaWork,
     ),
   };
 
@@ -314,8 +327,19 @@ function isLikelyAdvisoryRequest(text: string) {
   return advisoryRequestPattern.test(text);
 }
 
+function isLikelySolanaWorkRequest(text: string) {
+  return (
+    (solanaPlatformPattern.test(text) && solanaActionPattern.test(text)) ||
+    mainnetSolanaActionPattern.test(text)
+  );
+}
+
 function isLikelyQualifiedTextRequest(text: string) {
-  return isLikelyDeliverableRequest(text) || isLikelyAdvisoryRequest(text);
+  return (
+    isLikelyDeliverableRequest(text) ||
+    isLikelyAdvisoryRequest(text) ||
+    isLikelySolanaWorkRequest(text)
+  );
 }
 
 function isLikelyWorkerLedRequest(text: string) {
@@ -406,7 +430,19 @@ function buildSuggestedReplies(
   current: string[],
   workerLed: boolean,
   advisoryRequest: boolean,
+  solanaWork: boolean,
 ) {
+  if (solanaWork) {
+    return Array.from(
+      new Set([
+        ...current,
+        "Show Solana Operator",
+        "Invite Solana Operator",
+        "What wallet mode fits best?",
+      ]),
+    ).slice(0, 4);
+  }
+
   const suggestions = advisoryRequest
     ? [
         ...current,

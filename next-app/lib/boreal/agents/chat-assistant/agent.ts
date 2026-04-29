@@ -1648,9 +1648,7 @@ function buildApprovalMessage(
   specialistRoutePlan?: OneRequestRoutePlan | null,
 ) {
   const handlingMode = getRequestHandlingMode(intent);
-  const modeLabel = intent.requestedOutputTypes
-    .map((value) => value.replaceAll("_", " "))
-    .join(", ");
+  const workLabel = describeIntentWorkLabel(intent);
 
   if (intent.routeTarget === "profile_update") {
     return [
@@ -1666,7 +1664,7 @@ function buildApprovalMessage(
 
   if (handlingMode === "clarify") {
     return [
-      `This looks like ${modeLabel} work, but it still needs a bit more scope before Boreal should open it.`,
+      `This looks like ${workLabel}, but it still needs a bit more scope before Boreal should open it.`,
       intent.summary,
       intent.missingDetails.length > 0
         ? `Still needed:\n${intent.missingDetails.map((detail) => `- ${detail}`).join("\n")}`
@@ -1682,7 +1680,7 @@ function buildApprovalMessage(
       .map((selection) => selection.agent.identity.displayName);
 
     return [
-      `This is a qualified ${modeLabel} request.`,
+      `This is qualified ${workLabel}.`,
       intent.summary,
       primary
         ? `Top match: ${primary}.`
@@ -1695,7 +1693,7 @@ function buildApprovalMessage(
   }
 
   return [
-    `I prepared a work draft for ${modeLabel}.`,
+    `I prepared a draft for ${workLabel}.`,
     intent.summary,
     `Recommended path: ${getRequestHandlingLabel(handlingMode)}.`,
     intent.routeTarget === "video_generation"
@@ -1711,6 +1709,32 @@ function buildApprovalMessage(
   ]
     .filter((section): section is string => Boolean(section))
     .join("\n\n");
+}
+
+function describeIntentWorkLabel(intent: IntentExtraction) {
+  const solanaSignal = [
+    intent.category,
+    intent.title,
+    intent.summary,
+    intent.body,
+    ...intent.capabilityTags,
+    ...intent.keywords,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    intent.category.trim().toLowerCase() === "solana" ||
+    /\b(solana|jupiter|raydium|orca|meteora|phantom|backpack|stake|staking|swap|wallet)\b/i.test(
+      solanaSignal,
+    )
+  ) {
+    return "Solana work";
+  }
+
+  return intent.requestedOutputTypes
+    .map((value) => `${value.replaceAll("_", " ")} work`)
+    .join(", ");
 }
 
 function getApprovalActionLine(

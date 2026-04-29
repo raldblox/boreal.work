@@ -192,10 +192,76 @@ function buildDirectExecutionPayload(agentKey: string, intent: PersistedIntent) 
       return {
         idea: intent.body,
       };
+    case "solana-operator": {
+      const walletMode = inferSolanaWalletMode(promptText);
+      const riskPreference = inferSolanaRiskPreference(promptText);
+      const network = inferSolanaNetwork(promptText);
+
+      return {
+        ...(network ? { network } : {}),
+        ...(riskPreference ? { riskPreference } : {}),
+        request: promptText,
+        ...(walletMode ? { walletMode } : {}),
+      };
+    }
     default:
       return {
         prompt: promptText,
         title: intent.title,
       };
   }
+}
+
+function inferSolanaWalletMode(text: string) {
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("privy")) {
+    return "privy";
+  }
+
+  if (normalized.includes("phantom")) {
+    return "phantom";
+  }
+
+  if (normalized.includes("backpack")) {
+    return "backpack";
+  }
+
+  return undefined;
+}
+
+function inferSolanaRiskPreference(text: string) {
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("aggressive")) {
+    return "aggressive";
+  }
+
+  if (normalized.includes("balanced")) {
+    return "balanced";
+  }
+
+  if (normalized.includes("conservative")) {
+    return "conservative";
+  }
+
+  return undefined;
+}
+
+function inferSolanaNetwork(text: string) {
+  const normalized = text.toLowerCase();
+
+  if (
+    normalized.includes("testnet") ||
+    normalized.includes("devnet") ||
+    normalized.includes("solana:testnet")
+  ) {
+    return "solana:testnet";
+  }
+
+  if (normalized.includes("mainnet") || normalized.includes("solana:mainnet")) {
+    return "solana:mainnet";
+  }
+
+  return getDefaultSolanaNetworkKey();
 }
