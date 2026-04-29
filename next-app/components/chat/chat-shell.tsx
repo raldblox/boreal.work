@@ -3098,7 +3098,7 @@ export function ChatShell() {
                               <PromptInputTextarea
                                 className="min-h-[140px] text-base"
                                 disabled
-                                placeholder="A little stuck? Sign in with X and ask me anything."
+                                placeholder="I'm afraid you can also ask me anything. Sign in with X when you want Boreal to open real work."
                                 value=""
                               />
                           </PromptInputBody>
@@ -3464,7 +3464,7 @@ export function ChatShell() {
                                 onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                                   setComposerText(event.currentTarget.value)
                                 }
-                                placeholder="A little stuck? Ask me anything, or tell Boreal what you want done."
+                                placeholder="I'm afraid you can also ask me anything. Tell Boreal what you want done when you need more than chat."
                                 ref={composerTextareaRef}
                                 value={composerText}
                               />
