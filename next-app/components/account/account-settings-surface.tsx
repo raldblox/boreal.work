@@ -73,8 +73,8 @@ export function AccountSettingsSurface({
     profile?.isPublic && profile.availabilityStatus === "available"
   )
   const connectWalletLabel = isWalletReady
-    ? "Connect wallet"
-    : "Connect Solana"
+    ? "Manage wallets"
+    : "Connect Solana mainnet"
   const profileName = profile?.displayName ?? accountName ?? "No work profile yet"
   const profileHeadline =
     profile?.headline || "Set a headline so Boreal can introduce your work fast."
@@ -307,7 +307,7 @@ export function AccountSettingsSurface({
 
             {walletAccounts.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                No Solana wallet is synced yet.
+                No Solana mainnet wallet is synced yet.
               </div>
             ) : (
               <div className="mt-4 space-y-3">

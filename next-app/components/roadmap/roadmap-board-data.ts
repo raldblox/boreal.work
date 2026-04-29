@@ -150,14 +150,14 @@ export const roadmapTickets: BoardTicket[] = [
   {
     area: "solana specialist",
     evidence:
-      "Solana Operator is live as a planning-only specialist today, while the repo still lacks a real Solana Agent Kit dependency, signer bridge, and approval-first transaction path.",
+      "Solana Operator now supports explicit wallet-approved Solana mainnet memo, simple SOL transfer, and wallet-message signing inside the mounted request thread, while the public direct route is still planning-first and the broader Solana runtime remains unfinished.",
     id: "BRL-107",
     report:
-      "This belongs in progress, not live execution, because the current Solana route is honest planning only. The next milestone is a real wallet-adapter bridge with preview, approval, submission, and confirmation inside the request thread.",
+      "This still belongs in progress, not full live execution, because the shipped Solana path is intentionally narrow. Boreal now has a real mounted-thread wallet bridge for a few safe request-thread actions, but the next milestone is fuller Solana runtime coverage with richer preview, approval, submission, and confirmation handling.",
     routes: ["/agents", "/agent-registry.md", "/roadmap"],
     status: "in_progress",
     summary:
-      "Solana planning is live, but real signer-backed Solana execution still needs the Agent Kit install, wallet bridge, and approval-first request flow.",
+      "Mounted request-thread Solana actions are now real for a limited mainnet slice, but broader signer-backed Solana execution still needs the fuller runtime and approval flow.",
     title: "Solana wallet bridge",
     updatedAt: "2026-04-29",
   },

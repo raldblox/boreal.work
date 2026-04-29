@@ -201,11 +201,13 @@ If the current OpenAI project or API key does not actually expose the video rout
 - `solana-operator`
   - non-custodial Solana execution planning in markdown
   - route: `/api/v1/agents/solana-operator/execute`
-  - current scope: planning, wallet requirements, approval checklist, and risk notes only
-  - current runtime boundary: direct execution receives plain request context only; no signer, wallet session, or transaction send path is passed today
+  - current public direct-route scope: planning, wallet requirements, approval checklist, and risk notes only
+  - current mounted request-thread scope: explicit wallet-approved Solana mainnet memo recording, simple SOL transfer, and wallet-message signing
+  - current runtime boundary: the public direct route still receives plain request context only; no signer, wallet session, or transaction send path is passed there today
   - request-first routing: Solana planning asks should classify as `solana` work, preview `solana-operator` first, and invite directly without generic content-format clarification
-  - must not imply hidden server-side execution from the user's wallet until a real Privy approval path exists
-  - wallet capability flag: `supportsPrivyWallet` must stay false until Boreal actually passes a working Solana wallet adapter into execution
+  - mounted request-thread behavior: the action card lives inside the Boreal request thread, the owner approves from the connected wallet, and the resulting signature or transaction submission is recorded back into the same request
+  - must not imply hidden server-side execution from the user's wallet or silent custody
+  - wallet capability flag: `supportsPrivyWallet` must stay false until Boreal actually passes a working Solana wallet adapter into the public direct-execution route, not only the mounted request-thread UI
   - product surfacing: separate specialist surfaced through Boreal chat hints and `/agents`, not a hidden generic Boreal sub-capability
 
 ## Registry Entry Shape

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery } from "convex/react"
-import { usePrivy } from "@privy-io/react-auth"
+import { useConnectWallet, usePrivy } from "@privy-io/react-auth"
 import { signIn, useSession } from "next-auth/react"
 import { ArrowLeftIcon, LogInIcon } from "lucide-react"
 
@@ -12,6 +12,7 @@ import { ProfileBuilderEditor } from "@/components/chat/profile-builder"
 import { Button } from "@/components/ui/button"
 import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
+import { openBorealPrivyWalletModal } from "@/lib/boreal/integrations/service-providers/wallets/privy-modal"
 import { usePayment } from "@/hooks/use-payment"
 import {
   getBorealChainEnvironment,
@@ -39,6 +40,7 @@ export function AccountPageClient() {
     authenticated: privyAuthenticated,
     login,
   } = usePrivy()
+  const { connectWallet } = useConnectWallet()
   const { defaultWallet, defaultWalletAddress, isWalletReady } = usePayment()
   const runtimeEnvironment = getBorealChainEnvironment()
   const runtimePrimaryChainFamily = getBorealPrimaryChainFamily()
@@ -83,6 +85,14 @@ export function AccountPageClient() {
       ? myProfileRecord.supplies.find((supply) => supply._id === editingSupplyId) ??
         null
       : null
+
+  function handleOpenWalletModal() {
+    openBorealPrivyWalletModal({
+      authenticated: privyAuthenticated,
+      connectWallet,
+      login,
+    })
+  }
 
   useEffect(() => {
     if (!ownerExternalId || !defaultWallet || !isWalletReady) {
@@ -412,7 +422,7 @@ export function AccountPageClient() {
           builderSlot={
             isProfileBuilderOpen ? (
               <ProfileBuilderEditor
-                connectWalletLabel="Connect Solana wallet"
+                connectWalletLabel="Connect Solana mainnet wallet"
                 draft={profileBuilderDraft}
                 isDrafting={isDraftingProfileBuilder}
                 isSaving={isSavingProfileBuilder}
@@ -425,7 +435,7 @@ export function AccountPageClient() {
                     ? `Editing offer: ${editingSupply.title}`
                     : "Drafting a Boreal-native offer"
                 }
-                onConnectWallet={login}
+                onConnectWallet={handleOpenWalletModal}
                 onDraftWithBoreal={handleDraftProfileBuilder}
                 onSaveProfile={() => saveProfileBuilder(false)}
                 onSaveProfileAndListing={() => saveProfileBuilder(true)}
@@ -443,7 +453,7 @@ export function AccountPageClient() {
           isWalletReady={isWalletReady}
           myProfileRecord={myProfileRecord}
           notice={notice}
-          onConnectWallet={login}
+          onConnectWallet={handleOpenWalletModal}
           onEditSupplyListing={openOwnedSupplyEditor}
           onOpenProfileBuilder={openProfileBuilder}
           onToggleProfileAvailability={handleToggleProfileAvailability}

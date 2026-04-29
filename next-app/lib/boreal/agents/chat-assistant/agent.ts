@@ -76,6 +76,12 @@ import {
   planInteractiveRequestThread,
 } from "../request-thread-specialists";
 import { BOREAL_AGENT_DISPLAY_NAME } from "@/lib/boreal/boreal-agent";
+import {
+  buildSolanaActionAssistantMessage,
+  getSolanaActionNetworkLabel,
+  getSolanaActionSummary,
+  planSolanaThreadAction,
+} from "@/lib/boreal/solana-thread-actions"
 
 type RequesterIdentity = {
   displayName?: string;
@@ -957,6 +963,16 @@ async function buildAssignedTextSpecialistThreadReply(input: {
     });
   }
 
+  if (leadAgent.key === "solana-operator") {
+    return buildSolanaOperatorThreadReply({
+      latestOwnerMessage: input.latestOwnerMessage,
+      provider: input.provider,
+      request: input.request,
+      requestDetail: input.requestDetail,
+      runtimeConfig: input.runtimeConfig,
+    })
+  }
+
   const recentThread = input.requestDetail.messages
     .slice(-8)
     .map(
@@ -1007,6 +1023,89 @@ async function buildAssignedTextSpecialistThreadReply(input: {
       teammateNames,
     })
   );
+}
+
+async function buildSolanaOperatorThreadReply(input: {
+  latestOwnerMessage: string
+  provider: ReturnType<typeof resolveProviderAdapter>
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>
+}) {
+  if (isSolanaCapabilityQuestion(input.latestOwnerMessage)) {
+    return [
+      "I can help in two live ways right now:",
+      "- explain Solana wallet, approval, and risk flow clearly",
+      "- prepare a mainnet wallet action in this thread for explicit approval",
+      "- supported actions today: onchain memo, simple SOL transfer, wallet signature",
+      "- Boreal still does not custody your wallet or sign silently",
+    ].join("\n")
+  }
+
+  const actionPlan = planSolanaThreadAction({
+    message: input.latestOwnerMessage,
+    networkKey: getDefaultSolanaNetworkKey(),
+  })
+
+  if (actionPlan.kind === "clarify") {
+    return actionPlan.message
+  }
+
+  if (actionPlan.kind === "preview") {
+    const intro =
+      actionPlan.action.kind === "sign_message"
+        ? `I prepared a wallet-signature request for ${getSolanaActionNetworkLabel(actionPlan.action.networkKey)}. Review the action card below, then approve it from your wallet when ready.`
+        : `I prepared a non-custodial ${getSolanaActionSummary(actionPlan.action)} Review the action card below, then approve it from your wallet when ready.`
+
+    return buildSolanaActionAssistantMessage(actionPlan.action, intro)
+  }
+
+  const recentThread = input.requestDetail.messages
+    .slice(-8)
+    .map(
+      (message) =>
+        `${message.sender.displayName} (${message.role}): ${message.body.trim()}`,
+    )
+    .join("\n")
+  const { text } = await generateText({
+    model: input.provider.getAssistantModel(input.runtimeConfig.assistantModel),
+    prompt: [
+      "You are Solana Operator in an active Boreal request thread.",
+      `Request title: ${input.request.title}`,
+      `Request summary: ${input.request.summary}`,
+      `Original request body: ${input.request.body}`,
+      `Latest owner message: ${input.latestOwnerMessage}`,
+      recentThread
+        ? `Recent request thread:\n${recentThread}`
+        : "Recent request thread: none",
+      "Response rules:",
+      "- answer directly as Solana Operator, not Boreal Agent",
+      "- assume Solana mainnet unless the user explicitly says otherwise",
+      "- if the message is conceptual, explain it plainly first",
+      "- if the message implies an unsupported action, say what is live today instead of bluffing",
+      "- keep the reply concise and useful",
+      "- do not ask for review",
+      "- do not say Boreal has hidden custody",
+    ].join("\n"),
+    system:
+      "You are Boreal's Solana Operator. You help with non-custodial Solana planning, approvals, wallet safety, and a limited set of wallet-approved actions inside the request thread. Live actions today are Solana mainnet memo, simple SOL transfer, and wallet message signing.",
+  })
+
+  return (
+    text.trim() ||
+    "Solana Operator here. Tell me the Solana task or question. I can explain the flow or prepare a wallet-approved mainnet action in this thread."
+  )
+}
+
+function isSolanaCapabilityQuestion(message: string) {
+  const normalized = message.trim().toLowerCase()
+
+  return (
+    normalized.includes("what can you do") ||
+    normalized.includes("what do you do") ||
+    normalized.includes("capabilities") ||
+    normalized.includes("what are you for")
+  )
 }
 
 export async function openPersistedRequestForWorkers(input: {

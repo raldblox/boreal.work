@@ -14,7 +14,7 @@ import {
 import Image from "next/image"
 import { makeFunctionReference } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
-import { usePrivy } from "@privy-io/react-auth"
+import { useConnectWallet, usePrivy } from "@privy-io/react-auth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { signIn, useSession } from "next-auth/react"
 import {
@@ -63,6 +63,7 @@ import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
+import { SolanaThreadActionCard } from "@/components/chat/solana-thread-action-card"
 import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { ProfileView } from "@/components/profiles/profile-view"
 import { AgentOnboardingSurface } from "@/components/home/agent-onboarding-surface"
@@ -183,6 +184,11 @@ import {
   BOREAL_AGENT_DISPLAY_NAME,
   BOREAL_AGENT_EXTERNAL_ID,
 } from "@/lib/boreal/boreal-agent"
+import { openBorealPrivyWalletModal } from "@/lib/boreal/integrations/service-providers/wallets/privy-modal"
+import {
+  compactHexLike,
+  parseSolanaThreadMessage,
+} from "@/lib/boreal/solana-thread-actions"
 import { cn } from "@/lib/utils"
 import { usePayment } from "@/hooks/use-payment"
 import {
@@ -476,8 +482,17 @@ export function ChatShell() {
     authenticated: privyAuthenticated,
     login,
   } = usePrivy()
+  const { connectWallet } = useConnectWallet()
   const { defaultWallet, defaultWalletAddress, isWalletReady, payWithX402 } =
     usePayment()
+
+  function handleOpenWalletModal() {
+    openBorealPrivyWalletModal({
+      authenticated: privyAuthenticated,
+      connectWallet,
+      login,
+    })
+  }
 
   const sidebarIntentsResult = useQuery(
     sidebarIntentQuery,
@@ -1504,7 +1519,7 @@ export function ChatShell() {
     }
 
     if (!privyAuthenticated) {
-      login()
+      handleOpenWalletModal()
       return
     }
 
@@ -3111,7 +3126,7 @@ export function ChatShell() {
                   isWalletReady={isWalletReady}
                   myProfileRecord={myProfileRecord}
                   notice={accountNotice}
-                  onConnectWallet={login}
+                  onConnectWallet={handleOpenWalletModal}
                   onOpenChange={(nextOpen) => {
                     if (nextOpen) {
                       openAccountSheet()
@@ -3438,6 +3453,7 @@ export function ChatShell() {
                                   onRetryRequest={handleRetryRequest}
                                   onSubmitReview={handleSubmitReview}
                                   onViewProfile={openProfileSheet}
+                                  preferredWalletAddress={defaultWalletAddress}
                                   requestDetail={requestDetail}
                                   review={effectiveReview}
                                   shouldPromptReview={shouldPromptReview}
@@ -3579,22 +3595,15 @@ export function ChatShell() {
                               Read papers
                             </Button>
                             <Button
-                              onClick={() => {
-                                if (privyAuthenticated) {
-                                  openAccountSheet()
-                                  return
-                                }
-
-                                login()
-                              }}
+                              onClick={handleOpenWalletModal}
                               size="sm"
                               type="button"
                               variant={privyAuthenticated ? "secondary" : "outline"}
                             >
                               <WalletIcon className="size-4" />
                               {privyReady
-                                ? privyAuthenticated
-                                  ? "Wallet connected"
+                                ? defaultWalletAddress
+                                  ? "Manage wallets"
                                   : "Connect Solana"
                                 : "Wallet"}
                             </Button>
@@ -3770,15 +3779,15 @@ export function ChatShell() {
                       {!activeIntentId &&
                       (!privyAuthenticated || !defaultWalletAddress) ? (
                         <Button
-                          onClick={login}
+                          onClick={handleOpenWalletModal}
                           size="sm"
                           type="button"
                           variant={privyAuthenticated ? "secondary" : "ghost"}
                         >
                           <WalletIcon />
                           {privyReady
-                            ? privyAuthenticated
-                              ? "Wallet connected"
+                            ? defaultWalletAddress
+                              ? "Manage wallets"
                               : "Connect Solana"
                             : "Wallet"}
                         </Button>
@@ -3901,13 +3910,13 @@ export function ChatShell() {
         />
       </MobileSidebarDrawer>
       <ProfileBuilderDialog
-        connectWalletLabel="Connect Solana wallet"
+        connectWalletLabel="Connect Solana mainnet wallet"
         draft={profileBuilderDraft}
         isDrafting={isDraftingProfileBuilder}
         isOpen={isProfileBuilderOpen}
         isSaving={isSavingProfileBuilder}
         isWalletReady={isWalletReady}
-        onConnectWallet={login}
+        onConnectWallet={handleOpenWalletModal}
         onDraftWithBoreal={handleDraftProfileBuilder}
         onOpenChange={(nextOpen) => {
           if (nextOpen) {
@@ -4118,25 +4127,29 @@ function BorealTimelineSessionBlock({
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      {session.messages.map((message) => (
-        <Message
-          from={message.role === "user" ? "user" : "assistant"}
-          key={message._id}
-        >
-          <MessageContent>
-            {message.body.trim().length > 0 ? (
-              <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
-                {message.body}
-              </MessageResponse>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <LoaderIcon className="size-4 animate-spin" />
-                <span>Routing request</span>
-              </div>
-            )}
-          </MessageContent>
-        </Message>
-      ))}
+      {session.messages.map((message) => {
+        const parsedMessage = parseSolanaThreadMessage(message.body)
+
+        return (
+          <Message
+            from={message.role === "user" ? "user" : "assistant"}
+            key={message._id}
+          >
+            <MessageContent>
+              {parsedMessage.text.trim().length > 0 ? (
+                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
+                  {parsedMessage.text}
+                </MessageResponse>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <LoaderIcon className="size-4 animate-spin" />
+                  <span>Routing request</span>
+                </div>
+              )}
+            </MessageContent>
+          </Message>
+        )
+      })}
 
       {sortedRequests.map((linkedRequest) => (
         (() => {
@@ -4934,6 +4947,7 @@ function RequestChatTimeline({
   onRetryRequest,
   onSubmitReview,
   onViewProfile,
+  preferredWalletAddress,
   requestDetail,
   review,
   shouldPromptReview,
@@ -4969,12 +4983,16 @@ function RequestChatTimeline({
   onRetryRequest: () => Promise<void>
   onSubmitReview: (rating: number) => void
   onViewProfile: (profileId: string) => void
+  preferredWalletAddress?: string | null
   requestDetail: RequestDetail
   review: RequestDetail["review"]
   shouldPromptReview: boolean
   workspace: WorkspaceState
 }) {
   const timeline = buildRequestTimeline(requestDetail, review, liveMessages)
+  const completedSolanaActionIds = collectCompletedSolanaActionIds(
+    requestDetail.activity
+  )
   const requestActionState = requestDetail.intent
     ? getRequestActionState(
         requestDetail.intent,
@@ -5009,6 +5027,7 @@ function RequestChatTimeline({
 
       {timeline.map((entry) => {
         if (entry.kind === "message") {
+          const parsedMessage = parseSolanaThreadMessage(entry.item.body)
           const role = entry.item.sender.isCurrentUser
             ? "user"
             : entry.item.sender.actorKind === "agent"
@@ -5024,27 +5043,56 @@ function RequestChatTimeline({
                 </p>
               ) : null}
               <MessageContent>
-                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
-                  {entry.item.body}
-                </MessageResponse>
+                {parsedMessage.text.trim().length > 0 ? (
+                  <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
+                    {parsedMessage.text}
+                  </MessageResponse>
+                ) : null}
+                {parsedMessage.action && requestDetail.intent ? (
+                  <SolanaThreadActionCard
+                    action={parsedMessage.action}
+                    intentId={requestDetail.intent._id}
+                    isCompleted={completedSolanaActionIds.has(
+                      parsedMessage.action.actionId
+                    )}
+                    onRecorded={onRefreshRequest}
+                    preferredWalletAddress={preferredWalletAddress}
+                  />
+                ) : null}
               </MessageContent>
             </Message>
           )
         }
 
         if (entry.kind === "live") {
+          const parsedMessage = parseSolanaThreadMessage(entry.item.content)
+          const liveAssistantLabel = getLiveRequestAssistantLabel(requestDetail)
+
           return (
             <Message from={entry.item.role} key={entry.key}>
               {entry.item.role === "assistant" ? (
                 <p className="mb-1 flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
                   <BotIcon className="size-3" />
-                  <span>Boreal Agent</span>
+                  <span>{liveAssistantLabel}</span>
                 </p>
               ) : null}
               <MessageContent>
-                <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
-                  {entry.item.content}
-                </MessageResponse>
+                {parsedMessage.text.trim().length > 0 ? (
+                  <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
+                    {parsedMessage.text}
+                  </MessageResponse>
+                ) : null}
+                {parsedMessage.action && requestDetail.intent ? (
+                  <SolanaThreadActionCard
+                    action={parsedMessage.action}
+                    intentId={requestDetail.intent._id}
+                    isCompleted={completedSolanaActionIds.has(
+                      parsedMessage.action.actionId
+                    )}
+                    onRecorded={onRefreshRequest}
+                    preferredWalletAddress={preferredWalletAddress}
+                  />
+                ) : null}
               </MessageContent>
             </Message>
           )
@@ -7383,6 +7431,33 @@ function getDirectAgentDisplayName(key: string) {
   return DIRECT_AGENT_DISPLAY_NAMES[key] ?? key
 }
 
+function getLiveRequestAssistantLabel(requestDetail: RequestDetail) {
+  const activeParticipants = requestDetail.participants
+    .filter(
+      (participant) =>
+        participant.kind === "agent" && participant.status !== "owner"
+    )
+    .map((participant) => participant.displayName)
+    .filter(Boolean)
+
+  if (activeParticipants.length > 0) {
+    return activeParticipants.join(", ")
+  }
+
+  const assignedTools = requestDetail.assignment?.tools ?? []
+  const namedTools = assignedTools
+    .map((toolName) =>
+      isDirectAgentKey(toolName) ? getDirectAgentDisplayName(toolName) : toolName
+    )
+    .filter(Boolean)
+
+  if (namedTools.length > 0) {
+    return namedTools.join(", ")
+  }
+
+  return requestDetail.assignment?.agent ?? BOREAL_AGENT_DISPLAY_NAME
+}
+
 function resolveMountedComposerAgent(listing: CatalogEntry) {
   if (listing._id === DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId) {
     return DEFAULT_MOUNTED_COMPOSER_AGENT
@@ -8051,6 +8126,8 @@ function labelActivity(type: string) {
     "request.fulfilled": "Request fulfilled",
     "request.opened_for_workers": "Opened for workers",
     "request.retrying": "Retry started",
+    "request.solana_signature_captured": "Solana signature captured",
+    "request.solana_transaction_submitted": "Solana transaction submitted",
     "request.team_assigned": "Team assigned",
     "thread.message_posted": "Reply posted",
     "thread.reply_posted": "Reply posted",
@@ -8085,6 +8162,34 @@ function describeActivityPayload(payload: Record<string, unknown>) {
     parts.push(`Rating: ${payload.rating}/5`)
   }
 
+  if (typeof payload.amountSol === "string") {
+    parts.push(`Amount: ${payload.amountSol} SOL`)
+  }
+
+  if (typeof payload.destination === "string") {
+    parts.push(`Destination: ${payload.destination}`)
+  }
+
+  if (typeof payload.memo === "string") {
+    parts.push(`Memo: ${payload.memo}`)
+  }
+
+  if (typeof payload.message === "string") {
+    parts.push(`Message: ${payload.message}`)
+  }
+
+  if (typeof payload.walletAddress === "string") {
+    parts.push(`Wallet: ${compactHexLike(payload.walletAddress, 6)}`)
+  }
+
+  if (typeof payload.signature === "string") {
+    parts.push(`Signature: ${compactHexLike(payload.signature)}`)
+  }
+
+  if (typeof payload.network === "string") {
+    parts.push(`Network: ${payload.network}`)
+  }
+
   if (typeof payload.routeLabel === "string" && payload.routeLabel.trim().length > 0) {
     parts.push(`Route: ${payload.routeLabel}`)
   } else if (typeof payload.routeTarget === "string") {
@@ -8096,6 +8201,25 @@ function describeActivityPayload(payload: Record<string, unknown>) {
   }
 
   return parts.join(" | ")
+}
+
+function collectCompletedSolanaActionIds(activity: RequestDetail["activity"]) {
+  const actionIds = new Set<string>()
+
+  for (const entry of activity) {
+    if (
+      entry.type !== "request.solana_signature_captured" &&
+      entry.type !== "request.solana_transaction_submitted"
+    ) {
+      continue
+    }
+
+    if (typeof entry.payload?.actionId === "string") {
+      actionIds.add(entry.payload.actionId)
+    }
+  }
+
+  return actionIds
 }
 
 function getLatestBlockedErrorMessage(activity: RequestDetail["activity"]) {

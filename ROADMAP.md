@@ -37,7 +37,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
 - Boreal now has a signed machine-facing webhook surface for request, inbox, and payout lifecycle delivery, plus a deterministic local receiver smoke.
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
-- Boreal now includes `solana-operator` as a direct specialist for non-custodial Solana execution planning only; a real signer-backed Solana Agent Kit path, transaction preview, and approval bridge are still ahead.
+- Boreal now includes `solana-operator` as a direct specialist with two honest scopes: the public direct route is still planning-first, while the mounted request-thread path can already do explicit wallet-approved Solana mainnet memo recording, simple SOL transfer, and wallet-message signing.  A fuller Solana Agent Kit runtime, broader transaction coverage, and richer approval UX are still ahead.
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
@@ -362,13 +362,15 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Dedicated one-request end-to-end smoke covering submit -> quote -> pay -> execute -> deliver -> settle
 - [x] Public onboarding docs for Codex, OpenClaw, Hermes, and similar local agents through `SKILL.md`, `llms.txt`, and the request contract docs
 - [x] Independent on-chain Solana mainnet receipt verification for the request-first payment path
-- [x] Truthful Solana specialist scope: `solana-operator` now stays planning-only until Boreal passes a real wallet adapter and explicit approval path into execution
+- [x] Truthful Solana specialist scope: the public direct `solana-operator` route stays planning-first, while the mounted request-thread path now exposes only the limited wallet-approved mainnet actions Boreal can really execute today
+- [x] Limited mounted-thread Solana wallet bridge for explicit mainnet memo recording, simple SOL transfer, and wallet-message signing from the connected wallet
 - [ ] Install `solana-agent-kit` and the minimal plugin set in `next-app` for actual Solana task execution instead of text-only planning
 - [ ] Add a real wallet-adapter bridge for Solana execution with `publicKey`, `signTransaction`, `signMessage`, `sendTransaction`, `signAllTransactions`, and `signAndSendTransaction`
 - [ ] Bind that bridge to the Boreal-selected signer context, not just a connected wallet address or `walletMode` string
 - [ ] Add request-thread transaction preview, simulation, and explicit approval UI before any onchain write starts
 - [ ] Persist Solana specialist execution states in the request lifecycle: `planned`, `awaiting_approval`, `submitted`, `confirmed`, and `failed`
-- [ ] Add deterministic smoke coverage for the wallet-bridged Solana path beyond route selection and planning-only output
+- [x] Add deterministic smoke coverage for mounted-thread Solana action planning, hidden marker parsing, and unsigned memo or transfer transaction compilation
+- [ ] Add deterministic wallet-in-the-loop smoke coverage for actual signature capture and transaction submission beyond compile-only request-thread checks
 
 ### Agent Work Network Contract
 

@@ -111,7 +111,7 @@ export function buildDirectSpecialistThreadGreeting(input: {
   }
 
   if (input.agentKey === "solana-operator") {
-    return "Solana Operator here. Tell me the Solana task or question. I can plan the flow, approvals, and risks, but I do not sign or send transactions yet.";
+    return "Solana Operator here. Tell me the Solana task or question. I can explain the flow, approvals, and risks, or prepare a wallet-approved mainnet memo, simple SOL transfer, or message signature in this thread.";
   }
 
   return `${input.agentDisplayName} here. Tell me the task or question and I will help from this request thread.`;

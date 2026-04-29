@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { chatAssistantAgent } from "@/lib/boreal/agents/chat-assistant/agent";
+import { stripSolanaActionMarker } from "@/lib/boreal/solana-thread-actions";
 import type {
   ChatAssistantDebugEvent,
   ChatUiContext,
@@ -148,12 +149,14 @@ function isValidChatContext(value: unknown): value is ChatUiContext {
 }
 
 function chunkAssistantMessage(message: string) {
-  if (!message.trim()) {
+  const visibleMessage = stripSolanaActionMarker(message)
+
+  if (!visibleMessage.trim()) {
     return [];
   }
 
   const chunks: string[] = [];
-  const words = message.split(/(\s+)/);
+  const words = visibleMessage.split(/(\s+)/);
   let current = "";
 
   for (const part of words) {
