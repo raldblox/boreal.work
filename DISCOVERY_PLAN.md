@@ -39,6 +39,8 @@ Already live:
 - Bazaar-compatible seller metadata on the one-request seller block, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields
 - deterministic smokes for `one request`, `one inbox`, agents, and the broader lifecycle
 - Agentic Market ingestion inside Boreal's internal service-provider layer
+- curated AgentCash fallback discovery inside the service-provider layer
+- curated Frames handoff discovery inside the service-provider layer
 
 This means Boreal already has a real programmable surface.
 
@@ -49,6 +51,7 @@ What it does not have yet:
 - MCP Registry publication metadata and namespace verification
 - a ChatGPT app built with the Apps SDK
 - a verified public integration contract for Frames
+- runtime-level validation that Boreal can drive AgentCash end to end as a delegated buyer path without operator glue
 
 ## Principles
 

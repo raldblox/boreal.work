@@ -28,6 +28,7 @@
     "smoke:request-fetch-paths": "node --experimental-strip-types scripts/smoke-request-fetch-paths.ts",
     "smoke:request-recovery": "node --experimental-strip-types scripts/smoke-request-recovery.ts",
     "smoke:request-thread-specialists": "node --experimental-strip-types scripts/smoke-request-thread-specialists.ts",
+    "smoke:service-provider-adapters": "node --experimental-strip-types scripts/smoke-service-provider-adapters.ts",
     "smoke:supplier-capacity": "node --experimental-strip-types scripts/smoke-supplier-capacity.ts",
     "smoke:supplier-listing-guards": "node --experimental-strip-types scripts/smoke-supplier-listing-guards.ts",
     "smoke:supplier-onboarding": "node --experimental-strip-types scripts/smoke-supplier-onboarding.ts",

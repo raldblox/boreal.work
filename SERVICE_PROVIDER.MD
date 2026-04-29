@@ -58,7 +58,8 @@ The first real service-provider layer is now in the repo.
 
 - Boreal only invokes concrete x402 HTTP endpoints it can call safely right now.
 - Parameterized, ambiguous, or insufficiently normalized external listings are still discovery and handoff surfaces, not fully automatic execution.
-- MoonPay, MPP, Frames, and AgentCash remain architecture targets or limited-ingestion targets, not end-to-end shipped paths in the current alpha.
+- MoonPay and MPP remain architecture targets.
+- AgentCash and Frames now have curated discovery or onboarding adapters in Boreal's service-provider layer, but they are still not end-to-end shipped execution paths in the current alpha.
 - The premium one-request path now ships as a public `POST /api/v1/requests` contract with SIWX auth, `402`, request events, specialist execution, and a deterministic smoke test.
 
 ## Executive Summary
@@ -920,8 +921,9 @@ This is the first credible Solana-first stack.
 
 ### Phase 4: second-wave providers
 
-- [ ] `Frames` ingest and handoff
-- [ ] `AgentCash` delegated gateway and MCP integration
+- [x] `Frames` curated ingest and handoff adapter
+- [x] `AgentCash` curated delegated gateway adapter
+- [ ] `AgentCash` runtime-level MCP or delegated invoke integration
 
 ### Phase 5: second payment rail
 

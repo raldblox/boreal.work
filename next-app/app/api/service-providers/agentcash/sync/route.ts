@@ -10,10 +10,11 @@ export async function POST(request: Request) {
     const limit = limitParam ? Number(limitParam) : 24;
     const result = await syncDiscoveredProvider(
       {
-        description: "Machine-readable x402 registry source for public service discovery.",
-        displayName: "Agentic Market",
-        key: "agentic-market",
-        providerUrl: "https://agentic.market",
+        description:
+          "Curated delegated-gateway adapter for AgentCash skill, CLI, and MCP fallback discovery.",
+        displayName: "AgentCash",
+        key: "agentcash",
+        providerUrl: "https://agentcash.dev",
       },
       {
         limit: Number.isFinite(limit) ? Math.max(1, Math.min(limit, 100)) : 24,
@@ -25,7 +26,8 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Could not sync Agentic Market.",
+        error:
+          error instanceof Error ? error.message : "Could not sync AgentCash.",
       },
       { status: 500 },
     );

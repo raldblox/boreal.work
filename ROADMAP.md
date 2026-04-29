@@ -267,8 +267,8 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Agentic Market discovery sync route and normalized ingestion foundation
 - [x] External service-provider adapters with normalized schema mapping
 - [x] Upgrade path for supported direct x402 invocation on concrete endpoints
-- [ ] Tier B ingestion for `agentcash`
-- [ ] Tier B ingestion for `frames`
+- [x] Tier B ingestion for `agentcash` through a curated delegated-gateway adapter and sync route
+- [x] Tier B ingestion for `frames` through a curated handoff adapter and sync route
 - [ ] MoonPay funding and bridge adapters
 - [ ] Routing attribution and partner reporting
 

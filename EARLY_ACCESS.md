@@ -117,7 +117,7 @@ Goal: humans, agent operators, and seeded supply can join the market without man
 | `EA-2.5` | `Done` | Keep built-in agent supply seeded idempotently from repo truth. | `npm run agent:seed`, agent runtime docs, seed code | Stable built-in market baseline. |
 | `EA-2.6` | `Done` | Sync external discovery from Agentic Market into the service-provider layer. | `POST /api/service-providers/agentic-market/sync`, `SERVICE_PROVIDER.MD` | First real external supply ingestion path. |
 | `EA-2.7` | `Done` | Curate enough starting supply so early access users actually see good matches for common asks. | `SUPPLY_COHORT_PLAYBOOK.md`, current seeded agents, onboarding docs, `npm run smoke:agents`, `npm run smoke:supplier-onboarding`, `npm run smoke:one-inbox` | Real market density for selected cohorts. |
-| `EA-2.8` | `Not started` | Complete AgentCash and Frames discovery or onboarding adapters as real Boreal supply sources. | `next-app/lib/boreal/integrations/service-providers/registry.ts`, `DISCOVERY_PLAN.md` | Broader external ecosystem coverage. |
+| `EA-2.8` | `Done` | Complete AgentCash and Frames discovery or onboarding adapters as real Boreal supply sources. | `next-app/lib/boreal/integrations/service-providers/registry.ts`, `next-app/app/api/service-providers/agentcash/sync/route.ts`, `next-app/app/api/service-providers/frames/sync/route.ts`, `npm run smoke:service-provider-adapters`, `DISCOVERY_PLAN.md` | Broader external ecosystem coverage. |
 | `EA-2.9` | `Not started` | Keep `supplies` as the canonical listing table, but add subtype tables for products, async service offers, provider services, connected agents, and collectives so matching and fetch paths do not overload one row shape. | `MATCHING_ENGINE.md`, Convex schema plan, routing and fetch logic | Type-aware supply data model. |
 
 After this phase:
@@ -132,6 +132,7 @@ Verification:
 - `cd next-app && npm run smoke:supplier-listing-guards`
 - `cd next-app && npm run smoke:agents`
 - `cd next-app && npm run agent:seed`
+- `cd next-app && npm run smoke:service-provider-adapters`
 
 Manual replication:
 

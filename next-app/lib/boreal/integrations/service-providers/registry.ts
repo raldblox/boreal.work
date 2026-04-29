@@ -1,6 +1,8 @@
 import "server-only";
 
+import { agentcashDiscoveryAdapter } from "@/lib/boreal/integrations/service-providers/discovery/agentcash";
 import { agenticMarketDiscoveryAdapter } from "@/lib/boreal/integrations/service-providers/discovery/agentic-market";
+import { framesDiscoveryAdapter } from "@/lib/boreal/integrations/service-providers/discovery/frames";
 import type {
   DiscoveryInput,
   NormalizedCapability,
@@ -9,9 +11,9 @@ import type {
 } from "@/lib/boreal/integrations/service-providers/types";
 
 const discoveryAdapters: Record<ServiceProviderKey, ServiceDiscoveryAdapter | null> = {
-  "agentcash": null,
+  "agentcash": agentcashDiscoveryAdapter,
   "agentic-market": agenticMarketDiscoveryAdapter,
-  "frames": null,
+  "frames": framesDiscoveryAdapter,
   "manual": null,
   "moonpay": null,
   "solana-agent-kit": null,

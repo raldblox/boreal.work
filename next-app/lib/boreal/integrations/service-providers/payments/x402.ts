@@ -20,6 +20,30 @@ export function parsePaymentResponseHeader(headerValue: string | null) {
   }
 }
 
+export function parsePaymentRequiredHeader(headerValue: string | null) {
+  if (!headerValue) {
+    return null;
+  }
+
+  const trimmed = headerValue.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const decoded = tryDecodeBase64Json(trimmed);
+  if (decoded) {
+    return decoded;
+  }
+
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown> | unknown[];
+  } catch {
+    return {
+      raw: headerValue,
+    };
+  }
+}
+
 export function inferInvocationAccess(responseBody: unknown) {
   if (!responseBody || typeof responseBody !== "object") {
     return {
@@ -46,4 +70,31 @@ export function inferInvocationAccess(responseBody: unknown) {
 
 function pickString(value: unknown) {
   return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function tryDecodeBase64Json(value: string) {
+  for (const candidate of [value, normalizeBase64(value)]) {
+    try {
+      const decoded = Buffer.from(candidate, "base64").toString("utf8").trim();
+      if (!decoded) {
+        continue;
+      }
+      return JSON.parse(decoded) as Record<string, unknown> | unknown[];
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function normalizeBase64(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const remainder = normalized.length % 4;
+
+  if (remainder === 0) {
+    return normalized;
+  }
+
+  return `${normalized}${"=".repeat(4 - remainder)}`;
 }

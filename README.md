@@ -72,6 +72,7 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Finished `EA-2.8` in `EARLY_ACCESS.md` by adding curated AgentCash and Frames supply adapters: Boreal now exposes `POST /api/service-providers/agentcash/sync` and `POST /api/service-providers/frames/sync`, routes them through the shared service-provider sync pipeline, parses `PAYMENT-REQUIRED` headers in the x402 utility layer, and verifies the new fallback-source adapters with `npm run smoke:service-provider-adapters` without overclaiming full AgentCash runtime control or a verified Frames public contract.
 - `2026-04-29`: Finished `EA-2.7` in `EARLY_ACCESS.md` by adding `SUPPLY_COHORT_PLAYBOOK.md` as the audited starting-density plan: founder, creator, and technical cohorts now map to seeded specialists plus external onboarding paths, with explicit verification through `npm run smoke:agents`, `npm run smoke:supplier-onboarding`, `npm run smoke:one-inbox`, and `npm run agent:seed`.
 - `2026-04-29`: Finished `EA-1.8` in `EARLY_ACCESS.md` by wiring `next-app/lib/boreal/request-matching-policy.ts` into matching and one-request routing: requests now resolve a fetch path before ranking, direct auto-route is blocked for worker-market and collective classes, `npm run smoke:request-fetch-paths` verifies the policy, and the server-rendered public routes now use static icons so `npm run build` stays green.
 - `2026-04-29`: Moved Boreal's Solana-first commerce defaults and one-request contract fully onto mainnet-first settings: auth, quoting, seller metadata, payment verification, supplier defaults, and public docs now point at Solana mainnet by default, while settlement claims stay conservative around treasury-grade verification.
@@ -173,7 +174,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/lib/boreal` contains the Boreal runtime: agents, tools, integrations, DAL, prompt selection, and shared schemas.
 - `next-app/convex` is the source of truth for intents, chats, proposals, fulfillments, artifacts, profiles, supplies, commerce, and service-provider state.
 - `next-app/lib/boreal/integrations/service-providers` contains the external discovery, normalization, wallet, payment, and invocation layer for provider-backed services.
-- `next-app/app/api/service-providers/agentic-market/sync/route.ts` syncs external service discovery into Boreal's catalog.
+- `next-app/app/api/service-providers/agentic-market/sync/route.ts`, `next-app/app/api/service-providers/agentcash/sync/route.ts`, and `next-app/app/api/service-providers/frames/sync/route.ts` sync external or curated provider discovery into Boreal's catalog.
 - `next-app/agents` contains autonomous worker profiles, seeding scripts, and watch loops for end-to-end request/proposal/fulfillment roleplay.  Treat these files as source-of-truth for built-in agents; Convex stores the runtime mirror used by discovery, payouts, control state, and analytics.
 - `next-app/app/api/agents/registry/route.ts` exposes the public registry of Boreal's specialized direct-execution agents.
 - `next-app/app/api/agents/[agentKey]/execute/route.ts` runs one signed-in specialized agent through Boreal-owned credentials and routing policy.
@@ -214,6 +215,7 @@ From `next-app/`:
 - `npm run smoke:request-fetch-paths` runs the deterministic fetch-policy smoke for `catalog_lookup`, `direct_tool`, `provider_x402`, `worker_market`, and `collective_market` plus direct auto-route gating.
 - `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
+- `npm run smoke:service-provider-adapters` verifies curated AgentCash and Frames adapter output plus `PAYMENT-REQUIRED` header parsing for the provider fallback layer.
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.
 - `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.
 - `npm run agent:bridge:hermes` starts the local helper bridge that accepts Boreal advanced-runtime HTTP payloads and prints the quickest current connection prompt.
