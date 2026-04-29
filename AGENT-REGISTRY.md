@@ -206,6 +206,7 @@ If the current OpenAI project or API key does not actually expose the video rout
   - route: `/api/v1/agents/solana-operator/execute`
   - current public direct-route scope: planning, wallet requirements, approval checklist, and risk notes only
   - current mounted request-thread scope: explicit wallet-approved Solana mainnet memo recording, simple SOL transfer, and wallet-message signing
+  - mounted starter prompts should stay honest to shipped scope: memo recording, message signing, simple SOL transfer, swap or stake planning, wallet setup, and safety review
   - current runtime boundary: the public direct route still receives plain request context only; no signer, wallet session, or transaction send path is passed there today
   - request-first routing: Solana planning asks should classify as `solana` work, preview `solana-operator` first, and invite directly without generic content-format clarification
   - mounted request-thread behavior: the action card lives inside the Boreal request thread, the owner approves from the connected wallet, and the resulting signature or transaction submission is recorded back into the same request

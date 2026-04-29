@@ -9,7 +9,7 @@
     "start": "next start",
     "convex:dev": "npx convex dev",
     "convex:wipe:dev": "node --experimental-strip-types scripts/wipe-convex-dev.ts",
-    "convex:reset:dev": "npm run convex:wipe:dev -- --yes && npm run agent:seed",
+    "convex:reset:dev": "node --experimental-strip-types scripts/reset-convex-dev.ts --yes",
     "docs:sync:public": "node --experimental-strip-types scripts/sync-public-docs.ts",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",

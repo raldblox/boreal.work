@@ -332,6 +332,51 @@ const starterPrompts = [
   },
 ] as const
 
+const mountedAgentStarterPrompts: Record<
+  string,
+  ReadonlyArray<{ prompt: string; title: string }>
+> = {
+  "solana-operator": [
+    {
+      prompt: 'Record "hello from Boreal" on Solana mainnet with a memo.',
+      title: "Record a memo onchain",
+    },
+    {
+      prompt: 'Sign message "hello from Boreal" with my Solana wallet.',
+      title: "Sign a wallet message",
+    },
+    {
+      prompt: "Send 0.001 SOL to <destination address> on Solana mainnet.",
+      title: "Send a small SOL transfer",
+    },
+    {
+      prompt:
+        "Plan a low-risk USDC to SOL swap on Solana mainnet with approval steps and risk notes.",
+      title: "Plan a mainnet swap",
+    },
+    {
+      prompt:
+        "Plan how to stake SOL on Solana mainnet after swapping, including wallet checks, approvals, and risks.",
+      title: "Plan staking safely",
+    },
+    {
+      prompt:
+        "Review a Solana wallet approval flow for safety and explain what I should check before signing.",
+      title: "Review wallet approval safety",
+    },
+    {
+      prompt:
+        "Explain how Phantom or Solflare wallet setup works on Solana mainnet and what each approval step means.",
+      title: "Explain wallet setup",
+    },
+    {
+      prompt:
+        "Compare two Solana execution paths for me and recommend the safer one with tradeoffs and irreversible risks.",
+      title: "Compare two execution paths",
+    },
+  ],
+}
+
 const emptyWorkspace: WorkspaceState = {
   kind: "empty",
   subtitle:
@@ -623,6 +668,9 @@ export function ChatShell() {
     : mountedComposerAgents.length > 0
       ? mountedComposerAgents
       : [DEFAULT_MOUNTED_COMPOSER_AGENT]
+  const mountedComposerStarterPromptOptions = getMountedComposerStarterPrompts(
+    activeComposerAgents
+  )
   const mountedTeamLabel = formatMountedComposerTeamLabel(activeComposerAgents)
   const homeComposerPlaceholder =
     !activeIntentId && mountedComposerAgents.length > 0
@@ -3721,6 +3769,27 @@ export function ChatShell() {
                                 <AssistantDebugTools
                                   events={message.debugEvents}
                                 />
+                              ) : null}
+                              {!activeIntentId &&
+                              message.id === MOUNTED_TEAM_THREAD_MESSAGE_ID &&
+                              mountedComposerStarterPromptOptions.length > 0 ? (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {mountedComposerStarterPromptOptions.map(
+                                    (prompt) => (
+                                      <Button
+                                        key={prompt.title}
+                                        onClick={() =>
+                                          fillComposerAndFocus(prompt.prompt)
+                                        }
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                      >
+                                        {prompt.title}
+                                      </Button>
+                                    )
+                                  )}
+                                </div>
                               ) : null}
                             </MessageContent>
                           </Message>
@@ -7519,6 +7588,20 @@ function formatMountedComposerTeamLabel(agents: MountedComposerAgent[]) {
   }
 
   return agents.map((agent) => agent.title).join(", ")
+}
+
+function getMountedComposerStarterPrompts(agents: MountedComposerAgent[]) {
+  if (agents.length !== 1) {
+    return []
+  }
+
+  const directAgentKey = agents[0]?.directAgentKey
+
+  if (!directAgentKey) {
+    return []
+  }
+
+  return [...(mountedAgentStarterPrompts[directAgentKey] ?? [])]
 }
 
 function buildMountedTeamIntroMessage(agents: MountedComposerAgent[]): ChatMessage {

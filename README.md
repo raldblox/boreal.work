@@ -68,7 +68,7 @@ npm run agent:watch:all
 Operator note:
 
 - `convex:wipe:dev` prints the current Convex deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting data.
-- `convex:reset:dev` is the fastest clean-iteration path: wipe the current dev deployment, then reseed the built-in agents immediately.
+- `convex:reset:dev` is the fastest clean-iteration path: resolve the current selected Convex dev deployment once, wipe it, then reseed the built-in agents against that exact same deployment URL.
 - `agent:seed` syncs agent identities, profiles, supplies, payout metadata, and analytics rows.
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
@@ -80,6 +80,7 @@ npm run docs:sync:public
 ```
 
 ## Changelog
+- `2026-04-30`: Added mounted Solana starter prompts in Boreal chat: selecting `Solana Operator` now shows click-to-fill sample prompts for the actually shipped safe paths first, including memo recording, wallet-message signing, simple SOL transfer, swap or stake planning, and wallet-safety review.
 - `2026-04-30`: Added transport-only local model bridge presets for advanced connected-agent operators: `npm run agent:bridge:ollama`, `npm run agent:bridge:lmstudio`, and `npm run agent:bridge:local-model` now expose Boreal's HTTP executor contract to operator-owned local runtimes without forwarding Boreal Agent hidden prompts or replacing the default cloud Boreal agent.
 - `2026-04-30`: Replaced the active Solana wallet path with Reown while leaving NextAuth untouched for identity: Boreal now opens a Solana-only Reown wallet connect flow for mounted request-thread actions, removes the old Privy wallet runtime from the app, requires `NEXT_PUBLIC_REOWN_PROJECT_ID` locally, and keeps provider-backed x402 wallet automation explicitly disabled until the Reown payment bridge reaches parity.
 - `2026-04-29`: Mounted `solana-operator` can now do a limited non-custodial Solana mainnet action path inside the request thread: explicit wallet-approved memo recording, simple SOL transfer, and wallet-message signing.  The public direct specialist route is still planning-first, the mounted thread records signatures or submissions back into the same request, and `npm run smoke:solana-thread-actions` keeps that path honest.
@@ -215,7 +216,7 @@ From `next-app/`:
 - `npm run dev` starts the Next.js app.
 - `npm run convex:dev` starts the Convex dev loop and syncs schema/functions.
 - `npm run convex:wipe:dev` wipes every app table on the current selected Convex development deployment after printing the target and asking for confirmation.
-- `npm run convex:reset:dev` wipes the current selected Convex development deployment and then reseeds the built-in agents.
+- `npm run convex:reset:dev` resolves the current selected Convex development deployment once, wipes it, then reseeds the built-in agents against that same target.
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run lint` runs ESLint.
 - `npm run build` builds the app for production.

@@ -1,6 +1,10 @@
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { spawnSync } from "node:child_process";
+import {
+  getCurrentConvexDeploymentSelection,
+  looksLikeProdDeployment,
+  runConvexCommand,
+} from "./convex-dev-utils.ts";
 
 const CONFIRMATION_PROMPT = "WIPE";
 const CONVEX_CONFIRMATION = "WIPE DEVELOPMENT DATA";
@@ -18,10 +22,8 @@ async function main() {
 
   const batchSize = parseBatchSize(args);
   const autoConfirm = args.includes("--yes");
-  const deploymentInfo = runConvexCommand(["deployments"], {
-    captureOutput: true,
-  });
-  const deploymentText = `${deploymentInfo.stdout}${deploymentInfo.stderr}`;
+  const selection = getCurrentConvexDeploymentSelection();
+  const deploymentText = selection.rawText;
 
   console.log(deploymentText.trim());
 
@@ -68,16 +70,6 @@ function confirmWipe() {
     .finally(() => readline.close());
 }
 
-function looksLikeProdDeployment(value: string) {
-  const normalized = value.toLowerCase();
-
-  return (
-    normalized.includes("preview deployment") ||
-    normalized.includes("(prod)") ||
-    normalized.includes("type: prod")
-  );
-}
-
 function parseBatchSize(args: string[]) {
   const inline = args.find((arg) => arg.startsWith("--batch-size="));
 
@@ -109,56 +101,6 @@ function formatConvexArgs(input: {
   const confirm = input.confirm.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
   return `{batchSize:${input.batchSize},confirm:'${confirm}'}`;
-}
-
-function runConvexCommand(
-  args: string[],
-  options?: {
-    captureOutput?: boolean;
-  },
-) {
-  const command = process.platform === "win32" ? "npx.cmd" : "npx";
-  const commandArgs = ["convex", ...args];
-  const result =
-    process.platform === "win32"
-      ? spawnSync(buildWindowsShellCommand(command, commandArgs), {
-          cwd: process.cwd(),
-          encoding: "utf8",
-          shell: true,
-          stdio: options?.captureOutput ? "pipe" : "inherit",
-        })
-      : spawnSync(command, commandArgs, {
-          cwd: process.cwd(),
-          encoding: "utf8",
-          stdio: options?.captureOutput ? "pipe" : "inherit",
-        });
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status !== 0) {
-    if (options?.captureOutput) {
-      process.stdout.write(result.stdout ?? "");
-      process.stderr.write(result.stderr ?? "");
-    }
-
-    throw new Error(`Failed to run: ${[command, ...commandArgs].join(" ")}`);
-  }
-
-  return result;
-}
-
-function buildWindowsShellCommand(command: string, args: string[]) {
-  return [command, ...args].map(quoteWindowsShellToken).join(" ");
-}
-
-function quoteWindowsShellToken(token: string) {
-  if (/^[A-Za-z0-9_./:-]+$/.test(token)) {
-    return token;
-  }
-
-  return `"${token.replace(/"/g, '\\"')}"`;
 }
 
 void main().catch((error) => {
