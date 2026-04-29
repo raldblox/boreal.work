@@ -2,7 +2,7 @@
 
 Status: CTO working note for the first paid early-access wedge.
 
-This note is narrower than `WHITEPAPER.md` and more execution-focused than `ROADMAP.md`.
+This note is narrower than `BOREAL_BOOK.md` and more execution-focused than `ROADMAP.md`.
 Its purpose is to answer one practical question:
 
 What supply should Boreal push first so the product can route real requests, deliver with quality, defend margin, and avoid becoming a thin wrapper around other marketplaces?

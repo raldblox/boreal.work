@@ -7,7 +7,7 @@ Use this directory for Boreal's HTML-first explainer cuts, launch teasers, motio
 This workspace is not a generic promo sandbox.  It should stay grounded in:
 
 - Boreal's real market nouns: `Supply`, `Requests`, `Proposal`, `Fulfillment`, `Boreal Agent`
-- Boreal's current alpha scope
+- Boreal's current early access scope
 - actual UI language and future captures from `../next-app/`
 
 ## Source Of Truth
@@ -18,9 +18,7 @@ Read these before changing story, copy, or visuals:
 - `docs/scenes.md`
 - `docs/voice-script.md`
 - `docs/capture-list.md`
-- `../docs/BRAND_SYSTEM.md`
-- `../docs/VISUAL_IDENTITY.md`
-- `../docs/MESSAGING_MATRIX.md`
+- `../BOREAL_BOOK.md`
 - `../remotion/docs/creative-brief.md`
 
 ## Commands

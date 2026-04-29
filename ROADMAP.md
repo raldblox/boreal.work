@@ -1,6 +1,6 @@
 # Boreal Roadmap
 
-This roadmap translates `WHITEPAPER.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 29, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
+This roadmap translates `BOREAL_BOOK.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 29, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
 
 ## Current Readout
 
@@ -41,9 +41,36 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
-- Boreal is still behind the whitepaper on protocol depth, external agent identity, portable reputation, recommendation quality, relay-backed collaboration, and generalized collective settlement.
+- Boreal is still behind its longer-term target architecture on protocol depth, external agent identity, portable reputation, recommendation quality, relay-backed collaboration, and generalized collective settlement.
 - Boreal is effectively between Milestone A and Milestone B: the early-access surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
+
+## Release Gate
+
+This is now the single release-gate summary for Boreal.
+
+- Current mode: `open early access surface`, not broad public mainnet-paid readiness
+- Strongest live proof today: request-first work loop, mounted specialist chat start, supplier onboarding, matched inbox, collective proposals, connected-agent callbacks, merchant-native `/account` offers, classifier-first fetch paths, provider fallback adapters, mainnet-default payment verification, and payout state progression
+- Biggest blockers today: real mainnet payment and payout hardening; funded-start rules for human and agent work; escrow for async labor; type-aware supply subtype tables; stronger team-assignment and validator operations; richer merchant product pages and merchant-specific smoke coverage; and rollout metrics, runbooks, plus kill switches
+
+## Paid Launch Wedge
+
+This is now the single wedge summary for Boreal's first paid push.
+
+- Buyer: early-stage founders shipping in the next 30 days
+- Offer: `Launch Copy Pack`
+- Outcome: launch page copy, onboarding copy, and a checkout-ready listing draft
+- SLA: 24 hours
+- Delivery model: direct Boreal execution first, human or hybrid polish only when real judgment is required
+
+The wedge exists to test:
+
+- willingness to pay
+- request intake quality
+- routing quality
+- fulfillment quality
+- human-assist rate
+- margin survivability
 
 ## Milestone Readout
 
@@ -74,15 +101,16 @@ Goal: keep roadmap work moving every week instead of only after major feature pu
 
 Goal: make the written story match the live early access product, preserve the strongest Boreal language, and keep public copy aligned on one clean brand voice.
 
-- [x] Create `docs/POSITIONING_TRIAGE.md` to classify what to keep, rewrite, recycle, and archive from earlier Boreal repos
-- [x] Create `docs/CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
-- [x] Rewrite the top of `WHITEPAPER.md` and its `What Boreal Has Built` / `What Is Live Today` sections so live early-access claims are separated from target architecture
-- [ ] Finish the rest of `WHITEPAPER.md` so `live today`, `in progress`, and `target architecture` stay clearly separated end to end
+- [x] Create the positioning triage note now archived at `docs/archive/POSITIONING_TRIAGE.md` to classify what to keep, rewrite, recycle, and archive from earlier Boreal repos
+- [x] Create the category-language research note now archived at `docs/archive/CATEGORY_LANGUAGE_RESEARCH.md` to map adjacent market language and choose a Boreal naming stack
+- [x] Publish `BOREAL_BOOK.md` as the single living narrative canon for Boreal's brand, product definition, UX laws, release boundary, and public truth
+- [x] Retire `WHITEPAPER.md` into compatibility mode once `BOREAL_BOOK.md` absorbs the live narrative layer
+- [x] Fold the old `EARLY_ACCESS.md` and `MVP.md` responsibilities into `ROADMAP.md` through the `Release Gate` and `Paid Launch Wedge` sections
 - [x] Align `README.md`, chat zero-state copy, the `/about` feature/spec page, `ROADMAP.md`, and early access messaging on one canonical naming stack:
   - `chat-native` for the interface layer
   - `request-native` for the system and category layer
   - `intent-to-fulfillment` for the thesis layer
-- [x] Establish the public editorial voice in `docs/BRAND_SYSTEM.md` and `docs/COPYWRITING.md`:
+- [x] Establish the public editorial voice inside `BOREAL_BOOK.md`:
   - clean, literary, direct
   - use contrast, accumulation, reversal, redefinition, and thesis lines
   - distinguish `intent` from `request`
@@ -95,6 +123,8 @@ Goal: make the written story match the live early access product, preserve the s
 - [x] Publish a versioned agent-operator troubleshooting matrix across auth, `402`, inbox, delivery, payout, callbacks, and webhooks
 - [x] Publish behavior-first examples for agent owners: find work, post work, track progress, deliver work, and check payout
 - [x] Publish one explicit public agent-owner onboarding flow that points operators to `/account` for UI setup and to `SIWX` plus `/api/v1/supplies` for API-side offer publishing before request and inbox work begins
+- [x] Move historical research notes into `docs/archive/` and internal Codex prompt-process notes into `docs/internal/` so the repo root stays focused on live canon and active specs
+- [x] Generate `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, and `next-app/public/agent-registry.md` from the root source contracts instead of hand-maintaining duplicate markdown
 - [ ] Recycle the intent-to-fulfillment product laws and matching order from `../BorealWork`
 - [ ] Recycle the canonical schema, adapter, and protocol framing from `../boreal-commerce`
 - [ ] Recycle seller-specific representative and merchant copy from `../boreal/.boreal` and `../boreal/.private-docs`

@@ -306,7 +306,7 @@ function SupplyCard({
   const selectionButtonLabel = isDefaultBorealCard
     ? "Default"
     : listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID
-      ? "Use default"
+      ? "Switch to Boreal"
       : isMounted
         ? "Remove"
         : "Select"

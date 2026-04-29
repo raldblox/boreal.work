@@ -10,13 +10,11 @@ import {
   PackageIcon,
   PanelLeftOpenIcon,
   PanelRightCloseIcon,
-  SearchIcon,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
-import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { publicSiteLinks } from "@/components/home/public-site-nav-data"
 
@@ -110,7 +108,6 @@ export function ChatShellHeader({
   hideWorkspaceToggle = false,
   inlineNavHrefs = [],
   isRequestSelected,
-  isSubmitting,
   onOpenMobileDiscovery,
   onOpenMobileIntentSidebar,
   onSelectInlineNav,
@@ -124,7 +121,6 @@ export function ChatShellHeader({
   hideWorkspaceToggle?: boolean
   inlineNavHrefs?: readonly string[]
   isRequestSelected: boolean
-  isSubmitting: boolean
   onOpenMobileDiscovery: () => void
   onOpenMobileIntentSidebar: () => void
   onSelectInlineNav?: (href: string) => void
@@ -222,14 +218,15 @@ export function ChatShellHeader({
               ))}
             </div>
             <Button
-              aria-label="Open discovery drawer"
+              aria-label="Open market drawer"
+              className="hover:bg-accent hover:text-accent-foreground"
               onClick={onOpenMobileDiscovery}
               size="sm"
               type="button"
               variant="outline"
             >
-              <SearchIcon />
-              Discovery
+              <PackageIcon />
+              Market
             </Button>
           </div>
           <div className="hidden items-center gap-2 lg:flex">
@@ -246,8 +243,8 @@ export function ChatShellHeader({
               ) : (
                 <Button
                   aria-label="Open market"
+                  className="h-10 px-4 text-sm hover:bg-accent hover:text-accent-foreground"
                   onClick={onToggleWorkspace}
-                  size="sm"
                   type="button"
                   variant="outline"
                 >
@@ -257,9 +254,6 @@ export function ChatShellHeader({
               )
             ) : null}
           </div>
-          {isSubmitting ? (
-            <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
-          ) : null}
         </div>
       </div>
     </div>

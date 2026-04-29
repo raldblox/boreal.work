@@ -1,4 +1,4 @@
-import { DotmTriangle16 } from "@/components/ui/dotm-triangle-16"
+import { DotmTriangle3 } from "@/components/ui/dotm-triangle-3"
 import { cn } from "@/lib/utils"
 
 type SpinnerProps = {
@@ -27,11 +27,11 @@ function Spinner({ ariaLabel = "Loading", className, size }: SpinnerProps) {
   const resolvedClassName = resolveSpinnerClassName(className)
 
   return (
-    <DotmTriangle16
+    <DotmTriangle3
       ariaLabel={ariaLabel}
       className={cn("overflow-visible shrink-0 align-middle", resolvedClassName)}
       size={resolvedSize}
-      speed={1.6}
+      speed={1.55}
     />
   )
 }

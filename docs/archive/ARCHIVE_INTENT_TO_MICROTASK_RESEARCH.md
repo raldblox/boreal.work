@@ -10,7 +10,7 @@
 >
 > For current product direction, use these documents first:
 >
-> - `../WHITEPAPER.md`
+> - `../BOREAL_BOOK.md`
 > - `../ROADMAP.md`
 > - `../MATCHING_ENGINE.md`
 > - `../COMMERCE_STANDARDS.md`

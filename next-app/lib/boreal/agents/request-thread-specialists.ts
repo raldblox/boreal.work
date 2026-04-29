@@ -87,6 +87,36 @@ export function buildInitialInteractiveFollowUpQuestion(agentKey: string) {
   return buildInitialFollowUpQuestion(agentKey);
 }
 
+export function isGreetingLikeThreadMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+
+  if (!normalized) {
+    return true;
+  }
+
+  return /^(hi|hello|hey|yo|sup|hola|good morning|good afternoon|good evening)[!.?\s]*$/.test(
+    normalized,
+  );
+}
+
+export function buildDirectSpecialistThreadGreeting(input: {
+  agentDisplayName: string;
+  agentKey?: string | null;
+  teammateNames?: string[];
+}) {
+  const teammateNames = (input.teammateNames ?? []).filter(Boolean);
+
+  if (teammateNames.length > 1) {
+    return `${teammateNames.join(", ")} are on this request. Tell us the task or question and we will continue from this thread.`;
+  }
+
+  if (input.agentKey === "solana-operator") {
+    return "Solana Operator here. Tell me the Solana task or question and I will help from this request thread.";
+  }
+
+  return `${input.agentDisplayName} here. Tell me the task or question and I will help from this request thread.`;
+}
+
 export function buildInteractiveExecutionMessage(
   result: AgentExecutionResult,
 ): string {

@@ -7,7 +7,13 @@ This note consolidates the current repo docs with reusable material from earlier
 - `../boreal`
 - `../boreal-work`
 
-It is an editorial working map, not the final public whitepaper.
+It is an archived editorial working map, not the living Boreal narrative canon.
+
+For current public truth, use these docs first:
+
+- `../BOREAL_BOOK.md`
+- `../ROADMAP.md`
+- `../README.md`
 
 ## Canonical Position For The Current Repo
 

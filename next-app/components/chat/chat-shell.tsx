@@ -677,13 +677,15 @@ export function ChatShell() {
     : null
 
   const requestMessages: ChatMessage[] =
-    requestDetail?.messages.map((message) => ({
-      content: message.body,
-      createdAt: message.createdAt,
-      id: message._id,
-      role:
-        message.role === "user" ? ("user" as const) : ("assistant" as const),
-    })) ?? []
+    requestDetail?.messages
+      .filter((message) => shouldRenderRequestMessageInChat(message))
+      .map((message) => ({
+        content: message.body,
+        createdAt: message.createdAt,
+        id: message._id,
+        role:
+          message.role === "user" ? ("user" as const) : ("assistant" as const),
+      })) ?? []
 
   const mergedRequestMessages = activeIntentId
     ? [
@@ -1618,46 +1620,7 @@ export function ChatShell() {
     setIsSubmitting(true)
     setPendingApprovalIntentId(null)
     const now = Date.now()
-
-    if (activeIntentId) {
-      try {
-        const threadResponse = await fetch(
-          `/api/requests/${activeIntentId}/messages`,
-          {
-            body: JSON.stringify({ body: trimmed }),
-            headers: {
-              "Content-Type": "application/json",
-            },
-            method: "POST",
-          }
-        )
-        const threadPayload = (await threadResponse.json()) as {
-          error?: string
-          sent?: boolean
-        }
-
-        if (!threadResponse.ok || !threadPayload.sent) {
-          throw new Error(
-            threadPayload.error ?? "Failed to send request message."
-          )
-        }
-
-        setComposerText("")
-
-        if (!effectiveBorealEnabled) {
-          setIsSubmitting(false)
-          return
-        }
-      } catch (error) {
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Failed to send request message."
-        )
-        setIsSubmitting(false)
-        return
-      }
-    }
+    const isRequestThreadSubmit = Boolean(activeIntentId)
 
     if (!activeIntentId && !effectiveBorealEnabled) {
       try {
@@ -1707,26 +1670,28 @@ export function ChatShell() {
       }
     }
 
-    const assistantMessageId = crypto.randomUUID()
+    const optimisticUserMessageId = crypto.randomUUID()
+    const assistantMessageId = isRequestThreadSubmit
+      ? null
+      : crypto.randomUUID()
     setMessages((current) => [
       ...current,
-      ...(!activeIntentId
-        ? [
-          {
-            content: trimmed,
-            createdAt: now,
-            id: crypto.randomUUID(),
-            role: "user" as const,
-          },
-        ]
-        : []),
       {
-        content: "",
+        content: trimmed,
         createdAt: now,
-        id: assistantMessageId,
-        role: "assistant",
+        id: optimisticUserMessageId,
+        role: "user" as const,
       },
+      ...(assistantMessageId
+        ? [{
+          content: "",
+          createdAt: now,
+          id: assistantMessageId,
+          role: "assistant" as const,
+        }]
+        : []),
     ])
+    setComposerText("")
 
     try {
       const response = await fetch("/api/chat", {
@@ -1766,7 +1731,6 @@ export function ChatShell() {
 
       setConversationId(finalPayload.conversationId)
       setWorkspace(finalPayload.workspace)
-      setComposerText("")
       if (!activeIntentId && mountedComposerAgents.length > 0 && finalPayload.intentId) {
         updateWorkspaceUrl({
           browse: "workers",
@@ -1794,11 +1758,21 @@ export function ChatShell() {
 
       setPendingApprovalIntentId(null)
     } catch (error) {
-      setMessages((current) =>
-        current.filter(
-          (currentMessage) => currentMessage.id !== assistantMessageId
+      if (isRequestThreadSubmit) {
+        setMessages((current) =>
+          current.filter(
+            (currentMessage) =>
+              currentMessage.id !== optimisticUserMessageId &&
+              currentMessage.id !== assistantMessageId
+          )
         )
-      )
+      } else if (assistantMessageId) {
+        setMessages((current) =>
+          current.filter(
+            (currentMessage) => currentMessage.id !== assistantMessageId
+          )
+        )
+      }
       setErrorMessage(
         error instanceof Error ? error.message : "Chat request failed."
       )
@@ -4442,7 +4416,6 @@ function InlineRequestActionEvent({
   isArchivingRequest,
   isApprovingRequest,
   isCancellingRequest,
-  isMarkingRequestFulfilled,
   isRefreshingRequest,
   isRetryingRequest,
   isSubmittingReview,
@@ -4451,14 +4424,12 @@ function InlineRequestActionEvent({
   onApproveRequest,
   onCancelRequest,
   onDeleteIntent,
-  onMarkRequestFulfilled,
   onOpenProfileBuilder,
   onOpenRequestForWorkers,
   onRefreshRequest,
   onRetryRequest,
   onSubmitReview,
   onViewProfile,
-  participants,
   proposals,
   shouldPromptReview,
 }: {
@@ -4469,7 +4440,6 @@ function InlineRequestActionEvent({
   isArchivingRequest: boolean
   isApprovingRequest: boolean
   isCancellingRequest: boolean
-  isMarkingRequestFulfilled: boolean
   isRefreshingRequest: boolean
   isRetryingRequest: boolean
   isSubmittingReview: boolean
@@ -4478,14 +4448,12 @@ function InlineRequestActionEvent({
   onApproveRequest: () => void
   onCancelRequest: () => void
   onDeleteIntent: () => void
-  onMarkRequestFulfilled: () => Promise<void>
   onOpenProfileBuilder: () => void
   onOpenRequestForWorkers: () => Promise<void>
   onRefreshRequest: () => Promise<void>
   onRetryRequest: () => Promise<void>
   onSubmitReview: (rating: number) => void
   onViewProfile: (profileId: string) => void
-  participants: RequestDetail["participants"]
   proposals: RequestDetail["proposals"]
   shouldPromptReview: boolean
 }) {
@@ -4498,18 +4466,17 @@ function InlineRequestActionEvent({
   const submittedProposals = (proposals ?? []).filter(
     (proposal) => proposal.status === "submitted"
   )
-  const acceptedProposal =
-    (proposals ?? []).find((proposal) => proposal.status === "accepted") ?? null
-  const workingParticipants = (participants ?? []).filter(
-    (participant) => participant.status !== "owner"
-  )
   const handlingMode = getRequestHandlingMode(intent)
   const isProfileUpdate = intent.routeTarget === "profile_update"
   const isMatchedCatalogRoute =
     handlingMode === "boreal" && intent.shouldSearchCatalog
   const blockedErrorMessage = getLatestBlockedErrorMessage(activity)
 
-  if (actionState.kind === "none" || actionState.kind === "review") {
+  if (
+    actionState.kind === "none" ||
+    actionState.kind === "review" ||
+    actionState.kind === "in_flight"
+  ) {
     return null
   }
 
@@ -4655,23 +4622,6 @@ function InlineRequestActionEvent({
           </div>
         </div>
       ) : null}
-      {actionState.kind === "in_flight" ? (
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          {acceptedProposal?.etaAt ? (
-            <span className="border border-border px-2 py-1">
-              Est. delivery {formatRequestDate(acceptedProposal.etaAt)}
-            </span>
-          ) : null}
-          {workingParticipants.length > 0 ? (
-            <span className="border border-border px-2 py-1">
-              Working now{" "}
-              {workingParticipants
-                .map((participant) => participant.displayName)
-                .join(", ")}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
       {intent.missingDetails.length > 0 ? (
         <div className="space-y-2">
           <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
@@ -4815,43 +4765,6 @@ function InlineRequestActionEvent({
                 <RefreshCwIcon />
               )}
               Refresh
-            </Button>
-          </>
-        ) : null}
-        {actionState.kind === "in_flight" ? (
-          <>
-            {isProfileUpdate ? (
-              <Button onClick={onOpenProfileBuilder} size="sm" type="button">
-                <CircleUserRoundIcon />
-                Update profile
-              </Button>
-            ) : null}
-            <Button
-              disabled={isRefreshingRequest}
-              onClick={() => void onRefreshRequest()}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              {isRefreshingRequest ? (
-                <LoaderIcon className="animate-spin" />
-              ) : (
-                <RefreshCwIcon />
-              )}
-              Refresh
-            </Button>
-            <Button
-              disabled={isMarkingRequestFulfilled}
-              onClick={() => void onMarkRequestFulfilled()}
-              size="sm"
-              type="button"
-            >
-              {isMarkingRequestFulfilled ? (
-                <LoaderIcon className="animate-spin" />
-              ) : (
-                <CheckIcon />
-              )}
-              Mark as fulfilled
             </Button>
           </>
         ) : null}
@@ -5062,6 +4975,14 @@ function RequestChatTimeline({
   workspace: WorkspaceState
 }) {
   const timeline = buildRequestTimeline(requestDetail, review, liveMessages)
+  const requestActionState = requestDetail.intent
+    ? getRequestActionState(
+        requestDetail.intent,
+        requestDetail.access,
+        shouldPromptReview,
+        requestDetail.activity
+      )
+    : null
   const catalogApprovalIntentId =
     requestDetail.intent &&
     requestDetail.access?.isOwner &&
@@ -5073,6 +4994,19 @@ function RequestChatTimeline({
 
   return (
     <>
+      {requestDetail.intent && requestActionState?.kind === "in_flight" ? (
+        <RequestInFlightBanner
+          isMarkingRequestFulfilled={isMarkingRequestFulfilled}
+          isProfileUpdate={requestDetail.intent.routeTarget === "profile_update"}
+          isRefreshingRequest={isRefreshingRequest}
+          onMarkRequestFulfilled={onMarkRequestFulfilled}
+          onOpenProfileBuilder={onOpenProfileBuilder}
+          onRefreshRequest={onRefreshRequest}
+          participants={requestDetail.participants}
+          proposals={requestDetail.proposals}
+        />
+      ) : null}
+
       {timeline.map((entry) => {
         if (entry.kind === "message") {
           const role = entry.item.sender.isCurrentUser
@@ -5101,10 +5035,12 @@ function RequestChatTimeline({
         if (entry.kind === "live") {
           return (
             <Message from={entry.item.role} key={entry.key}>
-              <p className="mb-1 flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-                <BotIcon className="size-3" />
-                <span>Boreal Agent</span>
-              </p>
+              {entry.item.role === "assistant" ? (
+                <p className="mb-1 flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                  <BotIcon className="size-3" />
+                  <span>Boreal Agent</span>
+                </p>
+              ) : null}
               <MessageContent>
                 <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
                   {entry.item.content}
@@ -5157,7 +5093,6 @@ function RequestChatTimeline({
           isArchivingRequest={isArchivingRequest}
           isApprovingRequest={isApprovingRequest}
           isCancellingRequest={isCancellingRequest}
-          isMarkingRequestFulfilled={isMarkingRequestFulfilled}
           isRefreshingRequest={isRefreshingRequest}
           isRetryingRequest={isRetryingRequest}
           isSubmittingReview={isSubmittingReview}
@@ -5167,12 +5102,10 @@ function RequestChatTimeline({
           activity={requestDetail.activity}
           onCancelRequest={() => onCancelRequest(requestDetail.intent?._id)}
           onDeleteIntent={onDeleteIntent}
-          onMarkRequestFulfilled={onMarkRequestFulfilled}
           onOpenProfileBuilder={onOpenProfileBuilder}
           onOpenRequestForWorkers={onOpenRequestForWorkers}
           onRefreshRequest={onRefreshRequest}
           onRetryRequest={onRetryRequest}
-          participants={requestDetail.participants}
           onSubmitReview={onSubmitReview}
           onViewProfile={onViewProfile}
           proposals={requestDetail.proposals}
@@ -5208,8 +5141,26 @@ function buildRequestTimeline(
   liveMessages: ChatMessage[]
 ): RequestTimelineItem[] {
   const items: RequestTimelineItem[] = []
+  const persistedThreadMessages = requestDetail.messages.map((message) => ({
+    content: message.body,
+    role:
+      message.role === "user" ? ("user" as const) : ("assistant" as const),
+  }))
+  const pendingLiveMessages = liveMessages.slice(
+    getMessageSequenceOverlap(
+      persistedThreadMessages,
+      liveMessages.map((message) => ({
+        content: message.content,
+        role: message.role,
+      }))
+    )
+  )
 
   for (const message of requestDetail.messages) {
+    if (!shouldRenderRequestMessageInChat(message)) {
+      continue
+    }
+
     items.push({
       item: message,
       key: `message-${message._id}`,
@@ -5219,6 +5170,10 @@ function buildRequestTimeline(
   }
 
   for (const activity of requestDetail.activity) {
+    if (!shouldRenderActivityInRequestChat(activity.type)) {
+      continue
+    }
+
     items.push({
       item: activity,
       key: `activity-${activity._id}`,
@@ -5255,7 +5210,7 @@ function buildRequestTimeline(
     })
   }
 
-  for (const liveMessage of liveMessages) {
+  for (const liveMessage of pendingLiveMessages) {
     items.push({
       item: liveMessage,
       key: `live-${liveMessage.id}`,
@@ -5280,6 +5235,124 @@ function buildRequestTimeline(
 
     return order[left.kind] - order[right.kind]
   })
+}
+
+function shouldRenderRequestMessageInChat(
+  message: RequestDetail["messages"][number]
+) {
+  if (message.role === "system") {
+    return false
+  }
+
+  return !isMountedRequestSetupMessage(message)
+}
+
+function isMountedRequestSetupMessage(
+  message: RequestDetail["messages"][number]
+) {
+  if (
+    message.sender.externalId !== "agent:boreal" ||
+    message.sender.displayName !== "Boreal Agent"
+  ) {
+    return false
+  }
+
+  const body = message.body.trim()
+
+  return (
+    (body.startsWith("Boreal opened ") &&
+      body.includes("work thread") &&
+      body.includes("started the request immediately")) ||
+    body.endsWith("was selected from offers and is starting now.") ||
+    body.endsWith("were selected from offers and are starting now.")
+  )
+}
+
+function shouldRenderActivityInRequestChat(activityType: string) {
+  void activityType
+  return false
+}
+
+function RequestInFlightBanner({
+  isMarkingRequestFulfilled,
+  isProfileUpdate,
+  isRefreshingRequest,
+  onMarkRequestFulfilled,
+  onOpenProfileBuilder,
+  onRefreshRequest,
+  participants,
+  proposals,
+}: {
+  isMarkingRequestFulfilled: boolean
+  isProfileUpdate: boolean
+  isRefreshingRequest: boolean
+  onMarkRequestFulfilled: () => Promise<void>
+  onOpenProfileBuilder: () => void
+  onRefreshRequest: () => Promise<void>
+  participants: RequestDetail["participants"]
+  proposals: RequestDetail["proposals"]
+}) {
+  const acceptedProposal =
+    (proposals ?? []).find((proposal) => proposal.status === "accepted") ?? null
+  const workingParticipants = (participants ?? []).filter(
+    (participant) => participant.status !== "owner"
+  )
+
+  return (
+    <div className="sticky top-3 z-20 flex justify-center px-3 pb-4">
+      <div className="flex max-w-full flex-wrap items-center justify-center gap-2 border border-accent/30 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
+        <span className="inline-flex items-center border border-accent bg-accent/5 px-2 py-1 text-[11px] tracking-[0.16em] text-accent-foreground uppercase">
+          Work in flight
+        </span>
+        {workingParticipants.length > 0 ? (
+          <span className="border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+            Working now{" "}
+            {workingParticipants
+              .map((participant) => participant.displayName)
+              .join(", ")}
+          </span>
+        ) : null}
+        {acceptedProposal?.etaAt ? (
+          <span className="border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+            Est. delivery {formatRequestDate(acceptedProposal.etaAt)}
+          </span>
+        ) : null}
+        {isProfileUpdate ? (
+          <Button onClick={onOpenProfileBuilder} size="sm" type="button">
+            <CircleUserRoundIcon />
+            Update profile
+          </Button>
+        ) : null}
+        <Button
+          disabled={isRefreshingRequest}
+          onClick={() => void onRefreshRequest()}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {isRefreshingRequest ? (
+            <LoaderIcon className="animate-spin" />
+          ) : (
+            <RefreshCwIcon />
+          )}
+          Refresh
+        </Button>
+        <Button
+          disabled={isMarkingRequestFulfilled}
+          onClick={() => void onMarkRequestFulfilled()}
+          size="sm"
+          type="button"
+        >
+          {isMarkingRequestFulfilled ? (
+            <LoaderIcon className="animate-spin" />
+          ) : (
+            <CheckIcon />
+          )}
+          Mark as fulfilled
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 function InlineActivityEvent({
@@ -7077,7 +7150,7 @@ function normalizePublicPaperSlug(
 }
 
 async function consumeChatStream(input: {
-  assistantMessageId: string
+  assistantMessageId: string | null
   response: Response
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>
 }) {
@@ -7116,6 +7189,10 @@ async function consumeChatStream(input: {
         | { payload: ChatAssistantResponse; type: "final" }
 
       if (event.type === "assistant-delta") {
+        if (!input.assistantMessageId) {
+          continue
+        }
+
         input.setMessages((current) =>
           current.map((message) =>
             message.id === input.assistantMessageId
@@ -7127,6 +7204,10 @@ async function consumeChatStream(input: {
       }
 
       if (event.type === "debug") {
+        if (!input.assistantMessageId) {
+          continue
+        }
+
         input.setMessages((current) =>
           current.map((message) =>
             message.id === input.assistantMessageId
@@ -7155,16 +7236,18 @@ async function consumeChatStream(input: {
     throw new Error("Chat response was incomplete.")
   }
 
-  input.setMessages((current) =>
-    current.map((message) =>
-      message.id === input.assistantMessageId
-        ? {
-          ...message,
-          content: message.content || finalPayload.assistantMessage,
-        }
-        : message
+  if (input.assistantMessageId) {
+    input.setMessages((current) =>
+      current.map((message) =>
+        message.id === input.assistantMessageId
+          ? {
+            ...message,
+            content: message.content || finalPayload.assistantMessage,
+          }
+          : message
+      )
     )
-  )
+  }
 
   return finalPayload
 }
@@ -7970,6 +8053,7 @@ function labelActivity(type: string) {
     "request.retrying": "Retry started",
     "request.team_assigned": "Team assigned",
     "thread.message_posted": "Reply posted",
+    "thread.reply_posted": "Reply posted",
   }
 
   return labels[type] ?? type.replace("request.", "").replaceAll("_", " ")

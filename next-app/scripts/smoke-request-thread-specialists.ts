@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 
 import {
+  buildDirectSpecialistThreadGreeting,
   buildInitialInteractiveFollowUpQuestion,
+  isGreetingLikeThreadMessage,
   isInteractiveRequestAgentKey,
   planInteractiveRequestThread,
 } from "../lib/boreal/agents/request-thread-specialists.ts";
@@ -155,6 +157,15 @@ assert.match(
 
 assert.equal(isInteractiveRequestAgentKey("startup-pressure-test"), true);
 assert.equal(isInteractiveRequestAgentKey("motion-video-studio"), false);
+assert.equal(isGreetingLikeThreadMessage("hi"), true);
+assert.equal(isGreetingLikeThreadMessage("what is solana"), false);
+assert.match(
+  buildDirectSpecialistThreadGreeting({
+    agentDisplayName: "Solana Operator",
+    agentKey: "solana-operator",
+  }),
+  /solana task or question/i,
+);
 assert.equal(
   isVideoProviderAccessUnavailableError(
     "OpenAI video route is unavailable for the current project or API key.",
@@ -167,6 +178,7 @@ console.log(
     {
       initialHandoff: initialPlan?.kind,
       interactiveAgent: initialPlan?.agent.key,
+      greetingHandled: true,
       videoProviderErrorDetected: true,
       followUpExecution: executionPlan?.kind,
     },

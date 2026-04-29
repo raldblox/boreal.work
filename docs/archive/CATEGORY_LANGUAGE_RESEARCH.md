@@ -4,6 +4,14 @@ Last updated: April 25, 2026
 
 This note is for choosing clearer category language for Boreal.
 
+It is retained as archived research, not the live naming source of truth.
+
+For current naming and positioning, use:
+
+- `../BOREAL_BOOK.md`
+- `../README.md`
+- `../ROADMAP.md`
+
 The main conclusion is simple:
 
 - no single existing market term cleanly covers what Boreal is doing

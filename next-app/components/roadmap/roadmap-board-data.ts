@@ -42,7 +42,7 @@ export const roadmapHighlights: RoadmapHighlight[] = [
   },
   {
     label: "Synced",
-    note: "Aligned to current ROADMAP.md and EARLY_ACCESS.md source truth.",
+    note: "Aligned to current ROADMAP.md and BOREAL_BOOK.md source truth.",
     value: "Apr 29, 2026",
   },
 ]

@@ -71,7 +71,16 @@ Operator note:
 - `agent:seed` syncs agent identities, profiles, supplies, payout metadata, and analytics rows.
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
+Sync the public contract markdown served from `next-app/public`:
+
+```bash
+cd next-app
+npm run docs:sync:public
+```
+
 ## Changelog
+- `2026-04-29`: Fixed mounted specialist request-thread ownership again: request-chat turns now go through one request-thread write path, selected text specialists keep replies inside the tracked request thread without a shadow Boreal reply, low-signal greetings like `hi` no longer auto-close into review, and the request chat now stays cleaner by suppressing duplicate `Reply posted` noise while `Work in flight` stays ambient.
+- `2026-04-29`: Finished the doc cleanup pass after the Boreal book consolidation: historical research notes now live under `docs/archive/`, Codex prompt-process notes now live under `docs/internal/`, and the public `one-request-api.md`, `one-inbox-api.md`, and `agent-registry.md` files are now generated from the root source contracts with `npm run docs:sync:public`.
 - `2026-04-29`: Tightened the mounted specialist flow in Boreal chat: `Offers` now treats Boreal as the default chat agent, mounted specialists show up directly in the composer, selected non-Boreal agents open a ready work-thread posture immediately, and the next message creates one tracked request for that selected agent team without a separate approval step.
 - `2026-04-29`: Hardened the Solana starter path end to end: Solana quick-action asks now classify as `solana` specialist work instead of generic text work, they skip the content-format clarification loop, `solana-operator` becomes the top matched route with a direct invite path, and `npm run smoke:solana-specialist-route` verifies the exact starter prompt.
 - `2026-04-29`: Surfaced `solana-operator` in the main frontend instead of leaving it buried in docs: Boreal chat now shows a Solana specialist quick action and starter prompt, `/agents` now spotlights the route directly, and the normal built-in agent seed plus smoke flow still brings `solana-operator` back after reset-and-seed.
@@ -136,12 +145,14 @@ Operator note:
 
 ## Source Documents
 
-- `WHITEPAPER.md` is the product and architecture source of truth.
-- `ROADMAP.md` is the execution and release-tracking document derived from the whitepaper.
-- `EARLY_ACCESS.md` is the phase-based release tracker for Boreal's early access: auditable phases, funded-work boundaries, verification commands, and the conditions required before broader mainnet-ready paid release.
+- `BOREAL_BOOK.md` is the living narrative source of truth for Boreal's brand, product definition, UX laws, release boundary, and public product truth.
+- `ROADMAP.md` is the only execution tracker: milestones, release gate, paid wedge, and next architecture work all live there now.
+- `docs/archive/` holds historical research and retired working notes that should not override the live canon.
+- `docs/internal/` holds internal prompt-process notes that should not be treated as product truth.
+- `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, and `next-app/public/agent-registry.md` are generated public contract mirrors.  Regenerate them with `cd next-app && npm run docs:sync:public` instead of editing them by hand.
 - `SUPPLY_LIST.md` is the supply inventory and build-tracker spec: the supported market classes today, what delivery looks like for each one, and what subtype tables or flow work still need to be built.
 - `AGENTS.md` is the contributor control surface; when shipped behavior, public contracts, agent-control flows, or roadmap-relevant architecture changes, update `ROADMAP.md` and the most specific contract doc in the same patch.
-- `MVP.md` is the first paid launch wedge: one narrow commercialization test inside the broader Boreal early access release.
+- `WHITEPAPER.md`, `EARLY_ACCESS.md`, and `MVP.md` are retained as compatibility entry points only and should not accumulate new living guidance.
 - `MATCHING_ENGINE.md` is the search, discovery, ranking, request-classification, and fetch-path architecture for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
 - `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the request-side `Workboard`, the later `Swarm Workspace` upgrade path, the shell IA, and the libp2p-versus-Convex responsibility split.
@@ -156,18 +167,11 @@ Operator note:
 - `ONE_REQUEST_API.md` is the live source of truth for Boreal's premium agent-only demand contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, seeded specialist readiness, and the deterministic one-request smoke lifecycle.
 - `ONE_INBOX_API.md` defines the live supplier-side market contract: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
 
-Supporting narrative, messaging, and design docs now live under `docs/`, with [docs/README.md](C:\Users\raldb\boreal.work\docs\README.md) as the docs-hub index:
+Supporting narrative and prompt docs now live under `docs/`, with [docs/README.md](C:\Users\raldb\boreal.work\docs\README.md) as the support-doc index:
 
-- `docs/README.md` maps which docs are canonical for brand, messaging, deck, and product character.
-- `docs/CATEGORY_LANGUAGE_RESEARCH.md` maps the current market language around agentic commerce, work marketplaces, and Boreal's request-native positioning.
-- `docs/BRAND_SYSTEM.md` consolidates Boreal's current brand foundation, voice rules, messaging hierarchy, and reusable language.
-- `docs/VISUAL_IDENTITY.md` records Boreal's current visual direction from the live app tokens, logo, typography, and layout language.
-- `docs/MESSAGING_MATRIX.md` turns Boreal's positioning into audience-specific messaging for buyers, sellers, agents, partners, and investors.
-- `docs/POSITIONING_TRIAGE.md` is the working map for reconciling the current repo docs with reusable material from earlier Boreal directories.
-- `docs/COPYWRITING.md` is the public-facing homepage and product copy draft.
+- `docs/README.md` maps the remaining support docs and papers that sit underneath `BOREAL_BOOK.md`.
 - `docs/CHARACTER.md` is the Boreal agent character and surface-aware prompt source used by the app.
-- `docs/DECK.md` keeps the pitch deck, demo video, and knowledge-base narrative aligned.
-- `docs/ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md` is precursor research behind Boreal's "intent disappears" thesis.  Keep it for historical context, not current product direction.
+- `docs/archive/ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md` is precursor research behind Boreal's "intent disappears" thesis.  Keep it for historical context, not current product direction.
 
 ## Current Product Surface
 

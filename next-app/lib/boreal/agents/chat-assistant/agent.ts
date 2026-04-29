@@ -1,5 +1,7 @@
 import "server-only";
 
+import { generateText } from "ai";
+
 import { directExecutionAgents } from "../../../../agents/index.ts";
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
 import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
@@ -12,6 +14,7 @@ import {
   getMyProfileRecord,
   getRequestDetailRecord,
   getRequestExecutionContext,
+  postThreadMessage,
   saveConversationExchange,
   saveArtifactMetadata,
   saveIntentPipelineRecord,
@@ -66,10 +69,13 @@ import {
 } from "@/lib/boreal/request-recovery";
 import {
   buildInitialInteractiveFollowUpQuestion,
+  buildDirectSpecialistThreadGreeting,
   buildInteractiveExecutionMessage,
+  isGreetingLikeThreadMessage,
   isInteractiveRequestAgentKey,
   planInteractiveRequestThread,
 } from "../request-thread-specialists";
+import { BOREAL_AGENT_DISPLAY_NAME } from "@/lib/boreal/boreal-agent";
 
 type RequesterIdentity = {
   displayName?: string;
@@ -544,32 +550,41 @@ async function continueApprovedRequestThread(input: {
     return null;
   }
 
-  const requestDetail = await getRequestDetailRecord({
+  const initialDetail = await getRequestDetailRecord({
     intentId: requestId,
     ownerExternalId,
   });
 
   if (
-    !requestDetail.intent ||
-    !requestDetail.access?.isOwner ||
-    (requestDetail.intent.status !== "claimed" &&
-      requestDetail.intent.status !== "in_progress")
+    !initialDetail.intent ||
+    !initialDetail.access?.canViewChat ||
+    initialDetail.intent.status === "closed"
   ) {
     return null;
   }
 
-  const threadPlan = planInteractiveRequestThread(requestDetail);
+  const posted = await postThreadMessage({
+    body: input.input.message,
+    intentId: requestId,
+    ownerDisplayName: input.input.requester?.displayName,
+    ownerExternalId,
+    ownerHandle: input.input.requester?.handle,
+  });
 
-  if (!threadPlan) {
-    return null;
+  if (!posted.sent) {
+    throw new Error("Could not post into this request thread.");
   }
 
+  const requestDetail = await getRequestDetailRecord({
+    intentId: requestId,
+    ownerExternalId,
+  });
   const request = await getRequestExecutionContext({
     intentId: requestId,
     ownerExternalId,
   });
 
-  if (!request) {
+  if (!requestDetail.intent || !requestDetail.access?.canViewChat || !request) {
     return null;
   }
 
@@ -578,63 +593,157 @@ async function continueApprovedRequestThread(input: {
     input.runtimeConfig,
     input.provider.key,
   );
+  const assignedTextAgents = resolveAssignedTextThreadAgents(
+    requestDetail.assignment?.tools ?? [],
+  );
 
-  try {
-    if (threadPlan.kind === "ask") {
-      await appendRequestExecution({
-        activityPayload: JSON.stringify({
+  if (
+    requestDetail.access?.isOwner &&
+    assignedTextAgents.length > 0 &&
+    canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
+  ) {
+    const threadPlan = planInteractiveRequestThread(requestDetail);
+
+    if (threadPlan) {
+      try {
+        if (threadPlan.kind === "ask") {
+          await appendRequestExecution({
+            activityPayload: JSON.stringify({
+              assignedAgent: threadPlan.agent.identity.displayName,
+              assignedToolNames: [threadPlan.agent.key],
+              awaitingUserReply: true,
+              routeLabel: threadPlan.agent.identity.displayName,
+              routeTarget: request.routeTarget,
+            }),
+            activityType: "request.follow_up",
+            assignedAgent: threadPlan.agent.identity.displayName,
+            assignedToolNames: [threadPlan.agent.key],
+            assistantMessage: threadPlan.assistantMessage,
+            intentId: requestId,
+            ownerExternalId,
+            status: "in_progress",
+          });
+
+          return {
+            assistantMessage: threadPlan.assistantMessage,
+            conversationId: request.conversationId ?? crypto.randomUUID(),
+            intent: persistedIntent,
+            intentId: requestId,
+            persisted: false,
+            relatedCatalogItems: [],
+            requiresApproval: false,
+            workspace: {
+              kind: "empty",
+              subtitle:
+                "Reply in this request thread. The approved specialist now owns the next turn here.",
+              title: "Specialist follow-up",
+            },
+          };
+        }
+
+        const result = await threadPlan.agent.directExecution!.invoke({
+          modelId: input.runtimeConfig.assistantModel,
+          payload: threadPlan.payload,
+        });
+        const assistantMessage = buildInteractiveExecutionMessage(result);
+
+        await appendRequestExecution({
+          activityPayload: JSON.stringify({
+            assignedAgent: threadPlan.agent.identity.displayName,
+            assignedToolNames: [threadPlan.agent.key],
+            routeLabel: threadPlan.agent.identity.displayName,
+            routeTarget: request.routeTarget,
+          }),
+          activityType: "request.delivered",
           assignedAgent: threadPlan.agent.identity.displayName,
           assignedToolNames: [threadPlan.agent.key],
-          awaitingUserReply: true,
-          routeLabel: threadPlan.agent.identity.displayName,
-          routeTarget: request.routeTarget,
-        }),
-        activityType: "request.follow_up",
-        assignedAgent: threadPlan.agent.identity.displayName,
-        assignedToolNames: [threadPlan.agent.key],
-        assistantMessage: threadPlan.assistantMessage,
-        intentId: requestId,
-        ownerExternalId,
-        status: "in_progress",
-      });
+          assistantMessage,
+          intentId: requestId,
+          ownerExternalId,
+          status: "fulfilled",
+        });
 
-      return {
-        assistantMessage: threadPlan.assistantMessage,
-        conversationId: request.conversationId ?? crypto.randomUUID(),
-        intent: persistedIntent,
-        intentId: requestId,
-        persisted: false,
-        relatedCatalogItems: [],
-        requiresApproval: false,
-        workspace: {
-          kind: "empty",
-          subtitle:
-            "Reply in this request thread. The approved specialist now owns the next turn here.",
-          title: "Specialist follow-up",
-        },
-      };
+        return {
+          assistantMessage,
+          conversationId: request.conversationId ?? crypto.randomUUID(),
+          intent: persistedIntent,
+          intentId: requestId,
+          persisted: false,
+          relatedCatalogItems: [],
+          requiresApproval: false,
+          workspace: {
+            kind: "empty",
+            subtitle:
+              "The specialist delivered in-thread. Request history stays attached here for review and payout follow-through.",
+            title: "Route complete",
+          },
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The approved specialist could not continue this request.";
+
+        await appendRequestExecution({
+          activityPayload: JSON.stringify({
+            assignedAgent: threadPlan.agent.identity.displayName,
+            assignedToolNames: [threadPlan.agent.key],
+            error: message,
+            routeLabel: threadPlan.agent.identity.displayName,
+            routeTarget: request.routeTarget,
+          }),
+          activityType: "request.blocked",
+          assignedAgent: threadPlan.agent.identity.displayName,
+          assignedToolNames: [threadPlan.agent.key],
+          assistantMessage:
+            `${threadPlan.agent.identity.displayName} could not continue this request automatically. Last error: ${message}. Retry it or reopen it for workers.`,
+          intentId: requestId,
+          ownerExternalId,
+          status: "blocked",
+        });
+
+        return {
+          assistantMessage:
+            `${threadPlan.agent.identity.displayName} could not continue this request automatically. Last error: ${message}. The request is blocked until you retry it or reopen it for workers.`,
+          conversationId: request.conversationId ?? crypto.randomUUID(),
+          intent: persistedIntent,
+          intentId: requestId,
+          persisted: false,
+          relatedCatalogItems: [],
+          requiresApproval: false,
+          workspace: buildBlockedWorkspace(request.routeTarget, message),
+        };
+      }
     }
 
-    const result = await threadPlan.agent.directExecution!.invoke({
-      modelId: input.runtimeConfig.assistantModel,
-      payload: threadPlan.payload,
+    const assistantMessage = await buildAssignedTextSpecialistThreadReply({
+      agents: assignedTextAgents,
+      latestOwnerMessage: input.input.message,
+      provider: input.provider,
+      request,
+      requestDetail,
+      runtimeConfig: input.runtimeConfig,
     });
-    const assistantMessage = buildInteractiveExecutionMessage(result);
+    const assignedAgent = assignedTextAgents
+      .map((agent) => agent.identity.displayName)
+      .join(", ");
+    const assignedToolNames = assignedTextAgents.map((agent) => agent.key);
 
     await appendRequestExecution({
       activityPayload: JSON.stringify({
-        assignedAgent: threadPlan.agent.identity.displayName,
-        assignedToolNames: [threadPlan.agent.key],
-        routeLabel: threadPlan.agent.identity.displayName,
+        assignedAgent,
+        assignedToolNames,
+        routeLabel: assignedAgent,
         routeTarget: request.routeTarget,
+        selectedAgentKeys: assignedToolNames,
       }),
-      activityType: "request.delivered",
-      assignedAgent: threadPlan.agent.identity.displayName,
-      assignedToolNames: [threadPlan.agent.key],
+      activityType: "thread.reply_posted",
+      assignedAgent,
+      assignedToolNames,
       assistantMessage,
       intentId: requestId,
       ownerExternalId,
-      status: "fulfilled",
+      status: "in_progress",
     });
 
     return {
@@ -648,46 +757,52 @@ async function continueApprovedRequestThread(input: {
       workspace: {
         kind: "empty",
         subtitle:
-          "The specialist delivered in-thread. Request history stays attached here for review and payout follow-through.",
-        title: "Route complete",
+          "The assigned specialist replied in this request thread. Keep the work here until you are actually done.",
+        title: "Specialist thread",
       },
     };
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "The approved specialist could not continue this request.";
-
-    await appendRequestExecution({
-      activityPayload: JSON.stringify({
-        assignedAgent: threadPlan.agent.identity.displayName,
-        assignedToolNames: [threadPlan.agent.key],
-        error: message,
-        routeLabel: threadPlan.agent.identity.displayName,
-        routeTarget: request.routeTarget,
-      }),
-      activityType: "request.blocked",
-      assignedAgent: threadPlan.agent.identity.displayName,
-      assignedToolNames: [threadPlan.agent.key],
-      assistantMessage:
-        `${threadPlan.agent.identity.displayName} could not continue this request automatically. Last error: ${message}. Retry it or reopen it for workers.`,
-      intentId: requestId,
-      ownerExternalId,
-      status: "blocked",
-    });
-
-    return {
-      assistantMessage:
-        `${threadPlan.agent.identity.displayName} could not continue this request automatically. Last error: ${message}. The request is blocked until you retry it or reopen it for workers.`,
-      conversationId: request.conversationId ?? crypto.randomUUID(),
-      intent: persistedIntent,
-      intentId: requestId,
-      persisted: false,
-      relatedCatalogItems: [],
-      requiresApproval: false,
-      workspace: buildBlockedWorkspace(request.routeTarget, message),
-    };
   }
+
+  const assistantMessage = await generateHelpfulAnswer({
+    assistantModelId: input.runtimeConfig.assistantModel,
+    catalogItems: [],
+    intent: toExecutionIntent(request),
+    message: input.input.message,
+    provider: input.provider,
+    uiContext: input.input.uiContext,
+  });
+
+  await appendRequestExecution({
+    activityPayload: JSON.stringify({
+      assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+      assignedToolNames: ["boreal-agent"],
+      routeLabel: BOREAL_AGENT_DISPLAY_NAME,
+      routeTarget: request.routeTarget,
+    }),
+    activityType: "thread.reply_posted",
+    assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+    assignedToolNames: ["boreal-agent"],
+    assistantMessage,
+    intentId: requestId,
+    ownerExternalId,
+    status: "in_progress",
+  });
+
+  return {
+    assistantMessage,
+    conversationId: request.conversationId ?? crypto.randomUUID(),
+    intent: persistedIntent,
+    intentId: requestId,
+    persisted: false,
+    relatedCatalogItems: [],
+    requiresApproval: false,
+    workspace: {
+      kind: "empty",
+      subtitle:
+        "This reply stayed inside the request thread. Continue here so work, proof, and follow-up stay attached.",
+      title: "Request thread",
+    },
+  };
 }
 
 export async function approvePersistedRequest(input: {
@@ -796,6 +911,102 @@ export async function approvePersistedRequest(input: {
     request,
     runtimeConfig,
   });
+}
+
+function canAssignedTextTeamOwnRequestThread(status: string) {
+  return status === "claimed" || status === "fulfilled" || status === "in_progress";
+}
+
+function resolveAssignedTextThreadAgents(assignedToolNames: string[]) {
+  return assignedToolNames
+    .map((toolName) =>
+      directExecutionAgents.find(
+        (agent) =>
+          agent.key === toolName &&
+          agent.directExecution?.outputKinds.includes("text"),
+      ),
+    )
+    .filter(
+      (
+        agent,
+      ): agent is NonNullable<(typeof directExecutionAgents)[number]> =>
+        Boolean(agent),
+    );
+}
+
+async function buildAssignedTextSpecialistThreadReply(input: {
+  agents: NonNullable<ReturnType<typeof resolveAssignedTextThreadAgents>[number]>[];
+  latestOwnerMessage: string;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const teammateNames = input.agents.map((agent) => agent.identity.displayName);
+  const leadAgent = input.agents[0];
+
+  if (!leadAgent) {
+    return `${BOREAL_AGENT_DISPLAY_NAME} is ready in this request thread. Tell me what you need next.`;
+  }
+
+  if (isGreetingLikeThreadMessage(input.latestOwnerMessage)) {
+    return buildDirectSpecialistThreadGreeting({
+      agentDisplayName: leadAgent.identity.displayName,
+      agentKey: leadAgent.key,
+      teammateNames,
+    });
+  }
+
+  const recentThread = input.requestDetail.messages
+    .slice(-8)
+    .map(
+      (message) =>
+        `${message.sender.displayName} (${message.role}): ${message.body.trim()}`,
+    )
+    .join("\n");
+  const specialistBlock = input.agents
+    .map(
+      (agent, index) =>
+        `${index + 1}. ${agent.identity.displayName} | ${agent.directExecution?.description ?? agent.profile.bio}`,
+    )
+    .join("\n");
+  const { text } = await generateText({
+    model: input.provider.getAssistantModel(input.runtimeConfig.assistantModel),
+    prompt: [
+      `Assigned specialists:`,
+      specialistBlock,
+      `Request title: ${input.request.title}`,
+      `Request summary: ${input.request.summary}`,
+      `Original request body: ${input.request.body}`,
+      `Latest owner message: ${input.latestOwnerMessage}`,
+      recentThread ? `Recent request thread:\n${recentThread}` : "Recent request thread: none",
+      "Response rules:",
+      "- stay in the assigned specialist voice, not Boreal Agent",
+      "- continue inside this same request thread",
+      "- answer the latest owner message directly when you can",
+      "- if the message is conceptual, explain it plainly before proposing extra work",
+      "- if the message is action-oriented, give the next useful plan or ask only the single missing question that blocks progress",
+      "- do not close the request",
+      "- do not ask for review",
+      "- keep the reply concise and useful",
+    ].join("\n"),
+    system: [
+      `You are ${leadAgent.identity.displayName}.`,
+      leadAgent.directExecution?.description ?? leadAgent.profile.bio,
+      teammateNames.length > 1
+        ? `You are replying as the lead specialist for a mounted team: ${teammateNames.join(", ")}.`
+        : "You are the assigned specialist for this request.",
+    ].join(" "),
+  });
+
+  return (
+    text.trim() ||
+    buildDirectSpecialistThreadGreeting({
+      agentDisplayName: leadAgent.identity.displayName,
+      agentKey: leadAgent.key,
+      teammateNames,
+    })
+  );
 }
 
 export async function openPersistedRequestForWorkers(input: {
@@ -1407,6 +1618,126 @@ async function runApprovedSpecialistExecutionForRequest(input: {
     };
   }
 
+  if (isTextOnlyRoutePlan(input.routePlan)) {
+    const assistantMessage = await buildAssignedTextSpecialistThreadReply({
+      agents: input.routePlan.selected.map((selection) => selection.agent),
+      latestOwnerMessage: input.request.body,
+      provider: input.provider,
+      request: input.request,
+      requestDetail: {
+        access: {
+          canApproveProposals: true,
+          canSubmitProposal: false,
+          canSubmitWork: false,
+          canViewChat: true,
+          isOwner: true,
+          visibility: "private",
+        },
+        activity: [],
+        artifact: null,
+        assignment: {
+          agent: input.routePlan.selected
+            .map((selection) => selection.agent.identity.displayName)
+            .join(", "),
+          provider: input.request.provider,
+          tools: input.routePlan.selected.map((selection) => selection.agent.key),
+        },
+        catalogItems: [],
+        collectiveTrust: null,
+        contributions: [],
+        conversationId: input.request.conversationId ?? null,
+        fulfillment: null,
+        intent: {
+          _creationTime: Date.now(),
+          _id: input.request._id,
+          approvedAt: null,
+          body: input.request.body,
+          cancelledAt: null,
+          catalogQuery: input.request.catalogQuery,
+          category: input.request.category,
+          closedReason: null,
+          classification: input.request.classification,
+          completedAt: null,
+          confidence: 1,
+          matchAttempts: 0,
+          missingDetails: input.request.missingDetails,
+          needsClarification: input.request.needsClarification,
+          pinnedSupplyIds: [],
+          provider: input.request.provider,
+          requestedOutputTypes: input.request.requestedOutputTypes,
+          resolutionTier: "auto",
+          responseInstructions: input.request.responseInstructions,
+          reviewPending: false,
+          routeTarget: input.request.routeTarget,
+          shouldSearchCatalog: input.request.catalogQuery.trim().length > 0,
+          startedAt: null,
+          status: input.request.status,
+          suggestedReplies: input.request.suggestedReplies,
+          summary: input.request.summary,
+          title: input.request.title,
+          videoSeconds: input.request.videoSeconds,
+          videoSize: input.request.videoSize,
+        },
+        matchCandidates: [],
+        messages: [
+          {
+            _id: "request-owner-message",
+            body: input.request.body,
+            createdAt: Date.now(),
+            role: "user",
+            sender: {
+              actorKind: "human",
+              displayName: "Owner",
+              externalId: null,
+              handle: null,
+              isCurrentUser: true,
+              profileId: null,
+            },
+          },
+        ],
+        participants: [],
+        proposals: [],
+        review: null,
+      },
+      runtimeConfig: input.runtimeConfig,
+    });
+    const assignedAgent = input.routePlan.selected
+      .map((selection) => selection.agent.identity.displayName)
+      .join(", ");
+    const assignedToolNames = input.routePlan.selected.map(
+      (selection) => selection.agent.key,
+    );
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent,
+        assignedToolNames,
+        routeLabel: assignedAgent,
+        routeTarget: input.request.routeTarget,
+        selectedAgentKeys: assignedToolNames,
+      }),
+      activityType: "thread.reply_posted",
+      assignedAgent,
+      assignedToolNames,
+      assistantMessage,
+      intentId: input.input.intentId,
+      ownerExternalId: input.input.ownerExternalId,
+      status: "in_progress",
+    });
+
+    return {
+      assistantMessage,
+      intentId: input.input.intentId,
+      relatedCatalogItems,
+      workspace: {
+        kind: "empty",
+        subtitle:
+          "The selected specialist replied in-thread. Keep this request open until the owner decides it is complete.",
+        title: "Specialist thread",
+      } satisfies WorkspaceState,
+    };
+  }
+
   try {
     const results = await executeAutoRoute({
       intent: persistedIntent,
@@ -1980,6 +2311,12 @@ function buildMountedSpecialistRoutePlan(input: {
     totalQuoteUsd,
     voice: input.intent.voice,
   } satisfies OneRequestRoutePlan;
+}
+
+function isTextOnlyRoutePlan(routePlan: OneRequestRoutePlan) {
+  return routePlan.selected.every((selection) =>
+    selection.outputKinds.every((kind) => kind === "text"),
+  );
 }
 
 async function startMountedRequestExecution(input: {

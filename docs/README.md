@@ -1,90 +1,45 @@
-# Boreal Docs Hub
+# Boreal Support Docs
 
-This directory is the narrative and brand source of truth for Boreal.
+This folder is no longer the main narrative source of truth.
 
-Use the root docs for product, architecture, and execution truth:
+The living Boreal narrative canon now lives in [BOREAL_BOOK.md](C:\Users\raldb\boreal.work\BOREAL_BOOK.md).
 
-- [README.md](C:\Users\raldb\boreal.work\README.md)
-- [MVP.md](C:\Users\raldb\boreal.work\MVP.md)
-- [WHITEPAPER.md](C:\Users\raldb\boreal.work\WHITEPAPER.md)
-- [ROADMAP.md](C:\Users\raldb\boreal.work\ROADMAP.md)
-- [MATCHING_ENGINE.md](C:\Users\raldb\boreal.work\MATCHING_ENGINE.md)
-- [AGENT_NETWORK.md](C:\Users\raldb\boreal.work\AGENT_NETWORK.md)
-- [SWARM_WORKSPACE_SPEC.md](C:\Users\raldb\boreal.work\SWARM_WORKSPACE_SPEC.md)
-- [COMMERCE_STANDARDS.md](C:\Users\raldb\boreal.work\COMMERCE_STANDARDS.md)
-- [SERVICE_PROVIDER.MD](C:\Users\raldb\boreal.work\SERVICE_PROVIDER.MD)
-
-`AGENT_NETWORK.md` is the architecture-to-implementation bridge for Boreal's open-agent layer.  It should stay aligned with `ROADMAP.md`, not drift into standalone manifesto copy.
-
-Current product rule:
-
-- Boreal chat defaults to Boreal Agent, but selecting specialist agents from `Offers` can mount them directly into the composer and turn the next message into one tracked request.  Narrative docs should not describe that flow as a separate public API.
-
-Use the docs in this folder for positioning, copy, design language, and story discipline.
-
-## Public Papers
-
-- [papers/BOREAL_WORK_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\BOREAL_WORK_NETWORK.md)
-  Flagship public paper for Boreal's request-native market thesis across humans and agents.
-
-- [papers/HUMAN_SUPPLY_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\HUMAN_SUPPLY_NETWORK.md)
-  Why human specialists remain first-class supply in an agentic market.
-
-- [papers/SWARM_WORKSPACE.md](C:\Users\raldb\boreal.work\docs\papers\SWARM_WORKSPACE.md)
-  How Boreal's current request workboard should upgrade into a human-plus-agent Swarm Workspace.
-
-- [papers/PORTABLE_AGENT_REPUTATION.md](C:\Users\raldb\boreal.work\docs\papers\PORTABLE_AGENT_REPUTATION.md)
-  Portable trust, scoring, peer review, and runtime dependability for working agents.
-
-- [papers/CONNECT_YOUR_AGENT.md](C:\Users\raldb\boreal.work\docs\papers\CONNECT_YOUR_AGENT.md)
-  External-agent onboarding, work-network positioning, and bring-your-own-runtime expectations.
-
-- [CONNECT_AGENT_GUIDE.md](C:\Users\raldb\boreal.work\CONNECT_AGENT_GUIDE.md)
-  Advanced runtime-adapter guide for the live and next `Connect agent` UX, connector modes, auth/session bootstrap, and external-agent activation flow.  Do not use this as the front-door product story.
-
-- [HERMES_CONNECT_QUICKSTART.md](C:\Users\raldb\boreal.work\HERMES_CONNECT_QUICKSTART.md)
-  Short operator guide for the current local Hermes-style bridge, minimal HTTP contract, and connect-agent prompt.
-
-## Canonical Docs In This Folder
-
-- [BRAND_SYSTEM.md](C:\Users\raldb\boreal.work\docs\BRAND_SYSTEM.md)
-  Working source of truth for Boreal brand positioning, tone, naming, and messaging guardrails.
-
-- [COPYWRITING.md](C:\Users\raldb\boreal.work\docs\COPYWRITING.md)
-  Homepage and public-facing copy direction.
-
-- [MESSAGING_MATRIX.md](C:\Users\raldb\boreal.work\docs\MESSAGING_MATRIX.md)
-  Audience-specific messaging for buyers, sellers, partners, developers, investors, and press.
-
-- [DECK.md](C:\Users\raldb\boreal.work\docs\DECK.md)
-  Pitch deck, demo video, launch video, marketing, and knowledge-base alignment guide.
-
-- [VISUAL_IDENTITY.md](C:\Users\raldb\boreal.work\docs\VISUAL_IDENTITY.md)
-  Visual system and design-direction source of truth.
+Use this folder for narrower support docs only:
 
 - [CHARACTER.md](C:\Users\raldb\boreal.work\docs\CHARACTER.md)
-  Boreal agent behavior and prompt-character source of truth.
+  Boreal agent behavior and prompt-character source
+- [papers/BOREAL_WORK_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\BOREAL_WORK_NETWORK.md)
+  flagship public paper
+- [papers/HUMAN_SUPPLY_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\HUMAN_SUPPLY_NETWORK.md)
+  human supply thesis
+- [papers/SWARM_WORKSPACE.md](C:\Users\raldb\boreal.work\docs\papers\SWARM_WORKSPACE.md)
+  swarm workspace paper
+- [papers/PORTABLE_AGENT_REPUTATION.md](C:\Users\raldb\boreal.work\docs\papers\PORTABLE_AGENT_REPUTATION.md)
+  portable reputation paper
+- [papers/CONNECT_YOUR_AGENT.md](C:\Users\raldb\boreal.work\docs\papers\CONNECT_YOUR_AGENT.md)
+  external-agent onboarding paper
+- [archive/README.md](C:\Users\raldb\boreal.work\docs\archive\README.md)
+  historical research and retired working notes
+- [internal/README.md](C:\Users\raldb\boreal.work\docs\internal\README.md)
+  internal Codex prompt-process notes
 
-## Supporting Docs
+Compatibility notes:
 
-- [CATEGORY_LANGUAGE_RESEARCH.md](C:\Users\raldb\boreal.work\docs\CATEGORY_LANGUAGE_RESEARCH.md)
-  Market language map and naming research.
+- `BRAND_SYSTEM.md`
+- `COPYWRITING.md`
+- `MESSAGING_MATRIX.md`
+- `VISUAL_IDENTITY.md`
+- `DECK.md`
 
-- [POSITIONING_TRIAGE.md](C:\Users\raldb\boreal.work\docs\POSITIONING_TRIAGE.md)
-  Editorial map for reconciling older Boreal material with the current repo.
+These files are retained only as entry points for older references.  Their living guidance now belongs in [BOREAL_BOOK.md](C:\Users\raldb\boreal.work\BOREAL_BOOK.md).
 
-- [ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md](C:\Users\raldb\boreal.work\docs\ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md)
-  Historical precursor research.  Keep for context, not current product truth.
+Practical rule:
 
-## Practical Rule
-
-General agent-owner docs should lead with Boreal as a work network for agents, not as a brain-replacement product.
-
-If a narrative doc conflicts with:
+If a support doc conflicts with:
 
 1. live product behavior
 2. [README.md](C:\Users\raldb\boreal.work\README.md)
-3. [WHITEPAPER.md](C:\Users\raldb\boreal.work\WHITEPAPER.md)
+3. [BOREAL_BOOK.md](C:\Users\raldb\boreal.work\BOREAL_BOOK.md)
 4. [ROADMAP.md](C:\Users\raldb\boreal.work\ROADMAP.md)
 
-then update the narrative doc, not the product truth.
+then update the support doc or treat it as stale.  Do not let support docs override product truth.

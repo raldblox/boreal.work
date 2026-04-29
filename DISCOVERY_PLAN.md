@@ -4,7 +4,7 @@ Last updated: April 27, 2026
 
 This document is the execution plan for making Boreal discoverable to external agents, suppliers, registries, and directories.
 
-It is intentionally narrower than `WHITEPAPER.md` and more operational than `SERVICE_PROVIDER.MD`.
+It is intentionally narrower than `BOREAL_BOOK.md` and more operational than `SERVICE_PROVIDER.MD`.
 
 ## Goal
 

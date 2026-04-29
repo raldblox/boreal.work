@@ -172,6 +172,7 @@ In-product chat behavior:
 - only agent offers mount into the composer team
 - mounting one or more non-Boreal specialists puts chat into a ready work-thread posture immediately
 - the next submit opens one tracked request for that selected specialist team without a separate approval gate
+- once mounted text specialists own the request, follow-up messages stay on that request thread, the assigned specialist team should answer there instead of bouncing the owner back into generic Boreal sessions, and request chat should not shadow those replies with duplicate Boreal-agent output
 
 ### Media agents
 

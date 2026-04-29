@@ -1,6 +1,6 @@
 # Boreal Codex prompt guide
 
-Use these prompts from the main repo root:
+Use these prompts from `docs/internal/`:
 - `CODEX_PROMPT_ABOUT_DOCS.md`
 - `CODEX_PROMPT_PAPERS_UI.md`
 
@@ -9,7 +9,7 @@ Use these prompts from the main repo root:
 From WSL, if Codex is authenticated on Windows:
 
 ```bash
-powershell.exe -NoProfile -Command "Set-Location 'C:\Users\raldb\boreal.work'; Get-Content -Raw 'C:\Users\raldb\boreal.work\CODEX_PROMPT_ABOUT_DOCS.md' | codex exec -"
+powershell.exe -NoProfile -Command "Set-Location 'C:\Users\raldb\boreal.work'; Get-Content -Raw 'C:\Users\raldb\boreal.work\docs\internal\CODEX_PROMPT_ABOUT_DOCS.md' | codex exec -"
 ```
 
 Swap in `CODEX_PROMPT_PAPERS_UI.md` for the papers lane.
@@ -18,7 +18,7 @@ If you want a dedicated branch first:
 
 ```bash
 git checkout -b feat/about-docs-refresh
-powershell.exe -NoProfile -Command "Set-Location 'C:\Users\raldb\boreal.work'; Get-Content -Raw 'C:\Users\raldb\boreal.work\CODEX_PROMPT_ABOUT_DOCS.md' | codex exec -"
+powershell.exe -NoProfile -Command "Set-Location 'C:\Users\raldb\boreal.work'; Get-Content -Raw 'C:\Users\raldb\boreal.work\docs\internal\CODEX_PROMPT_ABOUT_DOCS.md' | codex exec -"
 ```
 
 ## Prompt structure that worked
