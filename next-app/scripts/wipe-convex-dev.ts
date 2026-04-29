@@ -47,7 +47,7 @@ async function main() {
     return;
   }
 
-  console.log("Wiping all app tables from the current Convex development deployment...");
+  console.log("Wiping all app tables and referenced stored files from the current Convex development deployment...");
 
   runConvexCommand([
     "run",
@@ -64,7 +64,7 @@ function confirmWipe() {
 
   return readline
     .question(
-      `Type ${CONFIRMATION_PROMPT} to delete all rows from the current Convex development deployment: `,
+      `Type ${CONFIRMATION_PROMPT} to delete all rows and referenced stored files from the current Convex development deployment: `,
     )
     .then((answer) => answer.trim() === CONFIRMATION_PROMPT)
     .finally(() => readline.close());

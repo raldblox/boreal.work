@@ -257,7 +257,23 @@ function selectPreferredWalletAccountId(
     role === "payout" ? account.isDefaultPayout : account.isDefaultBuyer,
   );
 
-  return preferredRuntime?._id ?? runtimeAccounts[0]?._id;
+  if (preferredRuntime?._id) {
+    return preferredRuntime._id;
+  }
+
+  if (runtimeAccounts[0]?._id) {
+    return runtimeAccounts[0]._id;
+  }
+
+  const preferredAnyNetwork = accounts.find((account) =>
+    role === "payout" ? account.isDefaultPayout : account.isDefaultBuyer,
+  );
+
+  if (preferredAnyNetwork?._id) {
+    return preferredAnyNetwork._id;
+  }
+
+  return accounts[0]?._id;
 }
 
 export async function ensureTransactionForCheckoutItem(

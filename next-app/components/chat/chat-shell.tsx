@@ -2876,6 +2876,7 @@ export function ChatShell() {
 
   function handleClearSelection() {
     setErrorMessage(null)
+    setMountedComposerAgents([])
     updateWorkspaceUrl({
       account: null,
       chat: null,

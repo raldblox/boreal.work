@@ -86,7 +86,7 @@ These milestone names are the best public-safe compression of the roadmap right 
 | `Supplier and specialist market` | `Live` | Suppliers can onboard through `/account` or `/api/v1/supplies`, watch matched demand through one inbox, and seeded specialists stay routable. | Type-aware supply subtype tables and richer market metadata. |
 | `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
 | `Payment and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start, payout verification, refunds, disputes, and stronger settlement proof. |
-| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, and the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes are all live. | Role acceptance, validator lane, richer connector health history, and deeper multi-party coordination. |
+| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, and the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes are all live. | Bundle presets with lead or worker or validator roles, execution policy, richer connector health history, and deeper multi-party coordination. |
 | `Release ops and trust` | `In progress` | Boreal has early-access truth docs, a cohort rollout playbook, and a safer public claim boundary. | Release metrics, incident runbooks, kill switches, and portable reputation exports. |
 
 ## Continuous Roadmap Execution Cadence
@@ -282,6 +282,10 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Reviews and ratings attached to the completed lifecycle
 - [x] Owner-side request workboard for proposals, delivery, and matching refinement
 - [x] Manual mark-fulfilled path for chat-native work that does not produce a formal asset
+- [ ] Bundle offers that can auto-form one request team with a preset output contract instead of acting like loose multi-select agent piles
+- [ ] Explicit request-team role model for mounted bundles and invited runtimes: `lead`, `worker`, and `validator`
+- [ ] Request-thread execution policy for bundles: `lead_only`, `fanout_merge`, `sequential_handoff`, and `validator_gate`
+- [ ] Worker artifact lane plus lead synthesis so bundled teams can collaborate without noisy multi-reply chat
 - [ ] Revision-request loop between owner and fulfiller
 - [x] Stronger request-to-supply recommendation UX
 - [ ] Request-side deadline, SLA, and marketplace health signals fed back into routing

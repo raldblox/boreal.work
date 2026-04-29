@@ -1,4 +1,4 @@
-import type { TableNames } from "./_generated/dataModel";
+import type { Id, TableNames } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import {
   internalAction,
@@ -72,13 +72,30 @@ export const wipeDevelopmentBatch = internalMutation({
     const tableName = args.tableName as TableNames;
     const batchSize = normalizeBatchSize(args.batchSize);
     const documents = await ctx.db.query(tableName).take(batchSize);
+    let deletedStorageCount = 0;
+    const deletedStorageIds = new Set<Id<"_storage">>();
 
     for (const document of documents) {
+      for (const storageId of collectStorageIds(document)) {
+        if (deletedStorageIds.has(storageId)) {
+          continue;
+        }
+
+        try {
+          await ctx.storage.delete(storageId);
+          deletedStorageIds.add(storageId);
+          deletedStorageCount += 1;
+        } catch {
+          // Missing or already-deleted storage should not block a dev wipe.
+        }
+      }
+
       await ctx.db.delete(document._id);
     }
 
     return {
       deletedCount: documents.length,
+      deletedStorageCount,
       hasMore: documents.length === batchSize,
       tableName,
     };
@@ -98,12 +115,15 @@ export const wipeDevelopmentData = internalAction({
     const batchSize = normalizeBatchSize(args.batchSize);
     const tables: Array<{
       deletedCount: number;
+      deletedStorageCount: number;
       tableName: TableNames;
     }> = [];
     let totalDeleted = 0;
+    let totalStorageDeleted = 0;
 
     for (const tableName of DEV_WIPE_TABLES) {
       let deletedCount = 0;
+      let deletedStorageCount = 0;
 
       // Loop until the current table is empty so large dev datasets stay wipeable.
       for (;;) {
@@ -117,6 +137,7 @@ export const wipeDevelopmentData = internalAction({
         );
 
         deletedCount += result.deletedCount;
+        deletedStorageCount += result.deletedStorageCount;
 
         if (!result.hasMore) {
           break;
@@ -124,14 +145,17 @@ export const wipeDevelopmentData = internalAction({
       }
 
       totalDeleted += deletedCount;
+      totalStorageDeleted += deletedStorageCount;
       tables.push({
         deletedCount,
+        deletedStorageCount,
         tableName,
       });
     }
 
     return {
       batchSize,
+      totalStorageDeleted,
       tableCount: tables.length,
       tables,
       totalDeleted,
@@ -146,4 +170,39 @@ function normalizeBatchSize(value?: number) {
   }
 
   return Math.max(1, Math.min(MAX_BATCH_SIZE, Math.floor(value)));
+}
+
+function collectStorageIds(value: unknown): Id<"_storage">[] {
+  const found = new Set<Id<"_storage">>();
+  visitForStorageIds(value, found);
+  return [...found];
+}
+
+function visitForStorageIds(
+  value: unknown,
+  found: Set<Id<"_storage">>,
+) {
+  if (!value) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      visitForStorageIds(entry, found);
+    }
+    return;
+  }
+
+  if (typeof value !== "object") {
+    return;
+  }
+
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "storageId" && typeof nested === "string" && nested.length > 0) {
+      found.add(nested as Id<"_storage">);
+      continue;
+    }
+
+    visitForStorageIds(nested, found);
+  }
 }

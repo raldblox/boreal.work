@@ -32,8 +32,8 @@ export const roadmapHighlights: RoadmapHighlight[] = [
   },
   {
     label: "Hardening now",
-    note: "Mainnet payment depth, team ops, subtype storage, release ops, and trust infrastructure are the main active tracks.",
-    value: "5 tracks",
+    note: "Mainnet payment depth, bundle execution policy, team ops, subtype storage, release ops, and trust infrastructure are the main active tracks.",
+    value: "6 tracks",
   },
   {
     label: "Queued next",
@@ -216,6 +216,20 @@ export const roadmapTickets: BoardTicket[] = [
       "Collective execution and local runtime invite are real, but the Team and Workboard surfaces still need stronger assignment, validation, and escalation behavior.",
     title: "Team coordination hardening",
     updatedAt: "2026-04-29",
+  },
+  {
+    area: "bundle execution",
+    evidence:
+      "Mounted specialist teams and invited local runtimes already attach to one request, but direct specialist teams still reply through one lead voice and runtime teams still fan out replies instead of working through a real bundle policy.",
+    id: "BRL-206",
+    report:
+      "This belongs in progress because Boreal can already form request teams, but it cannot honestly claim robust swarm collaboration yet. Bundle offers need explicit lead, worker, and validator roles plus an execution policy and artifact-synthesis model before the market can sell them as dependable multi-agent work packages.",
+    routes: ["/chat", "/roadmap", "/papers/swarm-workspace"],
+    status: "in_progress",
+    summary:
+      "Preset bundle offers should auto-form request teams, but Boreal still needs role-aware execution and synthesis before claiming real swarm collaboration.",
+    title: "Bundled swarm offers",
+    updatedAt: "2026-04-30",
   },
   {
     area: "supply model",
