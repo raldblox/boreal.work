@@ -146,6 +146,8 @@ type ProfileBuilderEditorProps = {
   isSaving: boolean
   isWalletReady: boolean
   connectWalletLabel: string
+  listingActionLabel?: string
+  listingContextLabel?: string | null
   onConnectWallet: () => void
   onDraftWithBoreal: (message: string) => Promise<void>
   onSaveProfile: () => Promise<void>
@@ -162,6 +164,8 @@ export function ProfileBuilderEditor({
   isSaving,
   isWalletReady,
   connectWalletLabel,
+  listingActionLabel = "Publish offer",
+  listingContextLabel = null,
   onConnectWallet,
   onDraftWithBoreal,
   onSaveProfile,
@@ -218,6 +222,11 @@ export function ProfileBuilderEditor({
               Update the work profile fast. Add or refine one offer only if
               you want Boreal to route paid work here.
             </p>
+            {listingContextLabel ? (
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {listingContextLabel}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -744,7 +753,7 @@ export function ProfileBuilderEditor({
               ) : (
                 <StoreIcon />
               )}
-              Publish offer
+              {listingActionLabel}
             </Button>
           </div>
         </div>

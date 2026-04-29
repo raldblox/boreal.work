@@ -266,7 +266,7 @@ Goal: merchants can onboard digital products or provider-backed services without
 | `EA-6.2` | `Done` | Maintain a dedicated service-provider layer separate from model-provider adapters. | `SERVICE_PROVIDER.MD`, `next-app/lib/boreal/integrations/service-providers/` | Clean integration boundary. |
 | `EA-6.3` | `Done` | Support provider-backed listing sync and payment-aware checkout state for the paths Boreal can call safely today. | Agentic Market sync route, service-provider docs, checkout flow | First merchant-style commerce foundation. |
 | `EA-6.4` | `Done` | Define the exact merchant onboarding path for digital products versus request-based services inside the app. | `/account`, `profile-builder.tsx`, `SERVICE_PROVIDER.MD`, `README.md` | Clear merchant user journey. |
-| `EA-6.5` | `Not started` | Ship a complete merchant self-serve onboarding flow with owned listings, safe edits, and clear route boundaries. | no full public merchant flow or dedicated smoke yet | Merchant onboarding that does not require operator help. |
+| `EA-6.5` | `Done` | Ship a complete merchant self-serve onboarding flow with owned listings, safe edits, and clear route boundaries. | `/account`, owned-offer UI, provider-sync read-only boundary, `npm run typecheck`, targeted `eslint`, `npm run build` | Merchant onboarding that does not require operator help. |
 | `EA-6.6` | `Not started` | Add richer public product pages, merchant-safe checkout flows, and route guards that keep users out of dead-end branches. | roadmap items and current gaps | Safer buyer navigation. |
 | `EA-6.7` | `Not started` | Add deterministic merchant smoke coverage for onboarding, listing, purchase, fulfillment, and payout. | no dedicated merchant smoke yet | Auditable merchant lifecycle. |
 

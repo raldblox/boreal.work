@@ -71,12 +71,18 @@ export function AccountPageClient() {
     useState(false)
   const [isSettingDefaultPayoutWalletId, setIsSettingDefaultPayoutWalletId] =
     useState<string | null>(null)
+  const [editingSupplyId, setEditingSupplyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
 
   const myProfileRecord = myProfileResult ?? null
   const walletAccounts = walletAccountsResult ?? []
+  const editingSupply =
+    editingSupplyId && myProfileRecord
+      ? myProfileRecord.supplies.find((supply) => supply._id === editingSupplyId) ??
+        null
+      : null
 
   useEffect(() => {
     if (!ownerExternalId || !defaultWallet || !isWalletReady) {
@@ -113,8 +119,38 @@ export function AccountPageClient() {
       ? applyProfileBuilderListingPath(baseDraft, path)
       : baseDraft
 
+    setEditingSupplyId(null)
     setProfileBuilderDraft(nextDraft)
     setProfileBuilderMessage("")
+    setIsProfileBuilderOpen(true)
+  }
+
+  function openOwnedSupplyEditor(supplyId: string) {
+    if (!myProfileRecord) {
+      return
+    }
+
+    const targetSupply =
+      myProfileRecord.supplies.find((supply) => supply._id === supplyId) ?? null
+
+    if (!targetSupply) {
+      setNotice("Boreal could not load that offer right now.")
+      return
+    }
+
+    if (targetSupply.sourceProviderKey && targetSupply.sourceProviderKey !== "manual") {
+      setNotice(
+        "Synced provider listings stay read-only here. Update them through the provider sync path."
+      )
+      return
+    }
+
+    setEditingSupplyId(supplyId)
+    setProfileBuilderDraft(
+      buildProfileBuilderDraftFromRecord(myProfileRecord, { supplyId })
+    )
+    setProfileBuilderMessage("")
+    setNotice(null)
     setIsProfileBuilderOpen(true)
   }
 
@@ -288,22 +324,30 @@ export function AccountPageClient() {
           throw new Error("Could not publish the offer.")
         }
 
-        const supplyResult = await createSupplyEntry(supplyInput)
+        const supplyResult = await createSupplyEntry({
+          ...supplyInput,
+          supplyId: editingSupplyId ?? undefined,
+        })
 
         if (!supplyResult.created) {
           throw new Error(
             supplyResult.reason === "missing_payout_wallet"
               ? "Connect a Solana wallet first so Boreal knows where payouts should go."
-              : "Could not publish the offer."
+              : editingSupplyId
+                ? "Could not update the offer."
+                : "Could not publish the offer."
           )
         }
       }
 
       setNotice(
         includeListing
-          ? "Your work profile and primary offer are now live."
+          ? editingSupplyId
+            ? "Your work profile and offer have been updated."
+            : "Your work profile and primary offer are now live."
           : "Your work profile has been updated."
       )
+      setEditingSupplyId(null)
       setIsProfileBuilderOpen(false)
     } catch (error) {
       setNotice(
@@ -373,6 +417,14 @@ export function AccountPageClient() {
                 isDrafting={isDraftingProfileBuilder}
                 isSaving={isSavingProfileBuilder}
                 isWalletReady={isWalletReady}
+                listingActionLabel={
+                  editingSupply ? "Update offer" : "Publish offer"
+                }
+                listingContextLabel={
+                  editingSupply
+                    ? `Editing offer: ${editingSupply.title}`
+                    : "Drafting a Boreal-native offer"
+                }
                 onConnectWallet={login}
                 onDraftWithBoreal={handleDraftProfileBuilder}
                 onSaveProfile={() => saveProfileBuilder(false)}
@@ -392,6 +444,7 @@ export function AccountPageClient() {
           myProfileRecord={myProfileRecord}
           notice={notice}
           onConnectWallet={login}
+          onEditSupplyListing={openOwnedSupplyEditor}
           onOpenProfileBuilder={openProfileBuilder}
           onToggleProfileAvailability={handleToggleProfileAvailability}
           onSetDefaultPayoutWallet={handleSetDefaultPayoutWallet}

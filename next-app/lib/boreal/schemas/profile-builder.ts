@@ -77,27 +77,38 @@ export function cloneProfileBuilderDraft(draft: ProfileBuilderDraft): ProfileBui
 
 export function buildProfileBuilderDraftFromRecord(
   record: MyProfileRecord | null,
+  input?: {
+    supplyId?: string | null;
+  },
 ): ProfileBuilderDraft {
   if (!record) {
     return createEmptyProfileBuilderDraft();
   }
 
-  const primarySupply = record.supplies[0] ?? null;
+  const selectedSupply = input?.supplyId
+    ? record.supplies.find((supply) => supply._id === input.supplyId) ?? null
+    : null;
+  const primarySupply =
+    selectedSupply ??
+    record.supplies.find((supply) => isEditableProfileBuilderSupply(supply)) ??
+    null;
 
   return {
     listing: {
-      capabilityTags: normalizeTagList(record.profile.capabilityTags),
+      capabilityTags: normalizeTagList(
+        primarySupply?.capabilityTags ?? record.profile.capabilityTags,
+      ),
       category: primarySupply?.category ?? "services",
       deliveryType: normalizeDeliveryType(primarySupply?.deliveryType),
       description: primarySupply?.description ?? "",
       enabled: Boolean(primarySupply),
-      estimatedDeliveryLabel: "",
+      estimatedDeliveryLabel: primarySupply?.estimatedDeliveryLabel ?? "",
       priceAmount:
         typeof primarySupply?.priceAmount === "number" && Number.isFinite(primarySupply.priceAmount)
           ? primarySupply.priceAmount
           : null,
       priceType: normalizePriceType(primarySupply?.priceType),
-      subtitle: "",
+      subtitle: primarySupply?.subtitle ?? "",
       supplyType: normalizeSupplyType(primarySupply?.supplyType),
       title: primarySupply?.title ?? "",
     },
@@ -112,6 +123,12 @@ export function buildProfileBuilderDraftFromRecord(
       skillTags: normalizeTagList(record.profile.skillTags),
     },
   };
+}
+
+function isEditableProfileBuilderSupply(
+  supply: NonNullable<MyProfileRecord>["supplies"][number],
+) {
+  return !supply.sourceProviderKey || supply.sourceProviderKey === "manual";
 }
 
 export function mergeProfileBuilderDraft(

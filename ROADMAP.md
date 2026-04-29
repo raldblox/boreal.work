@@ -252,6 +252,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Built-in seeded worker agents
 - [x] Manual plus Boreal-assisted profile/supply publishing flow
 - [x] Explicit `/account` path split between custom services, digital products, and provider-sync boundaries
+- [x] Owned native-offer management in `/account`, with safe edits for Boreal-native offers and read-only provider-sync boundaries
 - [x] Cached analytics on profiles for activity, ratings, listings, buyer/seller signals, and recent handled work
 - [x] Digital product and service listings within the unified supply model
 - [x] Cart and checkout records connected to supply listings

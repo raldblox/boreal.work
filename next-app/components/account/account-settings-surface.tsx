@@ -32,6 +32,7 @@ export function AccountSettingsSurface({
   myProfileRecord,
   notice,
   onConnectWallet,
+  onEditSupplyListing = () => {},
   onOpenProfileBuilder,
   onToggleProfileAvailability,
   onSetDefaultPayoutWallet,
@@ -49,6 +50,7 @@ export function AccountSettingsSurface({
   myProfileRecord: MyProfileRecord
   notice: string | null
   onConnectWallet: () => void
+  onEditSupplyListing?: (supplyId: string) => void
   onOpenProfileBuilder: (
     path?: Exclude<ProfileBuilderListingPath, "provider_sync">
   ) => void
@@ -58,7 +60,14 @@ export function AccountSettingsSurface({
   walletAccounts: WalletAccountRecord
 }) {
   const profile = myProfileRecord?.profile ?? null
-  const primarySupply = myProfileRecord?.supplies[0] ?? null
+  const editableSupplies =
+    myProfileRecord?.supplies.filter((supply) => isEditableMerchantSupply(supply)) ??
+    []
+  const providerManagedSupplies =
+    myProfileRecord?.supplies.filter(
+      (supply) => !isEditableMerchantSupply(supply)
+    ) ?? []
+  const primarySupply = editableSupplies[0] ?? null
   const hasPublicProfile = Boolean(profile?._id && profile.isPublic)
   const isAvailableForWork = Boolean(
     profile?.isPublic && profile.availabilityStatus === "available"
@@ -204,6 +213,80 @@ export function AccountSettingsSurface({
                 title="Provider sync route"
               />
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-border p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-base font-medium">Owned offers</p>
+                <p className="text-sm text-muted-foreground">
+                  Edit Boreal-native offers here. Provider-synced listings stay
+                  visible but read-only so this editor does not overwrite the
+                  external source path.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => onOpenProfileBuilder("service")}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Add service offer
+                </Button>
+                <Button
+                  onClick={() => onOpenProfileBuilder("product")}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Add digital product
+                </Button>
+              </div>
+            </div>
+
+            {myProfileRecord?.supplies.length ? (
+              <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                {editableSupplies.map((supply) => (
+                  <OwnedOfferCard
+                    action={
+                      <Button
+                        onClick={() => onEditSupplyListing(supply._id)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        Edit offer
+                      </Button>
+                    }
+                    description={supply.description}
+                    key={supply._id}
+                    sourceLabel="Boreal native"
+                    supply={supply}
+                  />
+                ))}
+                {providerManagedSupplies.map((supply) => (
+                  <OwnedOfferCard
+                    action={
+                      <Button disabled size="sm" type="button" variant="outline">
+                        Provider-managed
+                      </Button>
+                    }
+                    description={supply.description}
+                    key={supply._id}
+                    sourceLabel={`Synced from ${formatSourceProviderLabel(
+                      supply.sourceProviderKey
+                    )}`}
+                    supply={supply}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+                No offers yet. Start with one custom service or one digital
+                product.
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-border p-5">
@@ -395,6 +478,79 @@ function MerchantPathCard({
       </div>
     </div>
   )
+}
+
+function OwnedOfferCard({
+  action,
+  description,
+  sourceLabel,
+  supply,
+}: {
+  action: ReactNode
+  description: string
+  sourceLabel: string
+  supply: NonNullable<MyProfileRecord>["supplies"][number]
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-background p-4">
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <StatusChip label={sourceLabel} tone="muted" />
+            <StatusChip
+              label={supply.supplyType.replaceAll("_", " ")}
+              tone="muted"
+            />
+            <StatusChip label={supply.status} tone="muted" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">{supply.title}</p>
+            {supply.subtitle ? (
+              <p className="text-xs text-muted-foreground">{supply.subtitle}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          {description || "No offer description yet."}
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          <StatusChip label={supply.category} tone="muted" />
+          {supply.priceAmount !== null ? (
+            <StatusChip
+              label={`$${supply.priceAmount.toFixed(0)} ${supply.priceType}`}
+              tone="muted"
+            />
+          ) : (
+            <StatusChip label={supply.priceType} tone="muted" />
+          )}
+          {supply.estimatedDeliveryLabel ? (
+            <StatusChip label={supply.estimatedDeliveryLabel} tone="muted" />
+          ) : null}
+          {supply.executionSurface ? (
+            <StatusChip label={supply.executionSurface} tone="muted" />
+          ) : null}
+        </div>
+
+        <div>{action}</div>
+      </div>
+    </div>
+  )
+}
+
+function isEditableMerchantSupply(
+  supply: NonNullable<MyProfileRecord>["supplies"][number]
+) {
+  return !supply.sourceProviderKey || supply.sourceProviderKey === "manual"
+}
+
+function formatSourceProviderLabel(sourceProviderKey: string | null) {
+  if (!sourceProviderKey) {
+    return "manual"
+  }
+
+  return sourceProviderKey.replaceAll("-", " ")
 }
 
 export function formatNetworkKeyLabel(networkKey: string) {
