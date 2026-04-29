@@ -72,6 +72,9 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Moved Boreal's Solana-first commerce defaults and one-request contract fully onto mainnet-first settings: auth, quoting, seller metadata, payment verification, supplier defaults, and public docs now point at Solana mainnet by default, while settlement claims stay conservative around treasury-grade verification.
+- `2026-04-29`: Added `solana-operator` as a new built-in direct specialist: the advanced registry now exposes a Solana-specific route for non-custodial execution planning, wallet requirements, approval checklists, and risk notes, while docs now make the no-hidden-custody boundary explicit until a real Privy approval flow exists.
+- `2026-04-29`: Finished `EA-1.7` in `EARLY_ACCESS.md` by persisting classifier-first request routing on every intent: `classification` now stores `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters separately from `routeTarget`, request reads and execution context expose the stored shape, and `npm run smoke:request-classification` verifies round-trip persistence across informational, direct-generation, and advisory requests.
 - `2026-04-29`: Finished `EA-1.6` in `EARLY_ACCESS.md` by generalizing automatic-route recovery: market-eligible Boreal routes now reopen safely for workers after automatic failure instead of only the video-provider path doing so, the real execution error stays in the request timeline, and `npm run smoke:request-recovery` now verifies the recovery rule deterministically.
 - `2026-04-29`: Finished `EA-0.5` in `EARLY_ACCESS.md` by tightening the live public story around open early access: `/`, `/about`, the Boreal agent connection surface, and the public copy source docs now keep browsing and intake open while making the funded-start boundary explicit instead of implying broad mainnet or escrow readiness.
 - `2026-04-28`: Deepened `SUPPLY_LIST.md` into a concrete Convex subtype schema plan: what stays on canonical `supplies`, proposed subtype table shapes and indexes, ownership rules, write and read paths, and the migration sequence for class-aware supply storage.
@@ -106,19 +109,19 @@ Operator note:
 - `2026-04-27`: Added the public `/roadmap` route as Boreal's public-safe Jira-style status board for what is live, in progress, next, and later, and aligned contributor guidance to keep internal agent ops off that page.
 - `2026-04-27`: Added supplier listing guardrails: active supplier listings now cap at 25 per owner, overflow registration returns `supply_limit_reached`, and `npm run smoke:supplier-listing-guards` verifies the path.
 - `2026-04-27`: Added wallet-scoped one-request intake guards: max 3 active unpaid quotes, max 8 recent requests per 10-minute window, plus `npm run smoke:one-request-guards`.
-- `2026-04-27`: Hardened one-request payment verification again: when the seller pay-to address is configured, Boreal now requires the verified Solana devnet transaction to mention that pay-to address in addition to signer, confirmation, and memo checks.
-- `2026-04-27`: Added Bazaar-compatible seller metadata to the one-request contract: canonical x402 Solana devnet network id plus `bazaar` discovery fields on the live seller block, and strengthened `npm run smoke:one-request`.
+- `2026-04-27`: Hardened one-request payment verification again: when the seller pay-to address is configured, Boreal now requires the verified Solana transaction to mention that pay-to address in addition to signer, confirmation, and memo checks.
+- `2026-04-27`: Added Bazaar-compatible seller metadata to the one-request contract: canonical x402 Solana network id plus `bazaar` discovery fields on the live seller block, and strengthened `npm run smoke:one-request`.
 - `2026-04-27`: Enriched the specialized agent registry with listing-ready metadata: canonical `/api/v1/agents/*` routes, request-first route hints, machine-readable input/output schemas, normalized USD price labels, and stronger `npm run smoke:agents` coverage.
 - `2026-04-27`: Added supplier concurrency controls: claim now reserves capacity, delivery releases it, routing respects `maxConcurrentJobs`, and `npm run smoke:supplier-capacity` verifies blocking plus release.
 - `2026-04-27`: Added payout execution progression: supplier payouts now move through `pending`, `processing`, and `paid`, aggregate settlements move to `paid_out` or `failed`, and `npm run smoke:payouts` verifies the path.
 - `2026-04-27`: Added the public supplier self-registration surface: `POST /api/v1/supplies`, `PATCH /api/v1/supplies/{supplyId}`, `GET /api/v1/supplies?mine=true`, plus `npm run smoke:supplier-onboarding`.
 - `2026-04-27`: Implemented the supplier-side `one inbox` contract in `ONE_INBOX_API.md` as the live companion to the `one request` demand contract.
 - `2026-04-27`: Shipped the live agent-only one-request contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, request status and event routes, seeded specialist payout metadata, and `npm run smoke:one-request`.
-- `2026-04-27`: Locked the next agent-only `one request` plan in `ONE_REQUEST_API.md`: `POST /api/v1/requests`, message-only demand intake, SIWX + x402, Solana devnet payment, seeded specialist payouts, and an end-to-end smoke target.
+- `2026-04-27`: Locked the next agent-only `one request` plan in `ONE_REQUEST_API.md`: `POST /api/v1/requests`, message-only demand intake, SIWX + x402, Solana payment, seeded specialist payouts, and an end-to-end smoke target.
 - `2026-04-26`: Reframed `MVP.md` as Boreal's first paid launch wedge inside the broader early access release and consolidated most narrative/brand docs under `docs/`.
 - `2026-04-26`: Added a preserved `remotion/src/generations/request-native-2026/` video generation with three app-truthful Boreal compositions, isolated render scripts, and `@remotion/player` preview support.
 - `2026-04-26`: Added `presentations/boreal-pitch-deck/` as the editable PowerPoint workspace for Boreal's pitch deck, preview renders, and headless QA reports.
-- `2026-04-26`: Switched Boreal's commerce defaults to Solana devnet locally, added explicit mainnet / EVM network flags, and wired canonical network metadata through wallet, transaction, and settlement records.
+- `2026-04-26`: Switched Boreal's commerce defaults to Solana-first routing, added explicit mainnet / EVM network flags, and wired canonical network metadata through wallet, transaction, and settlement records.
 - `2026-04-26`: Added `hyperframes/` as a standalone HTML-first video workspace for Boreal explainer cuts, motion comps, vendored Boreal render fonts, and future UI-capture-driven renders.
 
 ## Source Documents
@@ -205,6 +208,7 @@ From `next-app/`:
 - `npm run smoke:connected-agents` runs the deterministic advanced-runtime chat smoke for HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
 - `npm run smoke:hermes-bridge` runs the deterministic local Hermes bridge smoke for the minimal advanced-runtime HTTP contract.
 - `npm run smoke:request-callbacks` runs the deterministic advanced-runtime callback smoke for request status, evidence, heartbeat, delivery, and payout-readiness progression.
+- `npm run smoke:request-classification` runs the deterministic classifier-first request-contract smoke for persisted `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters.
 - `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.
@@ -282,8 +286,8 @@ The premium agent-only one-request surface is now live:
 
 Current hardening boundary:
 
-- payment confirmation now requires a signed devnet authorization receipt plus Boreal verification of the referenced Solana devnet transaction, authenticated signer, confirmation status, and payment-reference memo
-- Boreal does not yet claim treasury/payto-grade settlement verification or Solana mainnet settlement on this path
+- payment confirmation now requires a signed mainnet authorization receipt plus Boreal verification of the referenced Solana mainnet transaction, authenticated signer, confirmation status, and payment-reference memo
+- Boreal does not yet claim treasury/payto-grade settlement verification on this path
 
 ## Messaging Guardrail
 
@@ -303,9 +307,9 @@ That can mean:
 
 ## Network Defaults
 
-- Boreal is now Solana-first by default for local and dev deployments.
-- `BOREAL_CHAIN_ENV=devnet` is the runtime default if no environment flag is set.
-- Set `BOREAL_CHAIN_ENV=mainnet` or `NEXT_PUBLIC_BOREAL_CHAIN_ENV=mainnet` in deployment to switch the commerce layer to mainnet defaults.
+- Boreal is now Solana-first by default across the project.
+- `BOREAL_CHAIN_ENV=mainnet` is the runtime default if no environment flag is set.
+- Set `BOREAL_CHAIN_ENV=testnet` or the matching `NEXT_PUBLIC_...` flag only when a non-mainnet environment is intentionally required.
 - `BOREAL_PRIMARY_CHAIN_FAMILY=solana` is the default chain-family policy.
 - Set `BOREAL_PRIMARY_CHAIN_FAMILY=evm` to make the default wallet/payment path EVM-first; Base mainnet and Base Sepolia are the primary supported EVM defaults today.
 

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 
 import type { Id } from "../convex/_generated/dataModel.js";
 import { api, createAgentConvexClient } from "../agents/shared/convex-client.ts";
+import { normalizeIntentExtraction } from "../lib/boreal/schemas/intent.ts";
+import { buildIntentPersistencePayload } from "../lib/boreal/tools/ui/build-intent-response.ts";
 
 const now = Date.now();
 const ownerExternalId = "smoke-owner-lifecycle";
@@ -17,8 +19,8 @@ async function main() {
 
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerExternalId,
     roles: ["connected", "buyer"],
     setAsDefaultBuyer: true,
@@ -28,8 +30,8 @@ async function main() {
 
   await client.mutation(api.wallets.syncWalletAccount, {
     chainFamily: "solana",
-    environment: "devnet",
-    networkKey: "solana:devnet",
+    environment: "mainnet",
+    networkKey: "solana:mainnet",
     ownerExternalId: workerExternalId,
     roles: ["connected", "payout"],
     setAsDefaultBuyer: false,
@@ -71,46 +73,19 @@ async function main() {
     assert.ok(supply.supplyId, "expected a supply id");
 
     const conversationId = crypto.randomUUID();
-    const intentRecord = await client.mutation(api.chats.recordIntentPipeline, {
-      assistantMessage: "Structured request created for marketplace routing.",
-      conversationId,
-      initialStatus: "open",
-      intent: {
-        assistantMessageId: crypto.randomUUID(),
-        assetPrompt: "",
-        body: `Need a worked algebra solution for x^2 - 5x + 6 = 0, including factorization and a short explanation of each step. Match token: ${matchToken}.`,
+    const message = `Need a worked algebra solution for x^2 - 5x + 6 = 0, including factorization and a short explanation of each step. Match token: ${matchToken}.`;
+    const extractedIntent = normalizeIntentExtraction(
+      {
+        body: message,
         capabilityTags: ["math", "algebra", "worked solution", matchToken],
         catalogQuery: `algebra worked solution service ${matchToken}`,
         category: "education",
         confidence: 0.94,
-        conversationId,
-        embedding: [],
-        embeddingModel: "smoke-test",
         extractionNotes: ["deterministic smoke request"],
-        generationSignals: {
-          primaryMode: "text",
-          requestsImageGeneration: false,
-          requestsSpeechGeneration: false,
-          requestsText: true,
-          requestsVideoGeneration: false,
-        },
-        intentModel: "smoke-test",
         intentType: "demand",
         keywords: ["algebra", "equation", "worked solution", "math", matchToken],
         missingDetails: [],
-        modalityScores: [
-          {
-            kind: "text",
-            score: 0.98,
-          },
-        ],
         needsClarification: false,
-        persistence: {
-          isUnresolved: true,
-          reason: "Smoke lifecycle request",
-          shouldPersist: true,
-        },
-        provider: "boreal-agent",
         requestedOutputTypes: ["text"],
         responseInstructions: "Return a clear markdown solution.",
         routeTarget: "catalog_lookup",
@@ -124,16 +99,31 @@ async function main() {
         suggestedReplies: [],
         summary: `Need an algebra expert to solve and explain a quadratic equation in markdown for ${matchToken}.`,
         title: `Solve and explain a quadratic equation ${matchToken}`,
-        userMessageId: crypto.randomUUID(),
-        videoSeconds: "8",
-        videoSize: "1280x720",
         voice: "alloy",
       },
+      message,
+      [{ kind: "text", score: 0.98 }],
+    );
+    const persistedIntent = buildIntentPersistencePayload({
+      assistantMessageId: crypto.randomUUID(),
+      conversationId,
+      embedding: [],
+      embeddingModel: "smoke-test",
+      intent: extractedIntent,
+      intentModel: "smoke-test",
+      modalityScores: [{ kind: "text", score: 0.98 }],
+      provider: "boreal-agent",
+      userMessageId: crypto.randomUUID(),
+    });
+    const intentRecord = await client.mutation(api.chats.recordIntentPipeline, {
+      assistantMessage: "Structured request created for marketplace routing.",
+      conversationId,
+      initialStatus: "open",
+      intent: persistedIntent,
       ownerDisplayName: "Smoke Owner",
       ownerExternalId,
       ownerHandle: "smoke_owner",
-      userMessage:
-        "Post this as a public request for an algebra expert. I want proposals first, then delivery in markdown.",
+      userMessage: message,
     });
 
     const intentId = intentRecord.intentId as Id<"intents">;

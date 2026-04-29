@@ -4,12 +4,13 @@ import { v } from "convex/values";
 import {
   DEFAULT_BOREAL_VIDEO_SECONDS,
   DEFAULT_BOREAL_VIDEO_SIZE,
-} from "../lib/boreal/media/video-contract";
+} from "../lib/boreal/media/video-contract.ts";
 import {
   normalizeIntentExtraction,
+  type RequestClassification,
   type RequestedOutputType,
   type ToolRoute,
-} from "../lib/boreal/schemas/intent";
+} from "../lib/boreal/schemas/intent.ts";
 import {
   buildCollectiveContributionSummary,
   buildCollectiveTrustSummary,
@@ -27,6 +28,7 @@ function sanitizeStoredIntentShape(intent: {
   catalogQuery?: string | null;
   category?: string | null;
   confidence?: number | null;
+  classification?: RequestClassification | null;
   intentType?: "demand" | "informational" | "supply" | null;
   keywords?: string[] | null;
   missingDetails?: string[] | null;
@@ -50,7 +52,7 @@ function sanitizeStoredIntentShape(intent: {
       ? intent.requestedOutputTypes
       : ["text"]) as RequestedOutputType[];
 
-  return normalizeIntentExtraction(
+  const normalizedIntent = normalizeIntentExtraction(
     {
       assetPrompt: intent.assetPrompt ?? "",
       body: intent.body ?? fallbackMessage,
@@ -80,6 +82,11 @@ function sanitizeStoredIntentShape(intent: {
       score: index === 0 ? 1 : 0.5,
     })),
   );
+
+  return {
+    ...normalizedIntent,
+    classification: intent.classification ?? normalizedIntent.classification,
+  };
 }
 
 export const listSidebar = query({
@@ -367,6 +374,7 @@ export const getRequestDetail = query({
         closedReason: intent.closedReason ?? null,
         completedAt: intent.completedAt ?? null,
         confidence: intent.confidence,
+        classification: normalizedIntent.classification,
         missingDetails: normalizedIntent.missingDetails,
         matchAttempts: intent.matchAttempts ?? 0,
         needsClarification: normalizedIntent.needsClarification,
@@ -449,6 +457,7 @@ export const getExecutionContext = query({
       category: intent.category,
       conversationId: intent.conversationId ?? null,
       generationSignals: intent.generationSignals,
+      classification: normalizedIntent.classification,
       intentKey: intent.intentKey,
       keywords: intent.keywords ?? [],
       missingDetails: normalizedIntent.missingDetails,

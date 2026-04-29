@@ -39,9 +39,16 @@ export function buildIntentRoutingHint(uiContext?: ChatUiContext) {
     `UI focus: ${pickCharacterContextKey(uiContext)}`,
     `Center tab: ${uiContext.centerTab ?? "none"}`,
     `Directory tab: ${uiContext.browseTab ?? "none"}`,
+    `Mounted supply: ${uiContext.mountedSupplyTitle ?? "none"}`,
     `Request role: ${uiContext.requestRole ?? "none"}`,
     `Request status: ${uiContext.requestStatus ?? "none"}`,
   ];
+
+  if (uiContext.mountedSupplyId && uiContext.mountedSupplyTitle) {
+    lines.push(
+      `A market offer is mounted in chat. Prefer ${uiContext.mountedSupplyTitle} when the user's ask fits that specialist before drifting into generic matching.`,
+    );
+  }
 
   if (
     (uiContext.centerTab === "proposals" || uiContext.centerTab === "workspace") &&
@@ -83,6 +90,7 @@ function buildUiSnapshot(uiContext?: ChatUiContext) {
     `- surface: ${uiContext.surface}`,
     `- center tab: ${uiContext.centerTab ?? "none"}`,
     `- directory tab: ${uiContext.browseTab ?? "none"}`,
+    `- mounted supply: ${uiContext.mountedSupplyTitle ?? "none"}`,
     `- request role: ${uiContext.requestRole ?? "none"}`,
     `- request status: ${uiContext.requestStatus ?? "none"}`,
     `- can submit proposal: ${uiContext.canSubmitProposal ? "yes" : "no"}`,

@@ -284,9 +284,7 @@ function SupplyCard({
 }) {
   const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
   const profileId = listing.seller?.profileId ?? null
-  const isBorealAgentListing = profileId === BOREAL_AGENT_PROFILE_ID
-  const supportsDirectInvoke =
-    isBorealAgentListing && listing.supportsDirectInvoke && !!onInvokeListing
+  const supportsDirectInvoke = listing.supportsDirectInvoke && !!onInvokeListing
   const isProfileClickable = Boolean(profileId)
 
   return (
@@ -413,8 +411,8 @@ const BOREAL_AGENT_HUMAN_OPTIMIZER: CatalogEntry = {
   isCartEnabled: false,
   isPinned: true,
   matchReasons: [],
-  matchScore: 100,
-  matchStage: "ranked",
+  matchScore: null,
+  matchStage: null,
   paymentNetworkHints: [],
   paymentProtocol: "none",
   priceAmount: 0,

@@ -4,6 +4,7 @@ import { getDirectExecutionAgent } from "@/agents";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { createConvexServerClient } from "@/lib/boreal/integrations/convex/server-client";
+import { deriveRequestClassification } from "@/lib/boreal/schemas/intent";
 import {
   buildPaymentAuthorizationMessage,
   buildPaymentReferenceMemo,
@@ -455,7 +456,24 @@ async function executePaidSession(
       caller: input.caller,
       intentId: String(input.existing.intentId),
       intentKey: String(input.existing.intentKey),
-      persistedIntent: {
+      persistedIntent: (() => {
+        const requestedOutputTypes = input.existing.requestedOutputTypes;
+        const routeTarget = (routePlan.routeTarget as
+          | "catalog_lookup"
+          | "clarification"
+          | "general_assistance"
+          | "image_generation"
+          | "profile_update"
+          | "speech_generation"
+          | "video_generation") ?? "general_assistance";
+        const routing = {
+          resolutionTier: "auto" as const,
+          shouldCreateFulfillmentRequest: true,
+          shouldPersistToBoard: true,
+        };
+        const shouldSearchCatalog = false;
+
+        return {
         assistantMessageId: crypto.randomUUID(),
         assetPrompt: String(routePlan.assetPrompt ?? routePlan.summary ?? input.existing.summary),
         body: input.existing.message,
@@ -496,22 +514,19 @@ async function executePaidSession(
           shouldPersist: true,
         },
         provider: "boreal-agent",
-        requestedOutputTypes: input.existing.requestedOutputTypes,
+        requestedOutputTypes,
         responseInstructions: String(routePlan.summary ?? input.existing.summary),
-        routeTarget: (routePlan.routeTarget as
-          | "catalog_lookup"
-          | "clarification"
-          | "general_assistance"
-          | "image_generation"
-          | "profile_update"
-          | "speech_generation"
-          | "video_generation") ?? "general_assistance",
-        routing: {
-          resolutionTier: "auto",
-          shouldCreateFulfillmentRequest: true,
-          shouldPersistToBoard: true,
-        },
-        shouldSearchCatalog: false,
+        routeTarget,
+        routing,
+        classification: deriveRequestClassification({
+          intentType: "demand",
+          needsClarification: false,
+          requestedOutputTypes,
+          routeTarget,
+          routing,
+          shouldSearchCatalog,
+        }),
+        shouldSearchCatalog,
         speechText: String(routePlan.speechText ?? input.existing.message),
         suggestedReplies: [],
         summary: input.existing.summary,
@@ -520,7 +535,7 @@ async function executePaidSession(
         videoSeconds: String(routePlan.seconds ?? "8"),
         videoSize: String(routePlan.size ?? "1280x720"),
         voice: String(routePlan.voice ?? "alloy"),
-      },
+      }})(),
       routePlan,
     });
     const payoutTargets = routePlan.selected.map((selection) => ({

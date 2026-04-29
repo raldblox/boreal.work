@@ -14,7 +14,7 @@ Every item here should be auditable from shipped UI, versioned API contracts, ru
 ## Current Release Position
 
 - Current mode: `open early access surface`, but not broad public mainnet-paid readiness.
-- Strongest live proof today: request-first work loop, supplier onboarding, matched inbox, collective proposals, connected-agent callbacks, devnet payment verification, and payout state progression.
+- Strongest live proof today: request-first work loop, supplier onboarding, matched inbox, collective proposals, connected-agent callbacks, mainnet-default payment verification, and payout state progression.
 - Biggest blockers today: request classification that cleanly separates product, provider service, direct tool, and async work paths; real mainnet payment and payout hardening; funded-start rules for human and agent work; escrow for async labor; curated supply density; stronger team-assignment operations; and a complete merchant self-serve path.
 
 ## Phase Scorecard
@@ -39,7 +39,7 @@ Goal: public language matches shipped reality, and release tracking has one audi
 | `EA-0.1` | `Done` | Use `early access` instead of vague `alpha` language in public-facing release framing. | `README.md`, `ROADMAP.md`, `WHITEPAPER.md`, `docs/` narrative docs | Clear release language that does not overpromise maturity. |
 | `EA-0.2` | `Done` | Keep `ROADMAP.md` as broad capability tracker instead of public launch gate. | `ROADMAP.md`, `/roadmap`, contributor docs | Public-safe roadmap and separate release gate. |
 | `EA-0.3` | `Done` | Add a dedicated phase-based early access tracker with explicit exit criteria. | `EARLY_ACCESS.md` | One release-order source of truth. |
-| `EA-0.4` | `Done` | Keep docs honest about payment boundary and devnet-vs-mainnet state. | `ONE_REQUEST_API.md`, `SERVICE_PROVIDER.MD` | No false mainnet settlement claim. |
+| `EA-0.4` | `Done` | Keep docs honest about the payment boundary and the gap between mainnet request verification and treasury-grade settlement claims. | `ONE_REQUEST_API.md`, `SERVICE_PROVIDER.MD` | No false settlement claim. |
 | `EA-0.5` | `Done` | Tighten all public homepage and launch copy to match the current open early access promise without overclaiming mainnet or escrow readiness. | `/`, `/about`, `docs/COPYWRITING.md`, `docs/MESSAGING_MATRIX.md` | A public story that matches current operations. |
 
 After this phase:
@@ -73,7 +73,7 @@ Goal: one request can enter Boreal, move forward on one thread, and exit with de
 | `EA-1.4` | `Done` | Capture proposal, approval, delivery, and review lifecycle in deterministic smoke coverage. | `npm run smoke:lifecycle` | Repeatable request lifecycle proof. |
 | `EA-1.5` | `Done` | Protect the public one-request surface with wallet-scoped unpaid-quote and burst guards. | `npm run smoke:one-request-guards`, guard logic in `next-app/lib/boreal/one-request/` | Basic abuse resistance. |
 | `EA-1.6` | `Done` | Normalize recovery paths when automatic execution fails so requests reopen safely for workers across all route types. | request timeline recovery UX, route-specific reopen logic, `npm run smoke:request-recovery` | Safer failure handling beyond the happy path. |
-| `EA-1.7` | `Not started` | Separate request market classification from the current UI-oriented `routeTarget`: persist `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters on the request. | `MATCHING_ENGINE.md`, `next-app/lib/boreal/schemas/intent.ts`, `next-app/convex/schema.ts` | Classifier-first request contract. |
+| `EA-1.7` | `Done` | Separate request market classification from the current UI-oriented `routeTarget`: persist `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters on the request. | `MATCHING_ENGINE.md`, `next-app/lib/boreal/schemas/intent.ts`, `next-app/convex/schema.ts`, `npm run smoke:request-classification` | Classifier-first request contract. |
 | `EA-1.8` | `Not started` | Use request classification to choose fetch and routing paths before broad ranking: direct tool, product catalog, provider x402, async worker market, or collective. | routing layer, matching layer, request lifecycle docs | Cheaper and cleaner retrieval. |
 
 After this phase:
@@ -87,6 +87,7 @@ Verification:
 - `cd next-app && npm run smoke:lifecycle`
 - `cd next-app && npm run smoke:one-request`
 - `cd next-app && npm run smoke:one-request-guards`
+- `cd next-app && npm run smoke:request-classification`
 - `cd next-app && npm run smoke:request-recovery`
 - `cd next-app && npm run smoke:request-thread-specialists`
 
@@ -149,10 +150,10 @@ Goal: paying users, suppliers, and Boreal can trust the payment boundary, funded
 | ID | Status | Task | Auditable evidence | Deliverable |
 | --- | --- | --- | --- | --- |
 | `EA-3.1` | `Done` | Require `SIWX` wallet auth plus a `402` payment boundary before expensive agent execution. | `ONE_REQUEST_API.md`, one-request code, `npm run smoke:one-request` | Clear pay-before-execute boundary. |
-| `EA-3.2` | `Done` | Verify signed devnet payment authorization plus fetched Solana devnet transaction proof before execution. | `ONE_REQUEST_API.md`, one-request verification code, `npm run smoke:one-request` | Current devnet payment proof path. |
+| `EA-3.2` | `Done` | Verify signed payment authorization plus fetched Solana mainnet transaction proof before execution. | `ONE_REQUEST_API.md`, one-request verification code, `npm run smoke:one-request` | Current mainnet-default payment proof path. |
 | `EA-3.3` | `Done` | Persist transaction, settlement, and payout records on the request lifecycle. | payout and settlement data model, request APIs, `npm run smoke:one-request` | Auditable economic lifecycle. |
 | `EA-3.4` | `Done` | Track payout progression through `pending`, `processing`, and `paid`. | `npm run smoke:payouts`, payout mutations | Deterministic payout state machine. |
-| `EA-3.5` | `In progress` | Harden one real mainnet payment path for open early access instead of devnet-only proof. | `ONE_REQUEST_API.md`, `SERVICE_PROVIDER.MD`, current network defaults | A production payment rail. |
+| `EA-3.5` | `In progress` | Harden the mainnet-default payment path for open early access beyond the current quote-locked proof flow. | `ONE_REQUEST_API.md`, `SERVICE_PROVIDER.MD`, current network defaults | A production payment rail. |
 | `EA-3.6` | `Not started` | Add request-level funded start for non-instant human or agent work: route approved, quote locked, escrow funded, then work begins. | `ROADMAP.md`, request lifecycle docs, settlement model | Escrow-backed async labor start. |
 | `EA-3.7` | `Not started` | Require independent on-chain payout verification before marking supplier payouts `paid`. | payout mutation path and smoke expectations | Stronger real-money payout safety. |
 | `EA-3.8` | `Not started` | Add refund, dispute, and operator intervention runbooks for paid failures. | docs and ops flows not yet present | Safer money-handling operations. |

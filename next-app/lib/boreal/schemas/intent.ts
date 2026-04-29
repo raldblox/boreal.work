@@ -24,6 +24,55 @@ export type ModalityProfileScore = {
   score: number;
 };
 
+export type RequestRouteFamily =
+  | "informational"
+  | "onboarding"
+  | "direct_generation"
+  | "product_purchase"
+  | "provider_service"
+  | "custom_work";
+
+export type RequestExecutionKind =
+  | "none"
+  | "instant_download"
+  | "direct_tool"
+  | "direct_provider"
+  | "async_human"
+  | "async_agent"
+  | "async_collective"
+  | "hybrid";
+
+export type RequestPaymentMode =
+  | "none"
+  | "catalog_checkout"
+  | "x402_prepay"
+  | "quote_then_escrow";
+
+export type RequestMatchingMode =
+  | "none"
+  | "catalog"
+  | "provider_capability"
+  | "worker_market"
+  | "collective_market";
+
+export type RequestCandidatePool = {
+  actorKinds: Array<"human" | "agent" | "tool">;
+  deliveryTypes: Array<"instant" | "async" | "scheduled">;
+  fulfillmentKinds: Array<"digital" | "service" | "hybrid" | "physical">;
+  requiresCartEnabled: boolean | null;
+  requiresDirectInvoke: boolean | null;
+  requiresSourceProvider: boolean;
+  supplyTypes: Array<"product" | "capability" | "agent_tool" | "collective">;
+};
+
+export type RequestClassification = {
+  candidatePool: RequestCandidatePool;
+  executionKind: RequestExecutionKind;
+  matchingMode: RequestMatchingMode;
+  paymentMode: RequestPaymentMode;
+  routeFamily: RequestRouteFamily;
+};
+
 export type IntentExtraction = {
   intentType: "demand" | "supply" | "informational";
   routeTarget: ToolRoute;
@@ -52,6 +101,7 @@ export type IntentExtraction = {
     isUnresolved: boolean;
     reason: string;
   };
+  classification: RequestClassification;
   needsClarification: boolean;
   missingDetails: string[];
   suggestedReplies: string[];
@@ -111,6 +161,96 @@ const supportedSpeechVoices = [
 ] as const;
 
 export type SupportedSpeechVoice = (typeof supportedSpeechVoices)[number];
+
+export function deriveRequestClassification(input: {
+  advisoryRequest?: boolean;
+  intentType: IntentExtraction["intentType"];
+  needsClarification: boolean;
+  requestedOutputTypes: RequestedOutputType[];
+  routeTarget: ToolRoute;
+  routing: IntentExtraction["routing"];
+  shouldSearchCatalog: boolean;
+  workerLed?: boolean;
+}): RequestClassification {
+  const primaryMode = input.requestedOutputTypes[0] ?? "text";
+  const directGenerationRequest =
+    primaryMode === "image_generation" ||
+    primaryMode === "speech_generation" ||
+    primaryMode === "video_generation" ||
+    input.routeTarget === "image_generation" ||
+    input.routeTarget === "speech_generation" ||
+    input.routeTarget === "video_generation";
+
+  if (input.intentType === "supply" || input.routeTarget === "profile_update") {
+    return {
+      candidatePool: emptyCandidatePool(),
+      executionKind: "direct_tool",
+      matchingMode: "none",
+      paymentMode: "none",
+      routeFamily: "onboarding",
+    };
+  }
+
+  if (
+    input.intentType === "informational" &&
+    !input.routing.shouldCreateFulfillmentRequest
+  ) {
+    return {
+      candidatePool: input.shouldSearchCatalog
+        ? browseCatalogCandidatePool()
+        : emptyCandidatePool(),
+      executionKind: "none",
+      matchingMode: input.shouldSearchCatalog ? "catalog" : "none",
+      paymentMode: "none",
+      routeFamily: "informational",
+    };
+  }
+
+  if (directGenerationRequest) {
+    return {
+      candidatePool: directGenerationCandidatePool(),
+      executionKind: "direct_tool",
+      matchingMode: "catalog",
+      paymentMode: "x402_prepay",
+      routeFamily: "direct_generation",
+    };
+  }
+
+  if (input.workerLed) {
+    return {
+      candidatePool: workerMarketCandidatePool(),
+      executionKind: "hybrid",
+      matchingMode: "worker_market",
+      paymentMode: "quote_then_escrow",
+      routeFamily: "custom_work",
+    };
+  }
+
+  if (
+    input.advisoryRequest ||
+    input.routing.shouldCreateFulfillmentRequest ||
+    input.routeTarget === "clarification" ||
+    input.needsClarification
+  ) {
+    return {
+      candidatePool: agentRouteCandidatePool(),
+      executionKind: "async_agent",
+      matchingMode: "catalog",
+      paymentMode: "x402_prepay",
+      routeFamily: "custom_work",
+    };
+  }
+
+  return {
+    candidatePool: input.shouldSearchCatalog
+      ? browseCatalogCandidatePool()
+      : emptyCandidatePool(),
+    executionKind: "none",
+    matchingMode: input.shouldSearchCatalog ? "catalog" : "none",
+    paymentMode: "none",
+    routeFamily: "informational",
+  };
+}
 
 export function normalizeIntentExtraction(
   rawIntent: Partial<IntentExtraction>,
@@ -180,6 +320,55 @@ export function normalizeIntentExtraction(
     primaryMode,
     rawNeedsClarification: Boolean(rawIntent.needsClarification),
   });
+  const intentType = oneOf(rawIntent.intentType, [
+    "demand",
+    "supply",
+    "informational",
+  ], "demand");
+  const persistence = {
+    isUnresolved:
+      rawIntent.persistence?.isUnresolved ?? needsClarification,
+    reason: normalizeString(
+      rawIntent.persistence?.reason,
+      "Persisted as a routed Boreal intent.",
+      180,
+    ),
+    shouldPersist:
+      rawIntent.persistence?.shouldPersist ??
+      (routeTarget === "profile_update" ||
+        routeTarget === "image_generation" ||
+        routeTarget === "speech_generation" ||
+        routeTarget === "video_generation"),
+  };
+  const routing = {
+    resolutionTier: oneOf(
+      rawIntent.routing?.resolutionTier,
+      ["auto", "fast", "open", "pending"],
+      routeTarget === "general_assistance" ? "fast" : "auto",
+    ),
+    shouldCreateFulfillmentRequest:
+      rawIntent.routing?.shouldCreateFulfillmentRequest ??
+      false,
+    shouldPersistToBoard:
+      rawIntent.routing?.shouldPersistToBoard ??
+      (rawIntent.persistence?.isUnresolved ?? needsClarification),
+  };
+  const shouldSearchCatalog =
+    rawIntent.shouldSearchCatalog ??
+    (routeTarget === "catalog_lookup" ||
+      routeTarget === "image_generation" ||
+      routeTarget === "speech_generation" ||
+      routeTarget === "video_generation");
+  const normalizedRequestedOutputTypes =
+    requestedOutputTypes.length > 0 ? requestedOutputTypes : [bestModality];
+  const classification = deriveRequestClassification({
+    intentType,
+    needsClarification,
+    requestedOutputTypes: normalizedRequestedOutputTypes,
+    routeTarget,
+    routing,
+    shouldSearchCatalog,
+  });
 
   return {
     assetPrompt: normalizeString(rawIntent.assetPrompt, body, 1200),
@@ -187,6 +376,7 @@ export function normalizeIntentExtraction(
     capabilityTags: dedupePlainStrings(rawIntent.capabilityTags).slice(0, 8),
     catalogQuery: normalizeString(rawIntent.catalogQuery, summary, 220),
     category: normalizeString(rawIntent.category, "general", 64),
+    classification,
     confidence,
     extractionNotes: dedupePlainStrings(rawIntent.extractionNotes).slice(0, 4),
     generationSignals: {
@@ -202,56 +392,20 @@ export function normalizeIntentExtraction(
         "video_generation",
       ),
     },
-    intentType: oneOf(rawIntent.intentType, [
-      "demand",
-      "supply",
-      "informational",
-    ], "demand"),
+    intentType,
     keywords: dedupePlainStrings(rawIntent.keywords).slice(0, 15),
     missingDetails,
     needsClarification,
-    persistence: {
-      isUnresolved:
-        rawIntent.persistence?.isUnresolved ?? needsClarification,
-      reason: normalizeString(
-        rawIntent.persistence?.reason,
-        "Persisted as a routed Boreal intent.",
-        180,
-      ),
-      shouldPersist:
-        rawIntent.persistence?.shouldPersist ??
-        (routeTarget === "profile_update" ||
-          routeTarget === "image_generation" ||
-          routeTarget === "speech_generation" ||
-          routeTarget === "video_generation"),
-    },
-    requestedOutputTypes:
-      requestedOutputTypes.length > 0 ? requestedOutputTypes : [bestModality],
+    persistence,
+    requestedOutputTypes: normalizedRequestedOutputTypes,
     responseInstructions: normalizeString(
       rawIntent.responseInstructions,
       "Answer directly and keep rich artifacts out of inline chat when possible.",
       280,
     ),
     routeTarget,
-    routing: {
-      resolutionTier: oneOf(
-        rawIntent.routing?.resolutionTier,
-        ["auto", "fast", "open", "pending"],
-        routeTarget === "general_assistance" ? "fast" : "auto",
-      ),
-      shouldCreateFulfillmentRequest:
-        rawIntent.routing?.shouldCreateFulfillmentRequest ??
-        false,
-      shouldPersistToBoard:
-        rawIntent.routing?.shouldPersistToBoard ??
-        (rawIntent.persistence?.isUnresolved ?? needsClarification),
-    },
-    shouldSearchCatalog:
-      rawIntent.shouldSearchCatalog ??
-      (routeTarget === "catalog_lookup" ||
-        routeTarget === "image_generation" ||
-        routeTarget === "speech_generation" ||
-        routeTarget === "video_generation"),
+    routing,
+    shouldSearchCatalog,
     speechText: normalizeString(rawIntent.speechText, summary, 1200),
     suggestedReplies: dedupePlainStrings(rawIntent.suggestedReplies).slice(0, 4),
     summary,
@@ -259,6 +413,66 @@ export function normalizeIntentExtraction(
     videoSeconds: videoSettings.seconds,
     videoSize: videoSettings.size,
     voice: normalizeSpeechVoice(rawIntent.voice),
+  };
+}
+
+function emptyCandidatePool(): RequestCandidatePool {
+  return {
+    actorKinds: [],
+    deliveryTypes: [],
+    fulfillmentKinds: [],
+    requiresCartEnabled: null,
+    requiresDirectInvoke: null,
+    requiresSourceProvider: false,
+    supplyTypes: [],
+  };
+}
+
+function browseCatalogCandidatePool(): RequestCandidatePool {
+  return {
+    actorKinds: ["human", "agent", "tool"],
+    deliveryTypes: ["instant", "async"],
+    fulfillmentKinds: ["digital", "service", "hybrid"],
+    requiresCartEnabled: null,
+    requiresDirectInvoke: null,
+    requiresSourceProvider: false,
+    supplyTypes: ["product", "capability", "agent_tool"],
+  };
+}
+
+function directGenerationCandidatePool(): RequestCandidatePool {
+  return {
+    actorKinds: ["agent", "tool"],
+    deliveryTypes: ["instant", "async"],
+    fulfillmentKinds: ["digital"],
+    requiresCartEnabled: false,
+    requiresDirectInvoke: true,
+    requiresSourceProvider: false,
+    supplyTypes: ["capability", "agent_tool"],
+  };
+}
+
+function workerMarketCandidatePool(): RequestCandidatePool {
+  return {
+    actorKinds: ["human", "agent"],
+    deliveryTypes: ["async", "scheduled"],
+    fulfillmentKinds: ["digital", "service", "hybrid"],
+    requiresCartEnabled: false,
+    requiresDirectInvoke: false,
+    requiresSourceProvider: false,
+    supplyTypes: ["capability", "agent_tool", "collective"],
+  };
+}
+
+function agentRouteCandidatePool(): RequestCandidatePool {
+  return {
+    actorKinds: ["agent", "tool"],
+    deliveryTypes: ["async"],
+    fulfillmentKinds: ["digital", "service", "hybrid"],
+    requiresCartEnabled: false,
+    requiresDirectInvoke: true,
+    requiresSourceProvider: false,
+    supplyTypes: ["capability", "agent_tool"],
   };
 }
 

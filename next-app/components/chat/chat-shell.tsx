@@ -64,6 +64,7 @@ import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
+import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { ProfileView } from "@/components/profiles/profile-view"
 import { AgentOnboardingSurface } from "@/components/home/agent-onboarding-surface"
 import { AgentDeveloperSurface } from "@/components/home/agent-developer-surface"
@@ -180,6 +181,7 @@ import {
 } from "@/lib/boreal/navigation/shell-links"
 import {
   BOREAL_AGENT_DIRECT_SUPPLY_ID,
+  BOREAL_AGENT_DISPLAY_NAME,
   BOREAL_AGENT_EXTERNAL_ID,
 } from "@/lib/boreal/boreal-agent"
 import { cn } from "@/lib/utils"
@@ -222,6 +224,17 @@ type BorealTimelineSession = BorealChatSessionRecord[number]
 
 type CenterViewTab = "activity" | "chat" | "participants" | "workspace"
 type CenterSheetView = "about" | "agent" | "developers" | "papers" | "roadmap"
+type MountedComposerAgent = {
+  actorKind: CatalogEntry["actorKind"]
+  supplyId: string
+  title: string
+}
+
+const DEFAULT_MOUNTED_COMPOSER_AGENT: MountedComposerAgent = {
+  actorKind: "agent",
+  supplyId: BOREAL_AGENT_DIRECT_SUPPLY_ID,
+  title: BOREAL_AGENT_DISPLAY_NAME,
+}
 
 const centerSheetViewByHref = {
   "/about": "about",
@@ -391,6 +404,8 @@ export function ChatShell() {
   const [isMobileWorkspaceOpen, setIsMobileWorkspaceOpen] = useState(false)
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false)
   const [composerText, setComposerText] = useState(() => seededPrompt ?? "")
+  const [mountedComposerAgent, setMountedComposerAgent] =
+    useState<MountedComposerAgent>(DEFAULT_MOUNTED_COMPOSER_AGENT)
   const [pendingApprovalIntentId, setPendingApprovalIntentId] = useState<
     string | null
   >(null)
@@ -520,6 +535,10 @@ export function ChatShell() {
       }
       : "skip"
   ) as WorkerProfileDetail | undefined
+  const borealAgentStats = useQuery(
+    convexFunctionRefs.getBorealAgentStats,
+    activeProfileId === "boreal-agent" ? {} : "skip"
+  )
   const activeCartResult = useQuery(
     convexFunctionRefs.getActiveCart,
     ownerExternalId ? { ownerExternalId } : "skip"
@@ -1012,9 +1031,20 @@ export function ChatShell() {
   }
 
   async function handleInvokeListing(listing: CatalogEntry) {
-    if (listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID) {
-      await invokeHumanProfileOptimizer()
+    setMountedComposerAgent({
+      actorKind: listing.actorKind,
+      supplyId: listing._id,
+      title: listing.title,
+    })
+    updateWorkspaceUrl({
+      chat: null,
+    })
+
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setIsMobileWorkspaceOpen(false)
     }
+
+    focusComposer()
   }
 
   function updateWorkspaceUrl(next: {
@@ -1650,6 +1680,7 @@ export function ChatShell() {
           conversationId: activeConversationId,
           context: buildChatUiContext({
             activeIntentId,
+            mountedComposerAgent,
             requestDetail,
             selectedCenterTab: activeCenterTab,
             workspaceTab,
@@ -1712,6 +1743,10 @@ export function ChatShell() {
   function fillComposerAndFocus(value: string) {
     setComposerText(value)
 
+    focusComposer()
+  }
+
+  function focusComposer() {
     requestAnimationFrame(() => {
       const textarea = composerTextareaRef.current
 
@@ -1720,9 +1755,13 @@ export function ChatShell() {
       }
 
       textarea.focus()
-      const cursor = value.length
+      const cursor = textarea.value.length
       textarea.setSelectionRange(cursor, cursor)
     })
+  }
+
+  function handleClearMountedComposerAgent() {
+    setMountedComposerAgent(DEFAULT_MOUNTED_COMPOSER_AGENT)
   }
 
   async function handleApproveRequest(intentId = activeIntentId) {
@@ -2824,6 +2863,8 @@ export function ChatShell() {
     displayedMessages.length > 0
   const shouldShowFooterComposer =
     isXAuthenticated && shouldShowChatComposer && !isHomeView && !isSessionsView
+  const isMountedMarketAgentActive =
+    mountedComposerAgent.supplyId !== DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId
 
   return (
       <>
@@ -2945,10 +2986,19 @@ export function ChatShell() {
                   onClose={closeProfileSheet}
                   open={Boolean(activeProfileId)}
                   title={
-                    resolvedProfileSheetDetail?.profile.displayName ?? "Profile"
+                    activeProfileId === "boreal-agent"
+                      ? "Boreal Agent"
+                      : resolvedProfileSheetDetail?.profile.displayName ?? "Profile"
                   }
                 >
-                  {resolvedProfileSheetDetail === undefined ? (
+                  {activeProfileId === "boreal-agent" ? (
+                    <div className="min-h-full">
+                      <BorealProfileView
+                        showProfileLink={false}
+                        stats={borealAgentStats}
+                      />
+                    </div>
+                  ) : resolvedProfileSheetDetail === undefined ? (
                     <div className="flex min-h-[24rem] items-center justify-center text-sm text-muted-foreground">
                       <LoaderIcon className="mr-2 size-4 animate-spin" />
                       Loading profile
@@ -3368,7 +3418,7 @@ export function ChatShell() {
                   {isConversationLoading ? (
                     <div className={HOME_PANEL_CLASS}>
                       <div className="flex items-center justify-center py-16">
-                        <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+                        <LoaderIcon className="size-8 animate-spin text-muted-foreground" />
                       </div>
                     </div>
                   ) : isMissingConversation ? (
@@ -3414,7 +3464,12 @@ export function ChatShell() {
                             </PromptInputBody>
                             <PromptInputFooter className="items-center justify-between gap-2">
                               <PromptInputTools className="w-full flex-wrap justify-start gap-2">
-                                <BorealAgentCue />
+                                <BorealAgentCue
+                                  actorKind={mountedComposerAgent.actorKind}
+                                  canClear={isMountedMarketAgentActive}
+                                  label={mountedComposerAgent.title}
+                                  onClear={handleClearMountedComposerAgent}
+                                />
                               </PromptInputTools>
                               <PromptInputSubmit
                                 disabled={
@@ -3570,7 +3625,7 @@ export function ChatShell() {
                                 </MessageResponse>
                               ) : (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <LoaderIcon className="size-4 animate-spin" />
+                                  <LoaderIcon className="size-6" />
                                   <span>Routing request</span>
                                 </div>
                               )}
@@ -3693,7 +3748,15 @@ export function ChatShell() {
                           value={composerText}
                         />
                       </PromptInputBody>
-                      <PromptInputFooter className="justify-end">
+                      <PromptInputFooter className="items-center justify-between gap-2">
+                        <PromptInputTools className="w-full flex-wrap justify-start gap-2">
+                          <BorealAgentCue
+                            actorKind={mountedComposerAgent.actorKind}
+                            canClear={isMountedMarketAgentActive}
+                            label={mountedComposerAgent.title}
+                            onClear={handleClearMountedComposerAgent}
+                          />
+                        </PromptInputTools>
                         <PromptInputSubmit
                           disabled={isSubmitting || composerText.trim().length === 0}
                           status={isSubmitting ? "submitted" : undefined}
@@ -7060,6 +7123,7 @@ function upsertAssistantDebugEvent(
 
 function buildChatUiContext(input: {
   activeIntentId: string | null
+  mountedComposerAgent: MountedComposerAgent
   requestDetail: RequestDetail | null
   selectedCenterTab: CenterViewTab
   workspaceTab: WorkspaceTab
@@ -7067,12 +7131,19 @@ function buildChatUiContext(input: {
   const isOwner = input.requestDetail?.access?.canApproveProposals ?? false
   const canSubmitProposal =
     input.requestDetail?.access?.canSubmitProposal ?? false
+  const mountedMarketAgent =
+    input.mountedComposerAgent.supplyId === DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId
+      ? null
+      : input.mountedComposerAgent
 
   return {
     browseTab: input.workspaceTab,
     canApproveProposals: isOwner,
     canSubmitProposal,
     centerTab: input.activeIntentId ? input.selectedCenterTab : null,
+    mountedSupplyActorKind: mountedMarketAgent?.actorKind ?? null,
+    mountedSupplyId: mountedMarketAgent?.supplyId ?? null,
+    mountedSupplyTitle: mountedMarketAgent?.title ?? null,
     requestId: input.activeIntentId,
     requestRole: input.activeIntentId
       ? isOwner

@@ -193,6 +193,7 @@ export const recordIntentPipeline = mutation({
       capabilityTags: args.intent.capabilityTags,
       catalogQuery: args.intent.catalogQuery,
       category: args.intent.category,
+      classification: args.intent.classification,
       confidence: args.intent.confidence,
       conversationId,
       createdAt: now,

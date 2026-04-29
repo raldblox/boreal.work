@@ -36,6 +36,48 @@ export const resolutionTierValidator = v.union(
   v.literal("pending"),
 );
 
+export const requestRouteFamilyValidator = v.union(
+  v.literal("informational"),
+  v.literal("onboarding"),
+  v.literal("direct_generation"),
+  v.literal("product_purchase"),
+  v.literal("provider_service"),
+  v.literal("custom_work"),
+);
+
+export const requestExecutionKindValidator = v.union(
+  v.literal("none"),
+  v.literal("instant_download"),
+  v.literal("direct_tool"),
+  v.literal("direct_provider"),
+  v.literal("async_human"),
+  v.literal("async_agent"),
+  v.literal("async_collective"),
+  v.literal("hybrid"),
+);
+
+export const requestPaymentModeValidator = v.union(
+  v.literal("none"),
+  v.literal("catalog_checkout"),
+  v.literal("x402_prepay"),
+  v.literal("quote_then_escrow"),
+);
+
+export const requestMatchingModeValidator = v.union(
+  v.literal("none"),
+  v.literal("catalog"),
+  v.literal("provider_capability"),
+  v.literal("worker_market"),
+  v.literal("collective_market"),
+);
+
+export const supplyTypeValidator = v.union(
+  v.literal("product"),
+  v.literal("capability"),
+  v.literal("agent_tool"),
+  v.literal("collective"),
+);
+
 export const intentStatusValidator = v.union(
   v.literal("open"),
   v.literal("proposed"),
@@ -413,6 +455,22 @@ export const routingValidator = v.object({
   shouldPersistToBoard: v.boolean(),
 });
 
+export const requestClassificationValidator = v.object({
+  candidatePool: v.object({
+    actorKinds: v.array(actorKindValidator),
+    deliveryTypes: v.array(deliveryTypeValidator),
+    fulfillmentKinds: v.array(fulfillmentKindValidator),
+    requiresCartEnabled: v.union(v.boolean(), v.null()),
+    requiresDirectInvoke: v.union(v.boolean(), v.null()),
+    requiresSourceProvider: v.boolean(),
+    supplyTypes: v.array(supplyTypeValidator),
+  }),
+  executionKind: requestExecutionKindValidator,
+  matchingMode: requestMatchingModeValidator,
+  paymentMode: requestPaymentModeValidator,
+  routeFamily: requestRouteFamilyValidator,
+});
+
 export const modalityScoreValidator = v.object({
   kind: requestedOutputTypeValidator,
   score: v.number(),
@@ -425,6 +483,7 @@ export const persistedIntentValidator = v.object({
   capabilityTags: v.array(v.string()),
   catalogQuery: v.string(),
   category: v.string(),
+  classification: requestClassificationValidator,
   confidence: v.number(),
   conversationId: v.string(),
   embedding: v.array(v.number()),

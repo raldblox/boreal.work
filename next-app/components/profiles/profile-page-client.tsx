@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useQuery } from "convex/react"
 
+import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { ProfileView } from "@/components/profiles/profile-view"
 import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { BOREAL_AGENT_EXTERNAL_ID } from "@/lib/boreal/boreal-agent"
@@ -11,6 +12,10 @@ import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-re
 export function ProfilePageClient({ profileId }: { profileId: string }) {
   const { data: session } = useSession()
   const isBorealProfile = profileId === "boreal-agent"
+  const borealAgentStats = useQuery(
+    convexFunctionRefs.getBorealAgentStats,
+    isBorealProfile ? {} : "skip"
+  )
   const profile = useQuery(
     isBorealProfile
       ? convexFunctionRefs.getPublicProfileByExternalId
@@ -25,6 +30,17 @@ export function ProfilePageClient({ profileId }: { profileId: string }) {
           profileId,
         }
   )
+
+  if (isBorealProfile) {
+    return (
+      <main
+        className="mx-auto w-full max-w-[88rem] px-4 py-8 sm:px-6 lg:px-8"
+        id="main-content"
+      >
+        <BorealProfileView showProfileLink={false} stats={borealAgentStats} />
+      </main>
+    )
+  }
 
   if (profile === undefined) {
     return (

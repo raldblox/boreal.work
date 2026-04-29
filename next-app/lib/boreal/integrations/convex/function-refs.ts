@@ -371,7 +371,7 @@ export type WalletAccountRecord = Array<{
   _id: string;
   chainFamily: "evm" | "solana";
   chainId: string | null;
-  environment: "devnet" | "mainnet" | "testnet";
+  environment: "mainnet" | "testnet";
   isDefaultBuyer: boolean;
   isDefaultPayout: boolean;
   networkKey:
@@ -381,7 +381,6 @@ export type WalletAccountRecord = Array<{
     | "ethereum:sepolia"
     | "polygon:amoy"
     | "polygon:mainnet"
-    | "solana:devnet"
     | "solana:mainnet"
     | "solana:testnet";
   roles: Array<"buyer" | "connected" | "payout">;
@@ -555,6 +554,7 @@ export type RequestDetail = {
     cancelledAt: number | null;
     category: string;
     closedReason: string | null;
+    classification: PersistedIntent["classification"];
     completedAt: number | null;
     confidence: number;
     missingDetails: string[];
@@ -654,6 +654,7 @@ export type RequestExecutionContext = {
   capabilityTags: string[];
   catalogQuery: string;
   category: string;
+  classification: PersistedIntent["classification"];
   conversationId: string | null;
   generationSignals: PersistedIntent["generationSignals"];
   intentKey: string;
@@ -1101,7 +1102,7 @@ export const convexFunctionRefs = {
     {
       chainFamily?: "evm" | "solana";
       chainId?: string;
-      environment?: "devnet" | "mainnet" | "testnet";
+      environment?: "mainnet" | "testnet";
       networkKey?:
         | "base:mainnet"
         | "base:sepolia"
@@ -1109,7 +1110,6 @@ export const convexFunctionRefs = {
         | "ethereum:sepolia"
         | "polygon:amoy"
         | "polygon:mainnet"
-        | "solana:devnet"
         | "solana:mainnet"
         | "solana:testnet";
       ownerDisplayName?: string;

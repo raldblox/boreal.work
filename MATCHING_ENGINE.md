@@ -70,6 +70,11 @@ Important separation:
 - `routeTarget` should stay a UI or execution hint
 - request classification should become the canonical market-routing contract
 
+Live repo note:
+
+- `next-app/lib/boreal/schemas/intent.ts` now persists nested request classification on each intent record.
+- `routeTarget` remains the Boreal chat and execution hint, while `classification` carries canonical market routing for matching and execution.
+
 ### 1.2 What Classification Must Decide
 
 Every persisted request should answer five questions before matching begins:
@@ -565,7 +570,7 @@ type MatchingIntent = {
       actorKinds: Array<"human" | "agent" | "tool">;
       supplyTypes: Array<"product" | "capability" | "agent_tool" | "collective">;
       fulfillmentKinds: Array<"digital" | "service" | "hybrid" | "physical">;
-      deliveryTypes: Array<"instant" | "async" | "scoped" | "recurring">;
+      deliveryTypes: Array<"instant" | "async" | "scheduled">;
       requiresCartEnabled: boolean | null;
       requiresDirectInvoke: boolean | null;
       requiresSourceProvider: boolean;
@@ -713,7 +718,7 @@ Recommended additions:
 
 | Table | Purpose |
 | --- | --- |
-| `requestClassifications` or nested classification on `intents` | canonical classifier output used before retrieval |
+| nested classification on `intents` | live canonical classifier output used before retrieval |
 | `capabilityTaxonomy` | canonical nodes, aliases, parents, modality, domain |
 | `supplyProducts` | product-specific metadata such as download or access shape, variants, SKU, and cart policy |
 | `supplyServiceOffers` | async service scope, acceptance criteria, schedule rules, and evidence expectations |

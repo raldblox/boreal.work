@@ -18,6 +18,9 @@ export type ChatUiContext = {
   canApproveProposals?: boolean;
   canSubmitProposal?: boolean;
   centerTab?: "activity" | "chat" | "participants" | "proposals" | "workspace" | "workers" | null;
+  mountedSupplyActorKind?: "agent" | "human" | "tool" | null;
+  mountedSupplyId?: string | null;
+  mountedSupplyTitle?: string | null;
   requestId?: string | null;
   requestRole?: "none" | "owner" | "supplier" | "viewer";
   requestStatus?: string | null;

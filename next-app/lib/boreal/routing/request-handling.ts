@@ -1,5 +1,9 @@
 import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
-import type { IntentExtraction, RequestedOutputType } from "@/lib/boreal/schemas/intent";
+import {
+  deriveRequestClassification,
+  type IntentExtraction,
+  type RequestedOutputType,
+} from "@/lib/boreal/schemas/intent";
 
 type RequestHandlingIntent = {
   body: string;
@@ -64,7 +68,7 @@ export function refineIntentForRequestLifecycle(
   const textOnly = isTextOnlyIntent(intent.requestedOutputTypes);
 
   if (capabilityLookup && textOnly) {
-    return {
+    const nextIntent: IntentExtraction = {
       ...intent,
       intentType: "informational",
       missingDetails: [],
@@ -95,10 +99,12 @@ export function refineIntentForRequestLifecycle(
         ]),
       ).slice(0, 4),
     };
+
+    return withDerivedClassification(nextIntent);
   }
 
   if (shouldStayDirect(text, message, intent, uiContext)) {
-    return {
+    const nextIntent: IntentExtraction = {
       ...intent,
       intentType: "informational",
       missingDetails: [],
@@ -126,10 +132,12 @@ export function refineIntentForRequestLifecycle(
         intent.routeTarget === "catalog_lookup" ? intent.shouldSearchCatalog : false,
       suggestedReplies: intent.suggestedReplies.slice(0, 4),
     };
+
+    return withDerivedClassification(nextIntent);
   }
 
   if (supplyOnboarding && textOnly) {
-    return {
+    const nextIntent: IntentExtraction = {
       ...intent,
       intentType: "supply",
       missingDetails: [],
@@ -160,6 +168,8 @@ export function refineIntentForRequestLifecycle(
         ]),
       ).slice(0, 4),
     };
+
+    return withDerivedClassification(nextIntent);
   }
 
   if (!textOnly || !isLikelyQualifiedTextRequest(text)) {
@@ -174,7 +184,7 @@ export function refineIntentForRequestLifecycle(
       );
   const needsClarification = missingDetails.length > 0;
 
-  return {
+  const nextIntent: IntentExtraction = {
     ...intent,
     category:
       advisoryRequest && intent.category.trim().toLowerCase() === "general"
@@ -216,6 +226,11 @@ export function refineIntentForRequestLifecycle(
       advisoryRequest,
     ),
   };
+
+  return withDerivedClassification(nextIntent, {
+    advisoryRequest,
+    workerLed,
+  });
 }
 
 export function getRequestHandlingMode(intent: RequestHandlingIntent): RequestHandlingMode {
@@ -267,6 +282,28 @@ function buildIntentText(intent: Partial<RequestHandlingIntent>, message = "") {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function withDerivedClassification(
+  intent: IntentExtraction,
+  options?: {
+    advisoryRequest?: boolean;
+    workerLed?: boolean;
+  },
+): IntentExtraction {
+  return {
+    ...intent,
+    classification: deriveRequestClassification({
+      advisoryRequest: options?.advisoryRequest,
+      intentType: intent.intentType,
+      needsClarification: intent.needsClarification,
+      requestedOutputTypes: intent.requestedOutputTypes,
+      routeTarget: intent.routeTarget,
+      routing: intent.routing,
+      shouldSearchCatalog: intent.shouldSearchCatalog,
+      workerLed: options?.workerLed,
+    }),
+  };
 }
 
 function isLikelyDeliverableRequest(text: string) {

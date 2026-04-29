@@ -38,6 +38,7 @@ import {
   createEmptyProfileBuilderDraft,
   type ProfileBuilderDraft,
 } from "@/lib/boreal/schemas/profile-builder";
+import { deriveRequestClassification } from "@/lib/boreal/schemas/intent";
 import type {
   IntentExtraction,
   PersistedIntent,
@@ -54,7 +55,6 @@ import { generateSpeechAsset } from "@/lib/boreal/tools/media/generate-speech-as
 import { startVideoGeneration } from "@/lib/boreal/tools/media/start-video-generation";
 import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-intent-response";
 import { withRetry } from "@/lib/boreal/utils/retry";
-import { isVideoProviderAccessUnavailableError } from "@/lib/boreal/request-route-errors";
 import {
   buildAutoReopenForWorkersCopy,
   shouldAutoReopenRequestForWorkers,
@@ -1515,12 +1515,27 @@ async function runExecutionWithRetry(input: {
 function toExecutionIntent(
   request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>,
 ): IntentExtraction {
+  const routing = {
+    resolutionTier: "auto" as const,
+    shouldCreateFulfillmentRequest: true,
+    shouldPersistToBoard: true,
+  };
+  const shouldSearchCatalog = request.catalogQuery.trim().length > 0;
+
   return {
     assetPrompt: request.assetPrompt,
     body: request.body,
     capabilityTags: request.capabilityTags,
     catalogQuery: request.catalogQuery,
     category: request.category,
+    classification: deriveRequestClassification({
+      intentType: "demand",
+      needsClarification: request.needsClarification,
+      requestedOutputTypes: request.requestedOutputTypes,
+      routeTarget: request.routeTarget,
+      routing,
+      shouldSearchCatalog,
+    }),
     confidence: 0.8,
     extractionNotes: [],
     generationSignals: request.generationSignals,
@@ -1536,12 +1551,8 @@ function toExecutionIntent(
     requestedOutputTypes: request.requestedOutputTypes,
     responseInstructions: request.responseInstructions,
     routeTarget: request.routeTarget,
-    routing: {
-      resolutionTier: "auto",
-      shouldCreateFulfillmentRequest: true,
-      shouldPersistToBoard: true,
-    },
-    shouldSearchCatalog: request.catalogQuery.trim().length > 0,
+    routing,
+    shouldSearchCatalog,
     speechText: request.speechText,
     suggestedReplies: request.suggestedReplies,
     summary: request.summary,
