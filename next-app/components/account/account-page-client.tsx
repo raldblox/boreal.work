@@ -20,6 +20,7 @@ import {
 } from "@/lib/boreal/commerce/networks"
 import { buildAccountSettingsHref } from "@/lib/boreal/navigation/shell-links"
 import {
+  applyProfileBuilderListingPath,
   buildProfileBuilderDraftFromRecord,
   createEmptyProfileBuilderDraft,
   hasPublishableSupplyListing,
@@ -27,6 +28,7 @@ import {
   mergeProfileBuilderDraft,
   profileBuilderToProfileMutationInput,
   profileBuilderToSupplyMutationInput,
+  type ProfileBuilderListingPath,
   type ProfileBuilderDraft,
 } from "@/lib/boreal/schemas/profile-builder"
 
@@ -101,12 +103,17 @@ export function AccountPageClient() {
     syncWalletAccount,
   ])
 
-  function openProfileBuilder() {
-    const base = myProfileRecord
+  function openProfileBuilder(
+    path?: Exclude<ProfileBuilderListingPath, "provider_sync">
+  ) {
+    const baseDraft = myProfileRecord
       ? buildProfileBuilderDraftFromRecord(myProfileRecord)
       : createEmptyProfileBuilderDraft(session?.user?.name ?? "")
+    const nextDraft = path
+      ? applyProfileBuilderListingPath(baseDraft, path)
+      : baseDraft
 
-    setProfileBuilderDraft(base)
+    setProfileBuilderDraft(nextDraft)
     setProfileBuilderMessage("")
     setIsProfileBuilderOpen(true)
   }
@@ -350,8 +357,8 @@ export function AccountPageClient() {
             </Button>
             <h1 className="text-xl font-medium">Account settings</h1>
             <p className="text-sm text-muted-foreground">
-              Set up one public work profile, one primary offer, and the
-              Solana wallet behind paid work.
+              Set up one public work profile, then choose the path that fits:
+              custom service, digital product, or provider-backed sync.
             </p>
           </div>
         </div>

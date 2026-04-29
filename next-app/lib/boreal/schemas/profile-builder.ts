@@ -4,6 +4,7 @@ export type ProfileAvailabilityStatus = "available" | "limited" | "unavailable";
 export type BuilderSupplyType = "agent_tool" | "capability" | "collective" | "product";
 export type BuilderDeliveryType = "async" | "instant" | "scheduled";
 export type BuilderPriceType = "fixed" | "hourly" | "scoped";
+export type ProfileBuilderListingPath = "product" | "provider_sync" | "service";
 
 export type ProfileBuilderDraft = {
   listing: {
@@ -179,6 +180,45 @@ export function hasPublishableSupplyListing(draft: ProfileBuilderDraft) {
     draft.listing.description.trim().length > 0 &&
     draft.listing.category.trim().length > 0
   );
+}
+
+export function detectProfileBuilderListingPath(
+  draft: ProfileBuilderDraft,
+): ProfileBuilderListingPath {
+  return draft.listing.supplyType === "product" ? "product" : "service";
+}
+
+export function applyProfileBuilderListingPath(
+  draft: ProfileBuilderDraft,
+  path: Exclude<ProfileBuilderListingPath, "provider_sync">,
+): ProfileBuilderDraft {
+  const next = cloneProfileBuilderDraft(draft);
+
+  next.listing.enabled = true;
+
+  if (path === "product") {
+    next.listing.category = "digital products";
+    next.listing.deliveryType = "instant";
+    next.listing.priceType = "fixed";
+    next.listing.supplyType = "product";
+
+    if (next.listing.estimatedDeliveryLabel.trim().length === 0) {
+      next.listing.estimatedDeliveryLabel = "Instant download";
+    }
+
+    return next;
+  }
+
+  next.listing.category = "services";
+  next.listing.deliveryType = "async";
+  next.listing.priceType = "scoped";
+  next.listing.supplyType = "capability";
+
+  if (next.listing.estimatedDeliveryLabel.trim() === "Instant download") {
+    next.listing.estimatedDeliveryLabel = "";
+  }
+
+  return next;
 }
 
 export function profileBuilderToProfileMutationInput(

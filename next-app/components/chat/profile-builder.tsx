@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  applyProfileBuilderListingPath,
+  detectProfileBuilderListingPath,
   formatTagInput,
   hasPublishableSupplyListing,
   hasSavableProfileBuilderDraft,
@@ -56,7 +58,6 @@ export function ProfileBuilderWorkspaceCard({
   sourceBrief: string
 }) {
   const hasListing = hasPublishableSupplyListing(draft)
-  const hasProfile = hasSavableProfileBuilderDraft(draft)
 
   return (
       <div className="space-y-4 rounded-[1.2rem] border border-border/80 bg-background/75 p-4">
@@ -186,6 +187,7 @@ export function ProfileBuilderEditor({
     draft.listing.capabilityTags.length > 0 ||
     draft.listing.priceAmount !== null
   const showOfferEditor = draft.listing.enabled || hasOfferDraftContent
+  const activeListingPath = detectProfileBuilderListingPath(draft)
   const [showOfferDetails, setShowOfferDetails] = useState(
     () =>
       draft.listing.category !== "services" ||
@@ -210,7 +212,7 @@ export function ProfileBuilderEditor({
           </p>
           <div className="space-y-1">
             <h2 className="text-lg font-medium tracking-tight">
-              Work profile and primary offer
+              Work profile and native offer
             </h2>
             <p className="max-w-3xl text-sm/7 text-muted-foreground">
               Update the work profile fast. Add or refine one offer only if
@@ -222,13 +224,56 @@ export function ProfileBuilderEditor({
 
       <div className={isDialog ? "min-h-0 flex-1 overflow-y-auto px-6 py-5" : "px-5 py-5 sm:px-6"}>
         <div className="space-y-6">
+          <section className="rounded-[1.25rem] border border-border/80 bg-background p-4 sm:p-5">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Choose the path first</p>
+                <p className="text-xs text-muted-foreground">
+                  This editor creates Boreal-native offers only. Pick custom
+                  service or digital product here. Provider-backed services
+                  still enter through provider sync.
+                </p>
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-3">
+                <ListingPathOptionCard
+                  description="For scoped work that starts from a buyer brief or request thread."
+                  isActive={activeListingPath === "service"}
+                  onSelect={() =>
+                    setDraft((current) =>
+                      applyProfileBuilderListingPath(current, "service")
+                    )
+                  }
+                  title="Custom service"
+                />
+                <ListingPathOptionCard
+                  description="For repeatable files, templates, packs, downloads, or fixed deliverables."
+                  isActive={activeListingPath === "product"}
+                  onSelect={() =>
+                    setDraft((current) =>
+                      applyProfileBuilderListingPath(current, "product")
+                    )
+                  }
+                  title="Digital product"
+                />
+                <ListingPathOptionCard
+                  description="External x402 or partner services sync into Boreal through provider adapters. Do not author them here."
+                  isActive={false}
+                  isProviderOnly
+                  title="Provider sync"
+                />
+              </div>
+            </div>
+          </section>
+
           <section className="rounded-[1.25rem] border border-border/80 bg-muted/15 p-4 sm:p-5">
             <div className="space-y-3">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Automated profile optimizer</p>
+                <p className="text-sm font-medium">Improve with Boreal</p>
                 <p className="text-xs text-muted-foreground">
-                  Start with a short prompt. Boreal rewrites the profile and
-                  offer fields below so you can tighten them fast.
+                  Tell Boreal what you sell or what needs work. It rewrites the
+                  profile and the current offer path below so you can tighten it
+                  fast.
                 </p>
               </div>
               <PromptInput
@@ -246,7 +291,7 @@ export function ProfileBuilderEditor({
                   <PromptInputTextarea
                     className="min-h-24 text-sm"
                     onChange={(event) => setSourceMessage(event.currentTarget.value)}
-                    placeholder="Example: tighten my profile for Solana growth work and draft one clear offer for startup founders."
+                    placeholder="Example: tighten my custom service profile for startup research, or draft a digital product listing for my Notion template pack."
                     value={sourceMessage}
                   />
                 </PromptInputBody>
@@ -361,7 +406,8 @@ export function ProfileBuilderEditor({
                 <p className="text-sm font-medium">Primary offer</p>
                 <p className="text-xs text-muted-foreground">
                   Start with one concrete thing a buyer can understand fast.
-                  Leave the rest for later.
+                  Keep it on the selected path so buyers do not land in the
+                  wrong route.
                 </p>
               </div>
 
@@ -668,8 +714,9 @@ export function ProfileBuilderEditor({
       <div className={isDialog ? "border-t border-border px-6 py-4" : "border-t border-border px-5 py-4 sm:px-6"}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="text-xs text-muted-foreground">
-            Save the profile first. Publish the offer only when you want it
-            live in Boreal.
+            Save the profile first. Publish the offer only when you want a
+            Boreal-native listing live. Provider-backed services stay on sync
+            routes.
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -751,6 +798,58 @@ export function ProfileBuilderDialog({
         />
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ListingPathOptionCard({
+  description,
+  isActive,
+  isProviderOnly,
+  onSelect,
+  title,
+}: {
+  description: string
+  isActive: boolean
+  isProviderOnly?: boolean
+  onSelect?: () => void
+  title: string
+}) {
+  return (
+    <div
+      className={
+        isActive
+          ? "rounded-2xl border border-primary/35 bg-primary/5 p-4"
+          : "rounded-2xl border border-border/80 bg-muted/10 p-4"
+      }
+    >
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{title}</p>
+            {isActive ? (
+              <span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-primary">
+                Current path
+              </span>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+        {isProviderOnly ? (
+          <Button disabled size="sm" type="button" variant="outline">
+            Operator sync today
+          </Button>
+        ) : (
+          <Button
+            onClick={onSelect}
+            size="sm"
+            type="button"
+            variant={isActive ? "default" : "outline"}
+          >
+            {isActive ? "Selected" : `Use ${title.toLowerCase()}`}
+          </Button>
+        )}
+      </div>
+    </div>
   )
 }
 

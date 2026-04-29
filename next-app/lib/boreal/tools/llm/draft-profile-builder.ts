@@ -71,6 +71,7 @@ function buildPrompt(input: {
     "- Draft a public professional profile, not a chat reply.",
     "- When the brief mentions selling digital items or downloadable goods, set listing.enabled true and choose supplyType product.",
     "- When the brief is about services or expertise, set listing.enabled true and choose supplyType capability unless a stronger fit is obvious.",
+    "- When the brief is really about syncing or reselling an external provider-backed service, do not invent a Boreal-native listing. Keep listing.enabled false unless the user clearly also wants a direct Boreal offer draft.",
     "- If the user is too vague, keep the draft safe and generic but still useful to edit manually.",
     "- Never invent fake credentials, employers, portfolio clients, or exact prices unless the user gave enough signal. Use null for priceAmount when uncertain.",
     "- capabilityTags and skillTags should be short searchable tags.",

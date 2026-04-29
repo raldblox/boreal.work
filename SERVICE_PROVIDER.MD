@@ -58,6 +58,8 @@ The first real service-provider layer is now in the repo.
 
 - Boreal only invokes concrete x402 HTTP endpoints it can call safely right now.
 - Parameterized, ambiguous, or insufficiently normalized external listings are still discovery and handoff surfaces, not fully automatic execution.
+- `/account` and the profile builder author Boreal-native custom service offers and digital products only.
+- Provider-backed services still enter Boreal through provider sync routes, not through the native profile builder.
 - MoonPay and MPP remain architecture targets.
 - AgentCash and Frames now have curated discovery or onboarding adapters in Boreal's service-provider layer, but they are still not end-to-end shipped execution paths in the current alpha.
 - The premium one-request path now ships as a public `POST /api/v1/requests` contract with SIWX auth, `402`, request events, specialist execution, and a deterministic smoke test.

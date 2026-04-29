@@ -17,6 +17,7 @@ import type {
   WalletAccountRecord,
 } from "@/lib/boreal/integrations/convex/function-refs"
 import { buildProfileSheetHref } from "@/lib/boreal/navigation/shell-links"
+import type { ProfileBuilderListingPath } from "@/lib/boreal/schemas/profile-builder"
 import { cn } from "@/lib/utils"
 
 export function AccountSettingsSurface({
@@ -48,7 +49,9 @@ export function AccountSettingsSurface({
   myProfileRecord: MyProfileRecord
   notice: string | null
   onConnectWallet: () => void
-  onOpenProfileBuilder: () => void
+  onOpenProfileBuilder: (
+    path?: Exclude<ProfileBuilderListingPath, "provider_sync">
+  ) => void
   onToggleProfileAvailability: (checked: boolean) => Promise<void> | void
   onSetDefaultPayoutWallet: (walletAccountId: string) => Promise<void>
   runtimeDefaultNetworkKey: string
@@ -69,6 +72,11 @@ export function AccountSettingsSurface({
   const profileBio =
     profile?.bio ||
     "Add a short bio, a few skills, and one clear offer so people know what to hire you for."
+  const primarySupplyPath = primarySupply
+    ? primarySupply.supplyType === "product"
+      ? "product"
+      : "service"
+    : null
 
   return (
     <div className="space-y-6">
@@ -122,7 +130,7 @@ export function AccountSettingsSurface({
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
-                onClick={onOpenProfileBuilder}
+                onClick={() => onOpenProfileBuilder()}
                 size="sm"
                 type="button"
                 variant="default"
@@ -138,6 +146,63 @@ export function AccountSettingsSurface({
                   </Link>
                 </Button>
               ) : null}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border p-5">
+            <div className="space-y-1">
+              <p className="text-base font-medium">Selling paths</p>
+              <p className="text-sm text-muted-foreground">
+                Boreal has three different merchant routes. Pick the native
+                editor for custom services or digital products. Use provider
+                sync only for external x402 or partner-backed services.
+              </p>
+            </div>
+
+            <div className="mt-4 grid gap-3 xl:grid-cols-3">
+              <MerchantPathCard
+                action={
+                  <Button
+                    onClick={() => onOpenProfileBuilder("service")}
+                    size="sm"
+                    type="button"
+                    variant={primarySupplyPath === "service" ? "default" : "outline"}
+                  >
+                    Edit service offer
+                  </Button>
+                }
+                body="Best for work that starts from a buyer brief, scope, or request thread."
+                eyebrow="Request-based service"
+                isActive={primarySupplyPath === "service"}
+                title="Custom service offer"
+              />
+              <MerchantPathCard
+                action={
+                  <Button
+                    onClick={() => onOpenProfileBuilder("product")}
+                    size="sm"
+                    type="button"
+                    variant={primarySupplyPath === "product" ? "default" : "outline"}
+                  >
+                    Edit digital product
+                  </Button>
+                }
+                body="Best for repeatable files, templates, downloads, or fixed deliverables a buyer can understand upfront."
+                eyebrow="Catalog-first"
+                isActive={primarySupplyPath === "product"}
+                title="Digital product"
+              />
+              <MerchantPathCard
+                action={
+                  <Button disabled size="sm" type="button" variant="outline">
+                    Operator sync today
+                  </Button>
+                }
+                body="These listings are synced into Boreal through provider adapters today. They are not authored in the profile builder yet."
+                eyebrow="Provider-backed service"
+                isActive={false}
+                title="Provider sync route"
+              />
             </div>
           </section>
 
@@ -225,7 +290,7 @@ export function AccountSettingsSurface({
 
                       {!networkMatchesRuntime ? (
                         <p className="mt-3 text-xs text-muted-foreground">
-                          This wallet is synced, but it does not match Boreal's
+                          This wallet is synced, but it does not match Boreal&apos;s
                           active Solana network:{" "}
                           {formatNetworkKeyLabel(runtimeDefaultNetworkKey)}.
                         </p>
@@ -290,6 +355,45 @@ function StatusChip({
     >
       {label}
     </span>
+  )
+}
+
+function MerchantPathCard({
+  action,
+  body,
+  eyebrow,
+  isActive,
+  title,
+}: {
+  action: ReactNode
+  body: string
+  eyebrow: string
+  isActive: boolean
+  title: string
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-4",
+        isActive
+          ? "border-primary/35 bg-primary/5"
+          : "border-border bg-background"
+      )}
+    >
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            {eyebrow}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{title}</p>
+            {isActive ? <StatusChip label="Current path" tone="default" /> : null}
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">{body}</p>
+        <div>{action}</div>
+      </div>
+    </div>
   )
 }
 
