@@ -43,26 +43,27 @@ export function HomeChatSurface({
       </div>
 
       {starterPrompts.length > 0 ? (
-        <div className="grid w-full gap-3 md:grid-cols-2">
-          {starterPrompts.map((prompt) => (
+        <div className="w-full overflow-hidden border border-border/70 bg-card/40">
+          {starterPrompts.map((prompt, index) => (
             <button
-              className="group rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:bg-accent/40"
+              className={[
+                "group flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/20",
+                index > 0 ? "border-t border-border/60" : "",
+              ].join(" ")}
               key={prompt.title}
               onClick={prompt.onSelect}
               type="button"
             >
-              <div className="flex items-start justify-start gap-3 text-left">
-                <div className="mt-0.5 rounded-full border border-border p-2 text-muted-foreground transition-colors group-hover:text-foreground">
-                  {prompt.icon}
-                </div>
-                <div className="space-y-1 text-left">
-                  <p className="text-sm font-medium text-foreground">
-                    {prompt.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {prompt.description}
-                  </p>
-                </div>
+              <div className="mt-0.5 text-muted-foreground transition-colors group-hover:text-foreground">
+                {prompt.icon}
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  {prompt.title}
+                </p>
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  {prompt.description}
+                </p>
               </div>
             </button>
           ))}

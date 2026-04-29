@@ -140,7 +140,7 @@ export function WorkspacePanel({
             <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-background">
               <SearchIcon className="size-4 text-muted-foreground" />
             </span>
-            <h2 className="text-sm font-medium">Discovery</h2>
+            <h2 className="text-sm font-medium">Market</h2>
           </div>
         </div>
       </aside>
@@ -159,7 +159,7 @@ export function WorkspacePanel({
               <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-background">
                 <SearchIcon className="size-4 text-muted-foreground" />
               </span>
-              <h2 className="text-sm font-medium">Discovery</h2>
+              <h2 className="text-sm font-medium">Market</h2>
             </div>
           </div>
 
@@ -436,6 +436,14 @@ const BOREAL_AGENT_HUMAN_OPTIMIZER: CatalogEntry = {
   trustScore: 96,
 }
 
+const SOLANA_OPERATOR_DISCOVERY_ALIASES = [
+  "solana operator",
+  "solana specialist",
+  "swap plan",
+  "staking checklist",
+  "wallet approvals",
+] as const
+
 function compareDiscoverySupplyListings(left: CatalogEntry, right: CatalogEntry) {
   const leftPriority = getDiscoverySupplyPriority(left)
   const rightPriority = getDiscoverySupplyPriority(right)
@@ -456,18 +464,24 @@ function getDiscoverySupplyPriority(listing: CatalogEntry) {
     return 0
   }
 
-  if (listing.seller?.profileId === BOREAL_AGENT_PROFILE_ID) {
+  if (isSolanaOperatorListing(listing)) {
     return 1
   }
 
-  return 2
+  if (listing.seller?.profileId === BOREAL_AGENT_PROFILE_ID) {
+    return 2
+  }
+
+  return 3
 }
 
 function matchesCatalogListing(listing: CatalogEntry, normalizedQuery: string) {
   const aliases =
     listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID
       ? BOREAL_AGENT_DISCOVERY_ALIASES
-      : []
+      : isSolanaOperatorListing(listing)
+        ? SOLANA_OPERATOR_DISCOVERY_ALIASES
+        : []
   const haystack = [
     listing.title,
     listing.subtitle,
@@ -482,6 +496,31 @@ function matchesCatalogListing(listing: CatalogEntry, normalizedQuery: string) {
     .toLowerCase()
 
   return haystack.includes(normalizedQuery)
+}
+
+function isSolanaOperatorListing(listing: CatalogEntry) {
+  const haystack = [
+    listing.title,
+    listing.subtitle,
+    listing.description,
+    listing.category,
+    listing.seller?.displayName,
+    listing.seller?.handle,
+    ...listing.capabilityTags,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+
+  return (
+    haystack.includes("solana operator") ||
+    haystack.includes("agent:solana-operator") ||
+    (haystack.includes("solana") &&
+      (haystack.includes("swap") ||
+        haystack.includes("stake") ||
+        haystack.includes("staking") ||
+        haystack.includes("wallet")))
+  )
 }
 
 function EmptyBlock({ subtitle, title }: { subtitle: string; title: string }) {
