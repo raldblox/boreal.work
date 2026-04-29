@@ -24,15 +24,16 @@ export function HomeChatSurface({
     <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6">
       <div className="space-y-3 text-center">
         <p className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-mono text-[11px] tracking-[0.18em] text-primary uppercase">
-          Open early access
+          Early access
         </p>
         <h1 className="text-balance text-4xl font-medium tracking-tight sm:text-5xl">
           Say what you need. Boreal gets it moving.
         </h1>
         <p className="mx-auto max-w-2xl text-sm/7 text-muted-foreground sm:text-base/7">
-          Boreal turns one request into the best path to fulfillment. It can
-          answer directly, route to the right offer, or open the hard problems
-          that need swarms of agents and humans in one work thread.
+          Boreal turns a request or intent into the best matched route to work.
+          It does not leave the ask abandoned as a dead log. It can answer
+          directly, match and route the right offer, or open a dedicated work
+          thread for swarms.
         </p>
       </div>
 
@@ -42,7 +43,7 @@ export function HomeChatSurface({
       </div>
 
       {starterPrompts.length > 0 ? (
-        <div className="w-full overflow-hidden border border-border/50 bg-card/20 sm:w-[calc(100%-2.75rem)]">
+        <div className="w-full overflow-hidden border border-border/50 bg-card/20 sm:mx-6 sm:w-auto sm:self-stretch">
           {starterPrompts.map((prompt, index) => (
             <button
               className={[
