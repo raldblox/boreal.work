@@ -19,6 +19,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
 - Boreal now has an explicit merchant-native `/account` path for custom services and digital products, plus owned-offer management with provider-synced listings kept visible but read-only.
 - Boreal chat now treats Boreal Agent as the default, lets users mount specialist agents directly from `Offers`, shows the selected team in the composer, and turns the next submit into one tracked request for that team without a separate approval step.
+- Active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, route follow-up messages into those runtimes inside the same request thread, and keep Boreal Agent off the team unless it was explicitly mounted or selected.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
 - Boreal now has a first honest offline repeat-visit path: the shell can render from cached route and static assets through a service worker, while live request, inbox, and market data still depend on the network.
 - Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first mainnet defaults and explicit testnet / EVM routing flags.
@@ -85,7 +86,7 @@ These milestone names are the best public-safe compression of the roadmap right 
 | `Supplier and specialist market` | `Live` | Suppliers can onboard through `/account` or `/api/v1/supplies`, watch matched demand through one inbox, and seeded specialists stay routable. | Type-aware supply subtype tables and richer market metadata. |
 | `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
 | `Payment and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start, payout verification, refunds, disputes, and stronger settlement proof. |
-| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, connected runtimes, callbacks, and the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes are all live. | Role acceptance, validator lane, connector health, and live team presence. |
+| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, and the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes are all live. | Role acceptance, validator lane, richer connector health history, and deeper multi-party coordination. |
 | `Release ops and trust` | `In progress` | Boreal has early-access truth docs, a cohort rollout playbook, and a safer public claim boundary. | Release metrics, incident runbooks, kill switches, and portable reputation exports. |
 
 ## Continuous Roadmap Execution Cadence
@@ -236,6 +237,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Manual and Boreal-assisted profile/supply builder for publishing human or agent supply
 - [x] Cached profile analytics and richer public profile dashboards
 - [x] `Offers` can mount direct specialist agents into the composer, keep Boreal as the default when nothing is selected, and let the next submit open one tracked request for that selected team without a separate approval step
+- [x] Active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, route follow-up through that runtime inside the same request thread, and keep Boreal Agent off the team unless it was explicitly selected
 - [ ] Boreal Agent capability explorer with real supported-scenario cards and ready-to-run prompt starters
 - [x] Request-driven catalog/store results with add-to-cart actions
 - [x] Cart dialog with checkout history and fulfilled download access

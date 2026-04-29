@@ -34,12 +34,19 @@ const docs: DocConfig[] = [
     intro: "This public file mirrors Boreal's advanced specialist registry contract.",
     stripRepoNote: true,
   },
+  {
+    source: "HERMES_CONNECT_QUICKSTART.md",
+    target: "connect-agent-quickstart.md",
+    title: "# Boreal Connect-Agent Quickstart",
+    intro: "This public file mirrors Boreal's shortest live quickstart for advanced connected runtimes and local model bridges.",
+  },
 ];
 
 const publicNameMap = new Map<string, string>([
   ["ONE_REQUEST_API.md", "one-request-api.md"],
   ["ONE_INBOX_API.md", "one-inbox-api.md"],
   ["AGENT-REGISTRY.md", "agent-registry.md"],
+  ["HERMES_CONNECT_QUICKSTART.md", "connect-agent-quickstart.md"],
 ]);
 
 function stripFirstHeading(markdown: string) {

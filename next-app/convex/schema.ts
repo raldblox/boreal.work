@@ -235,6 +235,7 @@ export default defineSchema({
     intentKey: v.string(),
     intentModel: v.string(),
     intentType: intentTypeValidator,
+    invitedRuntimeSupplyIds: v.optional(v.array(v.id("supplies"))),
     keywords: v.array(v.string()),
     matchAttempts: v.number(),
     missingDetails: v.optional(v.array(v.string())),

@@ -536,6 +536,7 @@ export type RequestDetail = {
   assignment: {
     agent: string | null;
     provider: string;
+    runtimeSupplyIds: string[];
     tools: string[];
   } | null;
   catalogItems: CatalogEntry[];
@@ -619,13 +620,22 @@ export type RequestDetail = {
     userId: string;
   }>;
   participants: Array<{
+    connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
+    connectorLastHeartbeatAt: number | null;
+    connectorLastTestedAt: number | null;
     displayName: string;
     externalId: string | null;
     handle: string | null;
     kind: string;
+    lastActivityAt: number | null;
+    mcpServerUrl: string | null;
     profileId: string | null;
     role: string | null;
+    runtimeSupplyId: string | null;
+    supportsDirectInvoke: boolean;
     status: string;
+    title: string | null;
+    executorUrl: string | null;
   }>;
   proposals: Array<{
     _id: string;
@@ -678,6 +688,21 @@ export type RequestExecutionContext = {
   requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
   responseInstructions: string;
   routeTarget: PersistedIntent["routeTarget"];
+  runtimeSupplies: Array<{
+    _id: string;
+    capabilityTags: string[];
+    connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
+    connectorLastHeartbeatAt: number | null;
+    connectorLastTestedAt: number | null;
+    executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+    executorUrl: string | null;
+    mcpServerUrl: string | null;
+    mcpToolName: string | null;
+    outputTypes: Array<"image_generation" | "speech_generation" | "text" | "video_generation">;
+    sourceProviderKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit" | null;
+    supportsDirectInvoke: boolean;
+    title: string;
+  }>;
   speechText: string;
   status: string;
   suggestedReplies: string[];
@@ -707,6 +732,9 @@ export const convexFunctionRefs = {
       assistantMessage: string;
       intentId: string;
       ownerExternalId?: string;
+      senderDisplayName?: string;
+      senderExternalId?: string;
+      senderHandle?: string;
       status: string;
     },
     { appended: boolean }
@@ -938,6 +966,15 @@ export const convexFunctionRefs = {
       transactionId?: string;
     }
   >("proposals:approveMatchedSupply"),
+  inviteRuntimeToRequest: makeFunctionReference<
+    "mutation",
+    { intentId: string; ownerExternalId?: string; supplyId: string },
+    {
+      invited: boolean;
+      reason?: "not_local_runtime" | "request_not_open" | "supply_not_found" | "supply_not_owned";
+      supplyId: string | null;
+    }
+  >("intents:inviteRuntimeToRequest"),
   rateRequest: makeFunctionReference<
     "mutation",
     { comment?: string; intentId: string; ownerExternalId?: string; rating: number },

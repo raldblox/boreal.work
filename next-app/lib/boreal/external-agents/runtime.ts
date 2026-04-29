@@ -60,6 +60,29 @@ type ConnectedAgentRuntimeResponse = {
   workspace: WorkspaceState;
 };
 
+type RequestRuntimeSupply = {
+  _id: string;
+  capabilityTags: string[];
+  connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
+  connectorLastHeartbeatAt: number | null;
+  connectorLastTestedAt: number | null;
+  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+  executorUrl: string | null;
+  mcpServerUrl: string | null;
+  mcpToolName: string | null;
+  outputTypes: RequestedOutputType[];
+  sourceProviderKey:
+    | "agentcash"
+    | "agentic-market"
+    | "frames"
+    | "manual"
+    | "moonpay"
+    | "solana-agent-kit"
+    | null;
+  supportsDirectInvoke: boolean;
+  title: string;
+};
+
 type ExternalAgentMessagePayload = {
   agent: {
     mode: ConnectedAgentControlRecord["mode"];
@@ -202,6 +225,102 @@ export async function runConnectedAgentChat(input: {
       requestedOutputTypes:
         input.connectedAgent.supply.outputTypes.length > 0
           ? input.connectedAgent.supply.outputTypes
+          : ["text"],
+    }),
+    intentId: undefined,
+    persisted: false,
+    relatedCatalogItems: normalized.relatedCatalogItems,
+    requiresApproval: normalized.requiresApproval,
+    workspace: normalized.workspace,
+  };
+}
+
+export async function runRequestRuntimeChat(input: {
+  conversationId?: string;
+  message: string;
+  ownerExternalId?: string;
+  requestUrl: string;
+  requester?: RequesterIdentity;
+  runtimeSupply: RequestRuntimeSupply;
+  uiContext?: ChatContextShape;
+}): Promise<ConnectedAgentRuntimeResponse> {
+  const client = createConvexServerClient();
+  const wallets = input.ownerExternalId
+    ? await client.query(convexFunctionRefs.getMyWalletAccounts, {
+        ownerExternalId: input.ownerExternalId,
+      })
+    : [];
+  const walletAddress = selectSessionWalletAddress(wallets);
+  const connectedAgent: ActiveConnectedAgent = {
+    control: {
+      activeSupply: null,
+      mode: "connected",
+      role: "agent",
+    },
+    sessionToken: walletAddress ? createSessionToken({ walletAddress }) : null,
+    supply: {
+      _id: input.runtimeSupply._id,
+      capabilityTags: input.runtimeSupply.capabilityTags,
+      connectorHealthStatus: input.runtimeSupply.connectorHealthStatus,
+      deliveryType: "instant",
+      executionSurface: input.runtimeSupply.executionSurface,
+      executorUrl: input.runtimeSupply.executorUrl,
+      mcpServerUrl: input.runtimeSupply.mcpServerUrl,
+      mcpToolName: input.runtimeSupply.mcpToolName,
+      openApiUrl: null,
+      outputTypes: input.runtimeSupply.outputTypes,
+      responseSlaMinutes: null,
+      supportsDirectInvoke: input.runtimeSupply.supportsDirectInvoke,
+      supportsEvidencePush: false,
+      supportsStatusUpdates: false,
+      title: input.runtimeSupply.title,
+    },
+    walletAddress,
+  };
+
+  const normalized = await invokeConnectedRuntime({
+    connectedAgent,
+    conversationId: input.conversationId,
+    message: input.message,
+    requestUrl: input.requestUrl,
+    requester: input.requester,
+    uiContext: input.uiContext,
+  });
+  const conversationId = input.conversationId ?? crypto.randomUUID();
+
+  return {
+    assistantDisplayName: input.runtimeSupply.title,
+    assistantExternalId: `supply:${input.runtimeSupply._id}`,
+    assistantHandle: slugifyHandle(input.runtimeSupply.title),
+    assistantMessage: normalized.assistantMessage,
+    assistantProvider: buildAssistantProviderKey({
+      _id: input.runtimeSupply._id,
+      capabilityTags: input.runtimeSupply.capabilityTags,
+      connectorHealthStatus: input.runtimeSupply.connectorHealthStatus,
+      deliveryType: "instant",
+      executionSurface: input.runtimeSupply.executionSurface,
+      executorUrl: input.runtimeSupply.executorUrl,
+      mcpServerUrl: input.runtimeSupply.mcpServerUrl,
+      mcpToolName: input.runtimeSupply.mcpToolName,
+      openApiUrl: null,
+      outputTypes: input.runtimeSupply.outputTypes,
+      responseSlaMinutes: null,
+      supportsDirectInvoke: input.runtimeSupply.supportsDirectInvoke,
+      supportsEvidencePush: false,
+      supportsStatusUpdates: false,
+      title: input.runtimeSupply.title,
+    }),
+    connectionMode: "connected",
+    conversationId,
+    intent: buildEphemeralConnectedIntent({
+      assistantMessage: normalized.assistantMessage,
+      capabilityTags: input.runtimeSupply.capabilityTags,
+      conversationId,
+      message: input.message,
+      provider: `connected-agent:${slugifyHandle(input.runtimeSupply.title) ?? input.runtimeSupply._id}`,
+      requestedOutputTypes:
+        input.runtimeSupply.outputTypes.length > 0
+          ? input.runtimeSupply.outputTypes
           : ["text"],
     }),
     intentId: undefined,

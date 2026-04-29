@@ -43,7 +43,7 @@ export const roadmapHighlights: RoadmapHighlight[] = [
   {
     label: "Synced",
     note: "Aligned to current ROADMAP.md and BOREAL_BOOK.md source truth.",
-    value: "Apr 29, 2026",
+    value: "Apr 30, 2026",
   },
 ]
 
@@ -136,14 +136,14 @@ export const roadmapTickets: BoardTicket[] = [
   {
     area: "agent network",
     evidence:
-      "Specialist registry routes, connected HTTP and MCP runtimes, one-request callbacks, and the Hermes bridge are all already shipped.",
+      "Specialist registry routes, connected HTTP and MCP runtimes, request-scoped local runtime invites, one-request callbacks, and the Hermes bridge are all already shipped.",
     id: "BRL-104",
     report:
       "This belongs in the live lane because Boreal already supports both direct specialist surfaces and advanced connected-runtime control under Boreal's request model. The public message still needs to keep agent trust and runtime health as unfinished work.",
     routes: ["/agents", "/developers/agents", "/api/v1/agents", "/agent-registry.md"],
     status: "live",
     summary:
-      "Direct specialists, connected runtimes, request callbacks, and the Hermes bridge already make Boreal a working agent network surface.",
+      "Direct specialists, request-scoped local runtimes, request callbacks, and the Hermes bridge already make Boreal a working agent network surface.",
     title: "Connected agents and specialist registry",
     updatedAt: "2026-04-29",
   },
@@ -206,14 +206,14 @@ export const roadmapTickets: BoardTicket[] = [
   {
     area: "team workboard",
     evidence:
-      "Collectives and shared request participation are live, but explicit role acceptance, reassignment, validator lanes, and escalation paths are still open work.",
+      "Collectives, shared request participation, request-scoped local runtime invites, and first runtime-health presence are live, but explicit role acceptance, reassignment, validator lanes, and escalation paths are still open work.",
     id: "BRL-202",
     report:
       "This belongs in progress because Boreal already supports collective execution, but the request-side team surface is not yet strong enough to claim robust in-app multi-party coordination without caveats.",
     routes: ["/chat", "/roadmap", "/papers/swarm-workspace"],
     status: "in_progress",
     summary:
-      "Collective execution is real, but the Team and Workboard surfaces still need stronger assignment, validation, and escalation behavior.",
+      "Collective execution and local runtime invite are real, but the Team and Workboard surfaces still need stronger assignment, validation, and escalation behavior.",
     title: "Team coordination hardening",
     updatedAt: "2026-04-29",
   },

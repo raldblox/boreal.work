@@ -80,6 +80,7 @@ npm run docs:sync:public
 ```
 
 ## Changelog
+- `2026-04-30`: Added request-scoped local runtime invites: active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, the same request thread can route follow-up into that runtime without auto-adding Boreal Agent to the team, and team cards now show live runtime-health or activity-based presence instead of a fake always-online state.
 - `2026-04-30`: Added mounted Solana starter prompts in Boreal chat: selecting `Solana Operator` now shows click-to-fill sample prompts for the actually shipped safe paths first, including memo recording, wallet-message signing, simple SOL transfer, swap or stake planning, and wallet-safety review.
 - `2026-04-30`: Added transport-only local model bridge presets for advanced connected-agent operators: `npm run agent:bridge:ollama`, `npm run agent:bridge:lmstudio`, and `npm run agent:bridge:local-model` now expose Boreal's HTTP executor contract to operator-owned local runtimes without forwarding Boreal Agent hidden prompts or replacing the default cloud Boreal agent.
 - `2026-04-30`: Replaced the active Solana wallet path with Reown while leaving NextAuth untouched for identity: Boreal now opens a Solana-only Reown wallet connect flow for mounted request-thread actions, removes the old Privy wallet runtime from the app, requires `NEXT_PUBLIC_REOWN_PROJECT_ID` locally, and keeps provider-backed x402 wallet automation explicitly disabled until the Reown payment bridge reaches parity.
@@ -182,6 +183,7 @@ Supporting narrative and prompt docs now live under `docs/`, with [docs/README.m
 ## Current Product Surface
 
 - `next-app/app/chat` is Boreal's operating surface for request creation, mounted specialist selection, proposals, fulfillment, market discovery, cart, checkout, and optional advanced runtime adapters.
+- Active requests in `next-app/app/chat` can now invite saved or newly added localhost runtimes from `Team` or `Market`, and those runtime replies stay attached to the same request thread instead of becoming a separate chat brain.
 - `next-app/app/papers` is the public article hub that renders repo-backed markdown papers directly from git-tracked docs.
 - `next-app/components/editorial` contains the reusable editorial shell, index rows, and longform typography system used by `/papers` and intended for future audit-report or document-heavy surfaces.
 - `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.

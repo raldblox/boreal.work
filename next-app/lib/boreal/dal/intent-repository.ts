@@ -84,6 +84,9 @@ export async function appendRequestExecution(args: {
   assistantMessage: string;
   intentId: string;
   ownerExternalId?: string;
+  senderDisplayName?: string;
+  senderExternalId?: string;
+  senderHandle?: string;
   status: string;
 }) {
   const client = createConvexServerClient();

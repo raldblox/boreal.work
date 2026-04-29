@@ -820,6 +820,9 @@ export const appendRequestExecution = mutation({
     assistantMessage: v.string(),
     intentId: v.id("intents"),
     ownerExternalId: v.optional(v.string()),
+    senderDisplayName: v.optional(v.string()),
+    senderExternalId: v.optional(v.string()),
+    senderHandle: v.optional(v.string()),
     status: intentStatusValidator,
   },
   handler: async (ctx, args) => {
@@ -840,15 +843,21 @@ export const appendRequestExecution = mutation({
       provider: intent.provider,
       role: "assistant",
       senderActorKind: "agent",
-      senderDisplayName: args.assignedAgent ?? intent.assignedAgent ?? "Boreal Agent",
+      senderDisplayName:
+        args.senderDisplayName ??
+        args.assignedAgent ??
+        intent.assignedAgent ??
+        "Boreal Agent",
       senderExternalId:
-        (args.assignedAgent ?? intent.assignedAgent)?.toLowerCase().includes("boreal")
+        args.senderExternalId ??
+        ((args.assignedAgent ?? intent.assignedAgent)?.toLowerCase().includes("boreal")
           ? "agent:boreal"
-          : undefined,
+          : undefined),
       senderHandle:
-        (args.assignedAgent ?? intent.assignedAgent)?.toLowerCase().includes("boreal")
+        args.senderHandle ??
+        ((args.assignedAgent ?? intent.assignedAgent)?.toLowerCase().includes("boreal")
           ? "boreal"
-          : undefined,
+          : undefined),
     });
 
     await ctx.db.patch(args.intentId, {

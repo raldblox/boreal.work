@@ -5,6 +5,7 @@ import { api, createAgentConvexClient } from "../agents/shared/convex-client.ts"
 import {
   resolveConnectedAgent,
   runConnectedAgentChat,
+  runRequestRuntimeChat,
 } from "../lib/boreal/external-agents/runtime.ts";
 import { createSmokeWalletIdentity } from "./lib/smoke-wallet-identities.ts";
 
@@ -164,11 +165,56 @@ async function main() {
       "expected Boreal connection pack to expose the one-request entrypoint",
     );
 
+    const requestScopedResult = await runRequestRuntimeChat({
+      conversationId: "req-connected-smoke",
+      message: "Reply from the active request thread.",
+      ownerExternalId,
+      requestUrl: "https://boreal.work/api/chat",
+      requester: {
+        displayName: ownerDisplayName,
+        externalId: ownerExternalId,
+      },
+      runtimeSupply: {
+        _id: supply.supplyId,
+        capabilityTags: ["agents", "chat", "automation", "local-runtime"],
+        connectorHealthStatus: "healthy",
+        connectorLastHeartbeatAt: Date.now(),
+        connectorLastTestedAt: Date.now(),
+        executionSurface: "http",
+        executorUrl: `http://127.0.0.1:${address.port}/boreal/chat`,
+        mcpServerUrl: null,
+        mcpToolName: null,
+        outputTypes: ["text"],
+        sourceProviderKey: "manual",
+        supportsDirectInvoke: true,
+        title: "Hermes Request Runtime",
+      },
+      uiContext: {
+        centerTab: "chat",
+        requestId: "req-connected-smoke",
+        requestRole: "owner",
+        requestStatus: "in_progress",
+        surface: "request",
+      },
+    });
+
+    assert.equal(
+      requestScopedResult.assistantDisplayName,
+      "Hermes Request Runtime",
+      "expected request runtime title to become the assistant identity",
+    );
+    assert.match(
+      requestScopedResult.assistantMessage,
+      /connected runtime/i,
+      "expected request runtime message",
+    );
+
     console.log(
       JSON.stringify(
         {
           assistantProvider: result.assistantProvider,
           conversationId: result.conversationId,
+          requestRuntimeProvider: requestScopedResult.assistantProvider,
           sessionTokenPresent: Boolean(connected?.sessionToken),
           supplyTitle: connected?.supply?.title ?? null,
         },

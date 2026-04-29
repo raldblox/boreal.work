@@ -8,16 +8,16 @@ import {
 } from "react"
 import { useQuery } from "convex/react"
 import {
-  BotIcon,
   PackageIcon,
   SearchIcon,
-  UserIcon,
+  BotIcon,
 } from "lucide-react"
 
+import { AgentIdentityIcon } from "@/components/ui/agent-identity-icon"
 import { Button } from "@/components/ui/button"
+import { DotMatrixSpinner } from "@/components/ui/dotmatrix-spinner"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   type CatalogEntry,
@@ -44,6 +44,7 @@ type WorkspacePanelProps = {
   activeTab: WorkspaceTab
   isBorealDefaultMounted?: boolean
   mountedAgentSupplyIds?: string[]
+  onInviteLocalRuntime?: () => void
   onInvokeListing?: (listing: CatalogEntry) => void
   onSelectRequest: (
     request: SidebarIntentPreview,
@@ -52,17 +53,20 @@ type WorkspacePanelProps = {
   onTabChange: (value: WorkspaceTab) => void
   onViewProfile: (profileId: string) => void
   ownerExternalId?: string
+  showInviteLocalRuntime?: boolean
 }
 
 export function WorkspacePanel({
   activeTab,
   isBorealDefaultMounted = true,
   mountedAgentSupplyIds = [],
+  onInviteLocalRuntime,
   onInvokeListing,
   onSelectRequest,
   onTabChange,
   onViewProfile,
   ownerExternalId,
+  showInviteLocalRuntime = false,
 }: WorkspacePanelProps) {
   const isMounted = useSyncExternalStore(
     () => () => undefined,
@@ -181,6 +185,19 @@ export function WorkspacePanel({
                 value={search}
               />
             </div>
+
+            {activeTab === "workers" && showInviteLocalRuntime ? (
+              <Button
+                className="w-full"
+                onClick={onInviteLocalRuntime}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <BotIcon className="size-4" />
+                Invite local runtime
+              </Button>
+            ) : null}
           </div>
 
           <TabsContent className="min-h-0" value="workers">
@@ -292,7 +309,6 @@ function SupplyCard({
   onInvokeListing?: (listing: CatalogEntry) => void
   onViewProfile: (profileId: string) => void
 }) {
-  const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
   const profileId = listing.seller?.profileId ?? null
   const supportsTeamSelect = canSelectAgentListing(listing) && !!onInvokeListing
   const isProfileClickable = Boolean(profileId)
@@ -335,7 +351,12 @@ function SupplyCard({
     >
       <div className="flex items-start gap-3">
         <div className="flex size-10 items-center justify-center border border-border">
-          <Icon className="size-4 text-muted-foreground" />
+          <AgentIdentityIcon
+            actorKind={listing.actorKind}
+            className="size-4 text-muted-foreground"
+            displayName={listing.seller?.displayName ?? listing.title}
+            title={listing.title}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -590,7 +611,7 @@ function DiscoveryPanelLoader({
   return (
     <div className="space-y-3 p-2">
       <div className="flex items-center gap-2 border border-border/70 bg-background px-3 py-2.5 text-xs text-muted-foreground">
-        <LoaderIcon className="size-4 animate-spin" />
+        <DotMatrixSpinner className="text-muted-foreground" size={30} />
         <span>{subtitle}</span>
       </div>
 

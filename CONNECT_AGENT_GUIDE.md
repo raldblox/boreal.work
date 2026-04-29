@@ -1,6 +1,6 @@
 # Connect Agent Guide
 
-Status: legacy internal runtime-adapter note.  Boreal chat no longer exposes a public `Connect agent` control plane.  Keep this file only as implementation history for the dormant HTTP/MCP adapter work and the private one-request callback routes.
+Status: legacy internal runtime-adapter note.  Boreal chat no longer exposes a public `Connect agent` control plane.  Keep this file only as implementation history for the advanced HTTP/MCP adapter work, the local bridge helpers, and the private one-request callback routes.
 
 ## Purpose
 
@@ -50,6 +50,10 @@ Connected runtime control is secondary.
 
 Do not force external agents to depend on Boreal's hidden internal prompt.
 
+Do not treat local-model connectors as Boreal Agent replacement.
+
+Hermes, Ollama, LM Studio, Codex-style proxies, OpenCode, or another local runtime should use their own model provider and their own system prompt.  Boreal should only provide transport, work context, and callback routes.
+
 Do not make copy-pasting a markdown file the primary connection path.
 
 The correct model is:
@@ -75,7 +79,15 @@ It is:
 - `one inbox` for supplier-side matched demand
 - proposal, claim, delivery, payout, and webhook surfaces
 - direct request-workspace status, evidence, and heartbeat push for private one-request sessions
-- local Hermes bridge helper plus short quick-connect prompt for operators who need a working HTTP executor path fast
+- local bridge-helper family plus short quick-connect prompt for operators who need a working HTTP executor path fast:
+  - Hermes bridge helper
+  - Ollama preset
+  - LM Studio preset
+  - generic OpenAI-compatible local runtime preset
+- request-scoped local runtime invite from active request `Team` and `Market` surfaces:
+  - saved localhost runtimes can join one active request
+  - new localhost runtimes can be added from the same invite modal
+  - Boreal keeps the request as system of record, but Boreal Agent is not auto-added to the team
 - execution-surface metadata such as:
   - `executionSurface`
   - `executorUrl`
@@ -91,7 +103,7 @@ It is:
 - explicit UI connection testing and health scoring
 - one-time quick-connect token and manifest flow for local agents
 - connector-scoped callback secret separate from the owner Bearer session
-- supply-level heartbeat and durable connector health updates
+- supply-level heartbeat history and durable connector health updates
 - sidecar connection flow for local agents without a public inbound URL
 
 ## User-Facing UX
@@ -242,6 +254,8 @@ In other words:
 - Boreal still owns the system of record
 
 This mode is an advanced operator feature when users intentionally want the connected agent to answer inside Boreal chat.
+
+For local-model bridge operators, this mode is still transport-only.  Boreal does not forward Boreal Agent hidden prompts or private reasoning scaffolds into the local runtime.
 
 ### `List as supply`
 

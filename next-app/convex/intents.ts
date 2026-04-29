@@ -18,6 +18,7 @@ import {
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
 } from "./collectives";
+import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtime.ts";
 import { shouldFetchRequestMatches } from "../lib/boreal/request-matching-policy.ts";
 import { persistIntentMatchCandidates } from "./matching";
 import { listIntentMatchCandidates } from "./supplies";
@@ -286,6 +287,18 @@ export const getRequestDetail = query({
 
     const artifact = artifacts[0];
     const participants = await getRequestParticipants(ctx, intent, acceptedProposal);
+    const participantActivity = new Map<string, number>();
+
+    for (const message of requestMessages) {
+      const key = getParticipantActivityKey({
+        displayName: message.sender.displayName,
+        externalId: message.sender.externalId ?? null,
+        handle: message.sender.handle ?? null,
+      });
+      const current = participantActivity.get(key) ?? 0;
+      participantActivity.set(key, Math.max(current, message.createdAt));
+    }
+
     const contributions = await buildCollectiveContributionSummary(ctx, {
       acceptedProposal,
       conversationId: intent.conversationId ?? null,
@@ -360,6 +373,7 @@ export const getRequestDetail = query({
       assignment: {
         agent: intent.assignedAgent ?? null,
         provider: intent.provider,
+        runtimeSupplyIds: (intent.invitedRuntimeSupplyIds ?? []).map(String),
         tools: intent.assignedToolNames ?? [],
       },
       catalogItems,
@@ -401,7 +415,11 @@ export const getRequestDetail = query({
       collectiveTrust,
       messages: requestMessages,
       contributions,
-      participants,
+      participants: participants.map((participant) => ({
+        ...participant,
+        lastActivityAt:
+          participantActivity.get(getParticipantActivityKey(participant)) ?? null,
+      })),
       proposals: await Promise.all(
         proposals.map(async (proposal) => ({
           collectiveMembers: proposal.collectiveMembers ?? [],
@@ -449,6 +467,20 @@ export const getExecutionContext = query({
       return null;
     }
     const normalizedIntent = sanitizeStoredIntentShape(intent);
+    const runtimeSupplies = (
+      await Promise.all(
+        (intent.invitedRuntimeSupplyIds ?? []).map((supplyId) => ctx.db.get(supplyId)),
+      )
+    ).filter(
+      (
+        supply,
+      ): supply is NonNullable<typeof supply> =>
+        Boolean(
+          supply &&
+            supply.status === "active" &&
+            isLocalRuntimeSupply(supply),
+        ),
+    );
 
     return {
       _id: intent._id,
@@ -468,6 +500,21 @@ export const getExecutionContext = query({
       requestedOutputTypes: normalizedIntent.requestedOutputTypes,
       responseInstructions: normalizedIntent.responseInstructions,
       routeTarget: normalizedIntent.routeTarget,
+      runtimeSupplies: runtimeSupplies.map((supply) => ({
+        _id: supply._id,
+        capabilityTags: supply.capabilityTags,
+        connectorHealthStatus: supply.connectorHealthStatus ?? null,
+        connectorLastHeartbeatAt: supply.connectorLastHeartbeatAt ?? null,
+        connectorLastTestedAt: supply.connectorLastTestedAt ?? null,
+        executionSurface: supply.executionSurface ?? null,
+        executorUrl: supply.executorUrl ?? null,
+        mcpServerUrl: supply.mcpServerUrl ?? null,
+        mcpToolName: supply.mcpToolName ?? null,
+        outputTypes: supply.outputTypes ?? [],
+        sourceProviderKey: supply.sourceProviderKey ?? null,
+        supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
+        title: supply.title,
+      })),
       speechText: normalizedIntent.speechText,
       status: intent.status,
       suggestedReplies: normalizedIntent.suggestedReplies,
@@ -902,12 +949,22 @@ const DIRECT_AGENT_PARTICIPANTS: Record<
   },
 };
 
+function buildRuntimeHandle(title: string) {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "runtime"
+}
+
 async function getRequestParticipants(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: any,
   intent: {
     assignedAgent?: string;
     assignedToolNames?: string[];
+    invitedRuntimeSupplyIds?: string[];
     intentKey: string;
     ownerUserId?: string;
     status: string;
@@ -927,14 +984,37 @@ async function getRequestParticipants(
     externalId: string | null;
     handle: string | null;
     kind: string;
+    connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
+    connectorLastHeartbeatAt: number | null;
+    connectorLastTestedAt: number | null;
+    executorUrl: string | null;
+    lastActivityAt: number | null;
+    mcpServerUrl: string | null;
     profileId: string | null;
     role: string | null;
+    runtimeSupplyId: string | null;
     status: string;
+    supportsDirectInvoke: boolean;
+    title: string | null;
   }> = [];
   const assignedAgent = intent.assignedAgent;
   const assignedDirectAgents = (intent.assignedToolNames ?? [])
     .map((toolName) => DIRECT_AGENT_PARTICIPANTS[toolName.trim().toLowerCase()])
     .filter(Boolean);
+  const invitedRuntimeSupplies = (
+    await Promise.all(
+      (intent.invitedRuntimeSupplyIds ?? []).map((supplyId) => ctx.db.get(supplyId)),
+    )
+  ).filter(
+    (
+      supply,
+    ): supply is NonNullable<typeof supply> =>
+      Boolean(
+        supply &&
+          supply.status === "active" &&
+          isLocalRuntimeSupply(supply),
+      ),
+  );
 
   if (intent.ownerUserId) {
     const owner = await ctx.db.get(intent.ownerUserId);
@@ -944,9 +1024,18 @@ async function getRequestParticipants(
         externalId: owner.externalId ?? null,
         handle: owner.handle ?? null,
         kind: owner.actorKind,
+        connectorHealthStatus: null,
+        connectorLastHeartbeatAt: null,
+        connectorLastTestedAt: null,
+        executorUrl: null,
+        lastActivityAt: null,
+        mcpServerUrl: null,
         profileId: owner.externalId ? await getProfileIdByExternalId(ctx, owner.externalId) : null,
         role: null,
+        runtimeSupplyId: null,
         status: "owner",
+        supportsDirectInvoke: false,
+        title: null,
       });
     }
   }
@@ -959,12 +1048,21 @@ async function getRequestParticipants(
         externalId: proposer.externalId ?? null,
         handle: proposer.handle ?? null,
         kind: proposer.actorKind,
+        connectorHealthStatus: null,
+        connectorLastHeartbeatAt: null,
+        connectorLastTestedAt: null,
+        executorUrl: null,
+        lastActivityAt: null,
+        mcpServerUrl: null,
         profileId:
           proposer.externalId ? await getProfileIdByExternalId(ctx, proposer.externalId) : null,
         role: proposer.externalId
           ? getCollectiveMemberRole(acceptedProposal, proposer.externalId)
           : null,
+        runtimeSupplyId: null,
         status: acceptedProposal.status,
+        supportsDirectInvoke: false,
+        title: null,
       });
     }
   }
@@ -990,12 +1088,48 @@ async function getRequestParticipants(
           externalId: participant.externalId,
           handle: participant.handle,
           kind: participant.user.actorKind,
+          connectorHealthStatus: null,
+          connectorLastHeartbeatAt: null,
+          connectorLastTestedAt: null,
+          executorUrl: null,
+          lastActivityAt: null,
+          mcpServerUrl: null,
           profileId: participant.profileId ?? null,
           role: getCollectiveMemberRole(acceptedProposal, participant.externalId),
+          runtimeSupplyId: null,
           status: acceptedProposal.status,
+          supportsDirectInvoke: false,
+          title: null,
         });
       }
     }
+  }
+
+  for (const runtimeSupply of invitedRuntimeSupplies) {
+    const externalId = `supply:${runtimeSupply._id}`;
+
+    if (participants.some((participant) => participant.externalId === externalId)) {
+      continue;
+    }
+
+    participants.push({
+      displayName: runtimeSupply.title,
+      externalId,
+      handle: buildRuntimeHandle(runtimeSupply.title),
+      kind: "agent",
+      connectorHealthStatus: runtimeSupply.connectorHealthStatus ?? null,
+      connectorLastHeartbeatAt: runtimeSupply.connectorLastHeartbeatAt ?? null,
+      connectorLastTestedAt: runtimeSupply.connectorLastTestedAt ?? null,
+      executorUrl: runtimeSupply.executorUrl ?? null,
+      lastActivityAt: null,
+      mcpServerUrl: runtimeSupply.mcpServerUrl ?? null,
+      profileId: null,
+      role: "runtime",
+      runtimeSupplyId: runtimeSupply._id,
+      status: intent.status,
+      supportsDirectInvoke: runtimeSupply.supportsDirectInvoke ?? false,
+      title: runtimeSupply.title,
+    });
   }
 
   for (const directAgent of assignedDirectAgents) {
@@ -1012,15 +1146,32 @@ async function getRequestParticipants(
       externalId: directAgent.externalId,
       handle: directAgent.handle,
       kind: "agent",
+      connectorHealthStatus: null,
+      connectorLastHeartbeatAt: null,
+      connectorLastTestedAt: null,
+      executorUrl: null,
+      lastActivityAt: null,
+      mcpServerUrl: null,
       profileId: null,
       role: null,
+      runtimeSupplyId: null,
       status: intent.status,
+      supportsDirectInvoke: false,
+      title: null,
     });
   }
+
+  const hasExplicitBorealTool = (intent.assignedToolNames ?? []).some(
+    (toolName) => toolName.trim().toLowerCase() === "boreal-agent",
+  );
+  const isImplicitBorealAgentName = assignedAgent
+    ? assignedAgent.toLowerCase().includes("boreal")
+    : false;
 
   if (
     assignedAgent &&
     assignedDirectAgents.length === 0 &&
+    (!isImplicitBorealAgentName || hasExplicitBorealTool) &&
     !participants.some(
       (participant) =>
         participant.displayName === assignedAgent ||
@@ -1035,9 +1186,18 @@ async function getRequestParticipants(
         : null,
       handle: assignedAgent.toLowerCase().includes("boreal") ? "boreal" : null,
       kind: "agent",
+      connectorHealthStatus: null,
+      connectorLastHeartbeatAt: null,
+      connectorLastTestedAt: null,
+      executorUrl: null,
+      lastActivityAt: null,
+      mcpServerUrl: null,
       profileId: null,
       role: null,
+      runtimeSupplyId: null,
       status: intent.status,
+      supportsDirectInvoke: false,
+      title: null,
     });
   }
 
@@ -1050,8 +1210,17 @@ function dedupeRequestParticipants<
     externalId: string | null;
     handle: string | null;
     kind: string;
+    connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
+    connectorLastHeartbeatAt: number | null;
+    connectorLastTestedAt: number | null;
+    executorUrl: string | null;
+    lastActivityAt: number | null;
+    mcpServerUrl: string | null;
     profileId: string | null;
+    runtimeSupplyId: string | null;
     status: string;
+    supportsDirectInvoke: boolean;
+    title: string | null;
   },
 >(participants: T[]) {
   const deduped = new Map<string, T>();
@@ -1084,13 +1253,102 @@ function dedupeRequestParticipants<
           ? "boreal"
           : current.handle ?? participant.handle,
       kind: current.kind === "agent" || participant.kind === "agent" ? "agent" : current.kind,
+      connectorHealthStatus:
+        participant.connectorHealthStatus ?? current.connectorHealthStatus,
+      connectorLastHeartbeatAt:
+        participant.connectorLastHeartbeatAt ?? current.connectorLastHeartbeatAt,
+      connectorLastTestedAt:
+        participant.connectorLastTestedAt ?? current.connectorLastTestedAt,
+      executorUrl: participant.executorUrl ?? current.executorUrl,
+      lastActivityAt: participant.lastActivityAt ?? current.lastActivityAt,
+      mcpServerUrl: participant.mcpServerUrl ?? current.mcpServerUrl,
       profileId: current.profileId ?? participant.profileId,
+      runtimeSupplyId: current.runtimeSupplyId ?? participant.runtimeSupplyId,
       status: nextStatusWins ? participant.status : current.status,
+      supportsDirectInvoke:
+        current.supportsDirectInvoke || participant.supportsDirectInvoke,
+      title: participant.title ?? current.title,
     });
   }
 
   return Array.from(deduped.values());
 }
+
+function getParticipantActivityKey(participant: {
+  displayName: string;
+  externalId: string | null;
+  handle: string | null;
+}) {
+  return (
+    participant.externalId?.trim().toLowerCase() ??
+    participant.handle?.trim().toLowerCase() ??
+    participant.displayName.trim().toLowerCase()
+  );
+}
+
+export const inviteRuntimeToRequest = mutation({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+    supplyId: v.id("supplies"),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (
+      !intent ||
+      !(await hasRequestOwnerAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
+      return { invited: false, reason: "request_not_open" as const, supplyId: null };
+    }
+
+    if (
+      intent.status === "closed" ||
+      intent.status === "fulfilled"
+    ) {
+      return { invited: false, reason: "request_not_open" as const, supplyId: null };
+    }
+
+    const supply = await ctx.db.get(args.supplyId);
+
+    if (!supply || supply.status !== "active") {
+      return { invited: false, reason: "supply_not_found" as const, supplyId: null };
+    }
+
+    if (supply.supplierUserId !== intent.ownerUserId) {
+      return { invited: false, reason: "supply_not_owned" as const, supplyId: null };
+    }
+
+    if (!isLocalRuntimeSupply(supply)) {
+      return { invited: false, reason: "not_local_runtime" as const, supplyId: null };
+    }
+
+    const now = Date.now();
+    const currentSupplyIds = intent.invitedRuntimeSupplyIds ?? [];
+    const nextSupplyIds = currentSupplyIds.includes(args.supplyId)
+      ? currentSupplyIds
+      : [...currentSupplyIds, args.supplyId];
+
+    await ctx.db.patch(args.intentId, {
+      invitedRuntimeSupplyIds: nextSupplyIds,
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: JSON.stringify({
+        executionSurface: supply.executionSurface ?? null,
+        supplyId: supply._id,
+        title: supply.title,
+      }),
+      type: "request.runtime_invited",
+    });
+
+    return { invited: true, supplyId: supply._id };
+  },
+});
 
 function getRequestParticipantKey(participant: {
   displayName: string;

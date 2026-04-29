@@ -104,6 +104,10 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  AgentIdentityIcon,
+  isSolanaOperatorIdentity,
+} from "@/components/ui/agent-identity-icon"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -114,6 +118,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { DotMatrixSpinner } from "@/components/ui/dotmatrix-spinner"
 import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -173,6 +178,11 @@ import {
   getBorealPrimaryChainFamily,
   getDefaultBorealNetworkKey,
 } from "@/lib/boreal/commerce/networks"
+import {
+  buildLocalRuntimeCapabilityTags,
+  getRuntimeHealthUrl,
+  isLocalRuntimeSupply,
+} from "@/lib/boreal/external-agents/local-runtime"
 import {
   buildAccountSettingsHref,
   type BorealShellAccountView,
@@ -234,6 +244,13 @@ type MountedComposerAgent = {
   directAgentKey: string | null
   sourceCapabilityId: string | null
   supplyId: string
+  title: string
+}
+
+type LocalRuntimeDraft = {
+  description: string
+  executorUrl: string
+  runtimeKind: "custom" | "lmstudio" | "ollama"
   title: string
 }
 
@@ -363,6 +380,13 @@ const emptyDeliveryDraft = (): DeliveryDraft => ({
   deliverablesBody: "",
 })
 
+const emptyLocalRuntimeDraft = (): LocalRuntimeDraft => ({
+  description: "Private local runtime for this request.",
+  executorUrl: "http://127.0.0.1:8790/boreal/chat",
+  runtimeKind: "ollama",
+  title: "Ollama Runtime",
+})
+
 const generateUploadUrlMutation = makeFunctionReference<
   "mutation",
   Record<string, never>,
@@ -461,6 +485,13 @@ export function ChatShell() {
   const [profileBuilderMessage, setProfileBuilderMessage] = useState("")
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
+  const [isLocalRuntimeDialogOpen, setIsLocalRuntimeDialogOpen] =
+    useState(false)
+  const [isCreatingLocalRuntime, setIsCreatingLocalRuntime] = useState(false)
+  const [invitingLocalRuntimeSupplyId, setInvitingLocalRuntimeSupplyId] =
+    useState<string | null>(null)
+  const [localRuntimeDraft, setLocalRuntimeDraft] =
+    useState<LocalRuntimeDraft>(emptyLocalRuntimeDraft())
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [centerSheetView, setCenterSheetView] =
     useState<CenterSheetView | null>(null)
@@ -603,6 +634,17 @@ export function ChatShell() {
   const checkoutHistory = (checkoutHistoryResult ?? []) as CheckoutRecord[]
   const myProfileRecord = (myProfileResult ?? null) as MyProfileRecord
   const walletAccounts = (walletAccountsResult ?? []) as WalletAccountRecord
+  const localRuntimeSupplies = useMemo(
+    () =>
+      (myProfileRecord?.supplies ?? []).filter((supply) =>
+        isLocalRuntimeSupply(supply)
+      ),
+    [myProfileRecord?.supplies]
+  )
+  const invitedRuntimeSupplyIds = requestDetail?.assignment?.runtimeSupplyIds ?? []
+  const canInviteLocalRuntime = Boolean(
+    activeIntentId && requestDetail?.access?.isOwner
+  )
   const isConversationLoading =
     isXAuthenticated &&
     Boolean(!activeIntentId) &&
@@ -683,6 +725,9 @@ export function ChatShell() {
   )
   const upsertMyProfile = useMutation(convexFunctionRefs.upsertMyProfile)
   const createSupplyEntry = useMutation(convexFunctionRefs.createSupplyEntry)
+  const inviteRuntimeToRequest = useMutation(
+    convexFunctionRefs.inviteRuntimeToRequest
+  )
   const syncWalletAccount = useMutation(convexFunctionRefs.syncWalletAccount)
   const setDefaultPayoutWalletAccount = useMutation(
     convexFunctionRefs.setDefaultPayoutWalletAccount
@@ -2630,6 +2675,130 @@ export function ChatShell() {
     }
   }
 
+  async function handleInviteRuntimeToActiveRequest(supplyId: string) {
+    if (!activeIntentId || !ownerExternalId || invitingLocalRuntimeSupplyId) {
+      return false
+    }
+
+    setErrorMessage(null)
+    setInvitingLocalRuntimeSupplyId(supplyId)
+
+    try {
+      const result = await inviteRuntimeToRequest({
+        intentId: activeIntentId,
+        ownerExternalId,
+        supplyId,
+      })
+
+      if (!result.invited) {
+        throw new Error(
+          result.reason === "not_local_runtime"
+            ? "Only local direct runtimes can join this request."
+            : result.reason === "supply_not_owned"
+              ? "You can only invite your own local runtime here."
+              : result.reason === "supply_not_found"
+                ? "That runtime is not available right now."
+                : "Could not invite this runtime into the request."
+        )
+      }
+
+      return true
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not invite this runtime into the request."
+      )
+      return false
+    } finally {
+      setInvitingLocalRuntimeSupplyId(null)
+    }
+  }
+
+  async function handleCreateAndInviteLocalRuntime() {
+    if (!ownerExternalId || !activeIntentId || isCreatingLocalRuntime) {
+      return
+    }
+
+    const trimmedTitle = localRuntimeDraft.title.trim()
+    const trimmedExecutorUrl = localRuntimeDraft.executorUrl.trim()
+    const trimmedDescription = localRuntimeDraft.description.trim()
+
+    if (!trimmedTitle || !trimmedExecutorUrl) {
+      setErrorMessage("Add a runtime name and executor URL first.")
+      return
+    }
+
+    if (
+      !isLocalRuntimeSupply({
+        executionSurface: "http",
+        executorUrl: trimmedExecutorUrl,
+        sourceProviderKey: "manual",
+        supportsDirectInvoke: true,
+        title: trimmedTitle,
+      })
+    ) {
+      setErrorMessage("Use a localhost runtime bridge URL for this request.")
+      return
+    }
+
+    setErrorMessage(null)
+    setIsCreatingLocalRuntime(true)
+
+    try {
+      const created = await createSupplyEntry({
+        availabilityStatus: "available",
+        capabilityTags: buildLocalRuntimeCapabilityTags(
+          localRuntimeDraft.runtimeKind
+        ),
+        category: "automation",
+        connectorHealthStatus: "unknown",
+        deliveryType: "instant",
+        description:
+          trimmedDescription || "Private local runtime for Boreal requests.",
+        executionSurface: "http",
+        executorUrl: trimmedExecutorUrl,
+        fulfillmentKind: "service",
+        isCartEnabled: false,
+        outputTypes: ["text"],
+        ownerActorKind: "agent",
+        ownerDisplayName: session?.user?.name ?? trimmedTitle,
+        ownerExternalId,
+        paymentProtocol: "none",
+        priceType: "scoped",
+        requiresHumanApproval: false,
+        sourceCapabilityId: `local-runtime:${trimmedTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")}`,
+        sourceProviderKey: "manual",
+        subtitle: "Private local runtime",
+        supportsDirectInvoke: true,
+        supplyType: "capability",
+        title: trimmedTitle,
+      })
+
+      if (!created.created || !created.supplyId) {
+        throw new Error("Could not save this local runtime.")
+      }
+
+      const invited = await handleInviteRuntimeToActiveRequest(created.supplyId)
+
+      if (invited) {
+        setLocalRuntimeDraft(emptyLocalRuntimeDraft())
+        setIsLocalRuntimeDialogOpen(false)
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not save this local runtime."
+      )
+    } finally {
+      setIsCreatingLocalRuntime(false)
+    }
+  }
+
   function handleSidebarSelect(
     intent: SidebarIntentPreview,
     view?: RequestNavigationView
@@ -3081,7 +3250,7 @@ export function ChatShell() {
                     </div>
                   ) : resolvedProfileSheetDetail === undefined ? (
                     <div className="flex min-h-[24rem] items-center justify-center text-sm text-muted-foreground">
-                      <LoaderIcon className="mr-2 size-4 animate-spin" />
+                      <DotMatrixSpinner className="mr-2 text-muted-foreground" />
                       Loading profile
                     </div>
                   ) : !resolvedProfileSheetDetail ? (
@@ -3332,7 +3501,12 @@ export function ChatShell() {
                                 onBrowseWorkers={() => {
                                   openMarketplaceTab("workers")
                                 }}
+                                onInviteLocalRuntime={() =>
+                                  setIsLocalRuntimeDialogOpen(true)
+                                }
                                 onViewProfile={openProfileSheet}
+                                canInviteLocalRuntime={canInviteLocalRuntime}
+                                isSolanaWalletReady={isWalletReady}
                                 requestDetail={requestDetail}
                                 shareUrl={selectedRequestShareUrl}
                               />
@@ -3481,7 +3655,10 @@ export function ChatShell() {
                                   <Message from="assistant">
                                     <MessageContent>
                                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <LoaderIcon className="size-4 animate-spin" />
+                                        <DotMatrixSpinner
+                                          className="text-muted-foreground"
+                                          size={30}
+                                        />
                                         <span>Routing request</span>
                                       </div>
                                     </MessageContent>
@@ -3501,7 +3678,7 @@ export function ChatShell() {
                   {isConversationLoading ? (
                     <div className={HOME_PANEL_CLASS}>
                       <div className="flex items-center justify-center overflow-visible py-16">
-                        <LoaderIcon
+                        <DotMatrixSpinner
                           className="text-muted-foreground"
                           size={46}
                         />
@@ -3715,7 +3892,10 @@ export function ChatShell() {
                                 </MessageResponse>
                               ) : (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <LoaderIcon />
+                                  <DotMatrixSpinner
+                                    className="text-muted-foreground"
+                                    size={30}
+                                  />
                                   {/* <span>Routing request</span> */}
                                 </div>
                               )}
@@ -3884,11 +4064,13 @@ export function ChatShell() {
                 activeTab={workspaceTab}
                 isBorealDefaultMounted={isBorealDefaultMounted}
                 mountedAgentSupplyIds={mountedComposerAgents.map((agent) => agent.supplyId)}
+                onInviteLocalRuntime={() => setIsLocalRuntimeDialogOpen(true)}
                 onInvokeListing={(listing) => void handleInvokeListing(listing)}
                 onSelectRequest={handleMarketplaceSelect}
                 onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
                 onViewProfile={openProfileSheet}
                 ownerExternalId={ownerExternalId}
+                showInviteLocalRuntime={canInviteLocalRuntime}
               />
             </DesktopDiscoveryRail>
           </div>
@@ -3938,13 +4120,28 @@ export function ChatShell() {
           activeTab={workspaceTab}
           isBorealDefaultMounted={isBorealDefaultMounted}
           mountedAgentSupplyIds={mountedComposerAgents.map((agent) => agent.supplyId)}
+          onInviteLocalRuntime={() => setIsLocalRuntimeDialogOpen(true)}
           onInvokeListing={(listing) => void handleInvokeListing(listing)}
           onSelectRequest={handleMarketplaceSelect}
           onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
           onViewProfile={openProfileSheet}
           ownerExternalId={ownerExternalId}
+          showInviteLocalRuntime={canInviteLocalRuntime}
         />
       </MobileSidebarDrawer>
+      <LocalRuntimeInviteDialog
+        currentRequestTitle={requestDetail?.intent?.title ?? null}
+        draft={localRuntimeDraft}
+        invitedSupplyIds={invitedRuntimeSupplyIds}
+        invitingSupplyId={invitingLocalRuntimeSupplyId}
+        isCreating={isCreatingLocalRuntime}
+        isOpen={isLocalRuntimeDialogOpen}
+        localRuntimeSupplies={localRuntimeSupplies}
+        onCreateAndInvite={handleCreateAndInviteLocalRuntime}
+        onInvite={handleInviteRuntimeToActiveRequest}
+        onOpenChange={setIsLocalRuntimeDialogOpen}
+        setDraft={setLocalRuntimeDraft}
+      />
       <ProfileBuilderDialog
         connectWalletLabel="Connect Solana mainnet wallet"
         draft={profileBuilderDraft}
@@ -5697,29 +5894,113 @@ function SenderIcon({ actorKind }: { actorKind: "agent" | "human" | "tool" }) {
 function LoadingRequestPanel() {
   return (
     <div className="flex items-center justify-center overflow-visible py-2">
-      <LoaderIcon className="text-muted-foreground" size={34} />
+      <DotMatrixSpinner className="text-muted-foreground" size={34} />
     </div>
   )
 }
 
 function RequestWorkersPanel({
   onBrowseWorkers,
+  onInviteLocalRuntime,
   onViewProfile,
+  canInviteLocalRuntime,
+  isSolanaWalletReady,
   requestDetail,
   shareUrl,
 }: {
   onBrowseWorkers: () => void
+  onInviteLocalRuntime: () => void
   onViewProfile: (profileId: string) => void
+  canInviteLocalRuntime: boolean
+  isSolanaWalletReady: boolean
   requestDetail: RequestDetail | null
   shareUrl: string | null
 }) {
   const [copied, setCopied] = useState(false)
   const intent = requestDetail?.intent
-  const participants = requestDetail?.participants ?? []
+  const participants = useMemo(
+    () => requestDetail?.participants ?? [],
+    [requestDetail?.participants]
+  )
+  const [runtimePresence, setRuntimePresence] = useState<
+    Record<string, "active" | "checking" | "offline">
+  >({})
   const isWaitingForWorkers =
     participants.filter((participant) => participant.status !== "owner")
       .length === 0 &&
     (intent?.status === "open" || intent?.status === "proposed")
+
+  useEffect(() => {
+    const runtimeTargets = participants
+      .filter(
+        (participant) =>
+          Boolean(participant.runtimeSupplyId) &&
+          Boolean(participant.executorUrl ?? participant.mcpServerUrl)
+      )
+      .map((participant) => ({
+        endpoint: participant.executorUrl ?? participant.mcpServerUrl ?? "",
+        supplyId: participant.runtimeSupplyId!,
+      }))
+
+    if (runtimeTargets.length === 0) {
+      return
+    }
+
+    let cancelled = false
+
+    async function refreshPresence() {
+      setRuntimePresence((current) => {
+        const next = { ...current }
+        for (const target of runtimeTargets) {
+          if (!next[target.supplyId] || next[target.supplyId] === "offline") {
+            next[target.supplyId] = "checking"
+          }
+        }
+        return next
+      })
+
+      const results = await Promise.all(
+        runtimeTargets.map(async (target) => {
+          const healthUrl = getRuntimeHealthUrl(target.endpoint) ?? target.endpoint
+
+          try {
+            const response = await fetch(
+              `/api/runtime-presence?endpoint=${encodeURIComponent(healthUrl)}`,
+              {
+                cache: "no-store",
+              }
+            )
+            const payload = (await response.json()) as { ok?: boolean }
+
+            return [target.supplyId, payload.ok ? "active" : "offline"] as const
+          } catch {
+            return [target.supplyId, "offline"] as const
+          }
+        })
+      )
+
+      if (cancelled) {
+        return
+      }
+
+      setRuntimePresence(
+        Object.fromEntries(results) as Record<
+          string,
+          "active" | "checking" | "offline"
+        >
+      )
+    }
+
+    void refreshPresence()
+    const timer = window.setInterval(() => {
+      void refreshPresence()
+    }, 30000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [participants])
 
   async function handleCopyShare() {
     if (!shareUrl) {
@@ -5749,6 +6030,17 @@ function RequestWorkersPanel({
             >
               Find collaborators
             </Button>
+            {canInviteLocalRuntime ? (
+              <Button
+                onClick={onInviteLocalRuntime}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <BotIcon className="size-4" />
+                Invite local runtime
+              </Button>
+            ) : null}
             <Button
               disabled={!shareUrl}
               onClick={() => void handleCopyShare()}
@@ -5776,9 +6068,22 @@ function RequestWorkersPanel({
       ) : null}
 
       <div className="space-y-3 border border-border p-4">
-        <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-          Team
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+            Team
+          </p>
+          {canInviteLocalRuntime ? (
+            <Button
+              onClick={onInviteLocalRuntime}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <BotIcon className="size-4" />
+              Invite local runtime
+            </Button>
+          ) : null}
+        </div>
         <div className="space-y-3">
           {participants.map((participant) => (
             <div
@@ -5787,25 +6092,64 @@ function RequestWorkersPanel({
             >
               <div className="flex items-start gap-3">
                 <div className="flex size-9 items-center justify-center border border-border">
-                  {participant.kind === "agent" ? (
-                    <BotIcon className="size-4 text-muted-foreground" />
-                  ) : (
-                    <UserIcon className="size-4 text-muted-foreground" />
-                  )}
+                  <AgentIdentityIcon
+                    actorKind={participant.kind}
+                    className="size-4 text-muted-foreground"
+                    displayName={participant.displayName}
+                    externalId={participant.externalId}
+                    handle={participant.handle}
+                    title={participant.title}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-medium">
                       {participant.displayName}
                     </p>
+                    <span
+                      className={cn(
+                        "text-[11px] tracking-[0.16em] uppercase",
+                        getRequestParticipantPresenceTone(
+                          participant,
+                          participant.runtimeSupplyId
+                            ? runtimePresence[participant.runtimeSupplyId] ??
+                                "checking"
+                            : undefined
+                        )
+                      )}
+                    >
+                      {getRequestParticipantPresenceLabel(
+                        participant,
+                        participant.runtimeSupplyId
+                          ? runtimePresence[participant.runtimeSupplyId] ??
+                              "checking"
+                          : undefined
+                      )}
+                    </span>
                     <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
                       {participant.status}
                     </span>
+                    {isSolanaWalletReady &&
+                    isSolanaOperatorIdentity({
+                      displayName: participant.displayName,
+                      externalId: participant.externalId,
+                      handle: participant.handle,
+                      title: participant.title,
+                    }) ? (
+                      <span className="text-[11px] tracking-[0.16em] text-emerald-600 uppercase">
+                        Solana connected
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {participant.handle
-                      ? `@${participant.handle}`
-                      : participant.kind}
+                    {participant.runtimeSupplyId
+                      ? participant.executorUrl ??
+                        participant.mcpServerUrl ??
+                        participant.handle ??
+                        participant.kind
+                      : participant.handle
+                        ? `@${participant.handle}`
+                        : participant.kind}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {participant.profileId ? (
@@ -5826,6 +6170,292 @@ function RequestWorkersPanel({
         </div>
       </div>
     </div>
+  )
+}
+
+function getRequestParticipantPresenceLabel(
+  participant: RequestDetail["participants"][number],
+  runtimePresence?: "active" | "checking" | "offline"
+) {
+  if (participant.runtimeSupplyId) {
+    if (runtimePresence === "active") {
+      return "active now"
+    }
+
+    if (runtimePresence === "checking") {
+      return "checking"
+    }
+
+    return "offline"
+  }
+
+  const lastActivityAgeMs = participant.lastActivityAt
+    ? Date.now() - participant.lastActivityAt
+    : null
+
+  if (lastActivityAgeMs !== null && lastActivityAgeMs < 5 * 60 * 1000) {
+    return "active now"
+  }
+
+  if (participant.status === "owner") {
+    return "owner"
+  }
+
+  if (participant.lastActivityAt) {
+    return "idle"
+  }
+
+  return "assigned"
+}
+
+function getRequestParticipantPresenceTone(
+  participant: RequestDetail["participants"][number],
+  runtimePresence?: "active" | "checking" | "offline"
+) {
+  const label = getRequestParticipantPresenceLabel(participant, runtimePresence)
+
+  if (label === "active now") {
+    return "text-emerald-600"
+  }
+
+  if (label === "checking") {
+    return "text-amber-600"
+  }
+
+  if (label === "offline") {
+    return "text-destructive"
+  }
+
+  return "text-muted-foreground"
+}
+
+function LocalRuntimeInviteDialog({
+  currentRequestTitle,
+  draft,
+  invitedSupplyIds,
+  invitingSupplyId,
+  isCreating,
+  isOpen,
+  localRuntimeSupplies,
+  onCreateAndInvite,
+  onInvite,
+  onOpenChange,
+  setDraft,
+}: {
+  currentRequestTitle: string | null
+  draft: LocalRuntimeDraft
+  invitedSupplyIds: string[]
+  invitingSupplyId: string | null
+  isCreating: boolean
+  isOpen: boolean
+  localRuntimeSupplies: NonNullable<MyProfileRecord>["supplies"]
+  onCreateAndInvite: () => Promise<void>
+  onInvite: (supplyId: string) => Promise<boolean>
+  onOpenChange: (open: boolean) => void
+  setDraft: Dispatch<SetStateAction<LocalRuntimeDraft>>
+}) {
+  const runtimeCount = localRuntimeSupplies.length
+
+  function applyRuntimePreset(runtimeKind: LocalRuntimeDraft["runtimeKind"]) {
+    setDraft((current) => ({
+      ...current,
+      description:
+        runtimeKind === "ollama"
+          ? "Private Ollama runtime for this request."
+          : runtimeKind === "lmstudio"
+            ? "Private LM Studio runtime for this request."
+            : "Private local runtime for this request.",
+      runtimeKind,
+      title:
+        runtimeKind === "ollama"
+          ? "Ollama Runtime"
+          : runtimeKind === "lmstudio"
+            ? "LM Studio Runtime"
+            : "Local Runtime",
+    }))
+  }
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={isOpen}>
+      <DialogContent className="max-w-3xl p-0 sm:max-w-3xl">
+        <div className="flex max-h-[85vh] flex-col overflow-hidden">
+          <DialogHeader className="border-b border-border px-6 py-4">
+            <DialogTitle>Invite local runtime</DialogTitle>
+            <DialogDescription>
+              Attach a localhost runtime to this active request.{" "}
+              {currentRequestTitle
+                ? `Current request: ${currentRequestTitle}.`
+                : "Only active request threads can use this flow."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-6 px-6 py-5">
+              <section className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Saved local runtimes</p>
+                  <p className="text-xs text-muted-foreground">
+                    Only localhost direct runtimes appear here.
+                  </p>
+                </div>
+                {runtimeCount === 0 ? (
+                  <div className="border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    No local runtimes saved yet. Start one bridge, then add it
+                    below.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {localRuntimeSupplies.map((supply) => {
+                      const isInvited = invitedSupplyIds.includes(supply._id)
+                      const endpoint = supply.executorUrl ?? supply.mcpServerUrl
+
+                      return (
+                        <div
+                          className="space-y-3 border border-border p-4"
+                          key={supply._id}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-medium">
+                                  {supply.title}
+                                </p>
+                                <Badge variant="outline">
+                                  {supply.executionSurface ?? "runtime"}
+                                </Badge>
+                                <Badge variant="outline">
+                                  {supply.connectorHealthStatus ?? "unknown"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {endpoint ?? "No runtime endpoint saved yet."}
+                              </p>
+                            </div>
+                            <Button
+                              disabled={isInvited || invitingSupplyId === supply._id}
+                              onClick={() => void onInvite(supply._id)}
+                              size="sm"
+                              type="button"
+                              variant={isInvited ? "ghost" : "outline"}
+                            >
+                              {isInvited
+                                ? "In team"
+                                : invitingSupplyId === supply._id
+                                  ? "Inviting..."
+                                  : "Invite"}
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4 border-t border-border pt-5">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Add local runtime</p>
+                  <p className="text-xs text-muted-foreground">
+                    Boreal expects your local bridge URL, not the raw model
+                    port. Examples: `npm run agent:bridge:ollama` or `npm run
+                    agent:bridge:lmstudio`.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => applyRuntimePreset("ollama")}
+                    size="sm"
+                    type="button"
+                    variant={draft.runtimeKind === "ollama" ? "default" : "outline"}
+                  >
+                    Ollama
+                  </Button>
+                  <Button
+                    onClick={() => applyRuntimePreset("lmstudio")}
+                    size="sm"
+                    type="button"
+                    variant={draft.runtimeKind === "lmstudio" ? "default" : "outline"}
+                  >
+                    LM Studio
+                  </Button>
+                  <Button
+                    onClick={() => applyRuntimePreset("custom")}
+                    size="sm"
+                    type="button"
+                    variant={draft.runtimeKind === "custom" ? "default" : "outline"}
+                  >
+                    Custom
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Runtime name
+                    </p>
+                    <Input
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          title: event.currentTarget.value,
+                        }))
+                      }
+                      placeholder="Ollama Runtime"
+                      value={draft.title}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Executor URL
+                    </p>
+                    <Input
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          executorUrl: event.currentTarget.value,
+                        }))
+                      }
+                      placeholder="http://127.0.0.1:8790/boreal/chat"
+                      value={draft.executorUrl}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Description
+                  </p>
+                  <Input
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        description: event.currentTarget.value,
+                      }))
+                    }
+                    placeholder="Private local runtime for this request."
+                    value={draft.description}
+                  />
+                </div>
+              </section>
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="border-t border-border px-6 py-4 sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Only active request threads can invite local runtimes.
+            </p>
+            <Button
+              disabled={isCreating}
+              onClick={() => void onCreateAndInvite()}
+              type="button"
+            >
+              {isCreating ? "Saving..." : "Save and invite"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -7647,6 +8277,7 @@ function MountedComposerTeamCues({
       {agents.map((agent) => (
         <BorealAgentCue
           actorKind={agent.actorKind}
+          agentKey={agent.directAgentKey}
           canClear={canClear && agent.supplyId !== DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId}
           key={agent.supplyId}
           label={agent.title}

@@ -78,9 +78,10 @@ export function DotmTriangle3({
   const gap =
     cellPadding ?? Math.max(1, Math.floor((size - dotSize * MATRIX_SIZE) / (MATRIX_SIZE - 1)));
   const matrixSize = dotSize * MATRIX_SIZE + gap * (MATRIX_SIZE - 1);
+  const boxSize = cellPadding == null ? Math.max(size, matrixSize) : matrixSize
   const rootStyle = {
-    width: stylePx(cellPadding == null ? size : matrixSize),
-    height: stylePx(cellPadding == null ? size : matrixSize),
+    width: stylePx(boxSize),
+    height: stylePx(boxSize),
     color
   } as CSSProperties;
 

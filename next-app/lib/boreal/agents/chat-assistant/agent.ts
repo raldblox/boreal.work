@@ -5,6 +5,7 @@ import { generateText } from "ai";
 import { directExecutionAgents } from "../../../../agents/index.ts";
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
 import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
+import { runRequestRuntimeChat } from "../../external-agents/runtime.ts";
 import {
   appendConversationAssistantMessage,
   appendRequestExecution,
@@ -769,6 +770,80 @@ async function continueApprovedRequestThread(input: {
     };
   }
 
+  if (
+    requestDetail.access?.isOwner &&
+    request.runtimeSupplies.length > 0 &&
+    canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
+  ) {
+    const borealOrigin =
+      process.env.BOREAL_PUBLIC_ORIGIN ??
+      (process.env.NODE_ENV === "development"
+        ? "http://localhost:3000"
+        : "https://boreal.work");
+    const requestUrl = `${borealOrigin}/api/chat`;
+    const responses = await Promise.all(
+      request.runtimeSupplies.map((runtimeSupply) =>
+        runRequestRuntimeChat({
+          conversationId: request.conversationId ?? undefined,
+          message: input.input.message,
+          ownerExternalId,
+          requestUrl,
+          requester: input.input.requester,
+          runtimeSupply,
+          uiContext: input.input.uiContext,
+        }),
+      ),
+    );
+    const assistantMessage =
+      responses.length === 1
+        ? responses[0]!.assistantMessage
+        : responses
+            .map(
+              (response) =>
+                `${response.assistantDisplayName}\n\n${response.assistantMessage}`,
+            )
+            .join("\n\n");
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        routeTarget: request.routeTarget,
+        runtimeSupplyIds: request.runtimeSupplies.map((runtimeSupply) => runtimeSupply._id),
+        runtimeTitles: request.runtimeSupplies.map((runtimeSupply) => runtimeSupply.title),
+      }),
+      activityType: "thread.reply_posted",
+      assistantMessage,
+      intentId: requestId,
+      ownerExternalId,
+      senderDisplayName:
+        responses.length === 1
+          ? responses[0]!.assistantDisplayName
+          : "Runtime team",
+      senderExternalId:
+        responses.length === 1 ? responses[0]!.assistantExternalId : undefined,
+      senderHandle:
+        responses.length === 1
+          ? (responses[0]!.assistantHandle ?? undefined)
+          : "runtime-team",
+      status: "in_progress",
+    });
+
+    return {
+      assistantMessage,
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intent: persistedIntent,
+      intentId: requestId,
+      persisted: false,
+      relatedCatalogItems: [],
+      requiresApproval: false,
+      workspace: {
+        kind: "empty",
+        subtitle:
+          "The invited local runtime replied in this request thread. Keep the work here until you are actually done.",
+        title: responses.length === 1 ? "Local runtime thread" : "Runtime team thread",
+      },
+    };
+  }
+
   const assistantMessage = await generateHelpfulAnswer({
     assistantModelId: input.runtimeConfig.assistantModel,
     catalogItems: [],
@@ -780,17 +855,16 @@ async function continueApprovedRequestThread(input: {
 
   await appendRequestExecution({
     activityPayload: JSON.stringify({
-      assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
-      assignedToolNames: ["boreal-agent"],
       routeLabel: BOREAL_AGENT_DISPLAY_NAME,
       routeTarget: request.routeTarget,
     }),
     activityType: "thread.reply_posted",
-    assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
-    assignedToolNames: ["boreal-agent"],
     assistantMessage,
     intentId: requestId,
     ownerExternalId,
+    senderDisplayName: BOREAL_AGENT_DISPLAY_NAME,
+    senderExternalId: "agent:boreal",
+    senderHandle: "boreal",
     status: "in_progress",
   });
 
@@ -1739,6 +1813,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
             .map((selection) => selection.agent.identity.displayName)
             .join(", "),
           provider: input.request.provider,
+          runtimeSupplyIds: [],
           tools: input.routePlan.selected.map((selection) => selection.agent.key),
         },
         catalogItems: [],
