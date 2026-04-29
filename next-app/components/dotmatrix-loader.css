@@ -2,6 +2,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
   vertical-align: middle;
   /* One base loop at speed=1; --dmx-speed from JS scales inversely with the speed prop */
   --dmx-cycle: 1500ms;
@@ -15,6 +16,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   grid-template-rows: repeat(5, minmax(0, 1fr));
+  overflow: visible;
 }
 
 .dmx-dot {

@@ -3625,8 +3625,8 @@ export function ChatShell() {
                                 </MessageResponse>
                               ) : (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <LoaderIcon className="size-6" />
-                                  <span>Routing request</span>
+                                  <LoaderIcon />
+                                  {/* <span>Routing request</span> */}
                                 </div>
                               )}
                               {message.role === "assistant" &&

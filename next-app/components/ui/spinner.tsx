@@ -7,60 +7,30 @@ type SpinnerProps = {
   size?: number
 }
 
-const SIZE_TOKEN_TO_PX: Record<string, number> = {
-  "size-3": 12,
-  "size-4": 16,
-  "size-5": 20,
-  "size-6": 24,
-}
-
-function resolveSpinnerPresentation(className?: string, explicitSize?: number) {
+function resolveSpinnerClassName(className?: string) {
   const tokens = className?.split(/\s+/).filter(Boolean) ?? []
-  let size = explicitSize ?? 16
   const cleanedTokens: string[] = []
 
   for (const token of tokens) {
-    if (token === "animate-spin") {
-      continue
-    }
-
-    const mappedSize = SIZE_TOKEN_TO_PX[token]
-    if (mappedSize) {
-      size = explicitSize ?? mappedSize
+    if (token === "animate-spin" || token.startsWith("size-")) {
       continue
     }
 
     cleanedTokens.push(token)
   }
 
-  return {
-    className: cleanedTokens.join(" "),
-    size,
-  }
-}
-
-function buildDotMetrics(size: number) {
-  const dotSize = Math.max(1.15, Number((size / 7.8).toFixed(2)))
-  const remaining = Math.max(0, size - dotSize * 7)
-  const cellPadding = Number((remaining / 6).toFixed(2))
-
-  return {
-    cellPadding,
-    dotSize,
-  }
+  return cleanedTokens.join(" ")
 }
 
 function Spinner({ ariaLabel = "Loading", className, size }: SpinnerProps) {
-  const presentation = resolveSpinnerPresentation(className, size)
-  const metrics = buildDotMetrics(presentation.size)
+  const resolvedSize = Math.max(size ?? 30, 30)
+  const resolvedClassName = resolveSpinnerClassName(className)
 
   return (
     <DotmTriangle16
       ariaLabel={ariaLabel}
-      cellPadding={metrics.cellPadding}
-      className={cn("inline-flex shrink-0 align-middle", presentation.className)}
-      dotSize={metrics.dotSize}
-      size={presentation.size}
+      className={cn("overflow-visible shrink-0 align-middle", resolvedClassName)}
+      size={resolvedSize}
       speed={1.6}
     />
   )
