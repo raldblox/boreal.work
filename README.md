@@ -235,6 +235,7 @@ From `next-app/`:
 - `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - `npm run smoke:solana-specialist-route` runs the deterministic Solana quick-action smoke for `solana` work classification, no generic text-work clarification, and `solana-operator` as the top matched specialist.
 - `npm run smoke:solana-thread-actions` runs the deterministic mounted-thread Solana smoke for action planning, hidden marker parsing, and unsigned mainnet memo or transfer transaction compilation.
+- `npm run smoke:mounted-agent-starter-prompts` runs the deterministic starter-prompt smoke for the mounted Solana Operator prompt list: shipped inventory, direct-action parsing, transfer-template clarification, and planning-only prompts staying non-executing.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:service-provider-adapters` verifies curated AgentCash and Frames adapter output plus `PAYMENT-REQUIRED` header parsing for the provider fallback layer.
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.

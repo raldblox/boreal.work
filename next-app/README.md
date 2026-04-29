@@ -67,6 +67,7 @@ npm run smoke:one-inbox
 npm run smoke:collective-proposals
 npm run smoke:one-request
 npm run smoke:one-request-guards
+npm run smoke:mounted-agent-starter-prompts
 npm run smoke:request-thread-specialists
 npm run smoke:supplier-listing-guards
 npm run smoke:webhooks
@@ -99,6 +100,7 @@ npm run agent:watch:all -- --prod
 - `npm run smoke:collective-proposals` proves the current collective supplier path from proposal approval through shared request access, collaborator delivery, and split payouts.
 - `npm run smoke:one-request` proves the current agent-only path from SIWX auth through quote, signed payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run smoke:one-request-guards` proves the wallet-scoped intake guards for active unpaid quotes and recent request bursts on the public one-request surface.
+- `npm run smoke:mounted-agent-starter-prompts` proves the mounted Solana starter inventory, direct-action parsing, transfer-template clarification, and the planning-only prompts staying non-executing.
 - `npm run smoke:request-thread-specialists` proves the approved advisory-specialist thread handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:hermes-bridge` proves the minimal local Hermes bridge contract.
 - `npm run smoke:supplier-listing-guards` proves the supplier active-listing cap on the public onboarding surface.
