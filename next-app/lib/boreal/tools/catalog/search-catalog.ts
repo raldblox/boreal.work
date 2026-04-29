@@ -55,9 +55,11 @@ function mapCatalogEntry(entry: CatalogEntry): CatalogItem {
         : entry.priceAmount === 0
           ? "Included"
           : `${entry.currency} ${entry.priceAmount}/${entry.priceType}`,
+    offerSlug: entry.offerSlug ?? null,
     requiresHumanApproval: entry.requiresHumanApproval,
     reviewCount: entry.reviewCount,
     seller: entry.seller,
+    sourceCapabilityId: entry.sourceCapabilityId ?? null,
     sourceListingUrl: entry.sourceListingUrl,
     sourceProviderKey: entry.sourceProviderKey,
     subtitle: entry.subtitle,

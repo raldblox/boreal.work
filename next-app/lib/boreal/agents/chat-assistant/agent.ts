@@ -1,5 +1,6 @@
 import "server-only";
 
+import { directExecutionAgents } from "../../../../agents/index.ts";
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
 import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
 import {
@@ -26,6 +27,7 @@ import {
   buildAutoRoutePlan,
   executeAutoRoute,
 } from "@/lib/boreal/one-request/routing";
+import { getDefaultSolanaNetworkKey } from "@/lib/boreal/solana-network.ts";
 import type {
   ChatAssistantResponse,
   ChatAssistantDebugEvent,
@@ -44,7 +46,10 @@ import type {
   PersistedIntent,
   ToolRoute,
 } from "@/lib/boreal/schemas/intent";
-import type { OneRequestRoutePlan } from "@/lib/boreal/one-request/types";
+import type {
+  OneRequestRoutePlan,
+  OneRequestRouteSelection,
+} from "@/lib/boreal/one-request/types";
 import { classifyGenerationIntent } from "@/lib/boreal/tools/embeddings/classify-generation-intent";
 import { searchCatalog } from "@/lib/boreal/tools/catalog/search-catalog";
 import { extractStructuredIntent } from "@/lib/boreal/tools/llm/extract-structured-intent";
@@ -362,10 +367,30 @@ export const chatAssistantAgent: ComposableAgent<
       intent: persistedIntent,
       message: input.message,
     });
+    const mountedRoutePlan = buildMountedSpecialistRoutePlan({
+      intent: persistedIntent,
+      mountedAgentKeys: input.uiContext?.mountedAgentKeys,
+    });
     const previewCatalogItems = mergePreviewCatalogItems(
       relatedCatalogItems,
-      buildRoutePreviewCatalogItems(specialistRoutePlan),
+      buildRoutePreviewCatalogItems(mountedRoutePlan ?? specialistRoutePlan),
     );
+
+    if (
+      input.uiContext?.surface !== "request" &&
+      mountedRoutePlan &&
+      input.requester?.externalId
+    ) {
+      return startMountedRequestExecution({
+        conversationId,
+        input,
+        intent: persistedIntent,
+        previewCatalogItems,
+        provider,
+        routePlan: mountedRoutePlan,
+        runtimeConfig,
+      });
+    }
 
     if (
       input.uiContext?.surface !== "request" &&
@@ -1838,6 +1863,199 @@ function buildSpecialistRoutePlan(input: {
       0,
     ),
   } satisfies OneRequestRoutePlan;
+}
+
+function buildMountedSpecialistRoutePlan(input: {
+  intent: PersistedIntent;
+  mountedAgentKeys?: string[] | null;
+}) {
+  const mountedAgentKeys = Array.from(
+    new Set(
+      (input.mountedAgentKeys ?? [])
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (mountedAgentKeys.length === 0) {
+    return null;
+  }
+
+  const mountedAgents = mountedAgentKeys
+    .map((key) =>
+      directExecutionAgents.find(
+        (agent) => agent.key === key && agent.directExecution && agent.settlement,
+      ),
+    )
+    .filter(Boolean);
+
+  if (mountedAgents.length === 0) {
+    return null;
+  }
+
+  const requestedKinds = input.intent.requestedOutputTypes.filter(
+    (kind): kind is "image_generation" | "speech_generation" | "text" | "video_generation" =>
+      kind === "image_generation" ||
+      kind === "speech_generation" ||
+      kind === "text" ||
+      kind === "video_generation",
+  );
+  const nonTextRequested = requestedKinds.filter((kind) => kind !== "text");
+  const targetKinds =
+    nonTextRequested.length > 0
+      ? nonTextRequested
+      : requestedKinds.length > 0
+        ? requestedKinds
+        : (["text"] as const);
+  const selections = new Map<string, OneRequestRouteSelection>();
+
+  if (targetKinds.length === 1 && targetKinds[0] === "text") {
+    for (const mountedAgent of mountedAgents) {
+      if (!mountedAgent!.directExecution?.outputKinds.includes("text")) {
+        continue;
+      }
+
+      selections.set(mountedAgent!.key, {
+        agent: mountedAgent!,
+        outputKinds: mountedAgent!.directExecution.outputKinds,
+        quoteUsd: mountedAgent!.settlement!.autoQuoteUsd,
+        score: 100,
+      });
+    }
+  } else {
+    for (const kind of targetKinds) {
+      const mountedAgent = mountedAgents.find((candidate) =>
+        candidate!.directExecution?.outputKinds.includes(kind),
+      );
+
+      if (!mountedAgent) {
+        continue;
+      }
+
+      selections.set(mountedAgent.key, {
+        agent: mountedAgent,
+        outputKinds: mountedAgent.directExecution!.outputKinds,
+        quoteUsd: mountedAgent.settlement!.autoQuoteUsd,
+        score: 100,
+      });
+    }
+  }
+
+  const selected = [...selections.values()];
+
+  if (selected.length === 0) {
+    return null;
+  }
+
+  const leadSelection = selected[0]!;
+  const totalQuoteUsd = selected.reduce(
+    (sum, selection) => sum + selection.quoteUsd,
+    0,
+  );
+
+  return {
+    assetPrompt: input.intent.assetPrompt,
+    capabilityTags: input.intent.capabilityTags,
+    category: input.intent.category,
+    currency: "USD",
+    estimatedMinutes: Math.max(2, selected.length * 3),
+    keywords: input.intent.keywords,
+    networkKey: getDefaultSolanaNetworkKey(),
+    paymentProtocol: "x402",
+    routeTarget: input.intent.routeTarget,
+    selected,
+    size: input.intent.videoSize,
+    speechText: input.intent.speechText,
+    seconds: input.intent.videoSeconds,
+    summary:
+      selected.length === 1
+        ? `Mounted route locked to ${leadSelection.agent.identity.displayName}.`
+        : `Mounted route locked across ${selected
+            .map((selection) => selection.agent.identity.displayName)
+            .join(", ")}.`,
+    title:
+      input.intent.title.trim().length > 0
+        ? input.intent.title
+        : "Boreal mounted-agent request",
+    totalQuoteUsd,
+    voice: input.intent.voice,
+  } satisfies OneRequestRoutePlan;
+}
+
+async function startMountedRequestExecution(input: {
+  conversationId: string;
+  input: ChatAssistantAgentInput;
+  intent: PersistedIntent;
+  previewCatalogItems: CatalogItem[];
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  routePlan: OneRequestRoutePlan;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const assignedAgentLabel = input.routePlan.selected
+    .map((selection) => selection.agent.identity.displayName)
+    .join(", ");
+  const assignedToolNames = input.routePlan.selected.map(
+    (selection) => selection.agent.key,
+  );
+  const persistedResult = await saveIntentPipelineRecord({
+    assistantMessage:
+      input.routePlan.selected.length === 1
+        ? `Boreal opened a work thread for ${assignedAgentLabel} and started the request immediately.`
+        : `Boreal opened one work thread for ${assignedAgentLabel} and started that agent team immediately.`,
+    conversationId: input.conversationId,
+    initialStatus: "claimed",
+    intent: input.intent,
+    ownerDisplayName: input.input.requester?.displayName,
+    ownerExternalId: input.input.requester?.externalId,
+    ownerHandle: input.input.requester?.handle,
+    userMessage: input.input.message,
+  });
+
+  await approveRequestDraft({
+    assignedAgent: assignedAgentLabel,
+    assignedToolNames,
+    assistantMessage:
+      input.routePlan.selected.length === 1
+        ? `${assignedAgentLabel} was selected from offers and is starting now.`
+        : `${assignedAgentLabel} were selected from offers and are starting now.`,
+    intentId: persistedResult.intentId,
+    ownerExternalId: input.input.requester?.externalId,
+    status: "claimed",
+  });
+
+  const request = await getRequestExecutionContext({
+    intentId: persistedResult.intentId,
+    ownerExternalId: input.input.requester?.externalId,
+  });
+
+  if (!request) {
+    throw new Error("Mounted request could not be loaded.");
+  }
+
+  const resolved = await runApprovedSpecialistExecutionForRequest({
+    input: {
+      intentId: persistedResult.intentId,
+      ownerExternalId: input.input.requester?.externalId,
+    },
+    provider: input.provider,
+    request,
+    routePlan: input.routePlan,
+    runtimeConfig: input.runtimeConfig,
+  });
+
+  return {
+    assistantMessage: resolved.assistantMessage,
+    conversationId: persistedResult.conversationId,
+    intent: input.intent,
+    intentId: persistedResult.intentId,
+    persisted: true,
+    relatedCatalogItems:
+      resolved.relatedCatalogItems.length > 0
+        ? resolved.relatedCatalogItems
+        : input.previewCatalogItems,
+    requiresApproval: false,
+    workspace: resolved.workspace,
+  } satisfies ChatAssistantResponse;
 }
 
 function narrowSpecialistRoutePlanForExecution(routePlan: OneRequestRoutePlan) {

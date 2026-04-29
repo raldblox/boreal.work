@@ -9,6 +9,7 @@ import {
 import { useQuery } from "convex/react"
 import {
   BotIcon,
+  PackageIcon,
   SearchIcon,
   UserIcon,
 } from "lucide-react"
@@ -41,6 +42,8 @@ export type WorkspaceTab = "requests" | "workers"
 
 type WorkspacePanelProps = {
   activeTab: WorkspaceTab
+  isBorealDefaultMounted?: boolean
+  mountedAgentSupplyIds?: string[]
   onInvokeListing?: (listing: CatalogEntry) => void
   onSelectRequest: (
     request: SidebarIntentPreview,
@@ -53,6 +56,8 @@ type WorkspacePanelProps = {
 
 export function WorkspacePanel({
   activeTab,
+  isBorealDefaultMounted = true,
+  mountedAgentSupplyIds = [],
   onInvokeListing,
   onSelectRequest,
   onTabChange,
@@ -136,12 +141,7 @@ export function WorkspacePanel({
     return (
       <aside className="flex min-h-0 flex-col overflow-hidden border border-border bg-background">
         <div className="flex h-16 items-center border-b border-border px-4">
-          <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-background">
-              <SearchIcon className="size-4 text-muted-foreground" />
-            </span>
-            <h2 className="text-sm font-medium">Market</h2>
-          </div>
+          <MarketHeaderPill />
         </div>
       </aside>
     )
@@ -155,12 +155,7 @@ export function WorkspacePanel({
           value={activeTab}
         >
           <div className="flex h-16 items-center border-b border-border px-4">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-background">
-                <SearchIcon className="size-4 text-muted-foreground" />
-              </span>
-              <h2 className="text-sm font-medium">Market</h2>
-            </div>
+            <MarketHeaderPill />
           </div>
 
           <div className="space-y-3 border-b border-border p-3">
@@ -208,6 +203,8 @@ export function WorkspacePanel({
                 ) : (
                   supplyListings.map((listing) => (
                     <SupplyCard
+                      isBorealDefaultMounted={isBorealDefaultMounted}
+                      isMounted={mountedAgentSupplyIds.includes(listing._id)}
                       key={listing._id}
                       listing={listing}
                       onInvokeListing={onInvokeListing}
@@ -253,6 +250,15 @@ export function WorkspacePanel({
   )
 }
 
+function MarketHeaderPill() {
+  return (
+    <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+      <PackageIcon className="size-4 text-muted-foreground" />
+      <span>Market</span>
+    </div>
+  )
+}
+
 function getMatchScoreTone(score: number | null) {
   if (score === null) {
     return "text-muted-foreground"
@@ -274,24 +280,43 @@ function getMatchScoreTone(score: number | null) {
 }
 
 function SupplyCard({
+  isBorealDefaultMounted,
+  isMounted,
   listing,
   onInvokeListing,
   onViewProfile,
 }: {
+  isBorealDefaultMounted: boolean
+  isMounted: boolean
   listing: CatalogEntry
   onInvokeListing?: (listing: CatalogEntry) => void
   onViewProfile: (profileId: string) => void
 }) {
   const Icon = listing.actorKind === "agent" ? BotIcon : UserIcon
   const profileId = listing.seller?.profileId ?? null
-  const supportsDirectInvoke = listing.supportsDirectInvoke && !!onInvokeListing
+  const supportsTeamSelect = canSelectAgentListing(listing) && !!onInvokeListing
   const isProfileClickable = Boolean(profileId)
+  const isDefaultBorealCard =
+    listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID && isBorealDefaultMounted
+  const selectionLabel = isDefaultBorealCard
+    ? "Default in chat"
+    : isMounted
+      ? "Selected in chat"
+      : null
+  const selectionButtonLabel = isDefaultBorealCard
+    ? "Default"
+    : listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID
+      ? "Use default"
+      : isMounted
+        ? "Remove"
+        : "Select"
 
   return (
     <div
       aria-label={isProfileClickable ? `Open ${listing.title} profile` : undefined}
       className={cn(
         "space-y-3 border border-transparent p-3 transition-colors",
+        (isMounted || isDefaultBorealCard) && "border-accent bg-accent/5",
         isProfileClickable && "cursor-pointer hover:border-border hover:bg-foreground/5 focus-visible:border-border focus-visible:bg-foreground/5 focus-visible:outline-none"
       )}
       onClick={isProfileClickable ? () => onViewProfile(profileId!) : undefined}
@@ -315,6 +340,11 @@ function SupplyCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium">{listing.title}</p>
+            {selectionLabel ? (
+              <span className="text-[11px] tracking-[0.16em] text-accent-foreground uppercase">
+                {selectionLabel}
+              </span>
+            ) : null}
             {listing.matchScore !== null ? (
               <span
                 className={cn(
@@ -373,7 +403,7 @@ function SupplyCard({
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {supportsDirectInvoke ? (
+            {supportsTeamSelect ? (
               <Button
                 onClick={(event) => {
                   event.stopPropagation()
@@ -381,8 +411,9 @@ function SupplyCard({
                 }}
                 size="sm"
                 type="button"
+                variant={isMounted || isDefaultBorealCard ? "default" : "outline"}
               >
-                Use
+                {selectionButtonLabel}
               </Button>
             ) : null}
           </div>
@@ -425,6 +456,7 @@ const BOREAL_AGENT_HUMAN_OPTIMIZER: CatalogEntry = {
     handle: null,
     profileId: BOREAL_AGENT_PROFILE_ID,
   },
+  sourceCapabilityId: "autonomous-agent:boreal-agent",
   sourceListingUrl: null,
   sourceProviderKey: "manual",
   subtitle: BOREAL_AGENT_HEADLINE,
@@ -520,6 +552,19 @@ function isSolanaOperatorListing(listing: CatalogEntry) {
         haystack.includes("stake") ||
         haystack.includes("staking") ||
         haystack.includes("wallet")))
+  )
+}
+
+function canSelectAgentListing(listing: CatalogEntry) {
+  if (listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID) {
+    return true
+  }
+
+  return (
+    listing.actorKind === "agent" &&
+    listing.supportsDirectInvoke &&
+    typeof listing.sourceCapabilityId === "string" &&
+    listing.sourceCapabilityId.startsWith("autonomous-agent:")
   )
 }
 

@@ -61,6 +61,13 @@ Use the registry when:
 Direct execution currently requires a signed-in X session on `boreal.work`.
 The current Solana specialist is non-custodial by design.  Payment to Boreal is not blanket permission for hidden wallet custody.
 
+In Boreal chat:
+
+- Boreal Agent is the default when no specialist is selected from `Offers`
+- only agent offers mount into the composer team
+- selecting one or more non-Boreal specialists puts chat into a ready work-thread state immediately
+- the next message opens one tracked request for that selected specialist team without a separate approval gate
+
 Registry entries now also expose listing-ready metadata for external discovery:
 
 - canonical `/api/v1/agents/{agentKey}/execute` route paths

@@ -12,257 +12,335 @@ export type BoardTicket = {
   updatedAt: string
 }
 
+export type RoadmapHighlight = {
+  label: string
+  note: string
+  value: string
+}
+
+export type RoadmapPhaseReadout = {
+  label: string
+  phase: string
+  status: BoardStatus
+}
+
+export const roadmapHighlights: RoadmapHighlight[] = [
+  {
+    label: "Live now",
+    note: "Request loop, supply market, merchant-native offers, payment base, connected agents, and provider-backed discovery all ship today.",
+    value: "6 milestones",
+  },
+  {
+    label: "Hardening now",
+    note: "Mainnet payment depth, team ops, subtype storage, release ops, and trust infrastructure are the main active tracks.",
+    value: "5 tracks",
+  },
+  {
+    label: "Queued next",
+    note: "Buyer-safe product pages, merchant lifecycle smoke, retrieval depth, and exportable reputation are the clearest near-term upgrades.",
+    value: "4 moves",
+  },
+  {
+    label: "Synced",
+    note: "Aligned to current ROADMAP.md and EARLY_ACCESS.md source truth.",
+    value: "Apr 29, 2026",
+  },
+]
+
+export const roadmapPhaseReadout: RoadmapPhaseReadout[] = [
+  {
+    label: "Truth boundary and release framing",
+    phase: "0",
+    status: "live",
+  },
+  {
+    label: "Request-first core loop",
+    phase: "1",
+    status: "live",
+  },
+  {
+    label: "Supply onboarding and market density",
+    phase: "2",
+    status: "in_progress",
+  },
+  {
+    label: "Payment and payout safety",
+    phase: "3",
+    status: "in_progress",
+  },
+  {
+    label: "Team coordination and collective fulfillment",
+    phase: "4",
+    status: "in_progress",
+  },
+  {
+    label: "External agents and portable reputation",
+    phase: "5",
+    status: "in_progress",
+  },
+  {
+    label: "Merchant and digital product flow",
+    phase: "6",
+    status: "in_progress",
+  },
+  {
+    label: "Rollout operations and widening access",
+    phase: "7",
+    status: "in_progress",
+  },
+]
+
 export const roadmapTickets: BoardTicket[] = [
   {
-    area: "request surface",
+    area: "request execution",
     evidence:
-      "Live in chat shell, request workboards, proposals, delivery, and attached checkout records.",
+      "The live app already supports mounted specialist selection from Offers, request creation, route preview, specialist follow-up, delivery, review, and attached checkout state on one record.",
     id: "BRL-101",
     report:
-      "This lane is safe to describe publicly because the request thread, proposal flow, delivery path, and attached checkout states are all already present in the current app surface.",
-    routes: ["/", "/chat"],
+      "This is the strongest current Boreal feature story. The board can safely present it as live because the same request thread already carries approval, fulfillment, proof, and review without splitting into a second system of record.",
+    routes: ["/chat", "/api/v1/requests", "/one-request-api.md"],
     status: "live",
     summary:
-      "One request becomes one attached work thread with chat, proposals, delivery, checkout, and proof on the same record.",
-    title: "Request-native workboards",
-    updatedAt: "2026-04-27",
+      "One request can start from mounted specialist selection or normal route preview, then move through follow-up, delivery, review, and attached checkout without leaving the Boreal thread.",
+    title: "Request-first execution loop",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "market discovery",
+    area: "supply market",
     evidence:
-      "Public requests, public supply, profile pages, and request-driven catalog results already render in the product surface.",
+      "Suppliers can publish through /account or /api/v1/supplies, receive matched demand through one inbox, and move into delivery plus payout readiness.",
     id: "BRL-102",
     report:
-      "The current product already supports public discovery across supply, requests, and profile routes. This remains a safe public claim as long as the page avoids suggesting finished ranking depth or fully autonomous fulfillment.",
-    routes: ["/?browse=requests", "/?browse=workers", "/p/[id]"],
+      "This milestone is live and externally meaningful. It proves Boreal is more than a buyer-side request shell because suppliers can now join, get matched, propose or claim, and finish work through the same contract surface.",
+    routes: ["/account", "/api/v1/supplies", "/api/v1/inbox", "/one-inbox-api.md"],
     status: "live",
     summary:
-      "Buyers can browse public offers and unresolved requests while Boreal keeps supply, operators, and agent surfaces routable from the same shell.",
-    title: "Public supply and request discovery",
-    updatedAt: "2026-04-27",
+      "Suppliers can onboard through UI or API, watch matched demand through one inbox, and carry work toward delivery plus payout readiness.",
+    title: "Supplier onboarding and matched inbox",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "premium demand API",
+    area: "merchant flow",
     evidence:
-      "Backed by the live one-request contract, SIWX wallet auth, the 402 payment boundary, and machine-readable request tracking.",
+      "The account surface now separates custom services, digital products, owned native-offer management, and provider-sync read-only boundaries.",
     id: "BRL-103",
     report:
-      "The one-request contract is live and public-safe to present as a premium demand entrypoint. The report should still avoid implying treasury-grade settlement or mainnet-ready proof beyond the current boundary.",
-    routes: ["/api/v1/requests", "/one-request-api.md"],
+      "This is a meaningful product milestone because merchants no longer have to infer the route model from low-level supply fields. Boreal now exposes a usable native merchant path while keeping provider-backed sync honest about what is and is not self-serve.",
+    routes: ["/account", "/roadmap"],
     status: "live",
     summary:
-      "The live premium surface now runs through SIWX wallet auth, a 402 payment boundary, and machine-readable request tracking.",
-    title: "One-request API",
-    updatedAt: "2026-04-27",
+      "Boreal-native merchants can now author service offers and digital products in /account while synced provider listings stay visible but read-only.",
+    title: "Merchant-native offer path",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "supplier surface",
+    area: "agent network",
     evidence:
-      "External suppliers can self-register, watch matched demand through one inbox, participate on requests, and track payout readiness.",
+      "Specialist registry routes, connected HTTP and MCP runtimes, one-request callbacks, and the Hermes bridge are all already shipped.",
     id: "BRL-104",
     report:
-      "Supplier onboarding and inbox participation are already real product surfaces. That makes them safe public board items, while more advanced marketplace automation still stays in later lanes.",
-    routes: ["/api/v1/inbox", "/api/v1/supplies", "/one-inbox-api.md"],
+      "This belongs in the live lane because Boreal already supports both direct specialist surfaces and advanced connected-runtime control under Boreal's request model. The public message still needs to keep agent trust and runtime health as unfinished work.",
+    routes: ["/agents", "/developers/agents", "/api/v1/agents", "/agent-registry.md"],
     status: "live",
     summary:
-      "Suppliers can self-register supply, watch matched demand through one inbox, participate on requests, and track payout readiness.",
-    title: "Supplier inbox and onboarding",
-    updatedAt: "2026-04-27",
+      "Direct specialists, connected runtimes, request callbacks, and the Hermes bridge already make Boreal a working agent network surface.",
+    title: "Connected agents and specialist registry",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "specialists",
+    area: "commerce spine",
     evidence:
-      "Registry entries already expose canonical v1 routes, normalized pricing labels, and machine-readable schemas.",
+      "Wallet sync, a 402 boundary, Solana mainnet verification, payout progression, and provider-backed checkout states already write through the same transaction spine.",
     id: "BRL-105",
     report:
-      "The specialist registry is already concrete and machine-facing. The public board can safely present it as live as long as it stays clear that request-first demand remains the main front door.",
-    routes: ["/api/v1/agents", "/agent-registry.md"],
+      "This milestone is live because the payment and payout base is concrete and auditable. It still stays separate from the harder claim of full production payment rail readiness, funded-start discipline, or treasury-grade settlement proof.",
+    routes: ["/one-request-api.md", "/one-inbox-api.md", "/about"],
     status: "live",
     summary:
-      "Specialized direct agents already expose canonical v1 routes, normalized pricing labels, and machine-readable schemas.",
-    title: "Specialist registry",
-    updatedAt: "2026-04-27",
+      "Boreal already has a real commerce spine with wallet sync, payment verification, payout progression, and provider-backed checkout for supported paths.",
+    title: "Payment and payout foundation",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "matching",
+    area: "external supply",
     evidence:
-      "Roadmap truth says matching is real today, but deeper retrieval, reranking, and fast-route quality are still ahead.",
+      "Agentic Market sync is live, and the service-provider layer now also includes curated AgentCash fallback and Frames handoff adapters.",
+    id: "BRL-106",
+    report:
+      "This is safe to show as live because the discovery and normalization layer is real today. The wording must stay precise: these adapters widen supply discovery and handoff coverage, but not every external listing is a native direct-invoke execution path yet.",
+    routes: ["/about", "/docs", "/roadmap"],
+    status: "live",
+    summary:
+      "Provider-backed discovery now includes Agentic Market sync plus curated AgentCash fallback and Frames handoff coverage.",
+    title: "Provider-backed discovery layer",
+    updatedAt: "2026-04-29",
+  },
+  {
+    area: "payment hardening",
+    evidence:
+      "Mainnet verification is live, but EARLY_ACCESS still marks payment hardening, funded-start, payout verification, refunds, and disputes as unfinished release work.",
     id: "BRL-201",
     report:
-      "This work is active, visible, and important, but not done. The board should present it as hardening work rather than a fully solved matching engine.",
-    routes: ["/roadmap", "/chat"],
+      "This is one of the most important in-progress tracks because it separates today's auditable payment boundary from a broader public-ready production rail. It is not a missing base, but it is still the key trust gap before wider paid access.",
+    routes: ["/roadmap", "/one-request-api.md", "/about"],
     status: "in_progress",
     summary:
-      "Matching is real today, but Boreal is still deepening retrieval quality, reranking, and stronger fast-route behavior.",
-    title: "Matching quality hardening",
-    updatedAt: "2026-04-27",
+      "Boreal is hardening from a verified 402 plus payout base into funded-start, stronger payout proof, and safer post-payment lifecycle handling.",
+    title: "Mainnet payment hardening",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "commerce depth",
+    area: "team workboard",
     evidence:
-      "The commerce spine is live, but refund, dispute, split-settlement, and richer paid transaction scenarios still need stronger coverage.",
+      "Collectives and shared request participation are live, but explicit role acceptance, reassignment, validator lanes, and escalation paths are still open work.",
     id: "BRL-202",
     report:
-      "The payment and payout foundation is already there. This card stays in progress because the transaction matrix still needs broader lifecycle depth before stronger public claims are justified.",
-    routes: ["/roadmap", "/one-request-api.md", "/one-inbox-api.md"],
+      "This belongs in progress because Boreal already supports collective execution, but the request-side team surface is not yet strong enough to claim robust in-app multi-party coordination without caveats.",
+    routes: ["/chat", "/roadmap", "/papers/swarm-workspace"],
     status: "in_progress",
     summary:
-      "Boreal is hardening the transaction matrix beyond current payout progression and request payment verification.",
-    title: "Commerce hardening",
-    updatedAt: "2026-04-27",
+      "Collective execution is real, but the Team and Workboard surfaces still need stronger assignment, validation, and escalation behavior.",
+    title: "Team coordination hardening",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "distribution",
+    area: "supply model",
     evidence:
-      "The external publication plan exists, but x402 seller hardening, MCP publication, and broader app-surface discovery are still ahead.",
+      "ROADMAP and EARLY_ACCESS still call out subtype tables as a missing step so products, service offers, provider services, connected agents, and collectives stop overloading one row shape.",
     id: "BRL-203",
     report:
-      "This is active roadmap work with a defined direction, but the distribution surfaces are not broad enough yet to move into the live lane.",
-    routes: ["/roadmap", "/docs"],
-    status: "in_progress",
-    summary:
-      "External distribution work is defined, but public discovery surfaces still need more shipping work.",
-    title: "Distribution surfaces",
-    updatedAt: "2026-04-27",
-  },
-  {
-    area: "protocol shape",
-    evidence:
-      "Listing and checkout metadata are moving toward cleaner ACP and UCP alignment without claiming full interoperability yet.",
-    id: "BRL-204",
-    report:
-      "This card exists to show protocol-facing work without overstating completion. The board should keep the phrasing careful and specific.",
+      "This is active architecture work because matching quality and merchant reliability now depend more on type-aware supply storage than on adding another generic listing flow.",
     routes: ["/roadmap", "/about"],
     status: "in_progress",
     summary:
-      "Public listing and checkout metadata are being tightened without overclaiming finished protocol support.",
-    title: "Protocol-facing listing surfaces",
-    updatedAt: "2026-04-27",
+      "The canonical supplies table works today, but Boreal still needs subtype storage so each supply class carries the fields matching actually needs.",
+    title: "Type-aware supply model",
+    updatedAt: "2026-04-29",
   },
   {
-    area: "retrieval",
+    area: "release ops",
     evidence:
-      "Explicit next-step in the roadmap: historical analog retrieval and LLM reranking over top candidates.",
+      "The early-access truth docs and cohort rollout playbook are now real, but EARLY_ACCESS still calls out release metrics, runbooks, and kill switches as missing.",
+    id: "BRL-204",
+    report:
+      "This track is in progress because Boreal now has a clearer release boundary and a real cohort playbook. It is not ready to move to live until widening access is backed by scorecards, incident handling, and rollback discipline.",
+    routes: ["/roadmap", "/about"],
+    status: "in_progress",
+    summary:
+      "Boreal has a stronger early-access truth boundary now, but still needs real release metrics, runbooks, and control surfaces before wider traffic.",
+    title: "Release operations hardening",
+    updatedAt: "2026-04-29",
+  },
+  {
+    area: "agent trust",
+    evidence:
+      "Connected-agent execution is live, but portable agent identity, reputation export, runtime verification, and connector health are still open in EARLY_ACCESS.",
+    id: "BRL-205",
+    report:
+      "This belongs in progress because the network surface exists, but the trust base is not yet portable or operationally strong enough to describe connected agents as fully production-grade third-party infrastructure.",
+    routes: ["/agents", "/developers/agents", "/roadmap"],
+    status: "in_progress",
+    summary:
+      "Boreal can already connect outside runtimes, but still needs stronger identity, reputation, and connector-health layers.",
+    title: "Agent trust base",
+    updatedAt: "2026-04-29",
+  },
+  {
+    area: "buyer surface",
+    evidence:
+      "EARLY_ACCESS still leaves richer product pages, merchant-safe checkout flows, and route guards as the next merchant-facing upgrade.",
     id: "BRL-301",
     report:
-      "This is the clearest named next step for routing depth. It belongs in the next lane because the direction is explicit and near-term, but it is not shipped today.",
-    routes: ["/roadmap"],
+      "This is the clearest next buyer-surface milestone because Boreal already has merchant-native offers and provider-backed checkout foundations. The gap is making catalog and checkout feel complete and safe from dead-end branches.",
+    routes: ["/roadmap", "/about"],
     status: "next",
     summary:
-      "Add historical analog retrieval and LLM reranking over top candidates to improve routing confidence.",
+      "Turn the current merchant base into richer public product pages and buyer-safe checkout flows with stronger dead-end guards.",
+    title: "Product pages and buyer-safe checkout",
+    updatedAt: "next",
+  },
+  {
+    area: "merchant verification",
+    evidence:
+      "EARLY_ACCESS explicitly calls out a missing deterministic merchant smoke suite even though native merchant authoring is now live.",
+    id: "BRL-302",
+    report:
+      "This belongs in the next lane because it is the fastest way to turn the new merchant path from UI truth into stronger release truth. The merchant surface should not widen much further without its own deterministic lifecycle proof.",
+    routes: ["/roadmap", "/account"],
+    status: "next",
+    summary:
+      "Add a dedicated merchant lifecycle smoke for onboarding, listing, purchase, fulfillment, and payout.",
+    title: "Merchant lifecycle smoke",
+    updatedAt: "next",
+  },
+  {
+    area: "retrieval depth",
+    evidence:
+      "ROADMAP still names historical analog retrieval, LLM reranking, and deeper hard filters as the next routing quality step after classifier-first fetch paths.",
+    id: "BRL-303",
+    report:
+      "This remains a clear next step because the fetch policy is now live. The right follow-on is not another generic matching claim, but deeper retrieval and reranking quality on top of the new classifier-first base.",
+    routes: ["/roadmap", "/chat"],
+    status: "next",
+    summary:
+      "Build the next retrieval layer with historical analogs, stronger hard filters, and LLM reranking over top candidates.",
     title: "Retrieval depth pass",
     updatedAt: "next",
   },
   {
-    area: "open agent network",
-    evidence:
-      "The connected-agent control plane, HTTP and MCP execution paths, and one-request callback routes are now live; the remaining layer is Agent Card sync, richer runtime metadata, and durable connector health.",
-    id: "BRL-306",
-    report:
-      "This moved into the active lane because connected-agent control is now real. It stays in progress because Agent Card sync, supply-level heartbeat, and stronger connector validation are still ahead.",
-    routes: ["/papers/agent-network", "/docs", "/roadmap"],
-    status: "in_progress",
-    summary:
-      "Connected-agent control is live; the remaining connector-base work is identity sync, runtime metadata, and durable health.",
-    title: "Agent identity and connector base",
-    updatedAt: "2026-04-27",
-  },
-  {
     area: "portable reputation",
     evidence:
-      "Owner reviews and collective trust primitives exist today, but collaborator feedback, validator outcomes, and category-specific snapshots are still ahead.",
-    id: "BRL-307",
-    report:
-      "This is near-term because the trust base already exists in request outcomes and profile analytics. The missing layer is explicit request-linked feedback and derived reputation surfaces for connected agents.",
-    routes: ["/papers/portable-reputation", "/roadmap"],
-    status: "next",
-    summary:
-      "Move from simple review and trust inputs toward request-linked collaborator feedback, validator signals, and category-specific reputation.",
-    title: "Portable reputation base",
-    updatedAt: "next",
-  },
-  {
-    area: "public commerce APIs",
-    evidence:
-      "Stable public catalog and checkout-capability endpoints are still planned, not fully shipped.",
-    id: "BRL-302",
-    report:
-      "This board item is appropriate for the next lane because the need is concrete and already visible in the roadmap, but the public contract is not complete yet.",
-    routes: ["/roadmap", "/docs"],
-    status: "next",
-    summary:
-      "Expose cleaner public catalog and checkout-capability endpoints for supply and offer discovery.",
-    title: "Public catalog endpoints",
-    updatedAt: "next",
-  },
-  {
-    area: "post-payment lifecycle",
-    evidence:
-      "Refund, cancellation, and dispute handling across paid transaction types still remain roadmap work.",
-    id: "BRL-303",
-    report:
-      "This remains a strong next-lane card because the lifecycle gap is clear and product-significant, even though the underlying payout and settlement base already exists.",
-    routes: ["/roadmap"],
-    status: "next",
-    summary:
-      "Deepen the transaction lifecycle past current execution, payout, and settlement readiness states.",
-    title: "Refund and dispute coverage",
-    updatedAt: "next",
-  },
-  {
-    area: "routing signals",
-    evidence:
-      "Roadmap still calls for stronger supplier and request health signals feeding back into routing.",
+      "Reviews and collective trust inputs exist today, but EARLY_ACCESS still leaves portable identity binding and exportable reputation snapshots as open work.",
     id: "BRL-304",
     report:
-      "This is important, but it remains later-stage work because it depends on stronger marketplace data, stronger matching depth, and more maturity in the routing loop.",
-    routes: ["/roadmap", "/chat"],
+      "This is near-term rather than later because Boreal already has request-linked outcomes and profile analytics. The next gap is turning that into exportable, portable proof instead of keeping trust trapped inside one app surface.",
+    routes: ["/roadmap", "/papers/portable-reputation", "/agents"],
+    status: "next",
+    summary:
+      "Move from in-app reviews and trust inputs toward portable identity binding and exportable reputation snapshots.",
+    title: "Portable reputation exports",
+    updatedAt: "next",
+  },
+  {
+    area: "realtime workspace",
+    evidence:
+      "The durable request workboard is live today, but richer realtime presence, validator lanes, and Swarm Workspace upgrades remain future work.",
+    id: "BRL-401",
+    report:
+      "This is later-stage because Boreal already has the durable request object and collective execution base. The realtime coordination layer should follow stronger trust, assignment, and connector foundations rather than arrive as premature surface complexity.",
+    routes: ["/papers/swarm-workspace", "/roadmap"],
     status: "later",
     summary:
-      "Use richer supplier and request health signals to improve routing, deadlines, and marketplace quality.",
-    title: "Marketplace health signals",
+      "Upgrade selected requests into richer realtime coordination spaces with presence, validation, and deeper human-plus-agent teamwork.",
+    title: "Swarm Workspace realtime layer",
     updatedAt: "later",
   },
   {
     area: "protocol depth",
     evidence:
-      "On-chain escrow, full ACP and UCP interoperability, trust-score routing, and collective settlement remain future work.",
-    id: "BRL-305",
+      "Escrow-native settlement, broader ACP and UCP support, and generalized protocol-native settlement are still outside the current public claim boundary.",
+    id: "BRL-402",
     report:
-      "This card exists mainly as a public honesty boundary. It reminds the board not to collapse future protocol depth into current live messaging.",
-    routes: ["/roadmap", "/about"],
+      "This card remains later because it is an honesty boundary as much as a roadmap item. Boreal should not compress future protocol depth into current early-access messaging just because the payment base is now stronger.",
+    routes: ["/about", "/roadmap"],
     status: "later",
     summary:
-      "Do not market Boreal as finished protocol-native settlement infrastructure yet.",
-    title: "Protocol depth boundary",
-    updatedAt: "later",
-  },
-  {
-    area: "workspace upgrades",
-    evidence:
-      "The standard request workboard is live. The paid Swarm Workspace upgrade path, realtime coordination plane, and validator lane are still future work.",
-    id: "BRL-308",
-    report:
-      "This belongs in the later lane because Boreal already has the durable workspace object, but richer multi-agent collaboration should only ship after the connector and reputation base is stronger.",
-    routes: ["/papers/swarm-workspace", "/papers/agent-network", "/roadmap"],
-    status: "later",
-    summary:
-      "Upgrade selected requests into richer human-plus-agent coordination workspaces with assignments, validation, and realtime collaboration.",
-    title: "Swarm Workspace",
+      "Keep Boreal honest about the gap between today's commerce spine and later protocol-native settlement depth.",
+    title: "Protocol-depth boundary",
     updatedAt: "later",
   },
   {
     area: "recommendation",
     evidence:
-      "The roadmap now explicitly calls for agent affinity edges and collaborative filtering over shared outcomes, but those signals are not computed yet.",
-    id: "BRL-309",
+      "Agent affinity, collaborative recommendation, and richer supplier-health routing still depend on more completed work and broader feedback capture.",
+    id: "BRL-403",
     report:
-      "This stays later because it depends on more completed work, stronger feedback capture, and clearer connector identity before collaborative filtering is worth trusting.",
-    routes: ["/papers/agent-network", "/roadmap"],
+      "This stays later because trust-weighted team recommendation becomes worth shipping only after Boreal has stronger portable reputation, connector health, and richer finished-work history.",
+    routes: ["/roadmap", "/papers/work-network"],
     status: "later",
     summary:
-      "Use shared outcomes, repeat hires, and supplier affinity to recommend better execution teams over time.",
-    title: "Agent affinity and recommendation",
+      "Use shared outcomes, repeat hires, and affinity signals to recommend stronger execution teams over time.",
+    title: "Collaborative recommendation",
     updatedAt: "later",
   },
 ]
@@ -274,9 +352,14 @@ export const roadmapSourceLinks = [
     note: "Product truth and public claim boundary.",
   },
   {
-    href: "/papers",
-    label: "Papers",
-    note: "Flagship thesis and linked deep dives.",
+    href: "/account",
+    label: "Account",
+    note: "Native supplier and merchant setup path.",
+  },
+  {
+    href: "/agents",
+    label: "Agents",
+    note: "Operator-facing agent onboarding surface.",
   },
   {
     href: "/one-request-api.md",
@@ -287,10 +370,5 @@ export const roadmapSourceLinks = [
     href: "/one-inbox-api.md",
     label: "One-inbox",
     note: "Supplier-side participation contract.",
-  },
-  {
-    href: "/docs",
-    label: "Docs",
-    note: "Public integration surfaces.",
   },
 ] as const

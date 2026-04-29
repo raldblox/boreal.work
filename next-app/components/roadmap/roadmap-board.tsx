@@ -28,6 +28,10 @@ import { cn } from "@/lib/utils"
 import {
   type BoardStatus,
   type BoardTicket,
+  type RoadmapHighlight,
+  type RoadmapPhaseReadout,
+  roadmapHighlights,
+  roadmapPhaseReadout,
   roadmapSourceLinks,
   roadmapTickets,
 } from "./roadmap-board-data"
@@ -44,22 +48,22 @@ type RoadmapBoardProps = {
 
 const laneOrder = [
   {
-    description: "Named next-step work already queued to improve how visible demand becomes finished work.",
-    key: "next",
-    label: "Next",
+    description: "Completed milestones that are safe to present as current Boreal product truth.",
+    key: "live",
+    label: "Live now",
   },
   {
-    description: "Active hardening work across routing, commerce depth, and request-side execution quality.",
+    description: "Work Boreal is actively hardening across payment depth, team execution, supply structure, and release operations.",
     key: "in_progress",
     label: "In Progress",
   },
   {
-    description: "Already shipped and safe to describe as current product truth.",
-    key: "live",
-    label: "Live",
+    description: "Near-term milestones that are clearly queued after the current hardening work.",
+    key: "next",
+    label: "Coming next",
   },
   {
-    description: "Important later-stage work outside the current public claim boundary.",
+    description: "Important later-stage bets that should stay outside the current public claim boundary.",
     key: "later",
     label: "Later",
   },
@@ -127,29 +131,71 @@ const laneSurfaceStyles: Record<
 
 export function RoadmapBoard({
   embedded = false,
-  sourceLinks = roadmapSourceLinks,
-  tickets = roadmapTickets,
+  sourceLinks,
+  tickets,
 }: RoadmapBoardProps) {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
+  const safeSourceLinks = useMemo(
+    () => sourceLinks ?? (Array.isArray(roadmapSourceLinks) ? roadmapSourceLinks : []),
+    [sourceLinks]
+  )
+  const safeTickets = useMemo(
+    () => tickets ?? (Array.isArray(roadmapTickets) ? roadmapTickets : []),
+    [tickets]
+  )
+  const safeHighlights = useMemo(
+    () => (Array.isArray(roadmapHighlights) ? roadmapHighlights : []),
+    []
+  )
+  const safePhaseReadout = useMemo(
+    () => (Array.isArray(roadmapPhaseReadout) ? roadmapPhaseReadout : []),
+    []
+  )
 
   const selectedTicket = useMemo(
-    () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? null,
-    [selectedTicketId, tickets]
+    () => safeTickets.find((ticket) => ticket.id === selectedTicketId) ?? null,
+    [selectedTicketId, safeTickets]
   )
 
   const boardSync = useMemo(() => {
-    const dates = tickets
+    const dates = safeTickets
       .map((ticket) => ticket.updatedAt)
       .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
       .sort()
 
     return dates.at(-1) ?? null
-  }, [tickets])
+  }, [safeTickets])
+
+  const boardHighlightsStrip = (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {safeHighlights.map((highlight) => (
+        <RoadmapOverviewCard highlight={highlight} key={highlight.label} />
+      ))}
+    </div>
+  )
+
+  const phaseReadoutStrip = (
+    <section className="rounded-[1.25rem] border border-border/80 bg-card/88 p-4 shadow-[0_18px_42px_-34px_rgba(15,23,42,0.22)]">
+      <div className="space-y-1">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+          Release track
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Milestone-level readout from the current early-access checklist.
+        </p>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {safePhaseReadout.map((entry) => (
+          <RoadmapPhaseChip entry={entry} key={entry.phase} />
+        ))}
+      </div>
+    </section>
+  )
 
   const boardLanes = (
     <div className="grid min-w-[1280px] grid-cols-4 gap-4">
       {laneOrder.map((lane) => {
-        const laneTickets = tickets.filter((ticket) => ticket.status === lane.key)
+        const laneTickets = safeTickets.filter((ticket) => ticket.status === lane.key)
         const laneStyles = laneSurfaceStyles[lane.key]
 
         return (
@@ -203,14 +249,17 @@ export function RoadmapBoard({
                 Public roadmap
               </p>
               <h1 className="font-heading text-2xl font-semibold tracking-tight">
-                What is live, what is hardening, and what stays next.
+                Feature showcase, hardening tracks, and what comes next.
               </h1>
               <p className="max-w-3xl text-sm/7 text-muted-foreground">
-                This board stays aligned to shipped Boreal truth. Open a card
-                when you need the exact scope behind a public claim.
+                This board compresses the larger roadmap into milestone-sized
+                product truth. Open a card when you need the exact scope behind
+                a public claim.
               </p>
             </div>
           </section>
+          {boardHighlightsStrip}
+          {phaseReadoutStrip}
           <div className="w-full overflow-x-auto">
             {boardLanes}
           </div>
@@ -223,13 +272,13 @@ export function RoadmapBoard({
                 <p className="text-lg font-medium tracking-tight">Roadmap</p>
                 <p className="text-sm text-muted-foreground">
                   {boardSync
-                    ? `Synced ${formatLongDate(boardSync)} / public truth for what is live, what is hardening, and what stays ahead.`
+                    ? `Synced ${formatLongDate(boardSync)} / milestone-sized public truth for what is live, what is hardening, and what comes next.`
                     : "Repo-grounded public board"}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {sourceLinks.map((entry) => (
+                  {safeSourceLinks.map((entry) => (
                     <Link
                       className="text-sm text-foreground/80 underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
                       href={entry.href}
@@ -242,7 +291,12 @@ export function RoadmapBoard({
             </div>
           </section>
 
-          <section className="overflow-x-auto px-4 py-4 sm:px-6 lg:px-10 xl:px-12">
+          <section className="space-y-4 px-4 py-4 sm:px-6 lg:px-10 xl:px-12">
+            {boardHighlightsStrip}
+            {phaseReadoutStrip}
+          </section>
+
+          <section className="overflow-x-auto px-4 pb-4 sm:px-6 lg:px-10 xl:px-12">
             {boardLanes}
           </section>
         </main>
@@ -480,6 +534,46 @@ function MetaPanel({
         <div className="text-sm/7 text-muted-foreground">{children}</div>
       </CardContent>
     </Card>
+  )
+}
+
+function RoadmapOverviewCard({
+  highlight,
+}: {
+  highlight: RoadmapHighlight
+}) {
+  return (
+    <Card className="rounded-[1.2rem] border border-border/80 bg-card/92 py-0 ring-0">
+      <CardHeader className="border-b border-border/70 px-4 py-4">
+        <CardTitle className="text-sm font-medium">{highlight.label}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 px-4 py-4">
+        <p className="text-xl font-semibold tracking-tight text-foreground">
+          {highlight.value}
+        </p>
+        <p className="text-sm/6 text-muted-foreground">{highlight.note}</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RoadmapPhaseChip({
+  entry,
+}: {
+  entry: RoadmapPhaseReadout
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-full border px-3 py-2 text-xs",
+        laneSurfaceStyles[entry.status].badge
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="font-medium">Phase {entry.phase}</span>
+        <span className="opacity-75">{entry.label}</span>
+      </div>
+    </div>
   )
 }
 

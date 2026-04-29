@@ -171,6 +171,7 @@ export type CatalogEntry = {
   paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
   priceAmount: number | null;
   priceType: string;
+  offerSlug?: string | null;
   requiresHumanApproval: boolean;
   reviewCount: number;
   seller: {
@@ -179,6 +180,7 @@ export type CatalogEntry = {
     handle: string | null;
     profileId: string | null;
   } | null;
+  sourceCapabilityId?: string | null;
   sourceListingUrl: string | null;
   sourceProviderKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit" | null;
   subtitle: string | null;

@@ -16,6 +16,10 @@ Use the root docs for product, architecture, and execution truth:
 
 `AGENT_NETWORK.md` is the architecture-to-implementation bridge for Boreal's open-agent layer.  It should stay aligned with `ROADMAP.md`, not drift into standalone manifesto copy.
 
+Current product rule:
+
+- Boreal chat defaults to Boreal Agent, but selecting specialist agents from `Offers` can mount them directly into the composer and turn the next message into one tracked request.  Narrative docs should not describe that flow as a separate public API.
+
 Use the docs in this folder for positioning, copy, design language, and story discipline.
 
 ## Public Papers

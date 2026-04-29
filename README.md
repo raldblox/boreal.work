@@ -72,6 +72,7 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Tightened the mounted specialist flow in Boreal chat: `Offers` now treats Boreal as the default chat agent, mounted specialists show up directly in the composer, selected non-Boreal agents open a ready work-thread posture immediately, and the next message creates one tracked request for that selected agent team without a separate approval step.
 - `2026-04-29`: Hardened the Solana starter path end to end: Solana quick-action asks now classify as `solana` specialist work instead of generic text work, they skip the content-format clarification loop, `solana-operator` becomes the top matched route with a direct invite path, and `npm run smoke:solana-specialist-route` verifies the exact starter prompt.
 - `2026-04-29`: Surfaced `solana-operator` in the main frontend instead of leaving it buried in docs: Boreal chat now shows a Solana specialist quick action and starter prompt, `/agents` now spotlights the route directly, and the normal built-in agent seed plus smoke flow still brings `solana-operator` back after reset-and-seed.
 - `2026-04-29`: Refreshed the public roadmap surface and its source docs: `ROADMAP.md` now carries a milestone readout, `EARLY_ACCESS.md` no longer repeats outdated blockers that were already shipped, and `/roadmap` now reads like a synced feature showcase with live milestones, active hardening tracks, next moves, and clearer phase status.
@@ -170,7 +171,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 
 ## Current Product Surface
 
-- `next-app/app/chat` is Boreal's operating surface for request creation, proposals, fulfillment, market discovery, cart, checkout, and optional advanced runtime adapters.
+- `next-app/app/chat` is Boreal's operating surface for request creation, mounted specialist selection, proposals, fulfillment, market discovery, cart, checkout, and optional advanced runtime adapters.
 - `next-app/app/papers` is the public article hub that renders repo-backed markdown papers directly from git-tracked docs.
 - `next-app/components/editorial` contains the reusable editorial shell, index rows, and longform typography system used by `/papers` and intended for future audit-report or document-heavy surfaces.
 - `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.
@@ -190,7 +191,7 @@ Supporting narrative, messaging, and design docs now live under `docs/`, with [d
 - `next-app/app/api/v1/requests/[requestToken]/status/route.ts`, `next-app/app/api/v1/requests/[requestToken]/evidence/route.ts`, and `next-app/app/api/v1/requests/[requestToken]/heartbeat/route.ts` let advanced connected runtimes report progress, evidence, and liveness back into the same private one-request workboard.
 - `next-app/public/llms.txt`, `next-app/public/SKILL.md`, `next-app/public/agent-registry.md`, `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, `next-app/public/openapi/requests-v1.json`, `next-app/public/openapi/agents-v1.json`, and `next-app/public/openapi/webhooks-v1.json` are Boreal's current public integration artifacts for agent customers and suppliers.  `/agents` plus `SKILL.md` are the public onboarding front door, while `/account` is the signed-in manual setup path for profile and offer publishing.
 - `next-app/public/connect-agent-quickstart.md` is the public short-form quick-connect note for operators who need the minimal advanced-runtime HTTP contract and prompt.
-- `ONE_REQUEST_API.md` is the live source of truth for the pure-agent front door, where demand starts from `POST /api/v1/requests` instead of direct specialist selection.
+- `ONE_REQUEST_API.md` is the live source of truth for the pure-agent front door.  External demand starts from `POST /api/v1/requests`, while in-product Boreal chat can also mount specialists from `Offers` and turn the next message into one tracked request.
 - `ONE_INBOX_API.md` is the live supplier-side companion contract, where matched suppliers watch demand, claim or propose on work, deliver through requests, and track payout readiness.
 - `next-app/app/api/v1/supplies/` is the live external supplier onboarding surface for authenticated self-registration, update, and owned-supply listing.
 - `presentations/boreal-pitch-deck/` is the editable PowerPoint workspace for the current Boreal pitch deck, including slide source, headless `.pptx` export, preview renders, and QA reports.

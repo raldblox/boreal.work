@@ -18,9 +18,12 @@ export type ChatUiContext = {
   canApproveProposals?: boolean;
   canSubmitProposal?: boolean;
   centerTab?: "activity" | "chat" | "participants" | "proposals" | "workspace" | "workers" | null;
+  mountedAgentKeys?: string[];
   mountedSupplyActorKind?: "agent" | "human" | "tool" | null;
   mountedSupplyId?: string | null;
+  mountedSupplyIds?: string[];
   mountedSupplyTitle?: string | null;
+  mountedSupplyTitles?: string[];
   requestId?: string | null;
   requestRole?: "none" | "owner" | "supplier" | "viewer";
   requestStatus?: string | null;
@@ -52,6 +55,7 @@ export type CatalogItem = {
   paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402" | null;
   priceAmount: number | null;
   priceLabel: string;
+  offerSlug?: string | null;
   requiresHumanApproval: boolean;
   reviewCount: number;
   seller: {
@@ -60,6 +64,7 @@ export type CatalogItem = {
     handle: string | null;
     profileId: string | null;
   } | null;
+  sourceCapabilityId?: string | null;
   sourceListingUrl: string | null;
   sourceProviderKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit" | null;
   subtitle: string | null;

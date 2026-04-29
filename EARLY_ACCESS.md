@@ -14,8 +14,8 @@ Every item here should be auditable from shipped UI, versioned API contracts, ru
 ## Current Release Position
 
 - Current mode: `open early access surface`, but not broad public mainnet-paid readiness.
-- Strongest live proof today: request-first work loop, supplier onboarding, matched inbox, collective proposals, connected-agent callbacks, mainnet-default payment verification, and payout state progression.
-- Biggest blockers today: request classification that cleanly separates product, provider service, direct tool, and async work paths; real mainnet payment and payout hardening; funded-start rules for human and agent work; escrow for async labor; curated supply density; stronger team-assignment operations; and a complete merchant self-serve path.
+- Strongest live proof today: request-first work loop, mounted specialist chat start, supplier onboarding, matched inbox, collective proposals, connected-agent callbacks, merchant-native `/account` offers, classifier-first fetch paths, provider fallback adapters, mainnet-default payment verification, and payout state progression.
+- Biggest blockers today: real mainnet payment and payout hardening; funded-start rules for human and agent work; escrow for async labor; type-aware supply subtype tables; stronger team-assignment and validator operations; richer merchant product pages and merchant-specific smoke coverage; and rollout metrics, runbooks, plus kill switches.
 
 ## Phase Scorecard
 
@@ -28,7 +28,7 @@ Every item here should be auditable from shipped UI, versioned API contracts, ru
 | `4` | Team coordination and collective fulfillment | `In progress` |
 | `5` | External agents and portable reputation | `In progress` |
 | `6` | Merchant and digital product flow | `In progress` |
-| `7` | Rollout operations and widening access | `Not started` |
+| `7` | Rollout operations and widening access | `In progress` |
 
 ## Phase 0: Truth Boundary And Release Framing
 
@@ -75,6 +75,7 @@ Goal: one request can enter Boreal, move forward on one thread, and exit with de
 | `EA-1.6` | `Done` | Normalize recovery paths when automatic execution fails so requests reopen safely for workers across all route types. | request timeline recovery UX, route-specific reopen logic, `npm run smoke:request-recovery` | Safer failure handling beyond the happy path. |
 | `EA-1.7` | `Done` | Separate request market classification from the current UI-oriented `routeTarget`: persist `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters on the request. | `MATCHING_ENGINE.md`, `next-app/lib/boreal/schemas/intent.ts`, `next-app/convex/schema.ts`, `npm run smoke:request-classification` | Classifier-first request contract. |
 | `EA-1.8` | `Done` | Use request classification to choose fetch and routing paths before broad ranking: direct tool, product catalog, provider x402, async worker market, or collective. | `next-app/lib/boreal/request-matching-policy.ts`, matching and one-request routing, `npm run smoke:request-fetch-paths` | Classifier-first fetch and auto-route policy. |
+| `EA-1.9` | `Done` | Let signed-in users mount specialist agents directly from `Offers`, keep Boreal as the default when nothing is selected, and turn the next chat submit into one tracked request for that selected specialist team without a separate approval step. | `next-app/components/chat/chat-shell.tsx`, `next-app/components/chat/workspace-panel.tsx`, `AGENT-REGISTRY.md`, `README.md`, `npm run typecheck`, `npm run build` | Lower-friction specialist request start from Boreal chat. |
 
 After this phase:
 
@@ -96,9 +97,11 @@ Manual replication:
 
 1. Start the app and Convex dev environment.
 2. Create a request through Boreal chat or the one-request API.
-3. Approve the matched route.
-4. Confirm follow-up, delivery, and review stay attached to the same request thread.
-5. Force a route failure and confirm the request can reopen for worker intervention instead of dead-ending silently.
+3. In Boreal chat, select one or more specialist agents from `Offers` and confirm the composer shows the selected team while Boreal remains the default when nothing is mounted.
+4. Submit the request and confirm Boreal opens one tracked request thread for that selected agent team without a separate approval step.
+5. Approve the matched route when you use the normal preview path instead of mounted specialist selection.
+6. Confirm follow-up, delivery, and review stay attached to the same request thread.
+7. Force a route failure and confirm the request can reopen for worker intervention instead of dead-ending silently.
 
 Clean pass means:
 

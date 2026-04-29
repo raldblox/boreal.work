@@ -1,6 +1,6 @@
 # Boreal Roadmap
 
-This roadmap translates `WHITEPAPER.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 28, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
+This roadmap translates `WHITEPAPER.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 29, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
 
 ## Current Readout
 
@@ -17,6 +17,8 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now also has a real matching layer in the product surface: persisted match candidates, request-level score breakdowns, gated-out reasons, refinement actions, and pinned matches inside the request workboard.
 - Public profiles are no longer just static identity cards; they now carry cached analytics snapshots for activity, fulfillment, ratings, listings, buyer/seller behavior, and recent handled work.
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
+- Boreal now has an explicit merchant-native `/account` path for custom services and digital products, plus owned-offer management with provider-synced listings kept visible but read-only.
+- Boreal chat now treats Boreal Agent as the default, lets users mount specialist agents directly from `Offers`, shows the selected team in the composer, and turns the next submit into one tracked request for that team without a separate approval step.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
 - Boreal now has a first honest offline repeat-visit path: the shell can render from cached route and static assets through a service worker, while live request, inbox, and market data still depend on the network.
 - Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first mainnet defaults and explicit testnet / EVM routing flags.
@@ -30,16 +32,33 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now also has a live supplier-side companion contract in `ONE_INBOX_API.md`: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
 - Boreal now has a first live collective fulfillment primitive: one approved proposal can name collective collaborators, assign member roles, derive per-participant contribution summaries, expose a first collective trust summary, let accepted collaborators share the request thread and delivery path, and split payout rows fan out from the same transaction spine.
 - External agents can now self-register and update supply through the public `v1` supplies API, attach executor-surface metadata, and become routable into the inbox and matching flow without manual seeding.
+- Boreal now uses classifier-first request fetch paths before broad ranking, and the service-provider layer now includes live Agentic Market sync plus curated AgentCash fallback and Frames handoff adapters.
 - Supplier payouts no longer stop at `pending`: Boreal now advances them through `processing` and `paid`, exposes the richer payout state back to suppliers, and aggregates settlements to `paid_out` or `failed`.
 - Supplier capacity is now enforced end to end: claims reserve a supply slot, delivery releases it, and routing blocks over-assignment once `maxConcurrentJobs` is exhausted.
 - Boreal now has a signed machine-facing webhook surface for request, inbox, and payout lifecycle delivery, plus a deterministic local receiver smoke.
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
+- Boreal now includes `solana-operator` as a direct specialist for non-custodial Solana execution planning, while keeping the no-hidden-custody boundary explicit.
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
 - Boreal is still behind the whitepaper on protocol depth, external agent identity, portable reputation, recommendation quality, relay-backed collaboration, and generalized collective settlement.
 - Boreal is effectively between Milestone A and Milestone B: the early-access surface is broad, but the remaining work is mostly hardening, matching quality, and commerce depth rather than basic feature absence.
 - Public release should position Boreal as a chat-native market for request-native commerce, not yet as full protocol-native settlement infrastructure.
+
+## Milestone Readout
+
+Last reviewed: April 29, 2026.
+
+These milestone names are the best public-safe compression of the roadmap right now.  They are broad enough to read like product progress, but still grounded in repo truth.
+
+| Milestone | Status | What is true now | Main gap |
+| --- | --- | --- | --- |
+| `Request-first execution` | `Live` | One request can move through request thread, route preview, specialist follow-up, delivery, review, and attached checkout state. | Better retrieval depth and stronger funded-start rules. |
+| `Supplier and specialist market` | `Live` | Suppliers can onboard through `/account` or `/api/v1/supplies`, watch matched demand through one inbox, and seeded specialists stay routable. | Type-aware supply subtype tables and richer market metadata. |
+| `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
+| `Payment and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start, payout verification, refunds, disputes, and stronger settlement proof. |
+| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, connected runtimes, callbacks, and the Hermes bridge are all live. | Role acceptance, validator lane, connector health, and live team presence. |
+| `Release ops and trust` | `In progress` | Boreal has early-access truth docs, a cohort rollout playbook, and a safer public claim boundary. | Release metrics, incident runbooks, kill switches, and portable reputation exports. |
 
 ## Continuous Roadmap Execution Cadence
 
@@ -185,6 +204,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Boreal profile surface and public `boreal-agent` route
 - [x] Manual and Boreal-assisted profile/supply builder for publishing human or agent supply
 - [x] Cached profile analytics and richer public profile dashboards
+- [x] `Offers` can mount direct specialist agents into the composer, keep Boreal as the default when nothing is selected, and let the next submit open one tracked request for that selected team without a separate approval step
 - [ ] Boreal Agent capability explorer with real supported-scenario cards and ready-to-run prompt starters
 - [x] Request-driven catalog/store results with add-to-cart actions
 - [x] Cart dialog with checkout history and fulfilled download access

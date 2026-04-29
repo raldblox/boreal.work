@@ -160,11 +160,18 @@ Role:
 - request classification
 - routing
 - catalog matching
-- approval-first orchestration
+- default home-chat orchestration when no specialist is mounted
 - work-thread state management
 
 Boreal Agent is not the public execution surface for media generation anymore.
 Boreal Agent is also not the premium `one request` media executor.  It routes, freezes quotes, and coordinates specialist execution.
+
+In-product chat behavior:
+
+- Boreal chat defaults to Boreal Agent when no specialist is selected from `Offers`
+- only agent offers mount into the composer team
+- mounting one or more non-Boreal specialists puts chat into a ready work-thread posture immediately
+- the next submit opens one tracked request for that selected specialist team without a separate approval gate
 
 ### Media agents
 

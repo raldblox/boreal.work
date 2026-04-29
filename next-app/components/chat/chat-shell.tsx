@@ -225,12 +225,16 @@ type CenterViewTab = "activity" | "chat" | "participants" | "workspace"
 type CenterSheetView = "about" | "agent" | "developers" | "papers" | "roadmap"
 type MountedComposerAgent = {
   actorKind: CatalogEntry["actorKind"]
+  directAgentKey: string | null
+  sourceCapabilityId: string | null
   supplyId: string
   title: string
 }
 
 const DEFAULT_MOUNTED_COMPOSER_AGENT: MountedComposerAgent = {
   actorKind: "agent",
+  directAgentKey: null,
+  sourceCapabilityId: "autonomous-agent:boreal-agent",
   supplyId: BOREAL_AGENT_DIRECT_SUPPLY_ID,
   title: BOREAL_AGENT_DISPLAY_NAME,
 }
@@ -411,8 +415,9 @@ export function ChatShell() {
   const [isMobileWorkspaceOpen, setIsMobileWorkspaceOpen] = useState(false)
   const [isRefreshingVideo, setIsRefreshingVideo] = useState(false)
   const [composerText, setComposerText] = useState(() => seededPrompt ?? "")
-  const [mountedComposerAgent, setMountedComposerAgent] =
-    useState<MountedComposerAgent>(DEFAULT_MOUNTED_COMPOSER_AGENT)
+  const [mountedComposerAgents, setMountedComposerAgents] = useState<
+    MountedComposerAgent[]
+  >([])
   const [pendingApprovalIntentId, setPendingApprovalIntentId] = useState<
     string | null
   >(null)
@@ -595,6 +600,26 @@ export function ChatShell() {
     requestDetail?.intent?.status === "closed" &&
     requestDetail.intent.closedReason === "archived_by_user"
   )
+  const requestComposerAgents = useMemo(
+    () => deriveRequestComposerAgents(requestDetail),
+    [requestDetail]
+  )
+  const isBorealDefaultMounted =
+    !activeIntentId && mountedComposerAgents.length === 0
+  const activeComposerAgents = activeIntentId
+    ? requestComposerAgents
+    : mountedComposerAgents.length > 0
+      ? mountedComposerAgents
+      : [DEFAULT_MOUNTED_COMPOSER_AGENT]
+  const mountedTeamLabel = formatMountedComposerTeamLabel(activeComposerAgents)
+  const homeComposerPlaceholder =
+    !activeIntentId && mountedComposerAgents.length > 0
+      ? `Describe the task for ${mountedTeamLabel}. Boreal will create the request and start that team right away.`
+      : "I'm afraid you can also ask me anything. Boreal can answer first, then match and route the work."
+  const threadComposerPlaceholder =
+    activeIntentId && requestComposerAgents.length > 0
+      ? `Reply to ${mountedTeamLabel}, coordinate on the request, or keep the team moving.`
+      : "Ask a question, coordinate on a request, or ask Boreal for help."
   const myProposal =
     requestDetail?.proposals.find((proposal) => proposal.isMine) ?? null
   const hasSubmittedProposal = Boolean(myProposal)
@@ -1038,14 +1063,36 @@ export function ChatShell() {
   }
 
   async function handleInvokeListing(listing: CatalogEntry) {
-    setMountedComposerAgent({
-      actorKind: listing.actorKind,
-      supplyId: listing._id,
-      title: listing.title,
-    })
+    const mountedAgent = resolveMountedComposerAgent(listing)
+
+    if (!mountedAgent) {
+      return
+    }
+
+    const nextMountedComposerAgents =
+      mountedAgent.supplyId === DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId
+        ? []
+        : toggleMountedComposerAgents(mountedComposerAgents, mountedAgent)
+
+    setMountedComposerAgents(nextMountedComposerAgents)
     updateWorkspaceUrl({
       chat: null,
     })
+
+    if (!activeIntentId) {
+      setConversationId(undefined)
+      setPendingApprovalIntentId(null)
+      setWorkspace(emptyWorkspace)
+
+      if (nextMountedComposerAgents.length > 0) {
+        setMessages([buildMountedTeamIntroMessage(nextMountedComposerAgents)])
+      } else if (
+        messages.length === 1 &&
+        messages[0]?.id === MOUNTED_TEAM_THREAD_MESSAGE_ID
+      ) {
+        setMessages([])
+      }
+    }
 
     if (window.matchMedia("(max-width: 1023px)").matches) {
       setIsMobileWorkspaceOpen(false)
@@ -1687,7 +1734,7 @@ export function ChatShell() {
           conversationId: activeConversationId,
           context: buildChatUiContext({
             activeIntentId,
-            mountedComposerAgent,
+            composerAgents: activeComposerAgents,
             requestDetail,
             selectedCenterTab: activeCenterTab,
             workspaceTab,
@@ -1720,6 +1767,19 @@ export function ChatShell() {
       setConversationId(finalPayload.conversationId)
       setWorkspace(finalPayload.workspace)
       setComposerText("")
+      if (!activeIntentId && mountedComposerAgents.length > 0 && finalPayload.intentId) {
+        updateWorkspaceUrl({
+          browse: "workers",
+          chat: null,
+          request: finalPayload.intentId,
+          view: "chat",
+        })
+        setConversationId(undefined)
+        setMessages([])
+        setShowWorkspace(true)
+        setPendingApprovalIntentId(null)
+        return
+      }
       updateWorkspaceUrl({
         browse:
           finalPayload.workspace.kind === "empty" ? null : "workers",
@@ -1767,8 +1827,20 @@ export function ChatShell() {
     })
   }
 
-  function handleClearMountedComposerAgent() {
-    setMountedComposerAgent(DEFAULT_MOUNTED_COMPOSER_AGENT)
+  function handleClearMountedComposerAgent(supplyId: string) {
+    const nextMountedComposerAgents = mountedComposerAgents.filter(
+      (agent) => agent.supplyId !== supplyId
+    )
+
+    setMountedComposerAgents(nextMountedComposerAgents)
+
+    if (!activeIntentId && messages[0]?.id === MOUNTED_TEAM_THREAD_MESSAGE_ID) {
+      if (nextMountedComposerAgents.length === 0) {
+        setMessages([])
+      } else {
+        setMessages([buildMountedTeamIntroMessage(nextMountedComposerAgents)])
+      }
+    }
   }
 
   async function handleApproveRequest(intentId = activeIntentId) {
@@ -2870,8 +2942,6 @@ export function ChatShell() {
     displayedMessages.length > 0
   const shouldShowFooterComposer =
     isXAuthenticated && shouldShowChatComposer && !isHomeView && !isSessionsView
-  const isMountedMarketAgentActive =
-    mountedComposerAgent.supplyId !== DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId
 
   return (
       <>
@@ -2942,7 +3012,6 @@ export function ChatShell() {
                 hideWorkspaceToggle={false}
                 inlineNavHrefs={centerSheetNavHrefs}
                 isRequestSelected={isXAuthenticated && Boolean(activeIntentId)}
-                isSubmitting={isSubmitting}
                 onOpenMobileDiscovery={openMobileDiscovery}
                 onOpenMobileIntentSidebar={openMobileIntentSidebar}
                 onSelectInlineNav={handleInlineNavSelect}
@@ -3424,8 +3493,11 @@ export function ChatShell() {
                 <div className="min-h-0 flex-1 overflow-hidden">
                   {isConversationLoading ? (
                     <div className={HOME_PANEL_CLASS}>
-                      <div className="flex items-center justify-center py-16">
-                        <LoaderIcon className="size-8 animate-spin text-muted-foreground" />
+                      <div className="flex items-center justify-center overflow-visible py-16">
+                        <LoaderIcon
+                          className="text-muted-foreground"
+                          size={46}
+                        />
                       </div>
                     </div>
                   ) : isMissingConversation ? (
@@ -3464,17 +3536,16 @@ export function ChatShell() {
                                 onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                                   setComposerText(event.currentTarget.value)
                                 }
-                                placeholder="I'm afraid you can also ask me anything. Boreal can answer first, then match and route the work."
+                                placeholder={homeComposerPlaceholder}
                                 ref={composerTextareaRef}
                                 value={composerText}
                               />
                             </PromptInputBody>
                             <PromptInputFooter className="items-center justify-between gap-2">
                               <PromptInputTools className="w-full flex-wrap justify-start gap-2">
-                                <BorealAgentCue
-                                  actorKind={mountedComposerAgent.actorKind}
-                                  canClear={isMountedMarketAgentActive}
-                                  label={mountedComposerAgent.title}
+                                <MountedComposerTeamCues
+                                  agents={activeComposerAgents}
+                                  canClear={!activeIntentId}
                                   onClear={handleClearMountedComposerAgent}
                                 />
                               </PromptInputTools>
@@ -3762,17 +3833,16 @@ export function ChatShell() {
                           onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                             setComposerText(event.currentTarget.value)
                           }
-                          placeholder="Ask a question, coordinate on a request, or ask Boreal for help."
+                          placeholder={threadComposerPlaceholder}
                           ref={composerTextareaRef}
                           value={composerText}
                         />
                       </PromptInputBody>
                       <PromptInputFooter className="items-center justify-between gap-2">
                         <PromptInputTools className="w-full flex-wrap justify-start gap-2">
-                          <BorealAgentCue
-                            actorKind={mountedComposerAgent.actorKind}
-                            canClear={isMountedMarketAgentActive}
-                            label={mountedComposerAgent.title}
+                          <MountedComposerTeamCues
+                            agents={activeComposerAgents}
+                            canClear={!activeIntentId}
                             onClear={handleClearMountedComposerAgent}
                           />
                         </PromptInputTools>
@@ -3793,6 +3863,8 @@ export function ChatShell() {
             >
               <WorkspacePanel
                 activeTab={workspaceTab}
+                isBorealDefaultMounted={isBorealDefaultMounted}
+                mountedAgentSupplyIds={mountedComposerAgents.map((agent) => agent.supplyId)}
                 onInvokeListing={(listing) => void handleInvokeListing(listing)}
                 onSelectRequest={handleMarketplaceSelect}
                 onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
@@ -3838,13 +3910,15 @@ export function ChatShell() {
         />
       </MobileSidebarDrawer>
       <MobileSidebarDrawer
-        label="Discovery"
+        label="Market"
         onOpenChange={setIsMobileWorkspaceOpen}
         open={isMobileWorkspaceOpen}
         side="right"
       >
         <WorkspacePanel
           activeTab={workspaceTab}
+          isBorealDefaultMounted={isBorealDefaultMounted}
+          mountedAgentSupplyIds={mountedComposerAgents.map((agent) => agent.supplyId)}
           onInvokeListing={(listing) => void handleInvokeListing(listing)}
           onSelectRequest={handleMarketplaceSelect}
           onTabChange={(value) => updateWorkspaceUrl({ browse: value })}
@@ -5214,7 +5288,7 @@ function InlineActivityEvent({
   activity: RequestDetail["activity"][number]
 }) {
   return (
-    <div className="space-y-2 border-l border-border pl-4">
+    <div className="space-y-2 border-l border-accent pl-4">
       <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
         {formatRequestDate(activity.createdAt)}
       </p>
@@ -5462,8 +5536,8 @@ function SenderIcon({ actorKind }: { actorKind: "agent" | "human" | "tool" }) {
 
 function LoadingRequestPanel() {
   return (
-    <div className="flex items-center justify-center">
-      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+    <div className="flex items-center justify-center overflow-visible py-2">
+      <LoaderIcon className="text-muted-foreground" size={34} />
     </div>
   )
 }
@@ -7142,7 +7216,7 @@ function upsertAssistantDebugEvent(
 
 function buildChatUiContext(input: {
   activeIntentId: string | null
-  mountedComposerAgent: MountedComposerAgent
+  composerAgents: MountedComposerAgent[]
   requestDetail: RequestDetail | null
   selectedCenterTab: CenterViewTab
   workspaceTab: WorkspaceTab
@@ -7150,19 +7224,22 @@ function buildChatUiContext(input: {
   const isOwner = input.requestDetail?.access?.canApproveProposals ?? false
   const canSubmitProposal =
     input.requestDetail?.access?.canSubmitProposal ?? false
-  const mountedMarketAgent =
-    input.mountedComposerAgent.supplyId === DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId
-      ? null
-      : input.mountedComposerAgent
+  const mountedMarketAgents = input.composerAgents
+  const primaryMountedAgent = mountedMarketAgents[0] ?? null
 
   return {
     browseTab: input.workspaceTab,
     canApproveProposals: isOwner,
     canSubmitProposal,
     centerTab: input.activeIntentId ? input.selectedCenterTab : null,
-    mountedSupplyActorKind: mountedMarketAgent?.actorKind ?? null,
-    mountedSupplyId: mountedMarketAgent?.supplyId ?? null,
-    mountedSupplyTitle: mountedMarketAgent?.title ?? null,
+    mountedAgentKeys: mountedMarketAgents
+      .map((agent) => agent.directAgentKey)
+      .filter((value): value is string => Boolean(value)),
+    mountedSupplyActorKind: primaryMountedAgent?.actorKind ?? null,
+    mountedSupplyId: primaryMountedAgent?.supplyId ?? null,
+    mountedSupplyIds: mountedMarketAgents.map((agent) => agent.supplyId),
+    mountedSupplyTitle: primaryMountedAgent?.title ?? null,
+    mountedSupplyTitles: mountedMarketAgents.map((agent) => agent.title),
     requestId: input.activeIntentId,
     requestRole: input.activeIntentId
       ? isOwner
@@ -7186,6 +7263,195 @@ function normalizeWorkspaceTab(value: string | null): WorkspaceTab {
 
 function hasRenderableInlineWorkspace(workspaceState: WorkspaceState) {
   return workspaceState.kind !== "empty"
+}
+
+const MOUNTED_TEAM_THREAD_MESSAGE_ID = "mounted-team-thread-intro"
+
+const DIRECT_AGENT_DISPLAY_NAMES: Record<string, string> = {
+  copywriter: "Copywriter",
+  "image-studio": "Image Studio",
+  "math-expert": "Math Expert",
+  "motion-video-studio": "Motion Video Studio",
+  "mvp-architect": "MVP Architect",
+  "research-analyst": "Research Analyst",
+  "solana-operator": "Solana Operator",
+  "startup-pressure-test": "Startup Pressure Test",
+  "voiceover-studio": "Voiceover Studio",
+}
+
+function getMountedAgentKeyFromSourceCapabilityId(
+  sourceCapabilityId?: string | null
+) {
+  if (
+    typeof sourceCapabilityId !== "string" ||
+    !sourceCapabilityId.startsWith("autonomous-agent:")
+  ) {
+    return null
+  }
+
+  return sourceCapabilityId.slice("autonomous-agent:".length) || null
+}
+
+function isDirectAgentKey(value: string) {
+  return value in DIRECT_AGENT_DISPLAY_NAMES
+}
+
+function getDirectAgentDisplayName(key: string) {
+  return DIRECT_AGENT_DISPLAY_NAMES[key] ?? key
+}
+
+function resolveMountedComposerAgent(listing: CatalogEntry) {
+  if (listing._id === DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId) {
+    return DEFAULT_MOUNTED_COMPOSER_AGENT
+  }
+
+  const directAgentKey = getMountedAgentKeyFromSourceCapabilityId(
+    listing.sourceCapabilityId
+  )
+
+  if (
+    listing.actorKind !== "agent" ||
+    !listing.supportsDirectInvoke ||
+    !directAgentKey
+  ) {
+    return null
+  }
+
+  return {
+    actorKind: listing.actorKind,
+    directAgentKey,
+    sourceCapabilityId: listing.sourceCapabilityId ?? null,
+    supplyId: listing._id,
+    title: listing.title,
+  } satisfies MountedComposerAgent
+}
+
+function toggleMountedComposerAgents(
+  current: MountedComposerAgent[],
+  nextAgent: MountedComposerAgent
+) {
+  if (current.some((agent) => agent.supplyId === nextAgent.supplyId)) {
+    return current.filter((agent) => agent.supplyId !== nextAgent.supplyId)
+  }
+
+  return [...current, nextAgent]
+}
+
+function formatMountedComposerTeamLabel(agents: MountedComposerAgent[]) {
+  if (agents.length === 0) {
+    return DEFAULT_MOUNTED_COMPOSER_AGENT.title
+  }
+
+  if (agents.length === 1) {
+    return agents[0]!.title
+  }
+
+  return agents.map((agent) => agent.title).join(", ")
+}
+
+function buildMountedTeamIntroMessage(agents: MountedComposerAgent[]): ChatMessage {
+  return {
+    content:
+      agents.length === 1
+        ? `${agents[0]!.title} is selected. Describe the task and Boreal will open the request and start that specialist right away.`
+        : `${formatMountedComposerTeamLabel(agents)} are selected. Describe the task and Boreal will open one request for this agent team right away.`,
+    createdAt: Date.now(),
+    id: MOUNTED_TEAM_THREAD_MESSAGE_ID,
+    role: "assistant",
+  }
+}
+
+function deriveRequestComposerAgents(requestDetail: RequestDetail | null) {
+  if (!requestDetail) {
+    return []
+  }
+
+  const participantAgents = requestDetail.participants
+    .filter((participant) => participant.kind === "agent")
+    .filter(
+      (participant, index, collection) =>
+        collection.findIndex(
+          (candidate) =>
+            candidate.externalId === participant.externalId &&
+            candidate.displayName === participant.displayName
+        ) === index
+    )
+
+  const nonBorealParticipantAgents = participantAgents.filter(
+    (participant) => participant.externalId !== "agent:boreal"
+  )
+  const visibleParticipants =
+    nonBorealParticipantAgents.length > 0
+      ? nonBorealParticipantAgents
+      : participantAgents
+
+  if (visibleParticipants.length > 0) {
+    return visibleParticipants.map((participant) => ({
+      actorKind: "agent" as const,
+      directAgentKey:
+        participant.externalId?.startsWith("agent:")
+          ? participant.externalId.slice("agent:".length)
+          : null,
+      sourceCapabilityId:
+        participant.externalId?.startsWith("agent:")
+          ? `autonomous-agent:${participant.externalId.slice("agent:".length)}`
+          : null,
+      supplyId: participant.externalId ?? participant.displayName,
+      title: participant.displayName,
+    }))
+  }
+
+  const assignedTools = (requestDetail.assignment?.tools ?? [])
+    .filter((tool) => isDirectAgentKey(tool))
+    .map((tool) => ({
+      actorKind: "agent" as const,
+      directAgentKey: tool,
+      sourceCapabilityId: `autonomous-agent:${tool}`,
+      supplyId: tool,
+      title: getDirectAgentDisplayName(tool),
+    }))
+
+  if (assignedTools.length > 0) {
+    return assignedTools
+  }
+
+  if (requestDetail.assignment?.agent) {
+    return [
+      {
+        actorKind: "agent" as const,
+        directAgentKey: null,
+        sourceCapabilityId: null,
+        supplyId: requestDetail.assignment.agent,
+        title: requestDetail.assignment.agent,
+      },
+    ]
+  }
+
+  return [DEFAULT_MOUNTED_COMPOSER_AGENT]
+}
+
+function MountedComposerTeamCues({
+  agents,
+  canClear,
+  onClear,
+}: {
+  agents: MountedComposerAgent[]
+  canClear: boolean
+  onClear?: (supplyId: string) => void
+}) {
+  return (
+    <>
+      {agents.map((agent) => (
+        <BorealAgentCue
+          actorKind={agent.actorKind}
+          canClear={canClear && agent.supplyId !== DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId}
+          key={agent.supplyId}
+          label={agent.title}
+          onClear={() => onClear?.(agent.supplyId)}
+        />
+      ))}
+    </>
+  )
 }
 
 function InlineWorkspaceCard({
@@ -7641,7 +7907,7 @@ function ActivityThreadPanel({
           </p>
           <div className="space-y-3">
             {requestDetail.activity.map((activity) => (
-              <div className="border-l border-border pl-3" key={activity._id}>
+              <div className="border-l border-accent pl-3" key={activity._id}>
                 <p className="text-sm font-medium">
                   {labelActivity(activity.type)}
                 </p>

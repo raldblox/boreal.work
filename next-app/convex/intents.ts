@@ -846,11 +846,68 @@ async function getProfileIdByExternalId(
   return profile?._id ?? null;
 }
 
+const DIRECT_AGENT_PARTICIPANTS: Record<
+  string,
+  { displayName: string; externalId: string; handle: string }
+> = {
+  "boreal-agent": {
+    displayName: "Boreal Agent",
+    externalId: "agent:boreal",
+    handle: "boreal",
+  },
+  copywriter: {
+    displayName: "Copywriter",
+    externalId: "agent:copywriter",
+    handle: "copywriter",
+  },
+  "image-studio": {
+    displayName: "Image Studio",
+    externalId: "agent:image-studio",
+    handle: "image-studio",
+  },
+  "math-expert": {
+    displayName: "Math Expert",
+    externalId: "agent:math-expert",
+    handle: "math-expert",
+  },
+  "motion-video-studio": {
+    displayName: "Motion Video Studio",
+    externalId: "agent:motion-video-studio",
+    handle: "motion-video-studio",
+  },
+  "mvp-architect": {
+    displayName: "MVP Architect",
+    externalId: "agent:mvp-architect",
+    handle: "mvp-architect",
+  },
+  "research-analyst": {
+    displayName: "Research Analyst",
+    externalId: "agent:research-analyst",
+    handle: "research-analyst",
+  },
+  "solana-operator": {
+    displayName: "Solana Operator",
+    externalId: "agent:solana-operator",
+    handle: "solana-operator",
+  },
+  "startup-pressure-test": {
+    displayName: "Startup Pressure Test",
+    externalId: "agent:startup-pressure-test",
+    handle: "startup-pressure-test",
+  },
+  "voiceover-studio": {
+    displayName: "Voiceover Studio",
+    externalId: "agent:voiceover-studio",
+    handle: "voiceover-studio",
+  },
+};
+
 async function getRequestParticipants(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: any,
   intent: {
     assignedAgent?: string;
+    assignedToolNames?: string[];
     intentKey: string;
     ownerUserId?: string;
     status: string;
@@ -875,6 +932,9 @@ async function getRequestParticipants(
     status: string;
   }> = [];
   const assignedAgent = intent.assignedAgent;
+  const assignedDirectAgents = (intent.assignedToolNames ?? [])
+    .map((toolName) => DIRECT_AGENT_PARTICIPANTS[toolName.trim().toLowerCase()])
+    .filter(Boolean);
 
   if (intent.ownerUserId) {
     const owner = await ctx.db.get(intent.ownerUserId);
@@ -938,8 +998,29 @@ async function getRequestParticipants(
     }
   }
 
+  for (const directAgent of assignedDirectAgents) {
+    if (
+      participants.some(
+        (participant) => participant.externalId === directAgent.externalId,
+      )
+    ) {
+      continue;
+    }
+
+    participants.push({
+      displayName: directAgent.displayName,
+      externalId: directAgent.externalId,
+      handle: directAgent.handle,
+      kind: "agent",
+      profileId: null,
+      role: null,
+      status: intent.status,
+    });
+  }
+
   if (
     assignedAgent &&
+    assignedDirectAgents.length === 0 &&
     !participants.some(
       (participant) =>
         participant.displayName === assignedAgent ||

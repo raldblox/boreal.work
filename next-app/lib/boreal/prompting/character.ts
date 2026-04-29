@@ -34,17 +34,30 @@ export function buildIntentRoutingHint(uiContext?: ChatUiContext) {
     return "No UI context was provided.";
   }
 
+  const mountedTeamLabel =
+    uiContext.mountedSupplyTitles && uiContext.mountedSupplyTitles.length > 0
+      ? uiContext.mountedSupplyTitles.join(", ")
+      : uiContext.mountedSupplyTitle ?? "none";
   const lines = [
     `UI surface: ${uiContext.surface}`,
     `UI focus: ${pickCharacterContextKey(uiContext)}`,
     `Center tab: ${uiContext.centerTab ?? "none"}`,
     `Directory tab: ${uiContext.browseTab ?? "none"}`,
-    `Mounted supply: ${uiContext.mountedSupplyTitle ?? "none"}`,
+    `Mounted team: ${mountedTeamLabel}`,
     `Request role: ${uiContext.requestRole ?? "none"}`,
     `Request status: ${uiContext.requestStatus ?? "none"}`,
   ];
 
-  if (uiContext.mountedSupplyId && uiContext.mountedSupplyTitle) {
+  if (
+    Array.isArray(uiContext.mountedAgentKeys) &&
+    uiContext.mountedAgentKeys.length > 0 &&
+    Array.isArray(uiContext.mountedSupplyTitles) &&
+    uiContext.mountedSupplyTitles.length > 0
+  ) {
+    lines.push(
+      `A mounted agent team is selected in chat: ${uiContext.mountedSupplyTitles.join(", ")}. Treat the next home-chat submit as direct specialist work for that team instead of generic Boreal routing when the ask fits their capabilities.`,
+    );
+  } else if (uiContext.mountedSupplyId && uiContext.mountedSupplyTitle) {
     lines.push(
       `A market offer is mounted in chat. Prefer ${uiContext.mountedSupplyTitle} when the user's ask fits that specialist before drifting into generic matching.`,
     );
@@ -85,12 +98,17 @@ function buildUiSnapshot(uiContext?: ChatUiContext) {
     return "";
   }
 
+  const mountedTeamLabel =
+    uiContext.mountedSupplyTitles && uiContext.mountedSupplyTitles.length > 0
+      ? uiContext.mountedSupplyTitles.join(", ")
+      : uiContext.mountedSupplyTitle ?? "none";
+
   return [
     "UI SNAPSHOT",
     `- surface: ${uiContext.surface}`,
     `- center tab: ${uiContext.centerTab ?? "none"}`,
     `- directory tab: ${uiContext.browseTab ?? "none"}`,
-    `- mounted supply: ${uiContext.mountedSupplyTitle ?? "none"}`,
+    `- mounted team: ${mountedTeamLabel}`,
     `- request role: ${uiContext.requestRole ?? "none"}`,
     `- request status: ${uiContext.requestStatus ?? "none"}`,
     `- can submit proposal: ${uiContext.canSubmitProposal ? "yes" : "no"}`,
