@@ -149,6 +149,15 @@ export async function approveMatchedSupply(args: {
 }
 
 export async function submitWork(args: {
+  artifact?: {
+    artifactKind: "image" | "audio" | "video";
+    mediaType?: string;
+    metadataJson?: string;
+    remoteId?: string;
+    status: "ready" | "queued" | "in_progress" | "failed";
+    subtitle: string;
+    title: string;
+  };
   attachments?: Array<{
     fileName: string;
     mediaType: string;
@@ -156,6 +165,7 @@ export async function submitWork(args: {
     storageId: string;
   }>;
   deliverablesBody: string;
+  deliveryStage?: "delivered" | "started";
   intentId: string;
   workerDisplayName?: string;
   workerExternalId?: string;

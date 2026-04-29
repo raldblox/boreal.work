@@ -2,7 +2,14 @@ import type { Id } from "../../convex/_generated/dataModel.js";
 
 import { api, createAgentConvexClient } from "./convex-client.ts";
 import { buildDirectExecutionProtocolDescriptor } from "./registry.ts";
-import type { AgentRequestDetail, AutonomousAgentDefinition } from "./types.ts";
+import type {
+  RequestDetail,
+} from "../../lib/boreal/integrations/convex/function-refs.ts";
+import type {
+  AgentExecutionResult,
+  AgentRequestDetail,
+  AutonomousAgentDefinition,
+} from "./types.ts";
 
 const MATCH_THRESHOLD = 30;
 
@@ -76,7 +83,7 @@ export async function runAgentTick(
     const detail = (await client.query(api.intents.getRequestDetail, {
       intentId: request._id,
       ownerExternalId: agent.identity.externalId,
-    })) as AgentRequestDetail;
+    })) as RequestDetail;
 
     if (!detail.intent || !detail.access) {
       continue;
@@ -116,6 +123,68 @@ export async function runAgentTick(
       myProposal?.status === "accepted" &&
       (detail.intent.status === "claimed" || detail.intent.status === "in_progress")
     ) {
+      const artifactDelivery = await maybeRunDirectArtifactDelivery({
+        agent,
+        detail,
+        modelId,
+      });
+
+      if (artifactDelivery) {
+        if (
+          artifactDelivery.artifact.kind === "video" &&
+          hasPendingQueuedArtifact(detail)
+        ) {
+          console.log(`[${agent.key}] skipped duplicate queued render for ${detail.intent.title}`);
+          continue;
+        }
+
+        const result = await client.mutation(api.fulfillments.submitWork, {
+          artifact:
+            artifactDelivery.artifact.kind === "video"
+              ? {
+                  artifactKind: "video",
+                  mediaType: "video/mp4",
+                  metadataJson: JSON.stringify(artifactDelivery.artifact),
+                  remoteId: artifactDelivery.artifact.jobId,
+                  status: normalizeArtifactStatus(artifactDelivery.artifact),
+                  subtitle: artifactDelivery.subtitle,
+                  title: artifactDelivery.artifact.title,
+                }
+              : artifactDelivery.artifact.kind === "audio"
+                ? {
+                    artifactKind: "audio",
+                    mediaType: artifactDelivery.artifact.mediaType,
+                    metadataJson: JSON.stringify(artifactDelivery.artifact),
+                    status: "ready",
+                    subtitle: artifactDelivery.subtitle,
+                    title: artifactDelivery.artifact.title,
+                  }
+                : {
+                    artifactKind: "image",
+                    mediaType: artifactDelivery.artifact.mediaType,
+                    metadataJson: JSON.stringify(artifactDelivery.artifact),
+                    status: "ready",
+                    subtitle: artifactDelivery.subtitle,
+                  title: artifactDelivery.artifact.title,
+                },
+          deliverablesBody: artifactDelivery.deliverablesBody,
+          deliveryStage:
+            artifactDelivery.artifact.kind === "video" &&
+            normalizeArtifactStatus(artifactDelivery.artifact) !== "ready"
+              ? "started"
+              : "delivered",
+          intentId: detail.intent._id as Id<"intents">,
+          workerDisplayName: agent.identity.displayName,
+          workerExternalId: agent.identity.externalId,
+        });
+
+        if (result.submitted) {
+          console.log(`[${agent.key}] submitted media work for ${detail.intent.title}`);
+        }
+
+        continue;
+      }
+
       const delivery = await agent.buildDelivery({
         detail: detail.intent,
         modelId,
@@ -258,6 +327,193 @@ function inferEstimatedDeliveryLabel(agent: AutonomousAgentDefinition) {
     default:
       return "Within 4 hours";
   }
+}
+
+export function hasPendingQueuedArtifact(detail: RequestDetail) {
+  return (
+    detail.artifact?.artifactKind === "video" &&
+    (detail.artifact.status === "queued" || detail.artifact.status === "in_progress")
+  );
+}
+
+type AgentArtifactDelivery = {
+  artifact:
+    | {
+        base64: string;
+        kind: "image";
+        mediaType: string;
+        prompt: string;
+        title: string;
+      }
+    | {
+        base64: string;
+        format: string;
+        kind: "audio";
+        mediaType: string;
+        title: string;
+        transcript: string;
+        voice: string;
+      }
+    | {
+        jobId: string;
+        kind: "video";
+        model: string;
+        progress: number;
+        prompt: string;
+        seconds: string;
+        size: string;
+        status: "completed" | "failed" | "in_progress" | "queued";
+        title: string;
+      };
+  deliverablesBody: string;
+  subtitle: string;
+};
+
+export async function maybeRunDirectArtifactDelivery(input: {
+  agent: AutonomousAgentDefinition;
+  detail: RequestDetail;
+  modelId: string;
+}): Promise<AgentArtifactDelivery | null> {
+  if (!input.detail.intent || !input.agent.directExecution) {
+    return null;
+  }
+
+  const outputKinds = input.agent.directExecution.outputKinds;
+  const usesArtifactPath = outputKinds.some((kind) => kind !== "text");
+
+  if (!usesArtifactPath) {
+    return null;
+  }
+
+  const result = await input.agent.directExecution.invoke({
+    modelId: input.modelId,
+    payload: buildLegacyMediaDirectExecutionPayload({
+      agentKey: input.agent.key,
+      detail: input.detail.intent,
+    }),
+  });
+
+  return toAgentArtifactDelivery(result);
+}
+
+export function buildLegacyMediaDirectExecutionPayload(input: {
+  agentKey: string;
+  detail: Pick<
+    NonNullable<RequestDetail["intent"]>,
+    "body" | "responseInstructions" | "summary" | "title" | "videoSeconds" | "videoSize"
+  >;
+}) {
+  const promptText = [
+    input.detail.title,
+    input.detail.summary,
+    input.detail.body,
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join("\n");
+
+  switch (input.agentKey) {
+    case "image-studio":
+      return {
+        prompt: promptText,
+        title: input.detail.title,
+      };
+    case "voiceover-studio":
+      return {
+        instructions:
+          input.detail.responseInstructions.trim().length > 0
+            ? input.detail.responseInstructions
+            : "Clear, concise, product-ready delivery.",
+        text: input.detail.body.trim().length > 0 ? input.detail.body : promptText,
+        title: input.detail.title,
+        voice: "alloy",
+      };
+    case "motion-video-studio":
+      return {
+        prompt: promptText,
+        seconds: input.detail.videoSeconds,
+        size: input.detail.videoSize,
+        title: input.detail.title,
+      };
+    default:
+      return {
+        prompt: promptText,
+        title: input.detail.title,
+      };
+  }
+}
+
+export function toAgentArtifactDelivery(
+  result: AgentExecutionResult,
+): AgentArtifactDelivery | null {
+  if (result.kind === "image_generation") {
+    return {
+      artifact: {
+        base64: result.base64,
+        kind: "image",
+        mediaType: result.mediaType,
+        prompt: result.prompt,
+        title: result.title,
+      },
+      deliverablesBody:
+        "Generated image asset delivered. The image is attached in this request.",
+      subtitle: "Generated image output",
+    };
+  }
+
+  if (result.kind === "speech_generation") {
+    return {
+      artifact: {
+        base64: result.base64,
+        format: result.format,
+        kind: "audio",
+        mediaType: result.mediaType,
+        title: result.title,
+        transcript: result.transcript,
+        voice: result.voice,
+      },
+      deliverablesBody:
+        "Generated voiceover delivered. The audio artifact is attached in this request.",
+      subtitle: `Voice: ${result.voice}`,
+    };
+  }
+
+  if (result.kind === "video_generation") {
+    return {
+      artifact: {
+        jobId: result.jobId,
+        kind: "video",
+        model: result.model,
+        progress: result.progress,
+        prompt: result.prompt,
+        seconds: result.seconds,
+        size: result.size,
+        status: result.status,
+        title: result.title,
+      },
+      deliverablesBody:
+        result.status === "completed"
+          ? "Generated video delivered. Playback and download attach in this request."
+          : "Video generation started. The artifact is attached in this request and will update as the render progresses.",
+      subtitle: `Video ${result.seconds}s • ${result.size}`,
+    };
+  }
+
+  return null;
+}
+
+function normalizeArtifactStatus(
+  artifact: AgentArtifactDelivery["artifact"],
+) {
+  if (artifact.kind !== "video") {
+    return "ready" as const;
+  }
+
+  if (artifact.status === "completed") {
+    return "ready" as const;
+  }
+
+  return artifact.status;
 }
 
 function inferMaxConcurrentJobs(agent: AutonomousAgentDefinition) {

@@ -67,8 +67,8 @@ npm run agent:watch:all
 
 Operator note:
 
-- `convex:wipe:dev` prints the current Convex deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting data.
-- `convex:reset:dev` is the fastest clean-iteration path: resolve the current selected Convex dev deployment once, wipe it, then reseed the built-in agents against that exact same deployment URL.
+- `convex:wipe:dev` prints the current Convex deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting data and referenced stored files.
+- `convex:reset:dev` is the fastest clean-iteration path: resolve the current selected Convex dev deployment once, wipe rows plus referenced stored files, then reseed the built-in agents against that exact same deployment URL.
 - `agent:seed` syncs agent identities, profiles, supplies, payout metadata, and analytics rows.
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
@@ -79,7 +79,15 @@ cd next-app
 npm run docs:sync:public
 ```
 
+Smoke the legacy autonomous media-worker artifact path:
+
+```bash
+cd next-app
+npm run smoke:legacy-media-workers
+```
+
 ## Changelog
+- `2026-04-30`: Fixed the legacy autonomous media-worker path so built-in `image-studio`, `voiceover-studio`, and `motion-video-studio` can use their direct artifact executors instead of falling back to markdown-only delivery shells.  Image, audio, and queued video artifact metadata now attach through the worker fulfillment path, and `npm run smoke:legacy-media-workers` pins that behavior.
 - `2026-04-30`: Fixed mounted direct specialist artifacts in request threads: when a mounted direct specialist returns image, audio, or video output, Boreal now persists that artifact through request metadata and renders it inline in the same request thread instead of stopping at a generic completion shell.  This restores the intended `Voiceover Studio` inline audio path and keeps mounted video jobs in progress until delivery.
 - `2026-04-30`: Added request-scoped local runtime invites: active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, the same request thread can route follow-up into that runtime without auto-adding Boreal Agent to the team, and team cards now show live runtime-health or activity-based presence instead of a fake always-online state.
 - `2026-04-30`: Added mounted Solana starter prompts in Boreal chat: selecting `Solana Operator` now shows click-to-fill sample prompts for the actually shipped safe paths first, including memo recording, wallet-message signing, simple SOL transfer, swap or stake planning, and wallet-safety review.
@@ -218,8 +226,8 @@ From `next-app/`:
 
 - `npm run dev` starts the Next.js app.
 - `npm run convex:dev` starts the Convex dev loop and syncs schema/functions.
-- `npm run convex:wipe:dev` wipes every app table on the current selected Convex development deployment after printing the target and asking for confirmation.
-- `npm run convex:reset:dev` resolves the current selected Convex development deployment once, wipes it, then reseeds the built-in agents against that same target.
+- `npm run convex:wipe:dev` wipes every app table plus referenced stored files on the current selected Convex development deployment after printing the target and asking for confirmation.
+- `npm run convex:reset:dev` resolves the current selected Convex development deployment once, wipes rows plus referenced stored files, then reseeds the built-in agents against that same target.
 - `npm run typecheck` runs TypeScript without emitting files.
 - `npm run lint` runs ESLint.
 - `npm run build` builds the app for production.

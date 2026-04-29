@@ -1108,6 +1108,15 @@ export const convexFunctionRefs = {
   submitWork: makeFunctionReference<
     "mutation",
     {
+      artifact?: {
+        artifactKind: "image" | "audio" | "video";
+        mediaType?: string;
+        metadataJson?: string;
+        remoteId?: string;
+        status: "ready" | "queued" | "in_progress" | "failed";
+        subtitle: string;
+        title: string;
+      };
       attachments?: Array<{
         fileName: string;
         mediaType: string;
@@ -1115,6 +1124,7 @@ export const convexFunctionRefs = {
         storageId: string;
       }>;
       deliverablesBody: string;
+      deliveryStage?: "delivered" | "started";
       intentId: string;
       workerDisplayName?: string;
       workerExternalId?: string;

@@ -1,5 +1,5 @@
 import type { Id } from "./_generated/dataModel";
-import { mutation, type MutationCtx } from "./_generated/server";
+import { internalMutation, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 import {
@@ -26,6 +26,26 @@ import { queueWebhookDeliveries } from "./webhooks";
 
 export const submitWork = mutation({
   args: {
+    artifact: v.optional(
+      v.object({
+        artifactKind: v.union(
+          v.literal("image"),
+          v.literal("audio"),
+          v.literal("video"),
+        ),
+        mediaType: v.optional(v.string()),
+        metadataJson: v.optional(v.string()),
+        remoteId: v.optional(v.string()),
+        status: v.union(
+          v.literal("ready"),
+          v.literal("queued"),
+          v.literal("in_progress"),
+          v.literal("failed"),
+        ),
+        subtitle: v.string(),
+        title: v.string(),
+      }),
+    ),
     attachments: v.optional(
       v.array(
         v.object({
@@ -37,6 +57,9 @@ export const submitWork = mutation({
       ),
     ),
     deliverablesBody: v.string(),
+    deliveryStage: v.optional(
+      v.union(v.literal("delivered"), v.literal("started")),
+    ),
     intentId: v.id("intents"),
     workerDisplayName: v.optional(v.string()),
     workerExternalId: v.optional(v.string()),
@@ -44,7 +67,7 @@ export const submitWork = mutation({
   handler: async (ctx, args) => {
     const intent = await ctx.db.get(args.intentId);
 
-    if (!intent || !args.workerExternalId) {
+    if (!intent || !intent.ownerUserId || !args.workerExternalId) {
       return { submitted: false };
     }
 
@@ -115,162 +138,97 @@ export const submitWork = mutation({
         transactionId,
       });
     }
+    const workerIdentity = {
+      actorKind: worker.actorKind,
+      displayName: args.workerDisplayName ?? worker.displayName ?? "Worker",
+      externalId: args.workerExternalId ?? worker.externalId ?? null,
+      handle: worker.handle ?? null,
+      userId: worker._id,
+    };
+    const scopedIntent = {
+      ...intent,
+      ownerUserId: intent.ownerUserId,
+    };
 
-    await ctx.db.patch(activeFulfillment._id, {
-      completedSummary: args.deliverablesBody,
-      environment: activeFulfillment.environment ?? getCommerceEnvironment(),
-      fulfillerUserId: worker._id,
-      scenarioId:
-        activeFulfillment.scenarioId ?? getScenarioId("custom_scoped_work"),
-      settlementStatus:
-        acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
-      status: "fulfilled",
-    });
-
-    await releaseSupplyCapacity(ctx, activeFulfillment.supplyId);
-
-    await ctx.db.insert("evidences", {
-      attachments: args.attachments && args.attachments.length > 0 ? args.attachments : undefined,
-      body: args.deliverablesBody,
-      createdAt: now,
-      fulfillmentId: activeFulfillment._id,
-      mediaType: "text/markdown",
-      url: undefined,
-    });
-
-    await ctx.db.patch(intent._id, {
-      completedAt: now,
-      reviewRating: intent.reviewRating,
-      status: "fulfilled",
-      updatedAt: now,
-    });
-
-    await ctx.db.insert("chatMessages", {
-      body: `${args.workerDisplayName ?? worker.displayName ?? "Worker"} submitted the work.`,
-      conversationId: intent.conversationId ?? crypto.randomUUID(),
-      intentKey: intent.intentKey,
-      messageId: crypto.randomUUID(),
-      provider: "boreal-agent",
-      role: "user",
-      senderActorKind: worker.actorKind,
-      senderDisplayName: args.workerDisplayName ?? worker.displayName ?? "Worker",
-      senderExternalId: args.workerExternalId,
-      senderHandle: worker.handle,
-      createdAt: now,
-    });
-
-    await ctx.db.insert("activityEvents", {
-      createdAt: now,
-      entityId: intent.intentKey,
-      entityType: "intent",
-      payload: JSON.stringify({
-        attachmentCount: args.attachments?.length ?? 0,
-        proposerUserId: worker._id,
-      }),
-      type: "fulfillment.submitted",
-    });
-
-    await refreshProfileAnalyticsForUser(ctx, worker._id);
-    await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);
-
-    if (transactionId) {
-      await updateTransactionById(ctx, transactionId, {
-        fulfillmentId: activeFulfillment._id,
-        settlementStatus:
-          acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
-        status: "fulfilled",
-      });
-
-      const transaction = await ctx.db.get(transactionId);
-      const settlementId = await ensureSettlementForTransaction(ctx, {
-        amount: transaction?.amount ?? acceptedProposal.price,
-        chainFamily: transaction?.chainFamily,
-        currency: transaction?.currency ?? acceptedProposal.currency,
-        environment: transaction?.environment ?? getCommerceEnvironment(),
-        networkKey: transaction?.networkKey,
-        protocol: transaction?.paymentProtocol ?? null,
-        status:
-          acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+    if (args.deliveryStage === "started") {
+      await recordAcceptedFulfillmentStart(ctx, {
+        acceptedProposal,
+        artifact: args.artifact,
+        attachments: args.attachments,
+        deliverablesBody: args.deliverablesBody,
+        fulfillment: activeFulfillment,
+        intent: scopedIntent,
+        now,
         transactionId,
+        worker: workerIdentity,
       });
 
-      const payoutTargets =
-        acceptedProposal.price > 0
-          ? await ensurePayoutRecordsForProposal(ctx, {
-              amount: transaction?.amount ?? acceptedProposal.price,
-              chainFamily: transaction?.chainFamily,
-              currency: transaction?.currency ?? acceptedProposal.currency,
-              environment: transaction?.environment ?? getCommerceEnvironment(),
-              networkKey: transaction?.networkKey,
-              proposal: acceptedProposal,
-              settlementId,
-              transactionId,
-            })
-          : [];
-
-      await recordTransactionAuditEvent(ctx, {
-        fulfillmentId: activeFulfillment._id,
-        intentId: intent._id,
-        message: `${args.workerDisplayName ?? worker.displayName ?? "Worker"} submitted final work.`,
-        metadata: {
-          attachmentCount: args.attachments?.length ?? 0,
-        },
-        proposalId: acceptedProposal._id as never,
-        scenarioType: "custom_scoped_work",
-        source: "fulfillment",
-        stage: "delivery",
-        status: "passed",
-        transactionId,
-      });
-
-      await recordTransactionAuditEvent(ctx, {
-        fulfillmentId: activeFulfillment._id,
-        intentId: intent._id,
-        message: "Settlement is ready for payout after work delivery.",
-        metadata: {
-          settlementStatus:
-            acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
-        },
-        proposalId: acceptedProposal._id as never,
-        scenarioType: "custom_scoped_work",
-        settlementId,
-        source: "fulfillment",
-        stage: "settlement",
-        status: acceptedProposal.price > 0 ? "passed" : "info",
-        transactionId,
-      });
-
-      await queueWebhookDeliveries(ctx, {
-        data: {
-          collectiveMembers: acceptedProposal.collectiveMembers ?? null,
-          fulfillmentId: activeFulfillment._id,
-          memberRoles: acceptedProposal.memberRoles ?? null,
-          settlementStatus:
-            acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
-          splitPlan: acceptedProposal.splitPlan ?? null,
-          transactionId,
-        },
-        eventType: "inbox.delivered",
-        message: "Supplier delivered work.",
-        ownerExternalId: args.workerExternalId,
-        requestToken: createPublicRequestToken(intent._id),
-        status: "delivered",
-        stream: "inbox",
-      });
-
-      if (acceptedProposal.price > 0 && payoutTargets.length > 0) {
-        await queuePayoutReadyWebhooks(ctx, {
-          collectiveMembers: acceptedProposal.collectiveMembers ?? null,
-          memberRoles: acceptedProposal.memberRoles ?? null,
-          payoutTargets,
-          requestToken: createPublicRequestToken(intent._id),
-          splitPlan: acceptedProposal.splitPlan ?? null,
-          transactionId,
-        });
-      }
+      return { submitted: true };
     }
 
+    await finalizeAcceptedFulfillmentDelivery(ctx, {
+      acceptedProposal,
+      artifact: args.artifact,
+      attachments: args.attachments,
+      deliverablesBody: args.deliverablesBody,
+      fulfillment: activeFulfillment,
+      intent: scopedIntent,
+      now,
+      postTimelineMessage: true,
+      transactionId,
+      worker: workerIdentity,
+    });
+
     return { submitted: true };
+  },
+});
+
+export const finalizeQueuedArtifactFulfillment = internalMutation({
+  args: {
+    intentKey: v.string(),
+    summary: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const state = await resolveAcceptedFulfillmentState(ctx, args.intentKey);
+
+    if (!state.intent || !state.acceptedProposal || !state.fulfillment) {
+      return { finalized: false, reason: "fulfillment_not_found" as const };
+    }
+
+    if (!state.intent.ownerUserId) {
+      return { finalized: false, reason: "owner_not_found" as const };
+    }
+
+    if (state.fulfillment.status === "fulfilled" || state.intent.status === "fulfilled") {
+      return { finalized: true, reason: "already_finalized" as const };
+    }
+
+    const worker = await getWorkerIdentity(ctx, state.fulfillment.fulfillerUserId);
+
+    if (!worker) {
+      return { finalized: false, reason: "worker_not_found" as const };
+    }
+
+    await finalizeAcceptedFulfillmentDelivery(ctx, {
+      acceptedProposal: state.acceptedProposal,
+      artifact: undefined,
+      attachments: undefined,
+      deliverablesBody:
+        args.summary ??
+        state.fulfillment.completedSummary ??
+        "Video completed. Playback and download are available in this request.",
+      fulfillment: state.fulfillment,
+      intent: {
+        ...state.intent,
+        ownerUserId: state.intent.ownerUserId,
+      },
+      now: Date.now(),
+      postTimelineMessage: false,
+      transactionId: state.fulfillment.transactionId,
+      worker,
+    });
+
+    return { finalized: true, reason: "finalized" as const };
   },
 });
 
@@ -580,6 +538,539 @@ export const markRequestFulfilled = mutation({
     return { fulfilled: true };
   },
 });
+
+async function recordAcceptedFulfillmentStart(
+  ctx: MutationCtx,
+  input: {
+    acceptedProposal: {
+      _id: string;
+      currency: string;
+      price: number;
+    };
+    artifact?: {
+      artifactKind: "audio" | "image" | "video";
+      mediaType?: string;
+      metadataJson?: string;
+      remoteId?: string;
+      status: "failed" | "in_progress" | "queued" | "ready";
+      subtitle: string;
+      title: string;
+    };
+    attachments?: Array<{
+      fileName: string;
+      mediaType: string;
+      sizeBytes: number;
+      storageId: Id<"_storage">;
+    }>;
+    deliverablesBody: string;
+    fulfillment: {
+      _id: Id<"fulfillments">;
+      environment?: CommerceEnvironment;
+      fulfillerUserId?: string;
+      intentKey: string;
+      scenarioId?: string;
+      supplyId?: Id<"supplies">;
+      transactionId?: Id<"transactions">;
+    };
+    intent: {
+      _id: Id<"intents">;
+      _creationTime: number;
+      conversationId?: string;
+      intentKey: string;
+      ownerUserId: string;
+      startedAt?: number;
+      status: string;
+    };
+    now: number;
+    transactionId: Id<"transactions">;
+    worker: WorkerIdentity;
+  },
+) {
+  await ctx.db.patch(input.fulfillment._id, {
+    completedSummary: input.deliverablesBody,
+    environment: input.fulfillment.environment ?? getCommerceEnvironment(),
+    fulfillerUserId: input.worker.userId,
+    scenarioId:
+      input.fulfillment.scenarioId ?? getScenarioId("custom_scoped_work"),
+    settlementStatus:
+      input.acceptedProposal.price > 0 ? "pending" : "not_applicable",
+    status: "active",
+  });
+
+  await ctx.db.insert("evidences", {
+    attachments:
+      input.attachments && input.attachments.length > 0 ? input.attachments : undefined,
+    body: input.deliverablesBody,
+    createdAt: input.now,
+    fulfillmentId: input.fulfillment._id,
+    mediaType: "text/markdown",
+    url: undefined,
+  });
+
+  if (input.artifact) {
+    await upsertArtifactRecord(ctx, {
+      artifact: input.artifact,
+      conversationId: input.intent.conversationId ?? crypto.randomUUID(),
+      intentKey: input.intent.intentKey,
+      now: input.now,
+    });
+  }
+
+  await ctx.db.patch(input.intent._id, {
+    startedAt: input.intent.startedAt ?? input.now,
+    status: "in_progress",
+    updatedAt: input.now,
+  });
+
+  await ctx.db.insert("chatMessages", {
+    body:
+      input.artifact?.artifactKind === "video"
+        ? `${input.worker.displayName} started the render. Playback will appear in this request when ready.`
+        : `${input.worker.displayName} started the work.`,
+    conversationId: input.intent.conversationId ?? crypto.randomUUID(),
+    createdAt: input.now,
+    intentKey: input.intent.intentKey,
+    messageId: crypto.randomUUID(),
+    provider: "boreal-agent",
+    role: "assistant",
+    senderActorKind: input.worker.actorKind,
+    senderDisplayName: input.worker.displayName,
+    senderExternalId: input.worker.externalId ?? undefined,
+    senderHandle: input.worker.handle ?? undefined,
+  });
+
+  await ctx.db.insert("activityEvents", {
+    createdAt: input.now,
+    entityId: input.intent.intentKey,
+    entityType: "intent",
+    payload: JSON.stringify({
+      attachmentCount: input.attachments?.length ?? 0,
+      artifactKind: input.artifact?.artifactKind ?? null,
+      proposerUserId: input.worker.userId,
+      status: "in_progress",
+    }),
+    type: "fulfillment.started",
+  });
+
+  await refreshProfileAnalyticsForUser(ctx, input.worker.userId);
+  await refreshProfileAnalyticsForUser(ctx, input.intent.ownerUserId);
+
+  await updateTransactionById(ctx, input.transactionId, {
+    fulfillmentId: input.fulfillment._id,
+    settlementStatus:
+      input.acceptedProposal.price > 0 ? "pending" : "not_applicable",
+    status: "active",
+  });
+}
+
+async function finalizeAcceptedFulfillmentDelivery(
+  ctx: MutationCtx,
+  input: {
+    acceptedProposal: {
+      _id: string;
+      collectiveMembers?: string[];
+      currency: string;
+      memberRoles?: Array<{ memberId: string; role: string }>;
+      price: number;
+      proposerUserId?: string;
+      splitPlan?: Array<{ memberId: string; percent: number }>;
+    };
+    artifact?: {
+      artifactKind: "audio" | "image" | "video";
+      mediaType?: string;
+      metadataJson?: string;
+      remoteId?: string;
+      status: "failed" | "in_progress" | "queued" | "ready";
+      subtitle: string;
+      title: string;
+    };
+    attachments?: Array<{
+      fileName: string;
+      mediaType: string;
+      sizeBytes: number;
+      storageId: Id<"_storage">;
+    }>;
+    deliverablesBody: string;
+    fulfillment: {
+      _id: Id<"fulfillments">;
+      completedSummary?: string;
+      environment?: CommerceEnvironment;
+      fulfillerUserId?: string;
+      intentKey: string;
+      scenarioId?: string;
+      supplyId?: Id<"supplies">;
+      transactionId?: Id<"transactions">;
+    };
+    intent: {
+      _id: Id<"intents">;
+      _creationTime: number;
+      conversationId?: string;
+      intentKey: string;
+      ownerUserId: string;
+      reviewRating?: number;
+      startedAt?: number;
+      status: string;
+      title?: string;
+    };
+    now: number;
+    postTimelineMessage: boolean;
+    transactionId?: Id<"transactions">;
+    worker: WorkerIdentity;
+  },
+) {
+  const transactionId =
+    input.transactionId ??
+    input.fulfillment.transactionId ??
+    (await ensureWorkTransaction(ctx, {
+      amount: input.acceptedProposal.price,
+      buyerUserId: input.intent.ownerUserId,
+      currency: input.acceptedProposal.currency,
+      environment: getCommerceEnvironment(),
+      intentId: input.intent._id,
+      intentKey: input.intent.intentKey,
+      proposalId: input.acceptedProposal._id as never,
+      sellerUserId: input.acceptedProposal.proposerUserId,
+      status: "fulfilled",
+      titleSnapshot: input.intent.title ?? input.intent.intentKey,
+    }));
+
+  await ctx.db.patch(input.fulfillment._id, {
+    completedSummary: input.deliverablesBody,
+    environment: input.fulfillment.environment ?? getCommerceEnvironment(),
+    fulfillerUserId: input.worker.userId,
+    scenarioId:
+      input.fulfillment.scenarioId ?? getScenarioId("custom_scoped_work"),
+    settlementStatus:
+      input.acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+    status: "fulfilled",
+    transactionId,
+  });
+
+  await releaseSupplyCapacity(ctx, input.fulfillment.supplyId);
+
+  const hasEvidence = await hasFulfillmentEvidence(ctx, input.fulfillment._id);
+  if (!hasEvidence) {
+    await ctx.db.insert("evidences", {
+      attachments:
+        input.attachments && input.attachments.length > 0 ? input.attachments : undefined,
+      body: input.deliverablesBody,
+      createdAt: input.now,
+      fulfillmentId: input.fulfillment._id,
+      mediaType: "text/markdown",
+      url: undefined,
+    });
+  }
+
+  if (input.artifact) {
+    await upsertArtifactRecord(ctx, {
+      artifact: input.artifact,
+      conversationId: input.intent.conversationId ?? crypto.randomUUID(),
+      intentKey: input.intent.intentKey,
+      now: input.now,
+    });
+  }
+
+  await ctx.db.patch(input.intent._id, {
+    completedAt: input.now,
+    reviewRating: input.intent.reviewRating,
+    startedAt: input.intent.startedAt ?? input.now,
+    status: "fulfilled",
+    updatedAt: input.now,
+  });
+
+  if (input.postTimelineMessage) {
+    await ctx.db.insert("chatMessages", {
+      body: `${input.worker.displayName} submitted the work.`,
+      conversationId: input.intent.conversationId ?? crypto.randomUUID(),
+      intentKey: input.intent.intentKey,
+      messageId: crypto.randomUUID(),
+      provider: "boreal-agent",
+      role: "user",
+      senderActorKind: input.worker.actorKind,
+      senderDisplayName: input.worker.displayName,
+      senderExternalId: input.worker.externalId ?? undefined,
+      senderHandle: input.worker.handle ?? undefined,
+      createdAt: input.now,
+    });
+  }
+
+  await ctx.db.insert("activityEvents", {
+    createdAt: input.now,
+    entityId: input.intent.intentKey,
+    entityType: "intent",
+    payload: JSON.stringify({
+      attachmentCount: input.attachments?.length ?? 0,
+      artifactKind: input.artifact?.artifactKind ?? null,
+      proposerUserId: input.worker.userId,
+    }),
+    type: "fulfillment.submitted",
+  });
+
+  await refreshProfileAnalyticsForUser(ctx, input.worker.userId);
+  await refreshProfileAnalyticsForUser(ctx, input.intent.ownerUserId);
+
+  await updateTransactionById(ctx, transactionId, {
+    fulfillmentId: input.fulfillment._id,
+    settlementStatus:
+      input.acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+    status: "fulfilled",
+  });
+
+  const transaction = await ctx.db.get(transactionId);
+  const settlementId = await ensureSettlementForTransaction(ctx, {
+    amount: transaction?.amount ?? input.acceptedProposal.price,
+    chainFamily: transaction?.chainFamily,
+    currency: transaction?.currency ?? input.acceptedProposal.currency,
+    environment: transaction?.environment ?? getCommerceEnvironment(),
+    networkKey: transaction?.networkKey,
+    protocol: transaction?.paymentProtocol ?? null,
+    status:
+      input.acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+    transactionId,
+  });
+
+  const payoutTargets =
+    input.acceptedProposal.price > 0
+      ? await ensurePayoutRecordsForProposal(ctx, {
+          amount: transaction?.amount ?? input.acceptedProposal.price,
+          chainFamily: transaction?.chainFamily,
+          currency: transaction?.currency ?? input.acceptedProposal.currency,
+          environment: transaction?.environment ?? getCommerceEnvironment(),
+          networkKey: transaction?.networkKey,
+          proposal: input.acceptedProposal,
+          settlementId,
+          transactionId,
+        })
+      : [];
+
+  await recordTransactionAuditEvent(ctx, {
+    fulfillmentId: input.fulfillment._id,
+    intentId: input.intent._id,
+    message: `${input.worker.displayName} submitted final work.`,
+    metadata: {
+      attachmentCount: input.attachments?.length ?? 0,
+    },
+    proposalId: input.acceptedProposal._id as never,
+    scenarioType: "custom_scoped_work",
+    source: "fulfillment",
+    stage: "delivery",
+    status: "passed",
+    transactionId,
+  });
+
+  await recordTransactionAuditEvent(ctx, {
+    fulfillmentId: input.fulfillment._id,
+    intentId: input.intent._id,
+    message: "Settlement is ready for payout after work delivery.",
+    metadata: {
+      settlementStatus:
+        input.acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+    },
+    proposalId: input.acceptedProposal._id as never,
+    scenarioType: "custom_scoped_work",
+    settlementId,
+    source: "fulfillment",
+    stage: "settlement",
+    status: input.acceptedProposal.price > 0 ? "passed" : "info",
+    transactionId,
+  });
+
+  await queueWebhookDeliveries(ctx, {
+    data: {
+      collectiveMembers: input.acceptedProposal.collectiveMembers ?? null,
+      fulfillmentId: input.fulfillment._id,
+      memberRoles: input.acceptedProposal.memberRoles ?? null,
+      settlementStatus:
+        input.acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
+      splitPlan: input.acceptedProposal.splitPlan ?? null,
+      transactionId,
+    },
+    eventType: "inbox.delivered",
+    message: "Supplier delivered work.",
+    ownerExternalId: input.worker.externalId,
+    requestToken: createPublicRequestToken(input.intent._id),
+    status: "delivered",
+    stream: "inbox",
+  });
+
+  if (input.acceptedProposal.price > 0 && payoutTargets.length > 0) {
+    await queuePayoutReadyWebhooks(ctx, {
+      collectiveMembers: input.acceptedProposal.collectiveMembers ?? null,
+      fallbackExternalId: input.worker.externalId,
+      memberRoles: input.acceptedProposal.memberRoles ?? null,
+      payoutTargets,
+      requestToken: createPublicRequestToken(input.intent._id),
+      splitPlan: input.acceptedProposal.splitPlan ?? null,
+      transactionId,
+    });
+  }
+}
+
+async function resolveAcceptedFulfillmentState(
+  ctx: MutationCtx,
+  intentKey: string,
+) {
+  const intent = await ctx.db
+    .query("intents")
+    .withIndex("by_intentKey", (queryBuilder) => queryBuilder.eq("intentKey", intentKey))
+    .unique();
+
+  if (!intent) {
+    return {
+      acceptedProposal: null,
+      fulfillment: null,
+      intent: null,
+    };
+  }
+
+  const acceptedProposals = await ctx.db
+    .query("proposals")
+    .withIndex("by_intentKey_and_status", (queryBuilder) =>
+      queryBuilder.eq("intentKey", intentKey).eq("status", "accepted"),
+    )
+    .collect();
+  const acceptedProposal = acceptedProposals[0] ?? null;
+  const candidateFulfillments = [
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intentKey).eq("status", "approved"),
+      )
+      .collect()),
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intentKey).eq("status", "active"),
+      )
+      .collect()),
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intentKey).eq("status", "blocked"),
+      )
+      .collect()),
+    ...(await ctx.db
+      .query("fulfillments")
+      .withIndex("by_intentKey_and_status", (queryBuilder) =>
+        queryBuilder.eq("intentKey", intentKey).eq("status", "fulfilled"),
+      )
+      .collect()),
+  ];
+  const fulfillment =
+    candidateFulfillments.find((entry) =>
+      acceptedProposal ? entry.acceptedProposalId === acceptedProposal._id : true,
+    ) ?? null;
+
+  return {
+    acceptedProposal,
+    fulfillment,
+    intent,
+  };
+}
+
+async function hasFulfillmentEvidence(
+  ctx: MutationCtx,
+  fulfillmentId: Id<"fulfillments">,
+) {
+  const evidence = await ctx.db
+    .query("evidences")
+    .withIndex("by_fulfillmentId_and_createdAt", (queryBuilder) =>
+      queryBuilder.eq("fulfillmentId", fulfillmentId),
+    )
+    .take(1);
+
+  return evidence.length > 0;
+}
+
+async function upsertArtifactRecord(
+  ctx: MutationCtx,
+  input: {
+    artifact: {
+      artifactKind: "audio" | "image" | "video";
+      mediaType?: string;
+      metadataJson?: string;
+      remoteId?: string;
+      status: "failed" | "in_progress" | "queued" | "ready";
+      subtitle: string;
+      title: string;
+    };
+    conversationId: string;
+    intentKey: string;
+    now: number;
+  },
+) {
+  if (input.artifact.remoteId) {
+    const existing = await ctx.db
+      .query("artifacts")
+      .withIndex("by_remoteId", (queryBuilder) =>
+        queryBuilder.eq("remoteId", input.artifact.remoteId!),
+      )
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        artifactKind: input.artifact.artifactKind,
+        conversationId: input.conversationId,
+        intentKey: input.intentKey,
+        mediaType: input.artifact.mediaType,
+        metadataJson: input.artifact.metadataJson,
+        provider: "boreal-agent",
+        status: input.artifact.status,
+        subtitle: input.artifact.subtitle,
+        title: input.artifact.title,
+        updatedAt: input.now,
+      });
+
+      return existing._id;
+    }
+  }
+
+  return ctx.db.insert("artifacts", {
+    artifactKind: input.artifact.artifactKind,
+    conversationId: input.conversationId,
+    createdAt: input.now,
+    intentKey: input.intentKey,
+    mediaType: input.artifact.mediaType,
+    metadataJson: input.artifact.metadataJson,
+    provider: "boreal-agent",
+    remoteId: input.artifact.remoteId,
+    status: input.artifact.status,
+    subtitle: input.artifact.subtitle,
+    title: input.artifact.title,
+    updatedAt: input.now,
+  });
+}
+
+type WorkerIdentity = {
+  actorKind: "agent" | "human" | "tool";
+  displayName: string;
+  externalId: string | null;
+  handle: string | null;
+  userId: string;
+};
+
+async function getWorkerIdentity(
+  ctx: MutationCtx,
+  userId: string | undefined,
+): Promise<WorkerIdentity | null> {
+  if (!userId) {
+    return null;
+  }
+
+  const user = await ctx.db.get(userId as Id<"users">);
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    actorKind: user.actorKind,
+    displayName: user.displayName ?? "Worker",
+    externalId: user.externalId ?? null,
+    handle: user.handle ?? null,
+    userId: user._id,
+  };
+}
 
 async function ensurePayoutRecord(
   ctx: MutationCtx,

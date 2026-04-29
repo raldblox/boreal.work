@@ -1,3 +1,4 @@
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -123,12 +124,19 @@ export const syncVideoArtifactByRemoteId = mutation({
           ? "blocked"
           : "in_progress";
 
-    await ctx.db.patch(intent._id, {
-      completedAt: args.status === "ready" ? now : intent.completedAt,
-      startedAt: intent.startedAt ?? now,
-      status: nextIntentStatus,
-      updatedAt: now,
-    });
+    if (args.status === "ready") {
+      await ctx.runMutation(internal.fulfillments.finalizeQueuedArtifactFulfillment, {
+        intentKey: intent.intentKey,
+        summary: "Video completed. Playback and download are available in this request.",
+      });
+    } else {
+      await ctx.db.patch(intent._id, {
+        completedAt: intent.completedAt,
+        startedAt: intent.startedAt ?? now,
+        status: nextIntentStatus,
+        updatedAt: now,
+      });
+    }
 
     await ctx.db.insert("activityEvents", {
       createdAt: now,
