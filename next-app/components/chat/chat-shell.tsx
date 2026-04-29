@@ -194,6 +194,11 @@ import {
   BOREAL_AGENT_EXTERNAL_ID,
 } from "@/lib/boreal/boreal-agent"
 import { getMountedAgentStarterPrompts } from "@/lib/boreal/agents/mounted-agent-starter-prompts"
+import {
+  getAutonomousAgentKeyFromSourceCapabilityId,
+  getPublicReadySpecialistDisplayName,
+  getPublicReadySpecialistMeta,
+} from "@/lib/boreal/agents/public-ready-specialists"
 import type { NormalizedConnectedWallet } from "@/lib/boreal/integrations/service-providers/wallets/reown"
 import {
   compactHexLike,
@@ -201,6 +206,7 @@ import {
 } from "@/lib/boreal/solana-thread-actions"
 import { cn } from "@/lib/utils"
 import { usePayment } from "@/hooks/use-payment"
+import { useShellData } from "@/components/shell-data-provider"
 import {
   inferInvocationAccess,
   parsePaymentResponseHeader,
@@ -210,6 +216,13 @@ import {
   listPublicPapers,
   type PublicPaperRecord,
 } from "@/lib/boreal/papers-data"
+import {
+  clearDraftSessions as clearStoredDraftSessions,
+  listDraftSessions,
+  removeDraftSession,
+  upsertDraftSession,
+} from "@/lib/boreal/shell-cache/draft-sessions"
+import type { DraftSessionRecord } from "@/lib/boreal/shell-cache/types"
 
 import { IntentSidebar } from "./intent-sidebar"
 import {
@@ -226,7 +239,6 @@ import {
 } from "./request-ui"
 import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel"
 import { FocusSheet } from "@/components/workboard/focus-sheet"
-import { DotmTriangle16 } from "../ui/dotm-triangle-16"
 import { DotmSquare17 } from "../ui/dotm-square-17"
 
 type ChatMessage = {
@@ -290,12 +302,6 @@ const centerSheetTitleByView: Record<CenterSheetView, string> = {
 }
 
 const centerSheetNavHrefs = Object.keys(centerSheetViewByHref)
-
-const sidebarIntentQuery = makeFunctionReference<
-  "query",
-  { limit: number; ownerExternalId?: string },
-  SidebarIntentPreview[]
->("intents:listSidebar")
 
 const requestDetailQuery = makeFunctionReference<
   "query",
@@ -423,6 +429,8 @@ export function ChatShell() {
 
   const [conversationId, setConversationId] = useState<string | undefined>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [draftSessions, setDraftSessions] = useState<DraftSessionRecord[]>([])
+  const [isDraftSessionsReady, setIsDraftSessionsReady] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isApprovingRequest, setIsApprovingRequest] = useState(false)
@@ -509,6 +517,10 @@ export function ChatShell() {
   const ownerExternalId = session?.user?.id
   const isXAuthenticated =
     sessionStatus === "authenticated" && Boolean(ownerExternalId)
+  const draftOwnerScope =
+    isXAuthenticated && ownerExternalId
+      ? (`user:${ownerExternalId}` as const)
+      : ("public" as const)
   const isPublicDiscoveryOnly = !isXAuthenticated
   const {
     connectedWallets,
@@ -520,38 +532,20 @@ export function ChatShell() {
     openWalletModal,
     payWithX402,
   } = usePayment()
+  const {
+    activeCart,
+    checkoutHistory,
+    isReady: isShellDataReady,
+    myProfileRecord,
+    purgePublicMarket,
+    refreshShellData,
+    sidebarIntents,
+    walletAccounts,
+  } = useShellData()
 
   function handleOpenWalletModal() {
     void openWalletModal()
   }
-
-  const sidebarIntentsResult = useQuery(
-    sidebarIntentQuery,
-    isXAuthenticated
-      ? {
-        limit: 24,
-        ownerExternalId,
-      }
-      : "skip"
-  ) as SidebarIntentPreview[] | undefined
-  const conversationSidebarResult = useQuery(
-    convexFunctionRefs.listBorealChatSessions,
-    isXAuthenticated && ownerExternalId
-      ? {
-        limit: borealChatSessionLimit,
-        messageLimit: 24,
-        ownerExternalId,
-      }
-      : "skip"
-  )
-  const sidebarIntents = useMemo(
-    () => sidebarIntentsResult ?? [],
-    [sidebarIntentsResult]
-  )
-  const borealChatSessions = useMemo(
-    () => (conversationSidebarResult ?? []) as BorealChatSessionRecord,
-    [conversationSidebarResult]
-  )
   const visibleSidebarIntents = useMemo(
     () => sidebarIntents.filter((intent) => intent.status !== "closed"),
     [sidebarIntents]
@@ -597,22 +591,6 @@ export function ChatShell() {
     convexFunctionRefs.getBorealAgentStats,
     activeProfileId === "boreal-agent" ? {} : "skip"
   )
-  const activeCartResult = useQuery(
-    convexFunctionRefs.getActiveCart,
-    ownerExternalId ? { ownerExternalId } : "skip"
-  )
-  const checkoutHistoryResult = useQuery(
-    convexFunctionRefs.listCheckoutHistory,
-    ownerExternalId ? { limit: 12, ownerExternalId } : "skip"
-  )
-  const myProfileResult = useQuery(
-    convexFunctionRefs.getMyProfile,
-    ownerExternalId ? { ownerExternalId } : "skip"
-  )
-  const walletAccountsResult = useQuery(
-    convexFunctionRefs.getMyWalletAccounts,
-    ownerExternalId ? { ownerExternalId } : "skip"
-  )
   const isRequestLoading =
     isXAuthenticated &&
     Boolean(activeIntentId) &&
@@ -632,10 +610,6 @@ export function ChatShell() {
         getDefaultRequestNavigationView(requestNotificationCounts)
       )
       : selectedCenterTab
-  const activeCart = (activeCartResult ?? null) as ActiveCart
-  const checkoutHistory = (checkoutHistoryResult ?? []) as CheckoutRecord[]
-  const myProfileRecord = (myProfileResult ?? null) as MyProfileRecord
-  const walletAccounts = (walletAccountsResult ?? []) as WalletAccountRecord
   const localRuntimeSupplies = useMemo(
     () =>
       (myProfileRecord?.supplies ?? []).filter((supply) =>
@@ -650,7 +624,7 @@ export function ChatShell() {
   const isConversationLoading =
     isXAuthenticated &&
     Boolean(!activeIntentId) &&
-    conversationSidebarResult === undefined &&
+    (!isShellDataReady || !isDraftSessionsReady) &&
     messages.length === 0
   const isMissingConversation = false
   const isArchivedTranscript = Boolean(
@@ -730,7 +704,6 @@ export function ChatShell() {
   const inviteRuntimeToRequest = useMutation(
     convexFunctionRefs.inviteRuntimeToRequest
   )
-  const syncWalletAccount = useMutation(convexFunctionRefs.syncWalletAccount)
   const setDefaultPayoutWalletAccount = useMutation(
     convexFunctionRefs.setDefaultPayoutWalletAccount
   )
@@ -777,63 +750,18 @@ export function ChatShell() {
     requestDetail?.conversationId ??
     undefined
 
-  const persistedCurrentSession =
-    !activeIntentId && activeConversationId
-      ? borealChatSessions.find(
-        (session) =>
-          session.conversation.conversationId === activeConversationId
-      ) ?? null
-      : null
-  const archivedBorealSessions = useMemo(() => {
-    const withoutCurrentLiveSession =
-      !activeIntentId && messages.length > 0 && activeConversationId
-        ? borealChatSessions.filter(
-          (session) =>
-            session.conversation.conversationId !== activeConversationId
-        )
-        : borealChatSessions
-
-    return withoutCurrentLiveSession.slice().reverse()
-  }, [activeConversationId, activeIntentId, borealChatSessions, messages.length])
-  const liveBorealSession =
-    !activeIntentId && messages.length > 0
-      ? {
-        conversation: {
-          _id: activeConversationId ?? "current-session",
-          conversationId: activeConversationId ?? "current-session",
-          intentCount: persistedCurrentSession?.conversation.intentCount ?? 0,
-          lastMessageBody:
-            messages[messages.length - 1]?.content ??
-            persistedCurrentSession?.conversation.lastMessageBody ??
-            null,
-          lastMessageRole:
-            messages[messages.length - 1]?.role ??
-            persistedCurrentSession?.conversation.lastMessageRole ??
-            null,
-          latestMessageAt:
-            messages[messages.length - 1]?.createdAt ??
-            persistedCurrentSession?.conversation.latestMessageAt ??
-            Date.now(),
-          messageCount:
-            (persistedCurrentSession?.conversation.messageCount ?? 0) +
-            messages.length,
-          title: persistedCurrentSession?.conversation.title ?? "Current session",
-          updatedAt:
-            messages[messages.length - 1]?.createdAt ??
-            persistedCurrentSession?.conversation.updatedAt ??
-            Date.now(),
-        },
-        linkedRequests: persistedCurrentSession?.linkedRequests ?? [],
-        messages: mergeOptimisticSessionMessages(
-          persistedCurrentSession?.messages ?? [],
-          messages
-        ),
-      }
-      : null
-  const borealTimelineSessions = liveBorealSession
-    ? [...archivedBorealSessions, liveBorealSession]
-    : archivedBorealSessions
-  const hasMoreBorealSessions = borealChatSessions.length >= borealChatSessionLimit
+  const borealChatSessions = useMemo(
+    () =>
+      draftSessions.map((session) =>
+        mapDraftSessionToTimelineSession(session),
+      ),
+    [draftSessions],
+  )
+  const borealTimelineSessions = useMemo(
+    () => borealChatSessions.slice(-borealChatSessionLimit),
+    [borealChatSessionLimit, borealChatSessions],
+  )
+  const hasMoreBorealSessions = borealChatSessions.length > borealChatSessionLimit
 
   const effectiveWorkspace =
     activeIntentId && requestWorkspace ? requestWorkspace : workspace
@@ -930,6 +858,17 @@ export function ChatShell() {
     return lines.join("\n")
   }
 
+  async function reloadDraftSessions() {
+    const storedSessions = await listDraftSessions(draftOwnerScope)
+    setDraftSessions(storedSessions)
+    return storedSessions
+  }
+
+  async function refreshRequestShellData() {
+    await refreshShellData(["sidebar-summary"])
+    purgePublicMarket(["requests"])
+  }
+
   function openAccountSheet() {
     if (!isXAuthenticated) {
       openXSignIn(buildAccountSettingsHref())
@@ -1003,6 +942,10 @@ export function ChatShell() {
         walletAccountId,
       })
 
+      if (result.updated) {
+        await refreshShellData(["profile-summary", "wallet-summary"])
+      }
+
       setAccountNotice(
         result.updated
           ? "Default payout wallet updated."
@@ -1044,6 +987,8 @@ export function ChatShell() {
       if (!result.saved) {
         throw new Error("Could not update profile availability.")
       }
+
+      await refreshShellData(["profile-summary", "sidebar-summary"])
 
       setAccountNotice(
         checked
@@ -1280,39 +1225,66 @@ export function ChatShell() {
   }, [pathname, router, searchParams, seededPrompt])
 
   useEffect(() => {
-    if (!ownerExternalId || connectedWallets.length === 0 || !isWalletReady) {
+    let cancelled = false
+
+    async function hydrateDraftSessions() {
+      setIsDraftSessionsReady(false)
+      const storedSessions = await listDraftSessions(draftOwnerScope)
+
+      if (cancelled) {
+        return
+      }
+
+      setDraftSessions(storedSessions)
+      setIsDraftSessionsReady(true)
+    }
+
+    void hydrateDraftSessions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [draftOwnerScope])
+
+  useEffect(() => {
+    if (
+      activeIntentId ||
+      pendingApprovalIntentId ||
+      !isDraftSessionsReady ||
+      !conversationId ||
+      messages.length === 0
+    ) {
       return
     }
 
-    const preferredWalletAddress = defaultWallet?.address.toLowerCase() ?? null
+    const nextDraftSession: DraftSessionRecord = {
+      createdAt: draftSessions.find(
+        (session) => session.draftSessionId === conversationId,
+      )?.createdAt ?? messages[0]?.createdAt ?? Date.now(),
+      draftSessionId: conversationId,
+      messages: messages.map((message) => ({
+        content: message.content,
+        createdAt: message.createdAt,
+        id: message.id,
+        role: message.role,
+      })),
+      mountedAgents: mountedComposerAgents,
+      updatedAt: messages[messages.length - 1]?.createdAt ?? Date.now(),
+    }
 
-    void Promise.all(
-      connectedWallets.map((wallet) =>
-        syncWalletAccount({
-          chainFamily: wallet.chainFamily,
-          chainId: wallet.chainId ?? undefined,
-          networkKey: wallet.networkKey,
-          ownerDisplayName: session?.user?.name ?? undefined,
-          ownerExternalId,
-          roles: ["connected", "buyer", "payout"],
-          setAsDefaultBuyer:
-            preferredWalletAddress !== null &&
-            wallet.address.toLowerCase() === preferredWalletAddress,
-          setAsDefaultPayout:
-            preferredWalletAddress !== null &&
-            wallet.address.toLowerCase() === preferredWalletAddress,
-          walletAddress: wallet.address,
-          walletProvider: "reown",
-        })
-      )
-    )
+    void upsertDraftSession(draftOwnerScope, nextDraftSession).then(async () => {
+      const storedSessions = await listDraftSessions(draftOwnerScope)
+      setDraftSessions(storedSessions)
+    })
   }, [
-    connectedWallets,
-    defaultWallet,
-    isWalletReady,
-    ownerExternalId,
-    session?.user?.name,
-    syncWalletAccount,
+    activeIntentId,
+    conversationId,
+    draftOwnerScope,
+    draftSessions,
+    isDraftSessionsReady,
+    messages,
+    mountedComposerAgents,
+    pendingApprovalIntentId,
   ])
 
   useEffect(() => {
@@ -1493,6 +1465,7 @@ export function ChatShell() {
         ownerExternalId,
         quantity,
       })
+      await refreshShellData(["cart-summary"])
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Could not update cart."
@@ -1512,6 +1485,7 @@ export function ChatShell() {
         cartLineItemId,
         ownerExternalId,
       })
+      await refreshShellData(["cart-summary"])
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Could not remove cart item."
@@ -1528,6 +1502,7 @@ export function ChatShell() {
 
     try {
       await clearActiveCart({ ownerExternalId })
+      await refreshShellData(["cart-summary"])
       setCartNotice("Cart cleared.")
     } catch (error) {
       setErrorMessage(
@@ -1562,6 +1537,7 @@ export function ChatShell() {
         )
       }
 
+      await refreshShellData(["cart-summary", "checkout-history-summary"])
       setCartNotice(
         "Checkout placed. Payable provider items now show wallet actions below."
       )
@@ -1666,6 +1642,7 @@ export function ChatShell() {
         txHash: pickTxHash(paymentReceipt),
       })
 
+      await refreshShellData(["checkout-history-summary"])
       setCartNotice(
         invocationAccess.accessUrl
           ? `Payment settled. ${item.title} is now available.`
@@ -1699,13 +1676,20 @@ export function ChatShell() {
     setPendingApprovalIntentId(null)
     const now = Date.now()
     const isRequestThreadSubmit = Boolean(activeIntentId)
+    const nextConversationId = isRequestThreadSubmit
+      ? activeConversationId
+      : activeConversationId ?? crypto.randomUUID()
+
+    if (!isRequestThreadSubmit && !activeConversationId) {
+      setConversationId(nextConversationId)
+    }
 
     if (!activeIntentId && !effectiveBorealEnabled) {
       try {
         const response = await fetch("/api/conversations/messages", {
           body: JSON.stringify({
             body: trimmed,
-            conversationId: activeConversationId,
+            conversationId: nextConversationId,
           }),
           headers: {
             "Content-Type": "application/json",
@@ -1774,7 +1758,7 @@ export function ChatShell() {
     try {
       const response = await fetch("/api/chat", {
         body: JSON.stringify({
-          conversationId: activeConversationId,
+          conversationId: nextConversationId,
           context: buildChatUiContext({
             activeIntentId,
             composerAgents: activeComposerAgents,
@@ -1809,6 +1793,13 @@ export function ChatShell() {
 
       setConversationId(finalPayload.conversationId)
       setWorkspace(finalPayload.workspace)
+
+      if (!activeIntentId && finalPayload.intentId && nextConversationId) {
+        await removeDraftSession(draftOwnerScope, nextConversationId)
+        await reloadDraftSessions()
+        await refreshRequestShellData()
+      }
+
       if (!activeIntentId && mountedComposerAgents.length > 0 && finalPayload.intentId) {
         updateWorkspaceUrl({
           browse: "workers",
@@ -1895,6 +1886,64 @@ export function ChatShell() {
     }
   }
 
+  function handleOpenDraftSession(draftSessionId: string) {
+    const draftSession = draftSessions.find(
+      (session) => session.draftSessionId === draftSessionId
+    )
+
+    if (!draftSession) {
+      return
+    }
+
+    setErrorMessage(null)
+    updateWorkspaceUrl({
+      account: null,
+      chat: null,
+      modal: null,
+      paper: null,
+      profile: null,
+      request: null,
+      sheet: null,
+      view: null,
+    })
+    setMatchQueryDraft(null)
+    setProposalDraft(emptyProposalDraft())
+    setProposalMessage("")
+    setDeliveryDraft(emptyDeliveryDraft())
+    setOptimisticReviewRating(null)
+    setPendingApprovalIntentId(null)
+    setWorkspace(emptyWorkspace)
+    setMountedComposerAgents(
+      draftSession.mountedAgents as MountedComposerAgent[]
+    )
+    setConversationId(draftSession.draftSessionId)
+    setMessages(
+      draftSession.messages.map((message) => ({
+        content: message.content,
+        createdAt: message.createdAt,
+        id: message.id,
+        role: message.role,
+      }))
+    )
+    setIsMobileIntentSidebarOpen(false)
+    setIsMobileWorkspaceOpen(false)
+    focusComposer()
+  }
+
+  async function handleResetDraftSessions() {
+    clearStoredDraftSessions(draftOwnerScope)
+    setDraftSessions([])
+    setBorealChatSessionLimit(6)
+
+    if (!activeIntentId) {
+      setMessages([])
+      setConversationId(undefined)
+      setMountedComposerAgents([])
+      setPendingApprovalIntentId(null)
+      setWorkspace(emptyWorkspace)
+    }
+  }
+
   async function handleApproveRequest(intentId = activeIntentId) {
     if (!intentId || isApprovingRequest) {
       return
@@ -1928,6 +1977,7 @@ export function ChatShell() {
         )
       }
 
+      await refreshRequestShellData()
       updateWorkspaceUrl({
         browse: "workers",
         chat: null,
@@ -1977,6 +2027,7 @@ export function ChatShell() {
         handleClearSelection()
       }
 
+      await refreshRequestShellData()
       setPendingApprovalIntentId((current) =>
         current === intentId ? null : current
       )
@@ -2011,6 +2062,8 @@ export function ChatShell() {
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to submit review.")
       }
+
+      await refreshRequestShellData()
     } catch (error) {
       setOptimisticReviewRating(null)
       setErrorMessage(
@@ -2026,6 +2079,7 @@ export function ChatShell() {
 
     try {
       await deleteIntent({ intentId, ownerExternalId })
+      await refreshRequestShellData()
 
       if (activeIntentId === intentId) {
         handleClearSelection()
@@ -2100,6 +2154,7 @@ export function ChatShell() {
 
       setMessages([])
       setWorkspace(payload.workspace)
+      await refreshRequestShellData()
       updateWorkspaceUrl({ browse: "workers" })
       setShowWorkspace(true)
     } catch (error) {
@@ -2146,6 +2201,7 @@ export function ChatShell() {
 
       setMessages([])
       setWorkspace(payload.workspace)
+      await refreshRequestShellData()
       updateWorkspaceUrl({ browse: "workers" })
       setShowWorkspace(true)
     } catch (error) {
@@ -2210,6 +2266,8 @@ export function ChatShell() {
       if (!response.ok || !payload.fulfilled) {
         throw new Error(payload.error ?? "Failed to mark request as fulfilled.")
       }
+
+      await refreshRequestShellData()
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -2241,6 +2299,8 @@ export function ChatShell() {
       if (!response.ok || !payload.archived) {
         throw new Error(payload.error ?? "Failed to archive request.")
       }
+
+      await refreshRequestShellData()
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to archive request."
@@ -2326,6 +2386,7 @@ export function ChatShell() {
 
       setProposalDraft(emptyProposalDraft())
       setProposalMessage("")
+      await refreshRequestShellData()
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to submit proposal."
@@ -2356,6 +2417,8 @@ export function ChatShell() {
       if (!response.ok || !payload.approved) {
         throw new Error(payload.error ?? "Failed to approve proposal.")
       }
+
+      await refreshRequestShellData()
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to approve proposal."
@@ -2417,6 +2480,7 @@ export function ChatShell() {
       )
       setConversationId(undefined)
       setMessages([])
+      await refreshRequestShellData()
       if (payload.workspace) {
         setWorkspace(payload.workspace)
         setShowWorkspace(true)
@@ -2555,6 +2619,7 @@ export function ChatShell() {
       }
 
       setDeliveryDraft(emptyDeliveryDraft())
+      await refreshRequestShellData()
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to submit work."
@@ -2665,6 +2730,13 @@ export function ChatShell() {
         })
       }
 
+      await refreshShellData(["profile-summary", "sidebar-summary"])
+      if (activeIntentId) {
+        await refreshRequestShellData()
+      }
+      if (includeListing) {
+        purgePublicMarket(["workers"])
+      }
       setIsProfileBuilderOpen(false)
     } catch (error) {
       setErrorMessage(
@@ -2704,6 +2776,7 @@ export function ChatShell() {
         )
       }
 
+      await refreshRequestShellData()
       return true
     } catch (error) {
       setErrorMessage(
@@ -2784,6 +2857,7 @@ export function ChatShell() {
         throw new Error("Could not save this local runtime.")
       }
 
+      await refreshShellData(["profile-summary"])
       const invited = await handleInviteRuntimeToActiveRequest(created.supplyId)
 
       if (invited) {
@@ -2920,6 +2994,7 @@ export function ChatShell() {
     setMessages([])
     setConversationId(undefined)
     setPendingApprovalIntentId(null)
+    setMountedComposerAgents([])
     setIsMobileIntentSidebarOpen(false)
     setIsMobileWorkspaceOpen(false)
     setWorkspace(emptyWorkspace)
@@ -2945,6 +3020,7 @@ export function ChatShell() {
     setMessages([])
     setConversationId(undefined)
     setPendingApprovalIntentId(null)
+    setMountedComposerAgents([])
     setIsMobileIntentSidebarOpen(false)
     setIsMobileWorkspaceOpen(false)
     setWorkspace(emptyWorkspace)
@@ -3821,21 +3897,29 @@ export function ChatShell() {
                     <Conversation className="h-full min-h-0">
                       <ConversationContent className={CHAT_RAIL_CLASS}>
                         <div className="space-y-3 rounded-2xl border border-border bg-card px-4 py-4">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium">Sessions</p>
-                            <p className="text-xs text-muted-foreground">
-                              Past Boreal sessions stay here as audit history.
-                              They are not fed back into a fresh chat unless you
-                              explicitly reopen tracked work.
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              onClick={handleClearSelection}
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">Sessions</p>
+                          <p className="text-xs text-muted-foreground">
+                              Local draft chats stay on this device until you
+                              resume, promote them into requests, or reset
+                              them.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            onClick={handleClearSelection}
                               size="sm"
                               type="button"
                             >
                               Back to Boreal chat
+                            </Button>
+                            <Button
+                              onClick={() => void handleResetDraftSessions()}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Reset sessions
                             </Button>
                             <Button
                               onClick={() => openMarketplaceTab("workers")}
@@ -3868,13 +3952,15 @@ export function ChatShell() {
                               activeApprovalIntentId={pendingApprovalIntentId}
                               onDiscardRequest={handleCancelRequest}
                               onOpenRequest={openConversationRequestById}
+                              onResumeSession={handleOpenDraftSession}
                               session={session}
                             />
                           ))
                         ) : (
                           <div className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-                            No sessions yet. Start in Boreal chat and they will
-                            show up here as audit history.
+                            No local draft sessions yet. Start in Boreal chat
+                            and resume them here until they become tracked
+                            requests.
                           </div>
                         )}
                       </ConversationContent>
@@ -4340,11 +4426,13 @@ function BorealTimelineSessionBlock({
   activeApprovalIntentId,
   onDiscardRequest,
   onOpenRequest,
+  onResumeSession,
   session,
 }: {
   activeApprovalIntentId: string | null
   onDiscardRequest: (intentId: string) => Promise<void>
   onOpenRequest: (requestId: string) => void
+  onResumeSession?: (conversationId: string) => void
   session: BorealTimelineSession
 }) {
   const sortedRequests = session.linkedRequests
@@ -4358,6 +4446,16 @@ function BorealTimelineSessionBlock({
         <span className="shrink-0 text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
           Session / {formatBorealSessionTime(session.conversation.latestMessageAt)}
         </span>
+        {sortedRequests.length === 0 && onResumeSession ? (
+          <Button
+            onClick={() => onResumeSession(session.conversation.conversationId)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            Resume draft
+          </Button>
+        ) : null}
         <div className="h-px flex-1 bg-border" />
       </div>
 
@@ -4474,37 +4572,43 @@ function formatBorealSessionTime(value: number) {
   }).format(new Date(value))
 }
 
-function mergeOptimisticSessionMessages(
-  persistedMessages: BorealTimelineSession["messages"],
-  optimisticMessages: ChatMessage[]
-) {
-  const overlapCount = getMessageSequenceOverlap(
-    persistedMessages.map((message) => ({
-      content: message.body,
-      role:
-        message.role === "user" ? ("user" as const) : ("assistant" as const),
-    })),
-    optimisticMessages.map((message) => ({
-      content: message.content,
-      role: message.role,
-    }))
-  )
+function mapDraftSessionToTimelineSession(
+  session: DraftSessionRecord
+): BorealTimelineSession {
+  const latestMessage = session.messages[session.messages.length - 1] ?? null
+  const titleSource =
+    session.messages.find((message) => message.role === "user")?.content?.trim() ??
+    ""
 
-  return [
-    ...persistedMessages,
-    ...optimisticMessages.slice(overlapCount).map((message) => ({
+  return {
+    conversation: {
+      _id: session.draftSessionId,
+      conversationId: session.draftSessionId,
+      intentCount: 0,
+      lastMessageBody: latestMessage?.content ?? null,
+      lastMessageRole: latestMessage?.role ?? null,
+      latestMessageAt: latestMessage?.createdAt ?? session.updatedAt,
+      messageCount: session.messages.length,
+      title:
+        titleSource.length > 0
+          ? titleSource.slice(0, 72)
+          : "Draft session",
+      updatedAt: session.updatedAt,
+    },
+    linkedRequests: [],
+    messages: session.messages.map((message) => ({
       _id: message.id,
       body: message.content,
       createdAt: message.createdAt,
       role: message.role,
       sender: {
-        actorKind: message.role === "user" ? ("human" as const) : ("agent" as const),
-        displayName: message.role === "user" ? "You" : "Boreal",
+        actorKind: message.role === "user" ? "human" : "agent",
+        displayName: message.role === "user" ? "You" : "Boreal Agent",
         externalId: null,
         handle: null,
       },
     })),
-  ]
+  }
 }
 
 function getMessageSequenceOverlap(
@@ -7754,7 +7858,7 @@ function getRequestActionState(
       description: isVideoProviderAccessUnavailableError(
         getLatestBlockedErrorMessage(activity)
       )
-        ? "Motion Video Studio cannot run under the current OpenAI project or key. Fix provider access, or reopen this request for workers now."
+        ? "Video Generation cannot run under the current OpenAI project or key. Fix provider access, or reopen this request for workers now."
         : "Automatic execution hit an error. Retry it, or reopen it for workers if you want people or external agents to take over.",
       kind: "blocked" as const,
       title: "Needs intervention",
@@ -8096,7 +8200,7 @@ const DIRECT_AGENT_DISPLAY_NAMES: Record<string, string> = {
   copywriter: "Copywriter",
   "image-studio": "Image Studio",
   "math-expert": "Math Expert",
-  "motion-video-studio": "Motion Video Studio",
+  "motion-video-studio": "Video Generation",
   "mvp-architect": "MVP Architect",
   "research-analyst": "Research Analyst",
   "solana-operator": "Solana Operator",
@@ -8107,14 +8211,7 @@ const DIRECT_AGENT_DISPLAY_NAMES: Record<string, string> = {
 function getMountedAgentKeyFromSourceCapabilityId(
   sourceCapabilityId?: string | null
 ) {
-  if (
-    typeof sourceCapabilityId !== "string" ||
-    !sourceCapabilityId.startsWith("autonomous-agent:")
-  ) {
-    return null
-  }
-
-  return sourceCapabilityId.slice("autonomous-agent:".length) || null
+  return getAutonomousAgentKeyFromSourceCapabilityId(sourceCapabilityId)
 }
 
 function isDirectAgentKey(value: string) {
@@ -8122,7 +8219,10 @@ function isDirectAgentKey(value: string) {
 }
 
 function getDirectAgentDisplayName(key: string) {
-  return DIRECT_AGENT_DISPLAY_NAMES[key] ?? key
+  return getPublicReadySpecialistDisplayName(
+    key,
+    DIRECT_AGENT_DISPLAY_NAMES[key] ?? key
+  ) ?? key
 }
 
 function getLiveRequestAssistantLabel(requestDetail: RequestDetail) {
@@ -8174,7 +8274,7 @@ function resolveMountedComposerAgent(listing: CatalogEntry) {
     directAgentKey,
     sourceCapabilityId: listing.sourceCapabilityId ?? null,
     supplyId: listing._id,
-    title: listing.title,
+    title: getDirectAgentDisplayName(directAgentKey),
   } satisfies MountedComposerAgent
 }
 
@@ -8208,10 +8308,15 @@ function getMountedComposerStarterPrompts(agents: MountedComposerAgent[]) {
 }
 
 function buildMountedTeamIntroMessage(agents: MountedComposerAgent[]): ChatMessage {
+  const soloSpecialistMeta =
+    agents.length === 1
+      ? getPublicReadySpecialistMeta(agents[0]!.directAgentKey)
+      : null
+
   return {
     content:
       agents.length === 1
-        ? `${agents[0]!.title} is selected. Describe the task and Boreal will open the request and start that specialist right away.`
+        ? `${agents[0]!.title} is selected. ${soloSpecialistMeta ? `Runtime: ${soloSpecialistMeta.providerCompany} • ${soloSpecialistMeta.model}. ` : ""}Describe the task and Boreal will open the request and start that specialist right away.`
         : `${formatMountedComposerTeamLabel(agents)} are selected. Describe the task and Boreal will open one request for this agent team right away.`,
     createdAt: Date.now(),
     id: MOUNTED_TEAM_THREAD_MESSAGE_ID,
@@ -8258,7 +8363,12 @@ function deriveRequestComposerAgents(requestDetail: RequestDetail | null) {
           ? `autonomous-agent:${participant.externalId.slice("agent:".length)}`
           : null,
       supplyId: participant.externalId ?? participant.displayName,
-      title: participant.displayName,
+      title:
+        participant.externalId?.startsWith("agent:")
+          ? getDirectAgentDisplayName(
+              participant.externalId.slice("agent:".length)
+            )
+          : participant.displayName,
     }))
   }
 
@@ -9140,7 +9250,7 @@ function buildWorkspaceFromRequestDetail(
         detail.intent.status === "blocked"
           ? blockedErrorMessage
             ? isVideoProviderAccessUnavailableError(blockedErrorMessage)
-              ? `Motion Video Studio is unavailable under the current OpenAI project or key. Fix provider access, then retry, or reopen this request for workers now.`
+              ? `Video Generation is unavailable under the current OpenAI project or key. Fix provider access, then retry, or reopen this request for workers now.`
               : `Automatic route failed: ${blockedErrorMessage} You can retry it or reopen it for workers.`
             : "Automatic route failed. You can retry it or reopen it for workers."
           : detail.intent.status === "open" && blockedErrorMessage

@@ -2,7 +2,7 @@
 
 Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, proof, payout, and reputation attached to the same work thread.  For agent owners, Boreal is where agents go to work.
 
-Boreal chat is one audit-log timeline.  Sessions stay visible as history, simple chat stays direct, and only clear work intent should turn into a tracked request.
+Boreal now splits shell data by churn.  Low-churn shell summaries such as profile, wallets, cart, checkout history, sidebar request previews, market previews, and pre-request Boreal drafts are local-first through signed, encrypted browser cache, while request threads, inbox, activity, fulfillment, payout, and active request collaboration stay server-backed in Convex.
 
 ## Quick Setup
 
@@ -33,6 +33,7 @@ Optional built-in agent runtime env:
 BOREAL_AGENT_CONVEX_URL_PROD=https://your-prod-deployment.convex.cloud
 BOREAL_AGENT_DEFAULT_SOLANA_WALLET=CxkLjW31HqX4Mp7JuDmSRBxEALqbnj8HWHn48FRWD4yS
 BOREAL_AGENT_DEFAULT_EVM_WALLET=0x339f616BA1A347ef40d3EdD5278c0B44315E0836
+BOREAL_SHELL_CACHE_SIGNING_PRIVATE_JWK={"kty":"EC","crv":"P-256","d":"...","x":"...","y":"..."}
 ```
 
 Start local dev:
@@ -71,6 +72,7 @@ Operator note:
 - `convex:reset:dev` is the fastest clean-iteration path: resolve the current selected Convex dev deployment once, wipe rows plus referenced stored files, then reseed the built-in agents against that exact same deployment URL.
 - `agent:seed` syncs agent identities, profiles, supplies, payout metadata, and analytics rows.
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
+- `BOREAL_SHELL_CACHE_SIGNING_PRIVATE_JWK` is optional in local development.  If it is omitted, Boreal generates an ephemeral signing key at server boot, which keeps the shell cache secure but invalidates cached envelopes after a restart.
 
 Sync the public contract markdown served from `next-app/public`:
 
@@ -94,7 +96,9 @@ npm run smoke:swarm-team-blueprint
 ```
 
 ## Changelog
+- `2026-04-30`: Moved Boreal's low-churn shell state to a signed, encrypted local-first cache.  Profile summary, wallet summary, cart summary, checkout history summary, sidebar request previews, and public market lists now hydrate from browser cache first, refresh only on explicit writes or missing cache, and stop mounting always-live Convex reads from the main shell.  Pre-request Boreal chat sessions are now encrypted local draft sessions with explicit resume and reset controls, while tracked request threads remain server-backed in Convex.
 - `2026-04-30`: Added the first durable swarm-team execution layer for mounted direct specialists.  Requests now persist explicit `lead` and `worker` team roles plus a default execution mode, the `Team` tab surfaces those roles, and users can say `ask team:` inside a multi-agent request thread to trigger a real grouped round instead of relying on ambiguous multi-select behavior.
+- `2026-04-30`: Narrowed the built-in public-ready specialist set to four routes with explicit runtime transparency: `Voiceover Studio`, `Video Generation`, `Solana Operator`, and `Startup Pressure Test`.  Market cards, profile views, and the developer-facing specialist docs now show `provider + model`, solo-mounted specialists now reveal click-to-fill starter prompts, and `motion-video-studio` is surfaced more honestly as short video generation instead of a full motion studio.
 - `2026-04-30`: Fixed the legacy autonomous media-worker path so built-in `image-studio`, `voiceover-studio`, and `motion-video-studio` can use their direct artifact executors instead of falling back to markdown-only delivery shells.  Image, audio, and queued video artifact metadata now attach through the worker fulfillment path, and `npm run smoke:legacy-media-workers` pins that behavior.
 - `2026-04-30`: Fixed mounted direct specialist artifacts in request threads: when a mounted direct specialist returns image, audio, or video output, Boreal now persists that artifact through request metadata and renders it inline in the same request thread instead of stopping at a generic completion shell.  This restores the intended `Voiceover Studio` inline audio path and keeps mounted video jobs in progress until delivery.
 - `2026-04-30`: Added request-scoped local runtime invites: active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, the same request thread can route follow-up into that runtime without auto-adding Boreal Agent to the team, and team cards now show live runtime-health or activity-based presence instead of a fake always-online state.
@@ -205,11 +209,13 @@ Supporting narrative and prompt docs now live under `docs/`, with [docs/README.m
 - `next-app/components/editorial` contains the reusable editorial shell, index rows, and longform typography system used by `/papers` and intended for future audit-report or document-heavy surfaces.
 - `next-app/app/roadmap` is the public-safe Jira-style project status board for what is live, what is in progress, what is next, and what is later.  Keep internal agent task boards and private coordination off this route.
 - `next-app/app/account` is the dedicated settings surface for public profile setup, owned native-offer management, provider-sync boundaries, wallet sync, and payout defaults.
+- `next-app/components/shell-data-provider.tsx`, `next-app/lib/boreal/shell-cache/`, and `next-app/app/api/cache/` now own Boreal's low-churn local-first shell cache.  Shell summaries should read through that provider and signed cache routes instead of mounting duplicate live Convex queries.
 - `next-app/app/agents` is the operator-facing onboarding surface for agent owners.  It is also the `Agent` focus-sheet tab inside the Boreal shell and should stay the shortest public handoff into `SKILL.md`, `/account`, one request, and one inbox.
 - `next-app/app/developers/agents` is the lower-level technical guide for agent customers, suppliers, and developers integrating with Boreal's request-first and specialist-agent surfaces after the `/agents` onboarding step.
 - `next-app/app/p/[id]` exposes public profile pages for humans and agents, including `boreal-agent`.
 - `next-app/lib/boreal` contains the Boreal runtime: agents, tools, integrations, DAL, prompt selection, and shared schemas.
 - `next-app/convex` is the source of truth for intents, chats, proposals, fulfillments, artifacts, profiles, supplies, commerce, and service-provider state.
+- Pre-request Boreal drafts are no longer durable Convex chat sessions by default.  They now live as encrypted local browser sessions until they are resumed, reset, or promoted into tracked requests.
 - `next-app/lib/boreal/integrations/service-providers` contains the external discovery, normalization, wallet, payment, and invocation layer for provider-backed services.
 - `next-app/app/api/service-providers/agentic-market/sync/route.ts`, `next-app/app/api/service-providers/agentcash/sync/route.ts`, and `next-app/app/api/service-providers/frames/sync/route.ts` sync external or curated provider discovery into Boreal's catalog.
 - `next-app/agents` contains autonomous worker profiles, seeding scripts, and watch loops for end-to-end request/proposal/fulfillment roleplay.  Treat these files as source-of-truth for built-in agents; Convex stores the runtime mirror used by discovery, payouts, control state, and analytics.
@@ -255,7 +261,7 @@ From `next-app/`:
 - `npm run smoke:solana-specialist-route` runs the deterministic Solana quick-action smoke for `solana` work classification, no generic text-work clarification, and `solana-operator` as the top matched specialist.
 - `npm run smoke:solana-thread-actions` runs the deterministic mounted-thread Solana smoke for action planning, hidden marker parsing, and unsigned mainnet memo or transfer transaction compilation.
 - `npm run smoke:swarm-team-blueprint` runs the deterministic bundle-team smoke for lead or worker role assignment, blueprint serialization, and the explicit `ask team:` request-thread directive.
-- `npm run smoke:mounted-agent-starter-prompts` runs the deterministic starter-prompt smoke for the mounted Solana Operator prompt list: shipped inventory, direct-action parsing, transfer-template clarification, and planning-only prompts staying non-executing.
+- `npm run smoke:mounted-agent-starter-prompts` runs the deterministic starter-prompt smoke for the mounted public-ready specialists, including the Solana direct-action prompt list plus the solo prompt inventories for Voiceover Studio, Video Generation, and Startup Pressure Test.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:service-provider-adapters` verifies curated AgentCash and Frames adapter output plus `PAYMENT-REQUIRED` header parsing for the provider fallback layer.
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.

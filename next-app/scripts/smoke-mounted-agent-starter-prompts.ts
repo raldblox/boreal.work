@@ -6,6 +6,45 @@ import {
 import { planSolanaThreadAction } from "../lib/boreal/solana-thread-actions.ts"
 
 function main() {
+  const voiceoverPrompts =
+    getMountedAgentStarterPromptInventory("voiceover-studio")
+  assert.equal(voiceoverPrompts.length, 4)
+  assert.deepEqual(
+    voiceoverPrompts.map((entry) => entry.title),
+    [
+      "Read a product intro",
+      "Narrate a demo script",
+      "Record a launch outro",
+      "Voice a technical explainer",
+    ],
+  )
+
+  const videoPrompts =
+    getMountedAgentStarterPromptInventory("motion-video-studio")
+  assert.equal(videoPrompts.length, 4)
+  assert.deepEqual(
+    videoPrompts.map((entry) => entry.title),
+    [
+      "Generate a product hero shot",
+      "Create a launch visual loop",
+      "Generate an app reveal clip",
+      "Create a product teaser",
+    ],
+  )
+
+  const startupPrompts =
+    getMountedAgentStarterPromptInventory("startup-pressure-test")
+  assert.equal(startupPrompts.length, 4)
+  assert.deepEqual(
+    startupPrompts.map((entry) => entry.title),
+    [
+      "Pressure test a startup idea",
+      "Find the core assumption",
+      "Rank the likely failure modes",
+      "Give a blunt verdict",
+    ],
+  )
+
   const prompts = getMountedAgentStarterPromptInventory("solana-operator")
 
   assert.equal(prompts.length, 8)

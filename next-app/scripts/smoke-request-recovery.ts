@@ -46,7 +46,7 @@ assert.equal(
 );
 
 const videoCopy = buildAutoReopenForWorkersCopy({
-  assignedAgent: "Motion Video Studio",
+  assignedAgent: "Video Generation",
   message: videoAccessFailure,
   routeTarget: "video_generation",
 });

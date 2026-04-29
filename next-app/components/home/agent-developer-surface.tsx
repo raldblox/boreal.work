@@ -13,6 +13,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
+import {
+  PUBLIC_READY_SPECIALIST_KEYS,
+  getPublicReadySpecialistMeta,
+} from "@/lib/boreal/agents/public-ready-specialists"
 import { buildAccountSettingsHref } from "@/lib/boreal/navigation/shell-links"
 import { cn } from "@/lib/utils"
 
@@ -155,42 +159,23 @@ const operationsEntryPoints: DocsEntryPoint[] = [
 ]
 
 const directAgents = [
-  {
-    focus: "Direct image generation",
-    key: "image-studio",
-    outputs: "image_generation",
-    route: "POST /api/v1/agents/image-studio/execute",
-  },
-  {
-    focus: "Direct narration and TTS generation",
-    key: "voiceover-studio",
-    outputs: "speech_generation",
-    route: "POST /api/v1/agents/voiceover-studio/execute",
-  },
-  {
-    focus: "Direct motion and video job creation",
-    key: "motion-video-studio",
-    outputs: "video_generation",
-    route: "POST /api/v1/agents/motion-video-studio/execute",
-  },
-  {
-    focus: "Startup pressure testing",
-    key: "startup-pressure-test",
-    outputs: "text/markdown",
-    route: "POST /api/v1/agents/startup-pressure-test/execute",
-  },
-  {
-    focus: "Two-week MVP scoping",
-    key: "mvp-architect",
-    outputs: "text/markdown",
-    route: "POST /api/v1/agents/mvp-architect/execute",
-  },
-  {
-    focus: "Non-custodial Solana execution planning",
-    key: "solana-operator",
-    outputs: "text/markdown",
-    route: "POST /api/v1/agents/solana-operator/execute",
-  },
+  ...PUBLIC_READY_SPECIALIST_KEYS.map((key) => {
+    const meta = getPublicReadySpecialistMeta(key)!
+    return {
+      focus: meta.liveScope,
+      key,
+      model: meta.model,
+      outputs:
+        key === "voiceover-studio"
+          ? "speech_generation"
+          : key === "motion-video-studio"
+            ? "video_generation"
+            : "text/markdown",
+      providerCompany: meta.providerCompany,
+      route: `POST /api/v1/agents/${key}/execute`,
+      title: meta.displayName,
+    }
+  }),
 ] as const
 
 const supplierRequirements = [
@@ -410,12 +395,12 @@ export function AgentDeveloperSurface({
             </div>
             <div className="space-y-2">
               <CardTitle className="font-heading text-2xl font-semibold tracking-tight">
-                Current direct specialist surfaces
+                Current public-ready specialist surfaces
               </CardTitle>
               <CardDescription className="max-w-3xl text-sm/7">
                 Boreal Agent stays focused on request routing and orchestration.
-                Specialized work moves through dedicated agents that share the
-                same supply, registry, payout, and commerce surface.
+                These are the few built-in specialists Boreal currently treats
+                as public-ready, with explicit runtime transparency.
               </CardDescription>
             </div>
           </CardHeader>
@@ -426,12 +411,18 @@ export function AgentDeveloperSurface({
                 key={agent.key}
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-medium">{agent.key}</h3>
+                  <h3 className="text-sm font-medium">{agent.title}</h3>
                   <Badge className="h-6 rounded-full px-2.5" variant="outline">
                     {agent.outputs}
                   </Badge>
                 </div>
                 <p className="mt-3 text-sm/7 text-muted-foreground">{agent.focus}</p>
+                <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Runtime
+                </p>
+                <p className="mt-1 text-xs/6 text-foreground/82">
+                  {agent.providerCompany} • {agent.model}
+                </p>
                 <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                   Route
                 </p>

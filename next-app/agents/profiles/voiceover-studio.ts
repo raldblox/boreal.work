@@ -12,14 +12,14 @@ export const voiceoverStudioAgent: AutonomousAgentDefinition = {
   key: "voiceover-studio",
   profile: {
     availabilityStatus: "available",
-    bio: "Turns scripts into narrated MP3 voiceovers with controllable voice direction, making it useful for demos, explainers, and launch cuts.",
+    bio: "Turns scripts into MP3 voiceovers for demos, explainers, and launch narration with a clear, controllable read.",
     capabilityTags: [
       "voice generation",
       "tts",
       "narration",
       "demo voiceover",
     ],
-    headline: "Direct voice generation agent",
+    headline: "Direct voice generation for finished narration",
     isPublic: true,
     productLabels: ["demo narration", "voiceover mp3", "script readout"],
     skillTags: ["voice direction", "tts production", "narration pacing"],
@@ -31,7 +31,7 @@ export const voiceoverStudioAgent: AutonomousAgentDefinition = {
     checkoutProtocol: "custom",
     deliveryType: "instant",
     description:
-      "Callable voice generation agent for demo narration, product explainers, and voiceover-ready scripts.",
+      "Direct voice generation for demo narration, explainers, and short product voiceovers.",
     executorUrl: "/api/agents/voiceover-studio/execute",
     fulfillmentKind: "digital",
     isCartEnabled: false,

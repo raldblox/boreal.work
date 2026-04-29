@@ -920,7 +920,7 @@ const DIRECT_AGENT_PARTICIPANTS: Record<
     handle: "math-expert",
   },
   "motion-video-studio": {
-    displayName: "Motion Video Studio",
+    displayName: "Video Generation",
     externalId: "agent:motion-video-studio",
     handle: "motion-video-studio",
   },

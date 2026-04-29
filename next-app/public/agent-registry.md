@@ -171,34 +171,20 @@ In-product chat behavior:
 - the next submit opens one tracked request for that selected specialist team without a separate approval gate
 - once mounted text specialists own the request, follow-up messages stay on that request thread, the assigned specialist team should answer there instead of bouncing the owner back into generic Boreal sessions, and request chat should not shadow those replies with duplicate Boreal-agent output
 
-### Media agents
+### Public-ready specialists
 
-- `image-studio`
-  - direct image generation
-  - route: `/api/v1/agents/image-studio/execute`
 - `voiceover-studio`
   - direct speech generation
   - route: `/api/v1/agents/voiceover-studio/execute`
   - mounted specialist behavior: speech-generation requests should persist the audio artifact in Boreal request metadata and render the player inline in the same request thread instead of closing with a generic completion shell
 - `motion-video-studio`
-  - direct video job creation
+  - surfaced in product as `Video Generation`
+  - direct short video job creation
   - route: `/api/v1/agents/motion-video-studio/execute`
   - accepts optional `seconds` (`4`, `8`, `12`) and `size` (`720x1280`, `1280x720`, `1024x1792`, `1792x1024`)
-
-These routes use Boreal's existing OpenAI-backed provider stack and runtime config.  They do not require agent owners to bring their own model key.
-If the current OpenAI project or API key does not actually expose the video route, Boreal now reports that provider-access failure explicitly instead of leaving a vague blocked message.
-
-### Advisory agents
-
 - `startup-pressure-test`
-  - Paul Graham-style startup evaluation
+  - unbranded early-stage startup evaluation
   - route: `/api/v1/agents/startup-pressure-test/execute`
-- `mvp-architect`
-  - 2-week MVP scoping and assumption testing
-  - route: `/api/v1/agents/mvp-architect/execute`
-
-### Solana specialist
-
 - `solana-operator`
   - non-custodial Solana execution planning in markdown
   - route: `/api/v1/agents/solana-operator/execute`
@@ -212,6 +198,21 @@ If the current OpenAI project or API key does not actually expose the video rout
   - legacy wallet capability flag: `supportsPrivyWallet` must stay false until Boreal actually passes a working Solana wallet adapter into the public direct-execution route, not only the mounted request-thread UI
   - current mounted wallet path: Solana-only Reown wallet connect in the request thread, while NextAuth still owns app identity
   - product surfacing: separate specialist surfaced through Boreal chat hints and `/agents`, not a hidden generic Boreal sub-capability
+
+These four are the built-in specialists Boreal should currently treat as public-ready in market and profile surfaces.  Each one should show provider-company plus model transparency in the visible UI.
+
+These routes use Boreal's existing OpenAI-backed provider stack and runtime config.  They do not require agent owners to bring their own model key.
+If the current OpenAI project or API key does not actually expose the video route, Boreal now reports that provider-access failure explicitly instead of leaving a vague blocked message.
+
+### Other repo-defined direct routes
+
+- `image-studio`
+  - direct image generation exists in repo, but it is not promoted as public-ready right now
+  - route: `/api/v1/agents/image-studio/execute`
+- `mvp-architect`
+  - 2-week MVP scoping and assumption testing
+  - route exists in repo, but it is not promoted as public-ready right now
+  - route: `/api/v1/agents/mvp-architect/execute`
 
 ## Registry Entry Shape
 

@@ -5,33 +5,33 @@ import type { AutonomousAgentDefinition } from "../shared/types.ts";
 export const motionVideoStudioAgent: AutonomousAgentDefinition = {
   identity: {
     actorKind: "agent",
-    displayName: "Motion Video Studio",
+    displayName: "Video Generation",
     externalId: "agent:motion-video-studio",
     handle: "motion-video-studio",
   },
   key: "motion-video-studio",
   profile: {
     availabilityStatus: "available",
-    bio: "Starts short-form motion and video generation jobs for promos, explainer beats, and launch visual experiments through a direct Boreal route.",
+    bio: "Starts short video-generation jobs for product shots, visual loops, and launch visuals through a direct Boreal route. It is not a full motion studio or edit suite.",
     capabilityTags: [
       "video generation",
-      "motion graphics",
-      "promo video",
+      "product visuals",
       "launch visuals",
+      "short video",
     ],
-    headline: "Direct motion and video generation agent",
+    headline: "Direct short video generation",
     isPublic: true,
-    productLabels: ["promo shot", "motion beat", "video job"],
-    skillTags: ["video prompting", "motion direction", "visual sequencing"],
+    productLabels: ["product shot", "video loop", "video job"],
+    skillTags: ["video prompting", "shot direction", "visual sequencing"],
   },
   supplyEntry: {
     agentReady: true,
-    capabilityTags: ["video generation", "motion graphics", "promo creative"],
+    capabilityTags: ["video generation", "product visuals", "launch visuals"],
     category: "video",
     checkoutProtocol: "custom",
     deliveryType: "instant",
     description:
-      "Callable video-generation agent for short motion sequences, launch visuals, and promo concepts.",
+      "Direct short video generation for product shots, loops, and launch visuals.",
     executorUrl: "/api/agents/motion-video-studio/execute",
     fulfillmentKind: "digital",
     isCartEnabled: false,
@@ -40,7 +40,7 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
     priceType: "fixed",
     scenarioTypes: ["provider_paid_service"],
     supplyType: "agent_tool",
-    title: "Motion Video Studio",
+    title: "Video Generation",
   },
   settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
@@ -50,7 +50,7 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
         `Request title: ${detail.title}`,
         `Request summary: ${detail.summary}`,
         `Request body: ${detail.body}`,
-        "Prepare a motion-video generation plan in markdown.",
+        "Prepare a short video-generation plan in markdown.",
         "Include:",
         "1. Shot direction",
         "2. Visual pacing",
@@ -58,7 +58,7 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
         "4. Edit and delivery notes",
       ].join("\n"),
       system:
-        "You are a motion-graphics producer for startup launches. Write concise scene direction and prompt-ready video planning notes.",
+        "You are a short-form video producer for startup launches. Write concise scene direction and prompt-ready video planning notes without claiming full production or edit work.",
     });
 
     return {
@@ -69,7 +69,7 @@ export const motionVideoStudioAgent: AutonomousAgentDefinition = {
   buildProposal({ detail }) {
     return {
       currency: "USD",
-      deliverablesBody: `I will turn "${detail.title}" into a motion-ready scene plan and a direct video-generation path for promo or explainer output.`,
+      deliverablesBody: `I will turn "${detail.title}" into a short video plan and a direct video-generation path for product or launch output.`,
       etaAt: Date.now() + 90 * 60 * 1000,
       price: 0.01,
     };

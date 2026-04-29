@@ -1677,7 +1677,7 @@ async function executeIntent(input: {
     return {
       artifact,
       assistantMessage:
-        "Video request approved. Motion Video Studio queued the render and will keep this request updated until delivery.",
+        "Video request approved. Video Generation queued the render and will keep this request updated until delivery.",
       relatedCatalogItems: input.catalogItems,
       requestStatus: "in_progress",
       workspace: {
@@ -2461,7 +2461,7 @@ function getApprovalActionLine(
   }
 
   if (routeTarget === "video_generation") {
-    return "Approve to hand this request to Motion Video Studio, or discard the draft if you want to revise the brief first.";
+    return "Approve to hand this request to Video Generation, or discard the draft if you want to revise the brief first.";
   }
 
   return handlingMode === "workers"
@@ -2488,7 +2488,7 @@ function buildBlockedWorkspace(routeTarget: ToolRoute, message: string): Workspa
     return {
       kind: "empty",
       subtitle:
-        "Motion Video Studio could not start because the current OpenAI project or key does not have working Sora video access. Fix provider access, then retry or reopen the request for workers.",
+        "Video Generation could not start because the current OpenAI project or key does not have working Sora video access. Fix provider access, then retry or reopen the request for workers.",
       title: "Video route unavailable",
     };
   }
@@ -3158,7 +3158,7 @@ function getExecutionAgentDisplayName(routeTarget: ToolRoute) {
   }
 
   if (routeTarget === "video_generation") {
-    return "Motion Video Studio";
+    return "Video Generation";
   }
 
   return "Boreal Agent";

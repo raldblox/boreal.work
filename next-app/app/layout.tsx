@@ -6,6 +6,7 @@ import { ConvexClientProvider } from "@/app/convex-client-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/auth-provider"
 import { ReownProvider } from "@/components/reown-provider"
+import { ShellDataProvider } from "@/components/shell-data-provider"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { cn } from "@/lib/utils"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -65,10 +66,12 @@ export default function RootLayout({
           <ReownProvider>
             <AuthProvider>
               <ConvexClientProvider>
-                <TooltipProvider>
-                  {children}
-                  <ServiceWorkerRegistration />
-                </TooltipProvider>
+                <ShellDataProvider>
+                  <TooltipProvider>
+                    {children}
+                    <ServiceWorkerRegistration />
+                  </TooltipProvider>
+                </ShellDataProvider>
               </ConvexClientProvider>
             </AuthProvider>
           </ReownProvider>

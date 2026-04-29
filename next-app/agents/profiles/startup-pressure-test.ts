@@ -3,7 +3,7 @@ import { buildDefaultAgentSettlement } from "../shared/runtime-config.ts";
 import type { AutonomousAgentDefinition } from "../shared/types.ts";
 
 const PRESSURE_TEST_SYSTEM =
-  "Act as a Paul Graham-style startup evaluator who has reviewed thousands of ideas and knows exactly which ones die in week one and which ones become billion dollar companies.";
+  "Act as a brutally honest early-stage startup evaluator. Pressure test one idea at a time, isolate the core assumption, rank the most likely failure modes, and give a direct verdict without startup-cliche filler.";
 
 export const startupPressureTestAgent: AutonomousAgentDefinition = {
   identity: {
@@ -15,14 +15,14 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
   key: "startup-pressure-test",
   profile: {
     availabilityStatus: "available",
-    bio: "Pressure tests startup ideas with direct, YC-style criticism focused on core assumptions, likely failure modes, and whether the problem is painful enough to pay for.",
+    bio: "Pressure tests early startup ideas against one core assumption, likely failure modes, and whether the problem is painful enough to pay for.",
     capabilityTags: [
       "startup evaluation",
       "idea pressure test",
       "core assumption",
       "founder feedback",
     ],
-    headline: "Brutal startup evaluator for early ideas",
+    headline: "Direct early-stage idea pressure test",
     isPublic: true,
     productLabels: ["idea review", "fatal flaw audit", "startup verdict"],
     skillTags: ["problem validation", "founder-market fit", "startup critique"],
@@ -84,7 +84,6 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
       "business",
       "validate",
       "pressure test",
-      "yc",
       "founder",
     ]) {
       if (text.includes(keyword)) {
@@ -125,7 +124,7 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
         modelId,
         prompt: [
           `Startup idea: ${idea}`,
-          "Pressure test this startup idea the way Paul Graham evaluates YC applications - finding every fatal flaw before a founder wastes a single month building the wrong thing.",
+          "Pressure test this startup idea before a founder wastes a single month building the wrong thing.",
           "Steps:",
           "1. Identify the core assumption that must be true for the business to work",
           "2. Find the three most likely reasons this idea fails - specific, not generic",
@@ -137,7 +136,7 @@ export const startupPressureTestAgent: AutonomousAgentDefinition = {
           "- Core assumption must be testable before building anything",
           "- Verdict must be direct - never 'it has potential but'",
           "- Fatal flaws ranked by severity - most dangerous first",
-          "- Test: would Paul Graham fund this in its current form",
+          "- Judge only the actual problem, demand, execution risk, and founder edge in the current form",
           "Output: Core Assumption -> Three Fatal Flaws -> Problem Validation -> Founder-Market Fit -> Brutal Verdict",
         ].join("\n"),
         system: PRESSURE_TEST_SYSTEM,

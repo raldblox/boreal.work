@@ -42,9 +42,9 @@ export function buildAutoReopenForWorkersCopy(input: {
   ) {
     return {
       approvalMessage:
-        "Motion Video Studio is unavailable under the current OpenAI project or key, so Boreal reopened this request for workers immediately. Matched offers and proposals stay attached here.",
+        "Video Generation is unavailable under the current OpenAI project or key, so Boreal reopened this request for workers immediately. Matched offers and proposals stay attached here.",
       assistantMessage:
-        `Motion Video Studio is unavailable under the current OpenAI project or key. Boreal reopened this request for workers immediately so you can approve a team instead of waiting on the blocked route. Last error: ${input.message}`,
+        `Video Generation is unavailable under the current OpenAI project or key. Boreal reopened this request for workers immediately so you can approve a team instead of waiting on the blocked route. Last error: ${input.message}`,
     };
   }
 

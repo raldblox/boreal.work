@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import { signIn, useSession } from "next-auth/react"
 import { ArrowLeftIcon, LogInIcon } from "lucide-react"
 
 import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
 import { ProfileBuilderEditor } from "@/components/chat/profile-builder"
+import { useShellData } from "@/components/shell-data-provider"
 import { Button } from "@/components/ui/button"
 import { DotMatrixSpinner } from "@/components/ui/dotmatrix-spinner"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
@@ -48,16 +49,13 @@ export function AccountPageClient() {
     chainFamily: runtimePrimaryChainFamily,
     environment: runtimeEnvironment,
   })
-
-  const myProfileResult = useQuery(
-    convexFunctionRefs.getMyProfile,
-    ownerExternalId ? { ownerExternalId } : "skip"
-  )
-  const walletAccountsResult = useQuery(
-    convexFunctionRefs.getMyWalletAccounts,
-    ownerExternalId ? { ownerExternalId } : "skip"
-  )
-  const syncWalletAccount = useMutation(convexFunctionRefs.syncWalletAccount)
+  const {
+    isReady: isShellDataReady,
+    myProfileRecord,
+    purgePublicMarket,
+    refreshShellData,
+    walletAccounts,
+  } = useShellData()
   const setDefaultPayoutWalletAccount = useMutation(
     convexFunctionRefs.setDefaultPayoutWalletAccount
   )
@@ -77,9 +75,6 @@ export function AccountPageClient() {
   const [notice, setNotice] = useState<string | null>(null)
   const [profileBuilderDraft, setProfileBuilderDraft] =
     useState<ProfileBuilderDraft>(createEmptyProfileBuilderDraft())
-
-  const myProfileRecord = myProfileResult ?? null
-  const walletAccounts = walletAccountsResult ?? []
   const editingSupply =
     editingSupplyId && myProfileRecord
       ? myProfileRecord.supplies.find((supply) => supply._id === editingSupplyId) ??
@@ -89,42 +84,6 @@ export function AccountPageClient() {
   function handleOpenWalletModal() {
     void openWalletModal()
   }
-
-  useEffect(() => {
-    if (!ownerExternalId || connectedWallets.length === 0 || !isWalletReady) {
-      return
-    }
-
-    const preferredWalletAddress = defaultWallet?.address.toLowerCase() ?? null
-
-    void Promise.all(
-      connectedWallets.map((wallet) =>
-        syncWalletAccount({
-          chainFamily: wallet.chainFamily,
-          chainId: wallet.chainId ?? undefined,
-          networkKey: wallet.networkKey,
-          ownerDisplayName: session?.user?.name ?? undefined,
-          ownerExternalId,
-          roles: ["connected", "buyer", "payout"],
-          setAsDefaultBuyer:
-            preferredWalletAddress !== null &&
-            wallet.address.toLowerCase() === preferredWalletAddress,
-          setAsDefaultPayout:
-            preferredWalletAddress !== null &&
-            wallet.address.toLowerCase() === preferredWalletAddress,
-          walletAddress: wallet.address,
-          walletProvider: "reown",
-        })
-      )
-    )
-  }, [
-    connectedWallets,
-    defaultWallet,
-    isWalletReady,
-    ownerExternalId,
-    session?.user?.name,
-    syncWalletAccount,
-  ])
 
   function openProfileBuilder(
     path?: Exclude<ProfileBuilderListingPath, "provider_sync">
@@ -233,6 +192,9 @@ export function AccountPageClient() {
           ? "Default payout wallet updated."
           : "Boreal could not update the payout wallet right now."
       )
+      if (result.updated) {
+        await refreshShellData(["profile-summary", "wallet-summary"])
+      }
     } catch {
       setNotice("Boreal could not update the payout wallet right now.")
     } finally {
@@ -269,6 +231,8 @@ export function AccountPageClient() {
       if (!result.saved) {
         throw new Error("Could not update profile availability.")
       }
+
+      await refreshShellData(["profile-summary", "sidebar-summary"])
 
       setNotice(
         checked
@@ -357,6 +321,9 @@ export function AccountPageClient() {
         }
       }
 
+      await refreshShellData(["profile-summary", "sidebar-summary"])
+      purgePublicMarket(["workers"])
+
       setNotice(
         includeListing
           ? editingSupplyId
@@ -401,6 +368,14 @@ export function AccountPageClient() {
           <LogInIcon />
           Sign in with X
         </Button>
+      </div>
+    )
+  }
+
+  if (!isShellDataReady) {
+    return (
+      <div className="flex min-h-[60svh] items-center justify-center">
+        <DotMatrixSpinner className="text-muted-foreground" size={34} />
       </div>
     )
   }

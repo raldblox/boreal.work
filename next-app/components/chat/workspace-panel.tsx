@@ -6,7 +6,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
-import { useQuery } from "convex/react"
 import {
   PackageIcon,
   SearchIcon,
@@ -18,10 +17,10 @@ import { Button } from "@/components/ui/button"
 import { DotMatrixSpinner } from "@/components/ui/dotmatrix-spinner"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { usePublicMarketCache } from "@/components/shell-data-provider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   type CatalogEntry,
-  convexFunctionRefs,
   type SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs"
 import {
@@ -33,6 +32,11 @@ import {
   BOREAL_AGENT_HEADLINE,
   BOREAL_AGENT_PROFILE_ID,
 } from "@/lib/boreal/boreal-agent"
+import {
+  getAutonomousAgentKeyFromSourceCapabilityId,
+  getPublicReadySpecialistMetaBySourceCapabilityId,
+  isPublicReadySpecialistKey,
+} from "@/lib/boreal/agents/public-ready-specialists"
 import { cn } from "@/lib/utils"
 
 import { RequestListCard } from "./request-list-card"
@@ -76,27 +80,14 @@ export function WorkspacePanel({
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search.trim())
 
-  const searchedSupplyListings = useQuery(
-    convexFunctionRefs.searchCatalog,
-    activeTab === "workers" && deferredSearch
-      ? {
-          limit: 36,
-          query: deferredSearch,
-        }
-      : "skip"
-  )
-  const defaultSupplyListings = useQuery(
-    convexFunctionRefs.listCatalog,
-    activeTab === "workers" && !deferredSearch
-      ? {
-          limit: 36,
-        }
-      : "skip"
-  )
+  const workersMarket = usePublicMarketCache({
+    enabled: activeTab === "workers",
+    limit: 36,
+    query: deferredSearch,
+    tab: "workers",
+  })
   const supplyListings = useMemo(() => {
-    const fetchedListings = ((deferredSearch
-      ? searchedSupplyListings
-      : defaultSupplyListings) ?? []) as CatalogEntry[]
+    const fetchedListings = (workersMarket.data ?? []) as CatalogEntry[]
     const normalizedQuery = deferredSearch.toLowerCase()
     const spotlightMatches =
       normalizedQuery.length === 0 ||
@@ -110,25 +101,20 @@ export function WorkspacePanel({
         ]
       : fetchedListings
 
-    return [...mergedListings].sort(compareDiscoverySupplyListings)
-  }, [defaultSupplyListings, deferredSearch, searchedSupplyListings])
-  const isWorkersLoading =
-    activeTab === "workers" &&
-    (deferredSearch
-      ? searchedSupplyListings === undefined
-      : defaultSupplyListings === undefined)
-  const publicRequestsResult = useQuery(
-    convexFunctionRefs.listMarketplaceIntents,
-    {
-      limit: 48,
-      ownerExternalId,
-      query:
-        activeTab === "requests" && deferredSearch ? deferredSearch : undefined,
-    }
-  ) as SidebarIntentPreview[] | undefined
+    return mergedListings
+      .filter(shouldSurfaceMarketListing)
+      .sort(compareDiscoverySupplyListings)
+  }, [deferredSearch, workersMarket.data])
+  const isWorkersLoading = activeTab === "workers" && workersMarket.isLoading
+  const requestsMarket = usePublicMarketCache({
+    enabled: activeTab === "requests",
+    limit: 48,
+    query: deferredSearch,
+    tab: "requests",
+  })
   const publicRequests = useMemo(
-    () => publicRequestsResult ?? [],
-    [publicRequestsResult]
+    () => (requestsMarket.data ?? []) as SidebarIntentPreview[],
+    [requestsMarket.data]
   )
   const visiblePublicRequests = useMemo(
     () =>
@@ -138,8 +124,7 @@ export function WorkspacePanel({
       ),
     [publicRequests]
   )
-  const isRequestsLoading =
-    activeTab === "requests" && publicRequestsResult === undefined
+  const isRequestsLoading = activeTab === "requests" && requestsMarket.isLoading
 
   if (!isMounted) {
     return (
@@ -310,10 +295,22 @@ function SupplyCard({
   onViewProfile: (profileId: string) => void
 }) {
   const profileId = listing.seller?.profileId ?? null
+  const specialistMeta = getPublicReadySpecialistMetaBySourceCapabilityId(
+    listing.sourceCapabilityId
+  )
   const supportsTeamSelect = canSelectAgentListing(listing) && !!onInvokeListing
   const isProfileClickable = Boolean(profileId)
   const isDefaultBorealCard =
     listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID && isBorealDefaultMounted
+  const displayTitle = specialistMeta?.displayName ?? listing.title
+  const displaySubtitle = specialistMeta?.headline ?? listing.subtitle
+  const displayDescription =
+    specialistMeta?.supplyDescription ?? listing.description
+  const displaySellerName =
+    specialistMeta?.displayName ?? listing.seller?.displayName ?? null
+  const runtimeLabel = specialistMeta
+    ? `${specialistMeta.providerCompany} • ${specialistMeta.model}`
+    : null
   const selectionLabel = isDefaultBorealCard
     ? "Default in chat"
     : isMounted
@@ -329,7 +326,7 @@ function SupplyCard({
 
   return (
     <div
-      aria-label={isProfileClickable ? `Open ${listing.title} profile` : undefined}
+      aria-label={isProfileClickable ? `Open ${displayTitle} profile` : undefined}
       className={cn(
         "space-y-3 border border-transparent p-3 transition-colors",
         (isMounted || isDefaultBorealCard) && "border-accent bg-accent/5",
@@ -354,13 +351,13 @@ function SupplyCard({
           <AgentIdentityIcon
             actorKind={listing.actorKind}
             className="size-4 text-muted-foreground"
-            displayName={listing.seller?.displayName ?? listing.title}
-            title={listing.title}
+            displayName={displaySellerName ?? displayTitle}
+            title={displayTitle}
           />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium">{listing.title}</p>
+            <p className="text-sm font-medium">{displayTitle}</p>
             {selectionLabel ? (
               <span className="text-[11px] tracking-[0.16em] text-accent-foreground uppercase">
                 {selectionLabel}
@@ -380,15 +377,20 @@ function SupplyCard({
               {listing.fulfillmentKind}
             </span>
           </div>
-          {listing.subtitle ? (
-            <p className="mt-1 text-xs">{listing.subtitle}</p>
+          {displaySubtitle ? (
+            <p className="mt-1 text-xs">{displaySubtitle}</p>
           ) : null}
           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-            {listing.description}
+            {displayDescription}
           </p>
-          {listing.seller?.displayName ? (
+          {runtimeLabel ? (
+            <p className="mt-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+              Runtime: {runtimeLabel}
+            </p>
+          ) : null}
+          {displaySellerName ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              By {listing.seller.displayName}
+              By {displaySellerName}
             </p>
           ) : null}
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
@@ -587,6 +589,22 @@ function canSelectAgentListing(listing: CatalogEntry) {
     typeof listing.sourceCapabilityId === "string" &&
     listing.sourceCapabilityId.startsWith("autonomous-agent:")
   )
+}
+
+function shouldSurfaceMarketListing(listing: CatalogEntry) {
+  if (listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID) {
+    return true
+  }
+
+  const directAgentKey = getAutonomousAgentKeyFromSourceCapabilityId(
+    listing.sourceCapabilityId
+  )
+
+  if (!directAgentKey) {
+    return true
+  }
+
+  return isPublicReadySpecialistKey(directAgentKey)
 }
 
 function EmptyBlock({ subtitle, title }: { subtitle: string; title: string }) {
