@@ -1,4 +1,4 @@
-import { DotmTriangle3 } from "@/components/ui/dotm-triangle-3"
+import { DotmSquare17 } from "@/components/ui/dotm-square-17"
 import { cn } from "@/lib/utils"
 
 type DotMatrixSpinnerProps = {
@@ -13,12 +13,8 @@ function DotMatrixSpinner({
   size,
 }: DotMatrixSpinnerProps) {
   return (
-    <DotmTriangle3
-      ariaLabel={ariaLabel}
-      className={cn("overflow-visible shrink-0 align-middle", className)}
-      size={Math.max(size ?? 30, 30)}
-      speed={1.55}
-    />
+    <DotmSquare17 color="var(--color-dotmatrix)" speed={1.5} size={36} dotSize={5} opacityMid={0.5} opacityBase={0.2} />
+
   )
 }
 

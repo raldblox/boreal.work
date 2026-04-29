@@ -9,9 +9,10 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js"
-import { CheckCircle2Icon, ExternalLinkIcon, Loader2Icon, WalletIcon } from "lucide-react"
+import { CheckCircle2Icon, ExternalLinkIcon, WalletIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { usePayment } from "@/hooks/use-payment"
 import {
   buildSolanaExplorerUrl,
@@ -229,7 +230,7 @@ export function SolanaThreadActionCard({
           size="sm"
           type="button"
         >
-          {isSubmitting ? <Loader2Icon className="animate-spin" /> : null}
+          {isSubmitting ? <LoaderIcon /> : null}
           {!selectedWalletAddress || !isWalletReady
             ? "Connect Solana wallet"
             : getSolanaActionButtonLabel(action)}

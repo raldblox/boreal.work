@@ -1,7 +1,6 @@
 "use client"
 
-import { BotIcon, UserIcon } from "lucide-react"
-
+import { AgentIdentityIcon } from "@/components/ui/agent-identity-icon"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -16,7 +15,6 @@ import {
   formatNotificationCount,
   getDefaultRequestNavigationView,
   getPreviewRequestNotificationCounts,
-  getRequestNotificationTotal,
   type RequestNavigationView,
 } from "./request-notifications"
 
@@ -35,7 +33,6 @@ export function RequestListCard({
     (participant) => participant.status !== "owner"
   )
   const counts = getPreviewRequestNotificationCounts(intent)
-  const total = getRequestNotificationTotal(counts)
   const defaultView = getDefaultRequestNavigationView(counts)
 
   return (
@@ -66,16 +63,6 @@ export function RequestListCard({
           </button>
         </div>
 
-        {total > 0 ? (
-          <button
-            aria-label={`Open request updates for ${intent.title}`}
-            className="inline-flex min-w-8 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/15"
-            onClick={() => onOpen(intent, defaultView)}
-            type="button"
-          >
-            {formatNotificationCount(total)}
-          </button>
-        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -147,8 +134,6 @@ function ParticipantAvatarRow({
         type="button"
       >
         {safeParticipants.slice(0, 4).map((participant, index) => {
-          const Icon = participant.kind === "agent" ? BotIcon : UserIcon
-
           return (
             <Tooltip key={`${participant.displayName}-${index}`}>
               <TooltipTrigger asChild>
@@ -157,7 +142,13 @@ function ParticipantAvatarRow({
                     "relative -ml-1.5 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground first:ml-0"
                   )}
                 >
-                  <Icon className="size-3.5" />
+                  <AgentIdentityIcon
+                    actorKind={participant.kind}
+                    className="size-3.5"
+                    displayName={participant.displayName}
+                    externalId={participant.externalId}
+                    handle={participant.handle}
+                  />
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top">

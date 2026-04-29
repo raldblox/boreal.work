@@ -226,6 +226,8 @@ import {
 } from "./request-ui"
 import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel"
 import { FocusSheet } from "@/components/workboard/focus-sheet"
+import { DotmTriangle16 } from "../ui/dotm-triangle-16"
+import { DotmSquare17 } from "../ui/dotm-square-17"
 
 type ChatMessage = {
   content: string
@@ -568,9 +570,9 @@ export function ChatShell() {
   const activeProfileLookup = activeProfileId
     ? activeProfileId === "boreal-agent"
       ? {
-          externalId: BOREAL_AGENT_EXTERNAL_ID,
-          kind: "externalId" as const,
-        }
+        externalId: BOREAL_AGENT_EXTERNAL_ID,
+        kind: "externalId" as const,
+      }
       : parseProfileLookup(activeProfileId)
     : null
   const profileSheetDetail = useQuery(
@@ -969,8 +971,8 @@ export function ChatShell() {
     setProfileBuilderDraft(options?.draft ?? buildInitialProfileBuilderDraft())
     setProfileBuilderMessage(
       options?.sourceMessage ??
-        activeProfileBuilderWorkspace?.sourceBrief ??
-        composerText.trim()
+      activeProfileBuilderWorkspace?.sourceBrief ??
+      composerText.trim()
     )
     setIsProfileBuilderOpen(true)
     setIsAccountSheetOpen(false)
@@ -1556,7 +1558,7 @@ export function ChatShell() {
             ? "Connect a buyer wallet before placing paid checkout items."
             : result.reason === "wallet_network_mismatch"
               ? "Your connected wallet network does not match the selected listing's settlement network."
-            : "Could not place checkout."
+              : "Could not place checkout."
         )
       }
 
@@ -3118,7 +3120,7 @@ export function ChatShell() {
     isXAuthenticated && shouldShowChatComposer && !isHomeView && !isSessionsView
 
   return (
-      <>
+    <>
       <div className="flex h-svh w-full max-w-none flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-0 lg:flex-row">
           <DesktopIntentRail
@@ -3267,7 +3269,7 @@ export function ChatShell() {
                       <ProfileView
                         actions={
                           resolvedProfileSheetDetail.profile.isMine &&
-                          resolvedProfileSheetDetail.profile.actorKind === "human" ? (
+                            resolvedProfileSheetDetail.profile.actorKind === "human" ? (
                             <>
                               <Button
                                 onClick={() => {
@@ -3337,14 +3339,14 @@ export function ChatShell() {
                   <div className={HOME_PANEL_CLASS}>
                     <HomeChatSurface
                       composer={
-                        <PromptInput className="w-full" onSubmit={async () => {}}>
+                        <PromptInput className="w-full" onSubmit={async () => { }}>
                           <PromptInputBody>
-                              <PromptInputTextarea
-                                className="min-h-[140px] text-base"
-                                disabled
-                                placeholder="I'm afraid you can also ask me anything. Sign in with X when you want Boreal to match and route real work."
-                                value=""
-                              />
+                            <PromptInputTextarea
+                              className="min-h-[140px] text-base"
+                              disabled
+                              placeholder="I'm afraid you can also ask me anything. Sign in with X when you want Boreal to match and route real work."
+                              value=""
+                            />
                           </PromptInputBody>
                           <PromptInputFooter className="items-center justify-between gap-2">
                             <PromptInputTools className="w-full flex-wrap justify-start gap-2">
@@ -3464,16 +3466,16 @@ export function ChatShell() {
                           "h-full items-center py-8"
                         )}
                       >
-                          <div className="w-full rounded-xl border border-border p-6">
-                            <p className="text-sm font-medium">
-                              Request workboard unavailable
-                            </p>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              This request is not available in the current session
-                              yet. Use a valid shared request link or browse
-                              from your request list.
-                            </p>
-                          </div>
+                        <div className="w-full rounded-xl border border-border p-6">
+                          <p className="text-sm font-medium">
+                            Request workboard unavailable
+                          </p>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            This request is not available in the current session
+                            yet. Use a valid shared request link or browse
+                            from your request list.
+                          </p>
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -3599,9 +3601,9 @@ export function ChatShell() {
                                   isApprovingRequest={isApprovingRequest}
                                   isArchivingRequest={isArchivingRequest}
                                   isCancellingRequest={isCancellingRequest}
-                                isMarkingRequestFulfilled={
-                                  isMarkingRequestFulfilled
-                                }
+                                  isMarkingRequestFulfilled={
+                                    isMarkingRequestFulfilled
+                                  }
                                   isRefreshingRequest={isRefreshingRequest}
                                   isRetryingRequest={isRetryingRequest}
                                   isRefreshingVideo={isRefreshingVideo}
@@ -3655,11 +3657,8 @@ export function ChatShell() {
                                   <Message from="assistant">
                                     <MessageContent>
                                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <DotMatrixSpinner
-                                          className="text-muted-foreground"
-                                          size={30}
-                                        />
-                                        <span>Routing request</span>
+                                        <DotMatrixSpinner />
+                                        <span>Working...</span>
                                       </div>
                                     </MessageContent>
                                   </Message>
@@ -3680,7 +3679,7 @@ export function ChatShell() {
                       <div className="flex items-center justify-center overflow-visible py-16">
                         <DotMatrixSpinner
                           className="text-muted-foreground"
-                          size={46}
+
                         />
                       </div>
                     </div>
@@ -3892,23 +3891,21 @@ export function ChatShell() {
                                 </MessageResponse>
                               ) : (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <DotMatrixSpinner
-                                    className="text-muted-foreground"
-                                    size={30}
-                                  />
-                                  {/* <span>Routing request</span> */}
+                                  <DotmSquare17 color="var(--color-dotmatrix)" speed={1.5} size={24} dotSize={3} opacityMid={0.5} opacityBase={0.2} />
+                                  <span>Borealizing...</span>
                                 </div>
                               )}
+
                               {message.role === "assistant" &&
-                              message.debugEvents &&
-                              message.debugEvents.length > 0 ? (
+                                message.debugEvents &&
+                                message.debugEvents.length > 0 ? (
                                 <AssistantDebugTools
                                   events={message.debugEvents}
                                 />
                               ) : null}
                               {!activeIntentId &&
-                              message.id === MOUNTED_TEAM_THREAD_MESSAGE_ID &&
-                              mountedComposerStarterPromptOptions.length > 0 ? (
+                                message.id === MOUNTED_TEAM_THREAD_MESSAGE_ID &&
+                                mountedComposerStarterPromptOptions.length > 0 ? (
                                 <div className="mt-3 flex flex-wrap gap-2">
                                   {mountedComposerStarterPromptOptions.map(
                                     (prompt) => (
@@ -3977,7 +3974,7 @@ export function ChatShell() {
               >
                 <div className={CHAT_COMPOSER_CLASS}>
                   {(activeCart?.itemCount ?? 0) > 0 ||
-                  (!activeIntentId && !isWalletReady) ? (
+                    (!activeIntentId && !isWalletReady) ? (
                     <PromptInputTools className="w-full flex-wrap justify-start gap-2">
                       {(activeCart?.itemCount ?? 0) > 0 ? (
                         <Button
@@ -4415,8 +4412,8 @@ function BorealTimelineSessionBlock({
                 </div>
                 <div className="flex items-center gap-2">
                   {isProposedDraft &&
-                  !linkedRequest.needsClarification &&
-                  !isActiveDraft ? (
+                    !linkedRequest.needsClarification &&
+                    !isActiveDraft ? (
                     <>
                       <Button
                         onClick={() => onOpenRequest(linkedRequest.id)}
@@ -4606,7 +4603,7 @@ function RequestHeaderMeta({
                             ? "border-primary bg-primary/5 text-primary"
                             : "border-foreground/20 text-muted-foreground",
                           shouldPulse &&
-                            "animate-pulse shadow-[0_0_0_4px_rgba(20,184,166,0.14)]"
+                          "animate-pulse shadow-[0_0_0_4px_rgba(20,184,166,0.14)]"
                         )}
                       >
                         <Icon className="size-2.5" />
@@ -4847,8 +4844,8 @@ function InlineRequestActionEvent({
                   : handlingMode === "workers"
                     ? "Approving this will publish the request for proposals and matching."
                     : isProfileUpdate
-                    ? "Approving this will let Boreal draft your editable work profile and first listing. You can also open the builder form and fill it manually."
-                    : isMatchedCatalogRoute
+                      ? "Approving this will let Boreal draft your editable work profile and first listing. You can also open the builder form and fill it manually."
+                      : isMatchedCatalogRoute
                         ? "Approving this will let Boreal run the strongest matched specialist route first."
                         : "Approving this will let Boreal Agent take the first execution pass."}
               </p>
@@ -5231,18 +5228,18 @@ function RequestChatTimeline({
   )
   const requestActionState = requestDetail.intent
     ? getRequestActionState(
-        requestDetail.intent,
-        requestDetail.access,
-        shouldPromptReview,
-        requestDetail.activity
-      )
+      requestDetail.intent,
+      requestDetail.access,
+      shouldPromptReview,
+      requestDetail.activity
+    )
     : null
   const catalogApprovalIntentId =
     requestDetail.intent &&
-    requestDetail.access?.isOwner &&
-    (requestDetail.intent.status === "proposed" ||
-      requestDetail.intent.status === "open") &&
-    !requestDetail.intent.needsClarification
+      requestDetail.access?.isOwner &&
+      (requestDetail.intent.status === "proposed" ||
+        requestDetail.intent.status === "open") &&
+      !requestDetail.intent.needsClarification
       ? requestDetail.intent._id
       : null
 
@@ -5430,14 +5427,9 @@ function buildRequestTimeline(
     role:
       message.role === "user" ? ("user" as const) : ("assistant" as const),
   }))
-  const pendingLiveMessages = liveMessages.slice(
-    getMessageSequenceOverlap(
-      persistedThreadMessages,
-      liveMessages.map((message) => ({
-        content: message.content,
-        role: message.role,
-      }))
-    )
+  const pendingLiveMessages = filterPersistedThreadLiveMessages(
+    persistedThreadMessages,
+    liveMessages,
   )
 
   for (const message of requestDetail.messages) {
@@ -5518,6 +5510,33 @@ function buildRequestTimeline(
     }
 
     return order[left.kind] - order[right.kind]
+  })
+}
+
+function filterPersistedThreadLiveMessages(
+  persistedMessages: Array<{ content: string; role: ChatMessage["role"] }>,
+  liveMessages: ChatMessage[],
+) {
+  if (persistedMessages.length === 0 || liveMessages.length === 0) {
+    return liveMessages
+  }
+
+  let persistedIndex = 0
+
+  return liveMessages.filter((liveMessage) => {
+    for (let index = persistedIndex; index < persistedMessages.length; index += 1) {
+      const persisted = persistedMessages[index]
+
+      if (
+        persisted?.role === liveMessage.role &&
+        persisted.content.trim() === liveMessage.content.trim()
+      ) {
+        persistedIndex = index + 1
+        return false
+      }
+    }
+
+    return true
   })
 }
 
@@ -6113,7 +6132,7 @@ function RequestWorkersPanel({
                           participant,
                           participant.runtimeSupplyId
                             ? runtimePresence[participant.runtimeSupplyId] ??
-                                "checking"
+                            "checking"
                             : undefined
                         )
                       )}
@@ -6122,7 +6141,7 @@ function RequestWorkersPanel({
                         participant,
                         participant.runtimeSupplyId
                           ? runtimePresence[participant.runtimeSupplyId] ??
-                              "checking"
+                          "checking"
                           : undefined
                       )}
                     </span>
@@ -6130,12 +6149,12 @@ function RequestWorkersPanel({
                       {participant.status}
                     </span>
                     {isSolanaWalletReady &&
-                    isSolanaOperatorIdentity({
-                      displayName: participant.displayName,
-                      externalId: participant.externalId,
-                      handle: participant.handle,
-                      title: participant.title,
-                    }) ? (
+                      isSolanaOperatorIdentity({
+                        displayName: participant.displayName,
+                        externalId: participant.externalId,
+                        handle: participant.handle,
+                        title: participant.title,
+                      }) ? (
                       <span className="text-[11px] tracking-[0.16em] text-emerald-600 uppercase">
                         Solana connected
                       </span>
@@ -6144,9 +6163,9 @@ function RequestWorkersPanel({
                   <p className="mt-1 text-xs text-muted-foreground">
                     {participant.runtimeSupplyId
                       ? participant.executorUrl ??
-                        participant.mcpServerUrl ??
-                        participant.handle ??
-                        participant.kind
+                      participant.mcpServerUrl ??
+                      participant.handle ??
+                      participant.kind
                       : participant.handle
                         ? `@${participant.handle}`
                         : participant.kind}
@@ -6742,7 +6761,7 @@ function ProposalViewerPanel({
                     <ProposalCardBody proposal={proposal} />
                   </div>
                   {proposal.proposer.profileId ? (
-                  <div className="mt-4">
+                    <div className="mt-4">
                       <Button
                         onClick={() => onViewProfile(proposal.proposer.profileId!)}
                         size="sm"
@@ -6751,8 +6770,8 @@ function ProposalViewerPanel({
                       >
                         View profile
                       </Button>
-                  </div>
-                ) : null}
+                    </div>
+                  ) : null}
                   {isOwner && proposal.status === "submitted" ? (
                     <div className="mt-4 flex gap-2">
                       <Button
@@ -7929,12 +7948,12 @@ async function consumeChatStream(input: {
           current.map((message) =>
             message.id === input.assistantMessageId
               ? {
-                  ...message,
-                  debugEvents: upsertAssistantDebugEvent(
-                    message.debugEvents,
-                    event.payload
-                  ),
-                }
+                ...message,
+                debugEvents: upsertAssistantDebugEvent(
+                  message.debugEvents,
+                  event.payload
+                ),
+              }
               : message
           )
         )
@@ -8200,7 +8219,10 @@ function deriveRequestComposerAgents(requestDetail: RequestDetail | null) {
   }
 
   const participantAgents = requestDetail.participants
-    .filter((participant) => participant.kind === "agent")
+    .filter(
+      (participant) =>
+        participant.kind === "agent" && participant.status !== "owner",
+    )
     .filter(
       (participant, index, collection) =>
         collection.findIndex(
@@ -8975,13 +8997,13 @@ function buildWorkspaceFromRequestDetail(
         buildProfileBuilderSeedFromIntent(detail.intent),
       kind: "profile_builder",
       sourceBrief: draftActivity?.sourceBrief ?? detail.intent.body,
-          subtitle:
-            detail.intent.status === "fulfilled"
-              ? "The profile onboarding request is complete. You can still reopen the setup and refine the record later."
-              : detail.intent.status === "in_progress" ||
-                detail.intent.status === "claimed"
-                ? "Boreal delivered an editable draft. Review it, then save the profile and publish the offer when ready."
-                : "Open the profile editor manually, or approve Boreal to draft a stronger profile and primary offer from this brief.",
+      subtitle:
+        detail.intent.status === "fulfilled"
+          ? "The profile onboarding request is complete. You can still reopen the setup and refine the record later."
+          : detail.intent.status === "in_progress" ||
+            detail.intent.status === "claimed"
+            ? "Boreal delivered an editable draft. Review it, then save the profile and publish the offer when ready."
+            : "Open the profile editor manually, or approve Boreal to draft a stronger profile and primary offer from this brief.",
       title: "Profile editor",
     }
   }
@@ -9108,8 +9130,8 @@ function buildWorkspaceFromRequestDetail(
       highlightedId: detail.catalogItems[0]?._id,
       items: detail.catalogItems.map(mapCatalogEntryToItem),
       kind: "catalog",
-        subtitle:
-          detail.intent.status === "blocked"
+      subtitle:
+        detail.intent.status === "blocked"
           ? blockedErrorMessage
             ? isVideoProviderAccessUnavailableError(blockedErrorMessage)
               ? `Motion Video Studio is unavailable under the current OpenAI project or key. Fix provider access, then retry, or reopen this request for workers now.`

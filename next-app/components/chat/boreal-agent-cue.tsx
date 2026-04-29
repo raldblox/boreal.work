@@ -1,29 +1,25 @@
 "use client"
 
-import { BotIcon, SparklesIcon, UserIcon, XIcon } from "lucide-react"
+import { XIcon } from "lucide-react"
 
+import { AgentIdentityIcon } from "@/components/ui/agent-identity-icon"
 import { cn } from "@/lib/utils"
 
 export function BorealAgentCue({
   actorKind = "agent",
+  agentKey,
   canClear = false,
   className,
   label = "Boreal Agent",
   onClear,
 }: {
   actorKind?: "agent" | "human" | "tool"
+  agentKey?: string | null
   canClear?: boolean
   className?: string
   label?: string
   onClear?: () => void
 }) {
-  const Icon =
-    actorKind === "human"
-      ? UserIcon
-      : actorKind === "tool"
-        ? SparklesIcon
-        : BotIcon
-
   return (
     <div
       className={cn(
@@ -37,12 +33,14 @@ export function BorealAgentCue({
           canClear ? "w-6 group-hover:w-0" : "w-6"
         )}
       >
-        <Icon
+        <AgentIdentityIcon
+          actorKind={actorKind}
           className={cn(
             "size-3.5 text-foreground transition-all duration-200 ease-out",
             canClear &&
               "group-hover:scale-0 group-hover:opacity-0"
           )}
+          directAgentKey={agentKey}
         />
       </span>
       <span className="min-w-0 truncate font-medium text-foreground">

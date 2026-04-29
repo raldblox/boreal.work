@@ -5,7 +5,7 @@ import { useQuery } from "convex/react"
 
 import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { ProfileView } from "@/components/profiles/profile-view"
-import { Spinner as LoaderIcon } from "@/components/ui/spinner"
+import { DotMatrixSpinner } from "@/components/ui/dotmatrix-spinner"
 import { BOREAL_AGENT_EXTERNAL_ID } from "@/lib/boreal/boreal-agent"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 
@@ -48,7 +48,7 @@ export function ProfilePageClient({ profileId }: { profileId: string }) {
         className="flex min-h-[60svh] items-center justify-center text-sm text-muted-foreground"
         id="main-content"
       >
-        <LoaderIcon className="mr-2 size-4 animate-spin" />
+        <DotMatrixSpinner className="mr-2 text-muted-foreground" />
         Loading profile
       </main>
     )

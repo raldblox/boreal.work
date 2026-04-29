@@ -69,6 +69,7 @@
   --border: oklch(0.9 0 0);
   --input: oklch(0.93 0 0);
   --ring: oklch(0.68 0.12 198);
+  --color-dotmatrix: var(--primary);
   --chart-1: oklch(0.58 0.14 198);
   --chart-2: oklch(0.64 0.11 186);
   --chart-3: oklch(0.7 0.09 176);

@@ -11,6 +11,8 @@ export interface TextShimmerProps {
   className?: string;
   duration?: number;
   spread?: number;
+  baseColor?: string;
+  highlightColor?: string;
 }
 
 const ShimmerComponent = ({
@@ -19,6 +21,8 @@ const ShimmerComponent = ({
   className,
   duration = 2,
   spread = 2,
+  baseColor = "var(--color-muted-foreground)",
+  highlightColor = "var(--color-background)",
 }: TextShimmerProps) => {
   const dynamicSpread = useMemo(
     () => (children?.length ?? 0) * spread,
@@ -38,7 +42,8 @@ const ShimmerComponent = ({
           {
             "--spread": `${dynamicSpread}px`,
             backgroundImage:
-              "var(--bg), linear-gradient(var(--color-muted-foreground), var(--color-muted-foreground))",
+              `var(--bg), linear-gradient(${baseColor}, ${baseColor})`,
+            ["--bg" as const]: `linear-gradient(90deg,#0000_calc(50%-var(--spread)),${highlightColor},#0000_calc(50%+var(--spread)))`,
           } as CSSProperties
         }
         transition={{

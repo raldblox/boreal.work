@@ -9,7 +9,7 @@ import { ArrowLeftIcon, LogInIcon } from "lucide-react"
 import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
 import { ProfileBuilderEditor } from "@/components/chat/profile-builder"
 import { Button } from "@/components/ui/button"
-import { Spinner as LoaderIcon } from "@/components/ui/spinner"
+import { DotMatrixSpinner } from "@/components/ui/dotmatrix-spinner"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import { usePayment } from "@/hooks/use-payment"
 import {
@@ -378,7 +378,7 @@ export function AccountPageClient() {
   if (status === "loading") {
     return (
       <div className="flex min-h-[60svh] items-center justify-center">
-        <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+        <DotMatrixSpinner className="text-muted-foreground" size={34} />
       </div>
     )
   }

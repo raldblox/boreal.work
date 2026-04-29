@@ -611,7 +611,7 @@ function DiscoveryPanelLoader({
   return (
     <div className="space-y-3 p-2">
       <div className="flex items-center gap-2 border border-border/70 bg-background px-3 py-2.5 text-xs text-muted-foreground">
-        <DotMatrixSpinner className="text-muted-foreground" size={30} />
+        <DotMatrixSpinner className="text-muted-foreground" />
         <span>{subtitle}</span>
       </div>
 

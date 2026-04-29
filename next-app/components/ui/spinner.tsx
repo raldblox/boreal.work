@@ -1,4 +1,5 @@
-import { DotmTriangle3 } from "@/components/ui/dotm-triangle-3"
+import { LoaderCircleIcon } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 
 type SpinnerProps = {
@@ -7,31 +8,13 @@ type SpinnerProps = {
   size?: number
 }
 
-function resolveSpinnerClassName(className?: string) {
-  const tokens = className?.split(/\s+/).filter(Boolean) ?? []
-  const cleanedTokens: string[] = []
-
-  for (const token of tokens) {
-    if (token === "animate-spin" || token.startsWith("size-")) {
-      continue
-    }
-
-    cleanedTokens.push(token)
-  }
-
-  return cleanedTokens.join(" ")
-}
-
-function Spinner({ ariaLabel = "Loading", className, size }: SpinnerProps) {
-  const resolvedSize = Math.max(size ?? 30, 30)
-  const resolvedClassName = resolveSpinnerClassName(className)
-
+function Spinner({ ariaLabel = "Loading", className, size: _size }: SpinnerProps) {
   return (
-    <DotmTriangle3
-      ariaLabel={ariaLabel}
-      className={cn("overflow-visible shrink-0 align-middle", resolvedClassName)}
-      size={resolvedSize}
-      speed={1.55}
+    <LoaderCircleIcon
+      aria-label={ariaLabel}
+      className={cn("shrink-0 animate-spin", className)}
+      role="status"
+      size={_size}
     />
   )
 }
