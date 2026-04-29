@@ -18,6 +18,7 @@ import {
   proposalIncludesParticipant,
   resolveCollectiveParticipants,
 } from "./collectives";
+import { shouldFetchRequestMatches } from "../lib/boreal/request-matching-policy.ts";
 import { persistIntentMatchCandidates } from "./matching";
 import { listIntentMatchCandidates } from "./supplies";
 
@@ -294,8 +295,9 @@ export const getRequestDetail = query({
       acceptedProposal,
     });
     const fulfillment = await getRequestFulfillment(ctx, intent, acceptedProposal);
+    const normalizedIntent = sanitizeStoredIntentShape(intent);
     const matchCandidates =
-      intent.shouldSearchCatalog || intent.routeTarget === "catalog_lookup"
+      shouldFetchRequestMatches(normalizedIntent.classification)
         ? await listIntentMatchCandidates(
             ctx,
             {
@@ -306,12 +308,13 @@ export const getRequestDetail = query({
               capabilityTags: intent.capabilityTags,
               catalogQuery: intent.catalogQuery,
               category: intent.category,
+              classification: normalizedIntent.classification,
               deadlineAt: intent.deadlineAt,
               embedding: intent.embedding,
               intentKey: intent.intentKey,
               keywords: intent.keywords,
               pinnedSupplyIds: intent.pinnedSupplyIds ?? [],
-              requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+              requestedOutputTypes: normalizedIntent.requestedOutputTypes,
               summary: intent.summary,
               title: intent.title,
             },
@@ -321,7 +324,6 @@ export const getRequestDetail = query({
     const catalogItems = matchCandidates
       .filter((candidate) => candidate.gatedOutReasons.length === 0)
       .slice(0, 8);
-    const normalizedIntent = sanitizeStoredIntentShape(intent);
 
     return {
       access: {
@@ -602,6 +604,7 @@ export const refineRequestMatches = mutation({
     }
 
     const now = Date.now();
+    const normalizedIntent = sanitizeStoredIntentShape(intent);
 
     await ctx.db.patch(args.intentId, {
       catalogQuery: query,
@@ -616,12 +619,13 @@ export const refineRequestMatches = mutation({
       capabilityTags: intent.capabilityTags,
       catalogQuery: query,
       category: intent.category,
+      classification: normalizedIntent.classification,
       deadlineAt: intent.deadlineAt,
       embedding: intent.embedding,
       intentId: intent._id,
       intentKey: intent.intentKey,
       keywords: intent.keywords,
-      requestedOutputTypes: intent.requestedOutputTypes ?? ["text"],
+      requestedOutputTypes: normalizedIntent.requestedOutputTypes,
       summary: intent.summary,
       title: intent.title,
     });
@@ -631,6 +635,7 @@ export const refineRequestMatches = mutation({
       entityId: intent.intentKey,
       entityType: "intent",
       payload: JSON.stringify({
+        fetchPath: result.fetchPath,
         persistedCount: result.persistedCount,
         query,
         topMatchScore: result.topMatchScore,

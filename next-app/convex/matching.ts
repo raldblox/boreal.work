@@ -1,5 +1,11 @@
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import {
+  filterSupplyForRequestClassification,
+  resolveRequestFetchPath,
+  type RequestFetchPath,
+} from "../lib/boreal/request-matching-policy.ts";
+import type { RequestClassification } from "../lib/boreal/schemas/intent.ts";
 
 type MatchStage = "feasible" | "notified" | "ranked" | "reserved" | "retrieved";
 
@@ -12,6 +18,7 @@ type MatchingIntentInput = {
   capabilityTags?: string[];
   catalogQuery?: string;
   category?: string;
+  classification?: RequestClassification;
   deadlineAt?: number | null;
   embedding?: number[];
   intentId?: Id<"intents">;
@@ -62,32 +69,27 @@ export async function buildRankedSupplyMatches(
   input: MatchingIntentInput,
 ) {
   const queryText = buildIntentQueryText(input);
-  const lexicalCandidates = queryText
-    ? await ctx.db
-        .query("supplies")
-        .withSearchIndex("search_market", (queryBuilder) =>
-          queryBuilder.search("searchText", queryText).eq("status", "active"),
-        )
-        .take(72)
-    : [];
-  const categoryCandidates = input.category
-    ? await ctx.db
-        .query("supplies")
-        .withIndex("by_category", (queryBuilder) => queryBuilder.eq("category", input.category!))
-        .take(48)
-    : [];
-  const trustedCandidates = await ctx.db
-    .query("supplies")
-    .withIndex("by_status_and_trustScore", (queryBuilder) =>
-      queryBuilder.eq("status", "active"),
-    )
-    .order("desc")
-    .take(120);
+  const fetchPath = resolveRequestFetchPath(input.classification);
+  const lexicalCandidates = await loadLexicalCandidates(ctx, fetchPath, queryText);
+  const categoryCandidates =
+    fetchPath !== "none" && input.category
+      ? await ctx.db
+          .query("supplies")
+          .withIndex("by_category", (queryBuilder) =>
+            queryBuilder.eq("category", input.category!),
+          )
+          .take(48)
+      : [];
+  const scopedCandidates = await loadScopedCandidates(ctx, fetchPath);
   const candidates = dedupeSupplies([
     ...lexicalCandidates,
     ...categoryCandidates,
-    ...trustedCandidates,
-  ]).filter((candidate) => candidate.status === "active");
+    ...scopedCandidates,
+  ]).filter(
+    (candidate) =>
+      candidate.status === "active" &&
+      filterSupplyForRequestClassification(candidate, input.classification),
+  );
   const lexicalRanks = buildRankMap(lexicalCandidates.map((candidate) => candidate._id));
   const vectorRanks = buildVectorRankMap(candidates, input.embedding);
 
@@ -179,6 +181,7 @@ export async function persistIntentMatchCandidates(
   });
 
   return {
+    fetchPath: resolveRequestFetchPath(input.classification),
     persistedCount,
     topMatchScore: ranked[0]?.heuristicScore ?? null,
   };
@@ -508,6 +511,80 @@ function scoreLexicalSignals(
     score,
     titleHits,
   };
+}
+
+async function loadLexicalCandidates(
+  ctx: MatchingCtx,
+  fetchPath: RequestFetchPath,
+  queryText: string,
+) {
+  if (!queryText || fetchPath === "none") {
+    return [];
+  }
+
+  return ctx.db
+    .query("supplies")
+    .withSearchIndex("search_market", (queryBuilder) => {
+      const base = queryBuilder.search("searchText", queryText).eq("status", "active");
+
+      if (fetchPath === "product_catalog") {
+        return base.eq("supplyType", "product");
+      }
+
+      if (fetchPath === "collective_market") {
+        return base.eq("supplyType", "collective");
+      }
+
+      return base;
+    })
+    .take(fetchPath === "catalog_lookup" ? 72 : 56);
+}
+
+async function loadScopedCandidates(
+  ctx: MatchingCtx,
+  fetchPath: RequestFetchPath,
+) {
+  switch (fetchPath) {
+    case "none":
+      return [];
+    case "product_catalog":
+      return loadActiveSuppliesByTypes(ctx, ["product"], 96);
+    case "collective_market":
+      return loadActiveSuppliesByTypes(ctx, ["collective"], 96);
+    case "direct_tool":
+      return loadActiveSuppliesByTypes(ctx, ["capability", "agent_tool"], 72);
+    case "worker_market":
+      return loadActiveSuppliesByTypes(ctx, ["capability", "agent_tool", "collective"], 72);
+    case "provider_x402":
+    case "catalog_lookup":
+    default:
+      return ctx.db
+        .query("supplies")
+        .withIndex("by_status_and_trustScore", (queryBuilder) =>
+          queryBuilder.eq("status", "active"),
+        )
+        .order("desc")
+        .take(120);
+  }
+}
+
+async function loadActiveSuppliesByTypes(
+  ctx: MatchingCtx,
+  supplyTypes: Array<Doc<"supplies">["supplyType"]>,
+  perTypeLimit: number,
+) {
+  const batches = await Promise.all(
+    supplyTypes.map((supplyType) =>
+      ctx.db
+        .query("supplies")
+        .withIndex("by_status_and_supplyType", (queryBuilder) =>
+          queryBuilder.eq("status", "active").eq("supplyType", supplyType),
+        )
+        .take(perTypeLimit),
+    ),
+  );
+
+  return batches.flat();
 }
 
 function scoreSemanticFit(

@@ -265,6 +265,7 @@ export const recordIntentPipeline = mutation({
       capabilityTags: args.intent.capabilityTags,
       catalogQuery: args.intent.catalogQuery,
       category: args.intent.category,
+      classification: args.intent.classification,
       deadlineAt: undefined,
       embedding: args.intent.embedding,
       intentId,
@@ -282,6 +283,7 @@ export const recordIntentPipeline = mutation({
       entityType: "intent",
       payload: JSON.stringify({
         candidateCount: matching.persistedCount,
+        fetchPath: matching.fetchPath,
         topMatchScore: matching.topMatchScore,
       }),
       type:
@@ -342,6 +344,7 @@ export const approveRequest = mutation({
       capabilityTags: intent.capabilityTags,
       catalogQuery: intent.catalogQuery,
       category: intent.category,
+      classification: intent.classification,
       deadlineAt: intent.deadlineAt,
       embedding: intent.embedding,
       intentId: intent._id,

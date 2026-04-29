@@ -7,7 +7,7 @@ import {
   CableIcon,
   ShieldCheckIcon,
   WalletIcon,
-} from "lucide-react"
+} from "@/components/ui/static-icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

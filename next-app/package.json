@@ -25,6 +25,7 @@
     "smoke:payouts": "node --experimental-strip-types scripts/smoke-payouts.ts",
     "smoke:request-callbacks": "node --experimental-strip-types scripts/smoke-request-callbacks.ts",
     "smoke:request-classification": "node --experimental-strip-types scripts/smoke-request-classification.ts",
+    "smoke:request-fetch-paths": "node --experimental-strip-types scripts/smoke-request-fetch-paths.ts",
     "smoke:request-recovery": "node --experimental-strip-types scripts/smoke-request-recovery.ts",
     "smoke:request-thread-specialists": "node --experimental-strip-types scripts/smoke-request-thread-specialists.ts",
     "smoke:supplier-capacity": "node --experimental-strip-types scripts/smoke-supplier-capacity.ts",

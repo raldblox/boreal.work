@@ -1,5 +1,6 @@
 import { directExecutionAgents } from "../../../agents/index.ts";
 import type { AgentExecutionOutputKind } from "../../../agents/shared/types";
+import { shouldUseDirectAutoRoute } from "../request-matching-policy.ts";
 import type { PersistedIntent } from "../schemas/intent";
 
 import type {
@@ -13,7 +14,11 @@ import { getDefaultSolanaNetworkKey } from "../solana-network.ts";
 const AUTO_ROUTE_SCORE_THRESHOLD = 28;
 
 export function buildAutoRoutePlan(input: OneRequestIntentContext): OneRequestRoutePlan | null {
-  if (input.intent.needsClarification || input.intent.missingDetails.length > 0) {
+  if (
+    input.intent.needsClarification ||
+    input.intent.missingDetails.length > 0 ||
+    !shouldUseDirectAutoRoute(input.intent.classification)
+  ) {
     return null;
   }
 

@@ -74,7 +74,7 @@ Goal: one request can enter Boreal, move forward on one thread, and exit with de
 | `EA-1.5` | `Done` | Protect the public one-request surface with wallet-scoped unpaid-quote and burst guards. | `npm run smoke:one-request-guards`, guard logic in `next-app/lib/boreal/one-request/` | Basic abuse resistance. |
 | `EA-1.6` | `Done` | Normalize recovery paths when automatic execution fails so requests reopen safely for workers across all route types. | request timeline recovery UX, route-specific reopen logic, `npm run smoke:request-recovery` | Safer failure handling beyond the happy path. |
 | `EA-1.7` | `Done` | Separate request market classification from the current UI-oriented `routeTarget`: persist `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters on the request. | `MATCHING_ENGINE.md`, `next-app/lib/boreal/schemas/intent.ts`, `next-app/convex/schema.ts`, `npm run smoke:request-classification` | Classifier-first request contract. |
-| `EA-1.8` | `Not started` | Use request classification to choose fetch and routing paths before broad ranking: direct tool, product catalog, provider x402, async worker market, or collective. | routing layer, matching layer, request lifecycle docs | Cheaper and cleaner retrieval. |
+| `EA-1.8` | `Done` | Use request classification to choose fetch and routing paths before broad ranking: direct tool, product catalog, provider x402, async worker market, or collective. | `next-app/lib/boreal/request-matching-policy.ts`, matching and one-request routing, `npm run smoke:request-fetch-paths` | Classifier-first fetch and auto-route policy. |
 
 After this phase:
 
@@ -88,6 +88,7 @@ Verification:
 - `cd next-app && npm run smoke:one-request`
 - `cd next-app && npm run smoke:one-request-guards`
 - `cd next-app && npm run smoke:request-classification`
+- `cd next-app && npm run smoke:request-fetch-paths`
 - `cd next-app && npm run smoke:request-recovery`
 - `cd next-app && npm run smoke:request-thread-specialists`
 

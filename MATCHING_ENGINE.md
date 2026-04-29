@@ -147,13 +147,13 @@ intent arrives
 
 ### 3.2 Fetch Policy By Request Class
 
-Request classification should choose the fetch path before broad retrieval.
+Request classification should choose the fetch path before broad retrieval.  The live repo now resolves that policy in `next-app/lib/boreal/request-matching-policy.ts`, and matching plus one-request routing consume the same persisted classification object before ranking or direct auto-route.
 
 | Request class | Primary fetch path | Matching note |
 | --- | --- | --- |
-| informational | no market fetch | answer directly or search docs |
+| informational | `catalog_lookup` or no fetch | answer directly when no search is needed, otherwise keep catalog browse scoped |
 | onboarding or profile setup | no market fetch | use profile or supply builder flow |
-| direct generation | native tool route or direct specialist route | skip broad marketplace matching |
+| direct generation | `direct_tool` | lock onto direct specialist or tool candidates before broad marketplace fallback |
 | product purchase | `supplies` + `supplyProducts` where cart and product constraints fit | product ranking, not worker matching |
 | provider service | `serviceCapabilities` + `supplies` + `supplyProviderServices` | prefilter on direct invoke, provider health, and payment protocol |
 | custom human or agent work | `supplies` + `supplyServiceOffers` + optional agent or collective adjunct tables | this is the main worker-market matching path |
@@ -161,9 +161,8 @@ Request classification should choose the fetch path before broad retrieval.
 
 The classification layer should also decide when not to fetch at all.  Many requests should never hit the broad marketplace:
 
-- direct image, speech, or video generation
 - profile or supply publishing
-- simple informational catalog lookup
+- simple informational asks with no catalog or provider search need
 
 This saves both runtime cost and ranking noise.
 

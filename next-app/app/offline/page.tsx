@@ -1,4 +1,4 @@
-import { WifiOffIcon } from "lucide-react"
+import { WifiOffIcon } from "@/components/ui/static-icons"
 
 export default function OfflinePage() {
   return (

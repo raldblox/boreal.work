@@ -208,8 +208,8 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Hybrid matching foundation: lexical retrieval, embedding similarity, structured filters, and hard gates
 - [x] Match event logging with score breakdown
 - [x] Matching workspace UX with explanations, gated-out reasons, refinement, and pinning
-- [ ] Separate request market classification from the current UI-oriented `routeTarget`, with canonical persisted fields such as `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and allowed candidate-pool filters
-- [ ] Use request classification to choose the fetch path before ranking: direct tool route, product catalog, provider-backed x402 service, async worker market, or collective market
+- [x] Separate request market classification from the current UI-oriented `routeTarget`, with canonical persisted fields such as `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and allowed candidate-pool filters
+- [x] Use request classification to choose the fetch path before ranking: direct tool route, product catalog, provider-backed x402 service, async worker market, or collective market
 - [ ] Add subtype supply tables keyed off canonical `supplies` rows so products, async service offers, provider services, connected agents, and collectives can each carry the fields matching actually needs
 - [ ] Push classifier-derived hard filters into candidate generation so `supplyType`, `actorKind`, `fulfillmentKind`, `deliveryType`, execution surface, and payment protocol narrow the pool before broad ranking
 - [ ] Full hybrid retrieval: BM25 + vector similarity + structured filters

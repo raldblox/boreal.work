@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import type { SVGProps } from "react"
 
 import type { PublicPaperRecord } from "@/lib/boreal/papers-data"
 import { getPublicPaperHref } from "@/lib/boreal/papers-data"
@@ -47,7 +47,7 @@ export function PaperCard({
         </div>
         <p className="text-sm/7 text-foreground/88">{paper.summary}</p>
       </div>
-      <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      <ArrowRightGlyph className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>
   )
 
@@ -76,5 +76,23 @@ export function PaperCard({
     >
       {content}
     </Link>
+  )
+}
+
+function ArrowRightGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="M5 12h14" />
+      <path d="m13 5 7 7-7 7" />
+    </svg>
   )
 }

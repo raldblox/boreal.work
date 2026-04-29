@@ -72,6 +72,7 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Finished `EA-1.8` in `EARLY_ACCESS.md` by wiring `next-app/lib/boreal/request-matching-policy.ts` into matching and one-request routing: requests now resolve a fetch path before ranking, direct auto-route is blocked for worker-market and collective classes, `npm run smoke:request-fetch-paths` verifies the policy, and the server-rendered public routes now use static icons so `npm run build` stays green.
 - `2026-04-29`: Moved Boreal's Solana-first commerce defaults and one-request contract fully onto mainnet-first settings: auth, quoting, seller metadata, payment verification, supplier defaults, and public docs now point at Solana mainnet by default, while settlement claims stay conservative around treasury-grade verification.
 - `2026-04-29`: Added `solana-operator` as a new built-in direct specialist: the advanced registry now exposes a Solana-specific route for non-custodial execution planning, wallet requirements, approval checklists, and risk notes, while docs now make the no-hidden-custody boundary explicit until a real Privy approval flow exists.
 - `2026-04-29`: Finished `EA-1.7` in `EARLY_ACCESS.md` by persisting classifier-first request routing on every intent: `classification` now stores `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters separately from `routeTarget`, request reads and execution context expose the stored shape, and `npm run smoke:request-classification` verifies round-trip persistence across informational, direct-generation, and advisory requests.
@@ -209,6 +210,7 @@ From `next-app/`:
 - `npm run smoke:hermes-bridge` runs the deterministic local Hermes bridge smoke for the minimal advanced-runtime HTTP contract.
 - `npm run smoke:request-callbacks` runs the deterministic advanced-runtime callback smoke for request status, evidence, heartbeat, delivery, and payout-readiness progression.
 - `npm run smoke:request-classification` runs the deterministic classifier-first request-contract smoke for persisted `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters.
+- `npm run smoke:request-fetch-paths` runs the deterministic fetch-policy smoke for `catalog_lookup`, `direct_tool`, `provider_x402`, `worker_market`, and `collective_market` plus direct auto-route gating.
 - `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.

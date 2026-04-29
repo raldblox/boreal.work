@@ -1128,6 +1128,7 @@ async function getBestSupplyMatchForIntent(
       capabilityTags: input.intent.capabilityTags,
       catalogQuery: input.intent.catalogQuery,
       category: input.intent.category,
+      classification: input.intent.classification,
       deadlineAt: input.intent.deadlineAt,
       embedding: input.intent.embedding,
       intentKey: input.intent.intentKey,

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ArrowRight } from "lucide-react"
+import { ArrowLeft, ArrowRight } from "@/components/ui/static-icons"
 
 import { EditorialEntryLink } from "@/components/editorial/editorial-entry-link"
 import { EditorialMarkdown } from "@/components/editorial/editorial-markdown"

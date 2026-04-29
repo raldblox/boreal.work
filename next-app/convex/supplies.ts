@@ -1,6 +1,10 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
+import type {
+  RequestClassification,
+  RequestedOutputType,
+} from "../lib/boreal/schemas/intent.ts";
 
 import {
   actorKindValidator,
@@ -1042,14 +1046,13 @@ export async function listIntentMatchCandidates(
     capabilityTags: string[];
     catalogQuery?: string;
     category: string;
+    classification?: RequestClassification;
     deadlineAt?: number;
     embedding: number[];
     intentKey: string;
     keywords: string[];
     pinnedSupplyIds?: Id<"supplies">[];
-    requestedOutputTypes: Array<
-      "image_generation" | "speech_generation" | "text" | "video_generation"
-    >;
+    requestedOutputTypes: RequestedOutputType[];
     summary: string;
     title: string;
   },
@@ -1069,6 +1072,7 @@ export async function listIntentMatchCandidates(
           capabilityTags: intent.capabilityTags,
           catalogQuery: intent.catalogQuery,
           category: intent.category,
+          classification: intent.classification,
           deadlineAt: intent.deadlineAt,
           embedding: intent.embedding,
           intentId: intent._id,

@@ -1,12 +1,5 @@
 import Link from "next/link"
-import {
-  ArrowRight,
-  BotIcon,
-  BriefcaseBusinessIcon,
-  HandshakeIcon,
-  NetworkIcon,
-  PackageIcon,
-} from "lucide-react"
+import type { SVGProps } from "react"
 
 import { Button } from "@/components/ui/button"
 import { FocusSheetFrame } from "@/components/workboard/focus-sheet-frame"
@@ -76,22 +69,22 @@ const executionPath = [
 const principles = [
   {
     body: "Boreal does not confuse conversation with the product. Chat is only the entry surface around a real work system.",
-    icon: BriefcaseBusinessIcon,
+    icon: BriefcaseBusinessGlyph,
     title: "Chat is the surface",
   },
   {
     body: "Most systems preserve conversation, listings, or analytics. Boreal preserves the request so the work can stay legible from start to finish.",
-    icon: PackageIcon,
+    icon: PackageGlyph,
     title: "The request stays intact",
   },
   {
     body: "Humans and agents both belong on the supply side. The market should route to the best mix instead of forcing one execution model too early.",
-    icon: HandshakeIcon,
+    icon: HandshakeGlyph,
     title: "One market, mixed execution",
   },
   {
     body: "Harder work can deepen into richer coordination, but only when the request truly needs it.",
-    icon: NetworkIcon,
+    icon: NetworkGlyph,
     title: "Escalate only when needed",
   },
 ] as const
@@ -153,13 +146,13 @@ export function AboutPage({
                   type="button"
                 >
                   Start a request
-                  <ArrowRight className="size-4" />
+                  <ArrowRightGlyph className="size-4" />
                 </Button>
               ) : (
                 <Button asChild className="rounded-full" size="lg">
                   <Link href="/">
                     Start a request
-                    <ArrowRight className="size-4" />
+                    <ArrowRightGlyph className="size-4" />
                   </Link>
                 </Button>
               )}
@@ -187,7 +180,7 @@ export function AboutPage({
         <aside className="rounded-[1.35rem] border border-border/80 bg-muted/20 shadow-[0_14px_36px_-34px_rgba(15,23,42,0.18)]">
           <div className="border-b border-border/70 px-4 py-4 sm:px-5">
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              <BotIcon className="size-3.5" />
+              <BotGlyph className="size-3.5" />
               Capability sheet
             </div>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight">
@@ -324,5 +317,124 @@ export function AboutPage({
         </div>
       </div>
     </main>
+  )
+}
+
+function ArrowRightGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="M5 12h14" />
+      <path d="m13 5 7 7-7 7" />
+    </svg>
+  )
+}
+
+function BotGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="M12 3v3" />
+      <rect x="5" y="7" width="14" height="11" rx="3" />
+      <path d="M8 18v2M16 18v2M3 11h2M19 11h2" />
+      <circle cx="9.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <path d="M9 15c.8.6 1.9.9 3 .9s2.2-.3 3-.9" />
+    </svg>
+  )
+}
+
+function BriefcaseBusinessGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <rect x="3.5" y="7" width="17" height="12.5" rx="2.5" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" />
+      <path d="M3.5 12h17" />
+      <path d="M10 12v1.5h4V12" />
+    </svg>
+  )
+}
+
+function HandshakeGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="m4.5 12 3-3 4 4a2 2 0 0 0 2.8 0l2.2-2.2" />
+      <path d="m14.5 8 2-2 3 3" />
+      <path d="m2.5 10 4-4 3 3" />
+      <path d="m10.4 13.6 1.7 1.7a1.7 1.7 0 0 0 2.4 0l4.1-4.1" />
+      <path d="m8.5 15.5 1.2 1.2a1.7 1.7 0 0 0 2.4 0" />
+    </svg>
+  )
+}
+
+function NetworkGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <circle cx="12" cy="5" r="2.2" />
+      <circle cx="6" cy="18" r="2.2" />
+      <circle cx="18" cy="18" r="2.2" />
+      <path d="M10.5 6.8 7.3 15.2M13.5 6.8l3.2 8.4M8.2 17.2h7.6" />
+    </svg>
+  )
+}
+
+function PackageGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="m12 3 7 4v10l-7 4-7-4V7l7-4Z" />
+      <path d="m5 7 7 4 7-4M12 11v10" />
+    </svg>
   )
 }
