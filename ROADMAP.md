@@ -13,7 +13,7 @@ Boreal's public story should now be simple:
 That is the lens for the roadmap below. The product is no longer just a bundle of chat behaviors. It is becoming a request-native work network and commerce layer.
 
 - Boreal is already a real early access release for request-native commerce, delivered through a chat-native interface: chat intake, request workboards, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
-- Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Privy-backed x402 payment initiation, and Agentic Market discovery sync.
+- Boreal now has a dedicated external service-provider layer, payment-aware checkout states, Agentic Market discovery sync, and a Solana-only Reown wallet path for mounted request-thread actions.  Provider-backed x402 wallet automation is temporarily being rebuilt on top of that new wallet layer.
 - Boreal now also has a real matching layer in the product surface: persisted match candidates, request-level score breakdowns, gated-out reasons, refinement actions, and pinned matches inside the request workboard.
 - Public profiles are no longer just static identity cards; they now carry cached analytics snapshots for activity, fulfillment, ratings, listings, buyer/seller behavior, and recent handled work.
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
@@ -38,6 +38,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now has a signed machine-facing webhook surface for request, inbox, and payout lifecycle delivery, plus a deterministic local receiver smoke.
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
 - Boreal now includes `solana-operator` as a direct specialist with two honest scopes: the public direct route is still planning-first, while the mounted request-thread path can already do explicit wallet-approved Solana mainnet memo recording, simple SOL transfer, and wallet-message signing.  A fuller Solana Agent Kit runtime, broader transaction coverage, and richer approval UX are still ahead.
+- Boreal now also has a transport-only local runtime bridge family for advanced operators: Hermes, Ollama, LM Studio, or another OpenAI-compatible local runtime can connect through the same Boreal HTTP executor contract without replacing the default cloud Boreal agent or receiving Boreal's hidden prompts.
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
@@ -50,7 +51,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 This is now the single release-gate summary for Boreal.
 
 - Current mode: `open early access surface`, not broad public mainnet-paid readiness
-- Strongest live proof today: request-first work loop, mounted specialist chat start, supplier onboarding, matched inbox, collective proposals, connected-agent callbacks, merchant-native `/account` offers, classifier-first fetch paths, provider fallback adapters, mainnet-default payment verification, and payout state progression
+- Strongest live proof today: request-first work loop, mounted specialist chat start, supplier onboarding, matched inbox, collective proposals, connected-agent callbacks, transport-only local runtime bridges, merchant-native `/account` offers, classifier-first fetch paths, provider fallback adapters, mainnet-default payment verification, and payout state progression
 - Biggest blockers today: real mainnet payment and payout hardening; funded-start rules for human and agent work; escrow for async labor; type-aware supply subtype tables; stronger team-assignment and validator operations; richer merchant product pages and merchant-specific smoke coverage; and rollout metrics, runbooks, plus kill switches
 
 ## Paid Launch Wedge
@@ -84,7 +85,7 @@ These milestone names are the best public-safe compression of the roadmap right 
 | `Supplier and specialist market` | `Live` | Suppliers can onboard through `/account` or `/api/v1/supplies`, watch matched demand through one inbox, and seeded specialists stay routable. | Type-aware supply subtype tables and richer market metadata. |
 | `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
 | `Payment and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start, payout verification, refunds, disputes, and stronger settlement proof. |
-| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, connected runtimes, callbacks, and the Hermes bridge are all live. | Role acceptance, validator lane, connector health, and live team presence. |
+| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, connected runtimes, callbacks, and the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes are all live. | Role acceptance, validator lane, connector health, and live team presence. |
 | `Release ops and trust` | `In progress` | Boreal has early-access truth docs, a cohort rollout playbook, and a safer public claim boundary. | Release metrics, incident runbooks, kill switches, and portable reputation exports. |
 
 ## Continuous Roadmap Execution Cadence
@@ -152,7 +153,7 @@ Goal: make the written story match the live early access product, preserve the s
 - [x] Request-driven catalog rendering and add-to-cart flow
 - [x] Payment-aware cart and checkout records
 - [x] Agentic Market sync route and normalization into Boreal supply
-- [x] Privy-backed x402 payment initiation for supported provider-backed items
+- [ ] Reown-backed x402 payment initiation parity for supported provider-backed items
 - [x] Autonomous worker scripts for seeded Boreal agents
 - [x] Build, typecheck, and lint workflows
 
@@ -182,7 +183,7 @@ Goal: build the protocol-native commerce substrate first, then layer market UX a
 - [x] Unified supply model for products, services, humans, agents, and provider-backed capabilities
 - [x] Payment-aware cart and checkout records
 - [x] Provider-backed payment-aware checkout states for supported listings
-- [x] Privy-backed x402 payment initiation for supported provider-backed items
+- [ ] Reown-backed x402 payment initiation parity for supported provider-backed items
 - [x] Schema support for ACP/UCP/A2A-oriented listing descriptors and protocol metadata
 - [ ] Boreal-assisted listing flow for merchants, freelancers, and agent operators that drafts ACP/UCP-ready metadata and protocol descriptors
 - [ ] Stable public catalog, checkout-capability, and offer endpoints that expose merchant, freelancer, and agent supply in ACP/UCP-aligned shapes
@@ -346,6 +347,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Direct HTTP runtime adapter flow for self-hosted external agents that can expose a callable executor URL
 - [x] Direct MCP runtime adapter flow for local or remote external agents that expose tools instead of a plain HTTP executor
 - [x] Local Hermes bridge helper and short quick-connect prompt for operators who need a working advanced-runtime HTTP path before token-based quick connect lands
+- [x] Local model bridge presets for Ollama, LM Studio, and other OpenAI-compatible runtimes, keeping Boreal as the transport and work system while the operator-owned local runtime keeps its own prompt and provider
 - [ ] Sidecar and inbox-worker bridge for agents that cannot expose a public inbound URL but still need to participate end to end
 - [ ] One-time quick-connect token and manifest flow so local agents can claim a Boreal session without manual URL and field entry
 - [x] Request-workspace status, evidence, and heartbeat endpoints for advanced connected runtimes so they do not need Boreal-owned LLM execution just to stay attached to work

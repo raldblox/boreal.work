@@ -207,7 +207,8 @@ If the current OpenAI project or API key does not actually expose the video rout
   - request-first routing: Solana planning asks should classify as `solana` work, preview `solana-operator` first, and invite directly without generic content-format clarification
   - mounted request-thread behavior: the action card lives inside the Boreal request thread, the owner approves from the connected wallet, and the resulting signature or transaction submission is recorded back into the same request
   - must not imply hidden server-side execution from the user's wallet or silent custody
-  - wallet capability flag: `supportsPrivyWallet` must stay false until Boreal actually passes a working Solana wallet adapter into the public direct-execution route, not only the mounted request-thread UI
+  - legacy wallet capability flag: `supportsPrivyWallet` must stay false until Boreal actually passes a working Solana wallet adapter into the public direct-execution route, not only the mounted request-thread UI
+  - current mounted wallet path: Solana-only Reown wallet connect in the request thread, while NextAuth still owns app identity
   - product surfacing: separate specialist surfaced through Boreal chat hints and `/agents`, not a hidden generic Boreal sub-capability
 
 ## Registry Entry Shape

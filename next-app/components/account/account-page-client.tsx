@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery } from "convex/react"
-import { useConnectWallet, usePrivy } from "@privy-io/react-auth"
 import { signIn, useSession } from "next-auth/react"
 import { ArrowLeftIcon, LogInIcon } from "lucide-react"
 
@@ -12,7 +11,6 @@ import { ProfileBuilderEditor } from "@/components/chat/profile-builder"
 import { Button } from "@/components/ui/button"
 import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
-import { openBorealPrivyWalletModal } from "@/lib/boreal/integrations/service-providers/wallets/privy-modal"
 import { usePayment } from "@/hooks/use-payment"
 import {
   getBorealChainEnvironment,
@@ -37,11 +35,13 @@ export function AccountPageClient() {
   const { data: session, status } = useSession()
   const ownerExternalId = session?.user?.id
   const {
-    authenticated: privyAuthenticated,
-    login,
-  } = usePrivy()
-  const { connectWallet } = useConnectWallet()
-  const { defaultWallet, defaultWalletAddress, isWalletReady } = usePayment()
+    connectedWallets,
+    defaultWallet,
+    defaultWalletAddress,
+    isWalletConnected,
+    isWalletReady,
+    openWalletModal,
+  } = usePayment()
   const runtimeEnvironment = getBorealChainEnvironment()
   const runtimePrimaryChainFamily = getBorealPrimaryChainFamily()
   const runtimeDefaultNetworkKey = getDefaultBorealNetworkKey({
@@ -87,31 +87,38 @@ export function AccountPageClient() {
       : null
 
   function handleOpenWalletModal() {
-    openBorealPrivyWalletModal({
-      authenticated: privyAuthenticated,
-      connectWallet,
-      login,
-    })
+    void openWalletModal()
   }
 
   useEffect(() => {
-    if (!ownerExternalId || !defaultWallet || !isWalletReady) {
+    if (!ownerExternalId || connectedWallets.length === 0 || !isWalletReady) {
       return
     }
 
-    void syncWalletAccount({
-      chainFamily:
-        defaultWallet.chainFamily === "evm" ? "evm" : "solana",
-      chainId: defaultWallet.chainId ?? undefined,
-      networkKey: defaultWallet.networkKey,
-      ownerDisplayName: session?.user?.name ?? undefined,
-      ownerExternalId,
-      roles: ["connected", "buyer", "payout"],
-      setAsDefaultBuyer: true,
-      setAsDefaultPayout: true,
-      walletAddress: defaultWallet.address,
-    })
+    const preferredWalletAddress = defaultWallet?.address.toLowerCase() ?? null
+
+    void Promise.all(
+      connectedWallets.map((wallet) =>
+        syncWalletAccount({
+          chainFamily: wallet.chainFamily,
+          chainId: wallet.chainId ?? undefined,
+          networkKey: wallet.networkKey,
+          ownerDisplayName: session?.user?.name ?? undefined,
+          ownerExternalId,
+          roles: ["connected", "buyer", "payout"],
+          setAsDefaultBuyer:
+            preferredWalletAddress !== null &&
+            wallet.address.toLowerCase() === preferredWalletAddress,
+          setAsDefaultPayout:
+            preferredWalletAddress !== null &&
+            wallet.address.toLowerCase() === preferredWalletAddress,
+          walletAddress: wallet.address,
+          walletProvider: "reown",
+        })
+      )
+    )
   }, [
+    connectedWallets,
     defaultWallet,
     isWalletReady,
     ownerExternalId,
@@ -446,10 +453,11 @@ export function AccountPageClient() {
             ) : null
           }
           defaultWalletAddress={defaultWalletAddress}
+          connectedWallets={connectedWallets}
           isEditingPublicSetup={isProfileBuilderOpen}
           isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
           isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
-          isPrivyAuthenticated={privyAuthenticated}
+          isWalletConnected={isWalletConnected}
           isWalletReady={isWalletReady}
           myProfileRecord={myProfileRecord}
           notice={notice}

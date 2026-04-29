@@ -23,6 +23,7 @@ Minimum local env:
 
 ```bash
 NEXT_PUBLIC_CONVEX_URL=https://your-dev-deployment.convex.cloud
+NEXT_PUBLIC_REOWN_PROJECT_ID=your-reown-project-id
 OPENAI_API_KEY=sk-...
 ```
 
@@ -79,7 +80,9 @@ npm run docs:sync:public
 ```
 
 ## Changelog
-- `2026-04-29`: Mounted `solana-operator` can now do a limited non-custodial Solana mainnet action path inside the request thread: explicit wallet-approved memo recording, simple SOL transfer, and wallet-message signing.  The public direct specialist route is still planning-first, the mounted thread records signatures or submissions back into the same request, and Boreal now uses one Solana-aware Privy wallet modal plus `npm run smoke:solana-thread-actions` to keep that path honest.
+- `2026-04-30`: Added transport-only local model bridge presets for advanced connected-agent operators: `npm run agent:bridge:ollama`, `npm run agent:bridge:lmstudio`, and `npm run agent:bridge:local-model` now expose Boreal's HTTP executor contract to operator-owned local runtimes without forwarding Boreal Agent hidden prompts or replacing the default cloud Boreal agent.
+- `2026-04-30`: Replaced the active Solana wallet path with Reown while leaving NextAuth untouched for identity: Boreal now opens a Solana-only Reown wallet connect flow for mounted request-thread actions, removes the old Privy wallet runtime from the app, requires `NEXT_PUBLIC_REOWN_PROJECT_ID` locally, and keeps provider-backed x402 wallet automation explicitly disabled until the Reown payment bridge reaches parity.
+- `2026-04-29`: Mounted `solana-operator` can now do a limited non-custodial Solana mainnet action path inside the request thread: explicit wallet-approved memo recording, simple SOL transfer, and wallet-message signing.  The public direct specialist route is still planning-first, the mounted thread records signatures or submissions back into the same request, and `npm run smoke:solana-thread-actions` keeps that path honest.
 - `2026-04-29`: Fixed mounted specialist request-thread ownership again: request-chat turns now go through one request-thread write path, selected text specialists keep replies inside the tracked request thread without a shadow Boreal reply, low-signal greetings like `hi` no longer auto-close into review, and the request chat now stays cleaner by suppressing duplicate `Reply posted` noise while `Work in flight` stays ambient.
 - `2026-04-29`: Finished the doc cleanup pass after the Boreal book consolidation: historical research notes now live under `docs/archive/`, Codex prompt-process notes now live under `docs/internal/`, and the public `one-request-api.md`, `one-inbox-api.md`, and `agent-registry.md` files are now generated from the root source contracts with `npm run docs:sync:public`.
 - `2026-04-29`: Tightened the mounted specialist flow in Boreal chat: `Offers` now treats Boreal as the default chat agent, mounted specialists show up directly in the composer, selected non-Boreal agents open a ready work-thread posture immediately, and the next message creates one tracked request for that selected agent team without a separate approval step.
@@ -93,7 +96,7 @@ npm run docs:sync:public
 - `2026-04-29`: Finished `EA-2.7` in `EARLY_ACCESS.md` by adding `SUPPLY_COHORT_PLAYBOOK.md` as the audited starting-density plan: founder, creator, and technical cohorts now map to seeded specialists plus external onboarding paths, with explicit verification through `npm run smoke:agents`, `npm run smoke:supplier-onboarding`, `npm run smoke:one-inbox`, and `npm run agent:seed`.
 - `2026-04-29`: Finished `EA-1.8` in `EARLY_ACCESS.md` by wiring `next-app/lib/boreal/request-matching-policy.ts` into matching and one-request routing: requests now resolve a fetch path before ranking, direct auto-route is blocked for worker-market and collective classes, `npm run smoke:request-fetch-paths` verifies the policy, and the server-rendered public routes now use static icons so `npm run build` stays green.
 - `2026-04-29`: Moved Boreal's Solana-first commerce defaults and one-request contract fully onto mainnet-first settings: auth, quoting, seller metadata, payment verification, supplier defaults, and public docs now point at Solana mainnet by default, while settlement claims stay conservative around treasury-grade verification.
-- `2026-04-29`: Added `solana-operator` as a new built-in direct specialist: the advanced registry now exposes a Solana-specific route for non-custodial execution planning, wallet requirements, approval checklists, and risk notes, while docs now make the no-hidden-custody boundary explicit until a real Privy approval flow exists.
+- `2026-04-29`: Added `solana-operator` as a new built-in direct specialist: the advanced registry now exposes a Solana-specific route for non-custodial execution planning, wallet requirements, approval checklists, and risk notes, while docs now make the no-hidden-custody boundary explicit until a real direct-route wallet approval flow exists.
 - `2026-04-29`: Tightened Solana specialist truthfulness: the public direct `solana-operator` route is still documented as planning-first, while the mounted request-thread path now owns the limited wallet-approved mainnet slice that Boreal can actually execute today.
 - `2026-04-29`: Finished `EA-1.7` in `EARLY_ACCESS.md` by persisting classifier-first request routing on every intent: `classification` now stores `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters separately from `routeTarget`, request reads and execution context expose the stored shape, and `npm run smoke:request-classification` verifies round-trip persistence across informational, direct-generation, and advisory requests.
 - `2026-04-29`: Finished `EA-1.6` in `EARLY_ACCESS.md` by generalizing automatic-route recovery: market-eligible Boreal routes now reopen safely for workers after automatic failure instead of only the video-provider path doing so, the real execution error stays in the request timeline, and `npm run smoke:request-recovery` now verifies the recovery rule deterministically.
@@ -158,8 +161,8 @@ npm run docs:sync:public
 - `MATCHING_ENGINE.md` is the search, discovery, ranking, request-classification, and fetch-path architecture for Boreal's next matching phase.
 - `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
 - `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the request-side `Workboard`, the later `Swarm Workspace` upgrade path, the shell IA, and the libp2p-versus-Convex responsibility split.
-- `CONNECT_AGENT_GUIDE.md` is the advanced runtime-adapter guide for Boreal's live and next `Connect agent` UX, connector modes, auth/session bootstrap, and optional owner-runtime control plane.  Do not use it as the front-door product story.
-- `HERMES_CONNECT_QUICKSTART.md` is the shortest current operator path for connecting a local Hermes-style runtime through the bridge helper and prompt contract.
+- `CONNECT_AGENT_GUIDE.md` is the advanced runtime-adapter guide for Boreal's live and next connected-runtime UX, connector modes, auth/session bootstrap, and optional owner-runtime control plane.  Do not use it as the front-door product story.
+- `HERMES_CONNECT_QUICKSTART.md` is the shortest current operator path for the local HTTP bridge family: Hermes, Ollama, LM Studio, or another OpenAI-compatible local runtime using Boreal's connected-agent contract.
 - `docs/papers/` contains the public paper suite: the flagship Boreal work-network paper plus linked deep dives for human supply, Swarm Workspace, portable agent reputation, and external-agent onboarding.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
@@ -224,6 +227,7 @@ From `next-app/`:
 - `npm run smoke:one-request-guards` runs the deterministic wallet-scoped request-intake guard smoke for unpaid-quote caps and recent-request burst limits.
 - `npm run smoke:connected-agents` runs the deterministic advanced-runtime chat smoke for HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
 - `npm run smoke:hermes-bridge` runs the deterministic local Hermes bridge smoke for the minimal advanced-runtime HTTP contract.
+- `npm run smoke:local-model-bridge` runs the deterministic local-model bridge smoke for Ollama, LM Studio, and other OpenAI-compatible local runtimes behind Boreal's HTTP executor contract.
 - `npm run smoke:request-callbacks` runs the deterministic advanced-runtime callback smoke for request status, evidence, heartbeat, delivery, and payout-readiness progression.
 - `npm run smoke:request-classification` runs the deterministic classifier-first request-contract smoke for persisted `routeFamily`, `executionKind`, `paymentMode`, `matchingMode`, and candidate-pool filters.
 - `npm run smoke:request-fetch-paths` runs the deterministic fetch-policy smoke for `catalog_lookup`, `direct_tool`, `provider_x402`, `worker_market`, and `collective_market` plus direct auto-route gating.
@@ -235,6 +239,9 @@ From `next-app/`:
 - `npm run smoke:video-route` runs the deterministic video-request contract smoke for default duration and size policy plus rejection of unsupported video settings.
 - `npm run smoke:webhooks` runs the deterministic signed-webhook smoke across request, inbox, and payout lifecycle delivery.
 - `npm run agent:bridge:hermes` starts the local helper bridge that accepts Boreal advanced-runtime HTTP payloads and prints the quickest current connection prompt.
+- `npm run agent:bridge:local-model` starts the generic local-model bridge for any OpenAI-compatible local runtime and prints the executor URL plus the exact quick-connect prompt.
+- `npm run agent:bridge:ollama` starts the same bridge with Ollama defaults on `http://127.0.0.1:11434/v1`.
+- `npm run agent:bridge:lmstudio` starts the same bridge with LM Studio defaults on `http://127.0.0.1:1234/v1`.
 - `npm run smoke:payouts` runs the deterministic payout execution smoke from supplier delivery through payout `pending`, `processing`, `paid`, and settlement `paid_out`.
 - `npm run smoke:supplier-capacity` runs the deterministic supplier-capacity smoke for reservation blocking, delivery release, and second-claim recovery.
 - `npm run smoke:supplier-listing-guards` runs the deterministic supplier-listing guard smoke for the active-listing cap on the public onboarding surface.

@@ -218,6 +218,7 @@ export const walletExecutionModeValidator = v.union(
 
 export const walletProviderValidator = v.union(
   v.literal("privy"),
+  v.literal("reown"),
   v.literal("siwx"),
   v.literal("manual"),
   v.literal("openwallet"),

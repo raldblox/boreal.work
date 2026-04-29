@@ -136,7 +136,7 @@ export const solanaOperatorAgent: AutonomousAgentDefinition = {
       },
       {
         description:
-          "Optional wallet context such as phantom, backpack, or privy. Used for planning only right now.",
+          "Optional wallet context such as Phantom, Solflare, Backpack, or a Reown-connected Solana wallet. Used for planning only right now.",
         name: "walletMode",
         required: false,
         type: "string",

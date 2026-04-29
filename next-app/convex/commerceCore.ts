@@ -6,6 +6,7 @@ import {
   type BorealChainFamily,
   type BorealSupportedNetworkKey,
   getBorealChainEnvironment,
+  getBorealPrimaryChainFamily,
   inferBorealNetworkSelection,
 } from "../lib/boreal/commerce/networks";
 import { getScenarioId } from "./transactionScenarios";
@@ -190,8 +191,7 @@ export async function getDefaultPayoutWalletAccountId(
     .order("desc")
     .take(12);
 
-  const preferred = accounts.find((account) => account.isDefaultPayout);
-  return preferred?._id ?? accounts[0]?._id;
+  return selectPreferredWalletAccountId(accounts, "payout");
 }
 
 export async function getDefaultBuyerWalletAccountId(
@@ -210,8 +210,7 @@ export async function getDefaultBuyerWalletAccountId(
     .order("desc")
     .take(12);
 
-  const preferred = accounts.find((account) => account.isDefaultBuyer);
-  return preferred?._id ?? accounts[0]?._id;
+  return selectPreferredWalletAccountId(accounts, "buyer");
 }
 
 export async function getWalletAccountContext(
@@ -234,6 +233,31 @@ export async function getWalletAccountContext(
     environment: account.environment,
     networkKey: account.networkKey,
   };
+}
+
+function selectPreferredWalletAccountId(
+  accounts: Array<{
+    _id: Id<"walletAccounts">;
+    chainFamily?: "evm" | "solana";
+    environment?: "mainnet" | "testnet";
+    isDefaultBuyer: boolean;
+    isDefaultPayout: boolean;
+  }>,
+  role: "buyer" | "payout",
+) {
+  const primaryFamily = getBorealPrimaryChainFamily();
+  const environment = getBorealChainEnvironment();
+  const runtimeAccounts = accounts.filter(
+    (account) =>
+      account.chainFamily === primaryFamily &&
+      account.environment === environment,
+  );
+
+  const preferredRuntime = runtimeAccounts.find((account) =>
+    role === "payout" ? account.isDefaultPayout : account.isDefaultBuyer,
+  );
+
+  return preferredRuntime?._id ?? runtimeAccounts[0]?._id;
 }
 
 export async function ensureTransactionForCheckoutItem(

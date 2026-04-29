@@ -1,45 +1,73 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePrivy, useWallets, useX402Fetch } from "@privy-io/react-auth";
+import {
+  useAppKit,
+  useAppKitAccount,
+  useAppKitProvider,
+  useAppKitState,
+  useDisconnect,
+  useWalletInfo,
+} from "@reown/appkit/react";
+import {
+  type Provider as SolanaWalletProvider,
+  useAppKitConnection,
+} from "@reown/appkit-adapter-solana/react";
 
-import { toUsdcMicros } from "@/lib/boreal/integrations/service-providers/payments/x402";
-import { getDefaultPrivyWallet } from "@/lib/boreal/integrations/service-providers/wallets/privy";
+import {
+  buildNormalizedReownSolanaWallet,
+} from "@/lib/boreal/integrations/service-providers/wallets/reown";
 
 export function usePayment() {
-  const { login, logout, user, ready, authenticated } = usePrivy();
-  const { wallets, ready: walletsReady } = useWallets();
-  const { wrapFetchWithPayment } = useX402Fetch();
+  const { open } = useAppKit();
+  const { disconnect } = useDisconnect();
+  const { address, isConnected, status } = useAppKitAccount({
+    namespace: "solana",
+  });
+  const { walletInfo } = useWalletInfo("solana");
+  const { walletProvider } = useAppKitProvider<SolanaWalletProvider>("solana");
+  const { connection: solanaConnection } = useAppKitConnection();
+  const { initialized, loading } = useAppKitState();
   const defaultWallet = useMemo(
-    () => getDefaultPrivyWallet(wallets),
-    [wallets],
+    () =>
+      buildNormalizedReownSolanaWallet({
+        address,
+        providerLabel: walletInfo?.name ?? null,
+      }),
+    [address, walletInfo?.name],
   );
+  const connectedWallets = defaultWallet ? [defaultWallet] : [];
   const defaultWalletAddress = defaultWallet?.address ?? null;
 
   return {
+    connectedWallets,
     defaultWallet,
     defaultWalletAddress,
-    payWithX402: async (input: {
+    disconnectWallet: async () => disconnect({ namespace: "solana" }),
+    isAuthenticated: isConnected,
+    isReady: initialized && !loading,
+    isWalletConnected: Boolean(isConnected && defaultWalletAddress),
+    isWalletConnecting:
+      loading || status === "connecting" || status === "reconnecting",
+    payWithX402: async (_input: {
       fetcher?: typeof fetch;
       init?: RequestInit;
       maxAmountUsd?: number | null;
       url: string;
       walletAddress?: string | null;
-    }) => {
-      const fetchWithPayment = wrapFetchWithPayment({
-        fetch: input.fetcher ?? fetch,
-        maxValue: toUsdcMicros(input.maxAmountUsd),
-        walletAddress: input.walletAddress ?? defaultWalletAddress ?? undefined,
-      });
-
-      return fetchWithPayment(input.url, input.init);
+    }): Promise<Response> => {
+      throw new Error(
+        "Automatic x402 payment is not migrated to Reown yet. Use the connected Solana wallet for request-thread actions while Boreal finishes the provider-payment bridge."
+      );
     },
-    login,
-    logout,
-    user,
-    isReady: ready,
-    isAuthenticated: authenticated,
-    isWalletReady: walletsReady && Boolean(defaultWalletAddress),
-    wallets,
+    openWalletModal: () =>
+      open({
+        namespace: "solana",
+        view: defaultWalletAddress ? "Account" : "Connect",
+      }),
+    solanaConnection,
+    walletConnectionStatus: status,
+    walletProvider,
+    isWalletReady: Boolean(isConnected && defaultWalletAddress && walletProvider),
   };
 }

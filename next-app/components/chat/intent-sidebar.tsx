@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useWallets } from "@privy-io/react-auth"
 import { signIn, signOut, useSession } from "next-auth/react"
 import {
   HistoryIcon,
@@ -19,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
 import { Spinner as LoaderIcon } from "@/components/ui/spinner"
 import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs"
+import { usePayment } from "@/hooks/use-payment"
 import type { RequestNavigationView } from "@/components/chat/request-notifications"
 
 import { RequestSidebarSection } from "./intent-sidebar-sections"
@@ -55,7 +55,7 @@ export function IntentSidebar({
   selectedIntentId,
 }: IntentSidebarProps) {
   const { data: session, status } = useSession()
-  const { wallets } = useWallets()
+  const { defaultWalletAddress } = usePayment()
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleSignIn() {
@@ -78,7 +78,7 @@ export function IntentSidebar({
 
   const user = session?.user
   const isAuthenticated = status === "authenticated"
-  const connectedAddress = wallets[0]?.address ?? null
+  const connectedAddress = defaultWalletAddress
   const profileAction = onOpenProfile ?? onOpenAccount
 
   return (

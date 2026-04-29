@@ -14,7 +14,6 @@ import {
 import Image from "next/image"
 import { makeFunctionReference } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
-import { useConnectWallet, usePrivy } from "@privy-io/react-auth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { signIn, useSession } from "next-auth/react"
 import {
@@ -184,7 +183,7 @@ import {
   BOREAL_AGENT_DISPLAY_NAME,
   BOREAL_AGENT_EXTERNAL_ID,
 } from "@/lib/boreal/boreal-agent"
-import { openBorealPrivyWalletModal } from "@/lib/boreal/integrations/service-providers/wallets/privy-modal"
+import type { NormalizedConnectedWallet } from "@/lib/boreal/integrations/service-providers/wallets/reown"
 import {
   compactHexLike,
   parseSolanaThreadMessage,
@@ -478,20 +477,18 @@ export function ChatShell() {
     sessionStatus === "authenticated" && Boolean(ownerExternalId)
   const isPublicDiscoveryOnly = !isXAuthenticated
   const {
-    ready: privyReady,
-    authenticated: privyAuthenticated,
-    login,
-  } = usePrivy()
-  const { connectWallet } = useConnectWallet()
-  const { defaultWallet, defaultWalletAddress, isWalletReady, payWithX402 } =
-    usePayment()
+    connectedWallets,
+    defaultWallet,
+    defaultWalletAddress,
+    isWalletConnected,
+    isWalletConnecting,
+    isWalletReady,
+    openWalletModal,
+    payWithX402,
+  } = usePayment()
 
   function handleOpenWalletModal() {
-    openBorealPrivyWalletModal({
-      authenticated: privyAuthenticated,
-      connectWallet,
-      login,
-    })
+    void openWalletModal()
   }
 
   const sidebarIntentsResult = useQuery(
@@ -1232,23 +1229,34 @@ export function ChatShell() {
   }, [pathname, router, searchParams, seededPrompt])
 
   useEffect(() => {
-    if (!ownerExternalId || !defaultWallet || !isWalletReady) {
+    if (!ownerExternalId || connectedWallets.length === 0 || !isWalletReady) {
       return
     }
 
-    void syncWalletAccount({
-      chainFamily:
-        defaultWallet.chainFamily === "evm" ? "evm" : "solana",
-      chainId: defaultWallet.chainId ?? undefined,
-      networkKey: defaultWallet.networkKey,
-      ownerDisplayName: session?.user?.name ?? undefined,
-      ownerExternalId,
-      roles: ["connected", "buyer", "payout"],
-      setAsDefaultBuyer: true,
-      setAsDefaultPayout: true,
-      walletAddress: defaultWallet.address,
-    })
+    const preferredWalletAddress = defaultWallet?.address.toLowerCase() ?? null
+
+    void Promise.all(
+      connectedWallets.map((wallet) =>
+        syncWalletAccount({
+          chainFamily: wallet.chainFamily,
+          chainId: wallet.chainId ?? undefined,
+          networkKey: wallet.networkKey,
+          ownerDisplayName: session?.user?.name ?? undefined,
+          ownerExternalId,
+          roles: ["connected", "buyer", "payout"],
+          setAsDefaultBuyer:
+            preferredWalletAddress !== null &&
+            wallet.address.toLowerCase() === preferredWalletAddress,
+          setAsDefaultPayout:
+            preferredWalletAddress !== null &&
+            wallet.address.toLowerCase() === preferredWalletAddress,
+          walletAddress: wallet.address,
+          walletProvider: "reown",
+        })
+      )
+    )
   }, [
+    connectedWallets,
     defaultWallet,
     isWalletReady,
     ownerExternalId,
@@ -1313,7 +1321,17 @@ export function ChatShell() {
   }, [requestedProfileId])
 
   useEffect(() => {
-    if (requestedAccountView === "settings" && !isXAuthenticated) {
+    if (requestedAccountView !== "settings") {
+      hasPromptedAccountSignInRef.current = false
+      setIsAccountSheetOpen(false)
+      return
+    }
+
+    if (sessionStatus === "loading") {
+      return
+    }
+
+    if (!isXAuthenticated) {
       if (!hasPromptedAccountSignInRef.current) {
         hasPromptedAccountSignInRef.current = true
         openXSignIn(buildAccountSettingsHref())
@@ -1322,14 +1340,12 @@ export function ChatShell() {
     }
 
     hasPromptedAccountSignInRef.current = false
-    if (requestedAccountView === "settings") {
-      setCenterSheetView(null)
-      setCenterSheetPaperSlug(null)
-      setIsCenterSheetOpen(false)
-      setActiveProfileId(null)
-    }
-    setIsAccountSheetOpen(requestedAccountView === "settings")
-  }, [isXAuthenticated, requestedAccountView])
+    setCenterSheetView(null)
+    setCenterSheetPaperSlug(null)
+    setIsCenterSheetOpen(false)
+    setActiveProfileId(null)
+    setIsAccountSheetOpen(true)
+  }, [isXAuthenticated, requestedAccountView, sessionStatus])
 
   useEffect(() => {
     const previousRequestedModal = previousRequestedModalRef.current
@@ -1518,15 +1534,11 @@ export function ChatShell() {
       return
     }
 
-    if (!privyAuthenticated) {
-      handleOpenWalletModal()
-      return
-    }
-
     if (!isWalletReady || !defaultWalletAddress) {
       setErrorMessage(
-        "Connect a Privy wallet with a funded address before paying."
+        "Connect a funded Solana wallet before paying."
       )
+      handleOpenWalletModal()
       return
     }
 
@@ -3118,11 +3130,12 @@ export function ChatShell() {
               {isAccountSheetOpen ? (
                 <AccountSettingsSheet
                   accountName={session?.user?.name ?? null}
+                  connectedWallets={connectedWallets}
                   defaultWalletAddress={defaultWalletAddress}
                   isOpen={isAccountSheetOpen}
                   isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
                   isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
-                  isPrivyAuthenticated={privyAuthenticated}
+                  isWalletConnected={isWalletConnected}
                   isWalletReady={isWalletReady}
                   myProfileRecord={myProfileRecord}
                   notice={accountNotice}
@@ -3598,14 +3611,14 @@ export function ChatShell() {
                               onClick={handleOpenWalletModal}
                               size="sm"
                               type="button"
-                              variant={privyAuthenticated ? "secondary" : "outline"}
+                              variant={isWalletReady ? "secondary" : "outline"}
                             >
                               <WalletIcon className="size-4" />
-                              {privyReady
-                                ? defaultWalletAddress
-                                  ? "Manage wallets"
-                                  : "Connect Solana"
-                                : "Wallet"}
+                              {isWalletConnecting
+                                ? "Connecting..."
+                                : defaultWalletAddress
+                                  ? "Manage wallet"
+                                  : "Connect Solana"}
                             </Button>
                           </>
                         }
@@ -3759,8 +3772,7 @@ export function ChatShell() {
               >
                 <div className={CHAT_COMPOSER_CLASS}>
                   {(activeCart?.itemCount ?? 0) > 0 ||
-                  (!activeIntentId &&
-                    (!privyAuthenticated || !defaultWalletAddress)) ? (
+                  (!activeIntentId && !isWalletReady) ? (
                     <PromptInputTools className="w-full flex-wrap justify-start gap-2">
                       {(activeCart?.itemCount ?? 0) > 0 ? (
                         <Button
@@ -3776,20 +3788,19 @@ export function ChatShell() {
                             : ""}
                         </Button>
                       ) : null}
-                      {!activeIntentId &&
-                      (!privyAuthenticated || !defaultWalletAddress) ? (
+                      {!activeIntentId && !isWalletReady ? (
                         <Button
                           onClick={handleOpenWalletModal}
                           size="sm"
                           type="button"
-                          variant={privyAuthenticated ? "secondary" : "ghost"}
+                          variant={isWalletReady ? "secondary" : "ghost"}
                         >
                           <WalletIcon />
-                          {privyReady
-                            ? defaultWalletAddress
-                              ? "Manage wallets"
-                              : "Connect Solana"
-                            : "Wallet"}
+                          {isWalletConnecting
+                            ? "Connecting..."
+                            : defaultWalletAddress
+                              ? "Manage wallet"
+                              : "Connect Solana"}
                         </Button>
                       ) : null}
                     </PromptInputTools>
@@ -3954,11 +3965,12 @@ export function ChatShell() {
 
 function AccountSettingsSheet({
   accountName,
+  connectedWallets,
   defaultWalletAddress,
   isOpen,
   isProfileAvailabilityUpdating,
   isPayoutWalletUpdating,
-  isPrivyAuthenticated,
+  isWalletConnected,
   isWalletReady,
   myProfileRecord,
   notice,
@@ -3971,11 +3983,12 @@ function AccountSettingsSheet({
   walletAccounts,
 }: {
   accountName: string | null
+  connectedWallets: NormalizedConnectedWallet[]
   defaultWalletAddress: string | null
   isOpen: boolean
   isProfileAvailabilityUpdating: boolean
   isPayoutWalletUpdating: string | null
-  isPrivyAuthenticated: boolean
+  isWalletConnected: boolean
   isWalletReady: boolean
   myProfileRecord: MyProfileRecord
   notice: string | null
@@ -3997,11 +4010,12 @@ function AccountSettingsSheet({
         <AccountSettingsSurface
           accountName={accountName}
           builderSlot={undefined}
+          connectedWallets={connectedWallets}
           defaultWalletAddress={defaultWalletAddress}
           isEditingPublicSetup={false}
           isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
           isPayoutWalletUpdating={isPayoutWalletUpdating}
-          isPrivyAuthenticated={isPrivyAuthenticated}
+          isWalletConnected={isWalletConnected}
           isWalletReady={isWalletReady}
           myProfileRecord={myProfileRecord}
           notice={notice}

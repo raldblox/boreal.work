@@ -392,7 +392,13 @@ export type WalletAccountRecord = Array<{
     | "solana:testnet";
   roles: Array<"buyer" | "connected" | "payout">;
   walletAddress: string;
-  walletProvider: "agentcash" | "manual" | "openwallet" | "privy" | "siwx";
+  walletProvider:
+    | "agentcash"
+    | "manual"
+    | "openwallet"
+    | "privy"
+    | "reown"
+    | "siwx";
 }>;
 
 export type ProfileAnalytics = {
@@ -1125,6 +1131,7 @@ export const convexFunctionRefs = {
       setAsDefaultBuyer?: boolean;
       setAsDefaultPayout?: boolean;
       walletAddress: string;
+      walletProvider?: "agentcash" | "manual" | "openwallet" | "privy" | "reown" | "siwx";
     },
     { synced: boolean; walletAccountId: string | null }
   >("wallets:syncWalletAccount"),

@@ -5,7 +5,7 @@ import "./globals.css"
 import { ConvexClientProvider } from "@/app/convex-client-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/auth-provider"
-import { PrivyProvider } from "@/components/privy-provider"
+import { ReownProvider } from "@/components/reown-provider"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { cn } from "@/lib/utils"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -62,7 +62,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         <ThemeProvider>
-          <PrivyProvider>
+          <ReownProvider>
             <AuthProvider>
               <ConvexClientProvider>
                 <TooltipProvider>
@@ -71,7 +71,7 @@ export default function RootLayout({
                 </TooltipProvider>
               </ConvexClientProvider>
             </AuthProvider>
-          </PrivyProvider>
+          </ReownProvider>
         </ThemeProvider>
       </body>
     </html>

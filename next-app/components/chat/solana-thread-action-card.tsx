@@ -1,27 +1,18 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { Buffer } from "buffer"
 import {
-  address,
-  appendTransactionMessageInstructions,
-  compileTransaction,
-  createNoopSigner,
-  createSolanaRpc,
-  createTransactionMessage,
-  getTransactionEncoder,
-  pipe,
-  setTransactionMessageFeePayerSigner,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit"
-import { getTransferSolInstruction } from "@solana-program/system"
-import {
-  useSignAndSendTransaction,
-  useSignMessage,
-  useWallets,
-} from "@privy-io/react-auth/solana"
+  Connection,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js"
 import { CheckCircle2Icon, ExternalLinkIcon, Loader2Icon, WalletIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { usePayment } from "@/hooks/use-payment"
 import {
   buildSolanaExplorerUrl,
   compactHexLike,
@@ -48,24 +39,31 @@ export function SolanaThreadActionCard({
   onRecorded?: () => void
   preferredWalletAddress?: string | null
 }) {
-  const { wallets } = useWallets()
-  const { signAndSendTransaction } = useSignAndSendTransaction()
-  const { signMessage } = useSignMessage()
+  const {
+    defaultWalletAddress,
+    isWalletReady,
+    openWalletModal,
+    solanaConnection,
+    walletProvider,
+  } = usePayment()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [recordedSignature, setRecordedSignature] = useState<string | null>(null)
 
-  const selectedWallet = useMemo(() => {
-    if (!wallets.length) {
+  const selectedWalletAddress = useMemo(() => {
+    if (!defaultWalletAddress) {
       return null
     }
 
-    return (
-      wallets.find((wallet) => wallet.address === preferredWalletAddress) ??
-      wallets[0] ??
-      null
-    )
-  }, [preferredWalletAddress, wallets])
+    if (
+      preferredWalletAddress &&
+      preferredWalletAddress.toLowerCase() !== defaultWalletAddress.toLowerCase()
+    ) {
+      return defaultWalletAddress
+    }
+
+    return preferredWalletAddress ?? defaultWalletAddress
+  }, [defaultWalletAddress, preferredWalletAddress])
 
   const explorerUrl =
     recordedSignature &&
@@ -77,7 +75,12 @@ export function SolanaThreadActionCard({
       : null
 
   async function handleApprove() {
-    if (!selectedWallet || isSubmitting || isCompleted) {
+    if (isSubmitting || isCompleted) {
+      return
+    }
+
+    if (!walletProvider || !selectedWalletAddress || !isWalletReady) {
+      void openWalletModal()
       return
     }
 
@@ -86,23 +89,17 @@ export function SolanaThreadActionCard({
 
     try {
       if (action.kind === "sign_message") {
-        const result = await signMessage({
-          message: new TextEncoder().encode(action.message),
-          options: {
-            uiOptions: {
-              description: "Approve this wallet signature request from Boreal.",
-            },
-          },
-          wallet: selectedWallet,
-        })
-        const signature = encodeBase58(result.signature)
+        const signatureBytes = await walletProvider.signMessage(
+          new TextEncoder().encode(action.message)
+        )
+        const signature = encodeBase58(signatureBytes)
 
         await recordSolanaThreadAction({
           action,
           intentId,
           resultKind: "signature_captured",
           signature,
-          walletAddress: selectedWallet.address,
+          walletAddress: selectedWalletAddress,
         })
 
         setRecordedSignature(signature)
@@ -110,22 +107,19 @@ export function SolanaThreadActionCard({
         return
       }
 
-      const transaction = await buildTransactionBytes({
+      if (!solanaConnection) {
+        throw new Error("Solana connection is not ready yet.")
+      }
+
+      const transaction = await buildTransaction({
         action,
-        walletAddress: selectedWallet.address,
+        connection: solanaConnection,
+        walletAddress: selectedWalletAddress,
       })
-      const result = await signAndSendTransaction({
-        chain: action.networkKey,
-        options: {
-          uiOptions: {
-            buttonText: "Approve",
-            description: "Approve this Solana transaction from Boreal.",
-          },
-        },
-        transaction: Uint8Array.from(transaction),
-        wallet: selectedWallet,
-      })
-      const signature = encodeBase58(result.signature)
+      const signature = await walletProvider.sendTransaction(
+        transaction,
+        solanaConnection
+      )
       const nextExplorerUrl = buildSolanaExplorerUrl({
         networkKey: action.networkKey,
         signature,
@@ -137,7 +131,7 @@ export function SolanaThreadActionCard({
         intentId,
         resultKind: "transaction_submitted",
         signature,
-        walletAddress: selectedWallet.address,
+        walletAddress: selectedWalletAddress,
       })
 
       setRecordedSignature(signature)
@@ -180,8 +174,8 @@ export function SolanaThreadActionCard({
         <div className="space-y-1 text-right text-xs text-muted-foreground">
           <p className="inline-flex items-center gap-1">
             <WalletIcon className="size-3" />
-            {selectedWallet
-              ? compactHexLike(selectedWallet.address, 6)
+            {selectedWalletAddress
+              ? compactHexLike(selectedWalletAddress, 6)
               : "No Solana wallet connected"}
           </p>
         </div>
@@ -230,13 +224,15 @@ export function SolanaThreadActionCard({
 
       <div className="flex flex-wrap gap-2">
         <Button
-          disabled={!selectedWallet || isSubmitting || isCompleted}
+          disabled={isSubmitting || isCompleted}
           onClick={() => void handleApprove()}
           size="sm"
           type="button"
         >
           {isSubmitting ? <Loader2Icon className="animate-spin" /> : null}
-          {getSolanaActionButtonLabel(action)}
+          {!selectedWalletAddress || !isWalletReady
+            ? "Connect Solana wallet"
+            : getSolanaActionButtonLabel(action)}
         </Button>
         {explorerUrl ? (
           <Button asChild size="sm" type="button" variant="outline">
@@ -276,37 +272,37 @@ function Detail({
   )
 }
 
-async function buildTransactionBytes(input: {
+async function buildTransaction(input: {
   action: Exclude<SolanaThreadAction, { kind: "sign_message" }>
+  connection: Connection
   walletAddress: string
 }) {
-  const rpc = createSolanaRpc(getSolanaRpcUrlForNetwork(input.action.networkKey))
-  const { value: latestBlockhash } = await rpc.getLatestBlockhash().send()
-  const feePayer = createNoopSigner(address(input.walletAddress))
+  const feePayer = new PublicKey(input.walletAddress)
+  const { blockhash } = await input.connection.getLatestBlockhash()
+  const transaction = new Transaction({
+    feePayer,
+    recentBlockhash: blockhash,
+  })
   const instructions =
     input.action.kind === "transfer_sol"
       ? [
-          getTransferSolInstruction({
-            amount: BigInt(input.action.amountLamports),
-            destination: address(input.action.destination),
-            source: feePayer,
+          SystemProgram.transfer({
+            fromPubkey: feePayer,
+            lamports: Number(input.action.amountLamports),
+            toPubkey: new PublicKey(input.action.destination),
           }),
         ]
       : [
-          {
-            data: new TextEncoder().encode(input.action.memo),
-            programAddress: address(getSolanaMemoProgramAddress()),
-          },
+          new TransactionInstruction({
+            data: Buffer.from(new TextEncoder().encode(input.action.memo)),
+            keys: [],
+            programId: new PublicKey(getSolanaMemoProgramAddress()),
+          }),
         ]
 
-  const transactionMessage = pipe(
-    createTransactionMessage({ version: 0 }),
-    (message) => setTransactionMessageFeePayerSigner(feePayer, message),
-    (message) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message),
-    (message) => appendTransactionMessageInstructions(instructions, message)
-  )
+  transaction.add(...instructions)
 
-  return getTransactionEncoder().encode(compileTransaction(transactionMessage))
+  return transaction
 }
 
 async function recordSolanaThreadAction(input: {

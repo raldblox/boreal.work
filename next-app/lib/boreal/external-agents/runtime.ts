@@ -14,6 +14,10 @@ import {
   type RequestedOutputType,
   type PersistedIntent,
 } from "../schemas/intent.ts";
+import {
+  getBorealChainEnvironment,
+  getBorealPrimaryChainFamily,
+} from "../commerce/networks.ts";
 import type {
   CatalogItem,
   ChatUiContext as ChatContextShape,
@@ -740,10 +744,17 @@ function buildEphemeralConnectedIntent(input: {
 }
 
 function selectSessionWalletAddress(wallets: WalletAccountRecord) {
+  const primaryFamily = getBorealPrimaryChainFamily();
+  const environment = getBorealChainEnvironment();
+  const runtimeWallets = wallets.filter(
+    (wallet) =>
+      wallet.chainFamily === primaryFamily && wallet.environment === environment,
+  );
+
   return (
-    wallets.find((wallet) => wallet.isDefaultBuyer)?.walletAddress ??
-    wallets.find((wallet) => wallet.isDefaultPayout)?.walletAddress ??
-    wallets[0]?.walletAddress ??
+    runtimeWallets.find((wallet) => wallet.isDefaultBuyer)?.walletAddress ??
+    runtimeWallets.find((wallet) => wallet.isDefaultPayout)?.walletAddress ??
+    runtimeWallets[0]?.walletAddress ??
     null
   );
 }

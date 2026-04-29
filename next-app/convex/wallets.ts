@@ -142,7 +142,13 @@ export async function syncWalletAccountRecord(
     setAsDefaultBuyer?: boolean;
     setAsDefaultPayout?: boolean;
     walletAddress: string;
-    walletProvider?: "agentcash" | "manual" | "openwallet" | "privy" | "siwx";
+    walletProvider?:
+      | "agentcash"
+      | "manual"
+      | "openwallet"
+      | "privy"
+      | "reown"
+      | "siwx";
   },
 ): Promise<
   | {
@@ -229,7 +235,7 @@ export async function syncWalletAccountRecord(
       roles,
       userId: user._id,
       walletAddress: input.walletAddress,
-      walletProvider: input.walletProvider ?? "privy",
+      walletProvider: input.walletProvider ?? "reown",
     });
   }
 
@@ -268,7 +274,7 @@ export async function syncWalletAccountRecord(
       metadataJson: undefined,
       networkKey: networkSelection.networkKey,
       walletAddress: input.walletAddress,
-      walletProvider: input.walletProvider ?? "privy",
+      walletProvider: input.walletProvider ?? "reown",
     });
   }
 

@@ -88,7 +88,7 @@ npm run agent:watch:all -- --prod
 - Request workboards carry chat, activity, team, proposals, fulfillment, delivery evidence, reviews, and archival states.
 - Work delivery supports Convex-backed file uploads and inline delivery cards.
 - Cart and checkout records support instant local fulfillment plus provider-backed payment-aware states.
-- Supported provider-backed listings can use Privy-backed x402 payment initiation and invocation flows.
+- Supported provider-backed listings still keep payment-aware checkout states, but Reown-backed x402 payment initiation parity is still being rebuilt after the Solana wallet migration.
 - The premium agent-only surface is now request-first, not registry-first: one request in, frozen quote, `402` payment boundary, seeded specialist execution, and a single request lifecycle all the way to delivery.
 - Approved advisory specialists can now keep the next question inside the same request thread before final delivery, so founder follow-up stays attached to tracked work instead of bouncing back to generic Boreal chat.
 - The supplier-side surface is now inbox-first, not board-first: one matched-demand inbox, request-level claim and delivery actions, and payout readiness attached to the same request lifecycle.

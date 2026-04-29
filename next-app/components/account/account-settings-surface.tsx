@@ -16,6 +16,7 @@ import type {
   MyProfileRecord,
   WalletAccountRecord,
 } from "@/lib/boreal/integrations/convex/function-refs"
+import type { NormalizedConnectedWallet } from "@/lib/boreal/integrations/service-providers/wallets/reown"
 import { buildProfileSheetHref } from "@/lib/boreal/navigation/shell-links"
 import type { ProfileBuilderListingPath } from "@/lib/boreal/schemas/profile-builder"
 import { cn } from "@/lib/utils"
@@ -23,11 +24,12 @@ import { cn } from "@/lib/utils"
 export function AccountSettingsSurface({
   accountName,
   builderSlot,
+  connectedWallets,
   defaultWalletAddress,
   isEditingPublicSetup,
   isProfileAvailabilityUpdating,
   isPayoutWalletUpdating,
-  isPrivyAuthenticated,
+  isWalletConnected,
   isWalletReady,
   myProfileRecord,
   notice,
@@ -41,11 +43,12 @@ export function AccountSettingsSurface({
 }: {
   accountName: string | null
   builderSlot?: ReactNode
+  connectedWallets: NormalizedConnectedWallet[]
   defaultWalletAddress: string | null
   isEditingPublicSetup: boolean
   isProfileAvailabilityUpdating: boolean
   isPayoutWalletUpdating: string | null
-  isPrivyAuthenticated: boolean
+  isWalletConnected: boolean
   isWalletReady: boolean
   myProfileRecord: MyProfileRecord
   notice: string | null
@@ -86,6 +89,58 @@ export function AccountSettingsSurface({
       ? "product"
       : "service"
     : null
+  const runtimeChainPrefix = runtimeDefaultNetworkKey.split(":")[0]
+  const sortedConnectedWallets = [...connectedWallets].sort((left, right) => {
+    const leftIsRuntimeChain = left.networkKey.startsWith(`${runtimeChainPrefix}:`)
+    const rightIsRuntimeChain = right.networkKey.startsWith(`${runtimeChainPrefix}:`)
+
+    if (leftIsRuntimeChain !== rightIsRuntimeChain) {
+      return leftIsRuntimeChain ? -1 : 1
+    }
+
+    const leftIsActive =
+      defaultWalletAddress?.toLowerCase() === left.address.toLowerCase()
+    const rightIsActive =
+      defaultWalletAddress?.toLowerCase() === right.address.toLowerCase()
+
+    if (leftIsActive !== rightIsActive) {
+      return leftIsActive ? -1 : 1
+    }
+
+    return left.address.localeCompare(right.address)
+  })
+  const runtimeConnectedWallets = sortedConnectedWallets.filter(
+    (wallet) => wallet.networkKey === runtimeDefaultNetworkKey
+  )
+  const unsupportedConnectedWallets = sortedConnectedWallets.filter(
+    (wallet) => wallet.networkKey !== runtimeDefaultNetworkKey
+  )
+  const sortedWalletAccounts = [...walletAccounts].sort((left, right) => {
+    const leftIsRuntimeChain = left.networkKey.startsWith(`${runtimeChainPrefix}:`)
+    const rightIsRuntimeChain = right.networkKey.startsWith(`${runtimeChainPrefix}:`)
+
+    if (leftIsRuntimeChain !== rightIsRuntimeChain) {
+      return leftIsRuntimeChain ? -1 : 1
+    }
+
+    const leftIsActive =
+      defaultWalletAddress?.toLowerCase() === left.walletAddress.toLowerCase()
+    const rightIsActive =
+      defaultWalletAddress?.toLowerCase() === right.walletAddress.toLowerCase()
+
+    if (leftIsActive !== rightIsActive) {
+      return leftIsActive ? -1 : 1
+    }
+
+    if (left.isDefaultPayout !== right.isDefaultPayout) {
+      return left.isDefaultPayout ? -1 : 1
+    }
+
+    return left.walletAddress.localeCompare(right.walletAddress)
+  })
+  const hasRuntimeWallet = sortedWalletAccounts.some((account) =>
+    account.networkKey.startsWith(`${runtimeChainPrefix}:`)
+  )
 
   return (
     <div className="space-y-6">
@@ -298,20 +353,100 @@ export function AccountSettingsSurface({
                 onClick={onConnectWallet}
                 size="sm"
                 type="button"
-                variant={!isPrivyAuthenticated || !isWalletReady ? "default" : "outline"}
+                variant={!isWalletConnected || !isWalletReady ? "default" : "outline"}
               >
                 <WalletIcon />
                 {connectWalletLabel}
               </Button>
             </div>
 
+            {runtimeConnectedWallets.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {runtimeConnectedWallets.map((wallet) => {
+                  const isActiveWallet =
+                    defaultWalletAddress?.toLowerCase() ===
+                    wallet.address.toLowerCase()
+                  const networkMatchesRuntime =
+                    wallet.networkKey === runtimeDefaultNetworkKey
+
+                  return (
+                    <div
+                      className="rounded-xl border border-primary/20 bg-primary/5 p-4"
+                      key={`connected-${wallet.address}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Connected now</p>
+                          <p className="break-all font-mono text-xs text-muted-foreground">
+                            {wallet.address}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {isActiveWallet
+                              ? "Boreal is using this wallet right now."
+                              : "Connected in this browser session."}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <StatusChip
+                            label={formatNetworkKeyLabel(wallet.networkKey)}
+                            tone={networkMatchesRuntime ? "success" : "muted"}
+                          />
+                          <StatusChip
+                            label={
+                              wallet.type === "solana" ? "Solana wallet" : "EVM wallet"
+                            }
+                            tone={networkMatchesRuntime ? "success" : "muted"}
+                          />
+                        </div>
+                      </div>
+
+                      {!networkMatchesRuntime ? (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          This wallet is connected, but it does not match Boreal&apos;s
+                          active Solana network:{" "}
+                          {formatNetworkKeyLabel(runtimeDefaultNetworkKey)}.
+                        </p>
+                      ) : (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          This wallet should appear below once Boreal finishes syncing
+                          it to your account.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {runtimeConnectedWallets.length === 0 &&
+            unsupportedConnectedWallets.length > 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+                Boreal needs a {formatNetworkKeyLabel(runtimeDefaultNetworkKey)}{" "}
+                wallet. Your current connected wallet
+                {unsupportedConnectedWallets.length > 1 ? "s are" : " is"} on a
+                different network, so Boreal will not use{" "}
+                {unsupportedConnectedWallets.length > 1 ? "them" : "it"} for
+                checkout or payouts.
+              </div>
+            ) : null}
+
             {walletAccounts.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                No Solana mainnet wallet is synced yet.
+                {connectedWallets.length > 0
+                  ? runtimeConnectedWallets.length > 0
+                    ? "No Solana mainnet wallet is synced yet. Boreal is still syncing the connected wallet above."
+                    : "No Solana mainnet wallet is connected or synced yet."
+                  : "No Solana mainnet wallet is connected or synced yet."}
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {walletAccounts.map((account) => {
+                {!hasRuntimeWallet ? (
+                  <div className="rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+                    No Solana mainnet wallet is synced yet. Connected off-network wallets still appear below.
+                  </div>
+                ) : null}
+                {sortedWalletAccounts.map((account) => {
                   const isActiveWallet =
                     defaultWalletAddress?.toLowerCase() ===
                     account.walletAddress.toLowerCase()
@@ -330,16 +465,18 @@ export function AccountSettingsSurface({
                             {account.walletAddress}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {account.isDefaultPayout
+                            {networkMatchesRuntime && account.isDefaultPayout
                               ? "Default payout wallet."
-                              : isActiveWallet
+                              : networkMatchesRuntime && isActiveWallet
                                 ? "Connected and ready."
+                                : !networkMatchesRuntime
+                                  ? "Saved on another network. Boreal will not use this for Solana work."
                                 : "Synced to this account."}
                           </p>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {account.roles.includes("payout") ? (
+                          {networkMatchesRuntime && account.roles.includes("payout") ? (
                             account.isDefaultPayout ? (
                               <Button disabled size="sm" type="button" variant="outline">
                                 <CheckIcon />
@@ -365,7 +502,7 @@ export function AccountSettingsSurface({
                             )
                           ) : (
                             <Button disabled size="sm" type="button" variant="outline">
-                              Not payout-ready
+                              {networkMatchesRuntime ? "Not payout-ready" : "Wrong network"}
                             </Button>
                           )}
                         </div>
