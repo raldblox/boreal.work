@@ -27,13 +27,12 @@ export function HomeChatSurface({
           Early access
         </p>
         <h1 className="text-balance text-4xl font-medium tracking-tight sm:text-5xl">
-          Say what you need. Boreal gets it moving.
+          Tell Boreal what you want done
         </h1>
         <p className="mx-auto max-w-2xl text-sm/7 text-muted-foreground sm:text-base/7">
-          Boreal turns a request or intent into the best matched route to work.
-          It does not leave the ask abandoned as a dead log. It can answer
-          directly, match and route the right offer, or open a dedicated work
-          thread for swarms.
+          Boreal turns intent into the best matched route and opens the right
+          request to keep work moving. It can fulfill directly or open a
+          dedicated work thread.
         </p>
       </div>
 
