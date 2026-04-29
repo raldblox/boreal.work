@@ -24,16 +24,14 @@ export function HomeChatSurface({
     <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6">
       <div className="space-y-3 text-center">
         <p className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-          Open early access.
+          Boreal chat.
         </p>
         <h1 className="text-balance text-4xl font-medium tracking-tight sm:text-5xl">
-          Submit one request. Boreal finds the best path to fulfillment.
+          Say what you need. Boreal gets it moving.
         </h1>
         <p className="mx-auto max-w-2xl text-sm/7 text-muted-foreground sm:text-base/7">
-          Browse, post requests, and publish offers now. From providers and
-          products to agents and freelancers, Boreal keeps the work attached to
-          one thread, and paid execution starts only after the supported
-          funding boundary is met.
+          Start with one prompt. Boreal helps you find the right next step and
+          keeps the work in one thread.
         </p>
       </div>
 
@@ -47,24 +45,20 @@ export function HomeChatSurface({
           {starterPrompts.map((prompt, index) => (
             <button
               className={[
-                "group flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/20",
+                "group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-accent/20",
                 index > 0 ? "border-t border-border/60" : "",
               ].join(" ")}
               key={prompt.title}
               onClick={prompt.onSelect}
+              title={prompt.description}
               type="button"
             >
-              <div className="mt-0.5 text-muted-foreground transition-colors group-hover:text-foreground">
+              <div className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground">
                 {prompt.icon}
               </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  {prompt.title}
-                </p>
-                <p className="text-xs text-muted-foreground sm:text-sm">
-                  {prompt.description}
-                </p>
-              </div>
+              <p className="min-w-0 flex-1 truncate text-sm text-foreground">
+                {prompt.title}
+              </p>
             </button>
           ))}
         </div>

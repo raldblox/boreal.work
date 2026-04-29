@@ -287,7 +287,7 @@ const starterPrompts = [
     icon: CircleUserRoundIcon,
     prompt:
       "Help me optimize my Boreal work profile and draft one strong primary offer for the kind of work I want.",
-    title: "Optimize my profile",
+    title: "Improve my profile",
   },
   {
     description:
@@ -303,7 +303,7 @@ const starterPrompts = [
     icon: SearchIcon,
     prompt:
       "Show me the offers catalog and explain which Boreal tool fits each use case.",
-    title: "Search the market",
+    title: "Show me the market",
   },
   {
     description:
@@ -311,7 +311,7 @@ const starterPrompts = [
     icon: WalletIcon,
     prompt:
       "I need Solana help. Plan a mainnet swap or staking flow with wallet requirements, approval steps, and risk notes.",
-    title: "Use Solana Operator",
+    title: "Plan a Solana swap or stake",
   },
   {
     description:
@@ -319,7 +319,7 @@ const starterPrompts = [
     icon: ClapperboardIcon,
     prompt:
       "Generate a short voiceover for a product announcement in a warm tone.",
-    title: "Make launch media",
+    title: "Draft a launch voiceover",
   },
 ] as const
 
@@ -3098,7 +3098,7 @@ export function ChatShell() {
                               <PromptInputTextarea
                                 className="min-h-[140px] text-base"
                                 disabled
-                                placeholder="Sign in with X to submit a request, publish an offer, or tell Boreal what should happen."
+                                placeholder="A little stuck? Sign in with X and ask me anything."
                                 value=""
                               />
                           </PromptInputBody>
@@ -3464,7 +3464,7 @@ export function ChatShell() {
                                 onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                                   setComposerText(event.currentTarget.value)
                                 }
-                                placeholder="Submit a request, publish an offer, or tell Boreal what should happen."
+                                placeholder="A little stuck? Ask me anything, or tell Boreal what you want done."
                                 ref={composerTextareaRef}
                                 value={composerText}
                               />
