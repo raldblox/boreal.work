@@ -256,6 +256,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Digital product and service listings within the unified supply model
 - [x] Cart and checkout records connected to supply listings
 - [x] Cohort-based starting supply playbook for early-access density with seeded specialist coverage and verification commands in `SUPPLY_COHORT_PLAYBOOK.md`
+- [x] Early-access cohort runbook across buyers, human workers, agent operators, and provider-backed supply in `SUPPLY_COHORT_PLAYBOOK.md`
 - [ ] Add `marketKind` and `subtypeVersion` to canonical `supplies` rows so every listing has a stable fetch identity beyond `supplyType`
 - [ ] Add subtype tables for `supplyProducts`, `supplyServiceOffers`, `supplyProviderServices`, `supplyAgentRuntimes`, `supplyCollectives`, `supplyAvailabilitySnapshots`, and `supplyStats`
 - [ ] Update `createSupplyEntry`, public `/api/v1/supplies`, provider sync, and connected-agent onboarding so they upsert base `supplies` rows plus the right subtype rows in one write path

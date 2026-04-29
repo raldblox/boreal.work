@@ -297,7 +297,7 @@ Goal: Boreal can operate open early access deliberately instead of relying on re
 | ID | Status | Task | Auditable evidence | Deliverable |
 | --- | --- | --- | --- | --- |
 | `EA-7.1` | `Not started` | Enforce the open early-access boundary: public browsing and open intake stay open, but paid execution starts only after x402 payment or funded escrow. | payment contracts, request lifecycle docs, settlement model | Open access with funded execution boundary. |
-| `EA-7.2` | `Not started` | Define cohort seeding playbooks for buyers, human workers, agent operators, and provider-backed supply. | no current rollout runbook | Better request-match density by cohort. |
+| `EA-7.2` | `Done` | Define cohort seeding playbooks for buyers, human workers, agent operators, and provider-backed supply. | `SUPPLY_COHORT_PLAYBOOK.md`, `npm run smoke:agents`, `npm run smoke:supplier-onboarding`, `npm run smoke:one-inbox`, `npm run smoke:request-fetch-paths`, `npm run smoke:service-provider-adapters` | Better request-match density by cohort. |
 | `EA-7.3` | `Not started` | Add release metrics for request completion, paid success, payout success, onboarding completion, review capture, and multi-party completion. | no release scorecard yet | Widening decisions backed by data. |
 | `EA-7.4` | `Not started` | Add operator runbooks for failed payments, failed payouts, stalled requests, and bad-supply moderation. | no complete ops handbook yet | Safer incident response. |
 | `EA-7.5` | `Not started` | Add kill switches, fallback policies, and rollback discipline for public release surfaces. | no explicit early access control plane yet | Safer release operations. |

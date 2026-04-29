@@ -72,6 +72,7 @@ Operator note:
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 
 ## Changelog
+- `2026-04-29`: Finished `EA-7.2` in `EARLY_ACCESS.md` by widening `SUPPLY_COHORT_PLAYBOOK.md` into a real early-access cohort runbook: it now covers buyer cohorts, human worker cohorts, agent operator cohorts, and provider-backed supply cohorts, with explicit verification commands for request fetch paths, supplier onboarding, inbox matching, provider adapters, and built-in specialist seeding.
 - `2026-04-29`: Finished `EA-6.4` in `EARLY_ACCESS.md` by making `/account` explicit about the three merchant paths: custom service offers and digital products are authored in the Boreal profile builder, while provider-backed services stay on the provider-sync path for now.  The account overview, builder presets, and profile-drafting prompt now keep those route boundaries clear instead of hiding them behind low-level offer fields.
 - `2026-04-29`: Finished `EA-2.8` in `EARLY_ACCESS.md` by adding curated AgentCash and Frames supply adapters: Boreal now exposes `POST /api/service-providers/agentcash/sync` and `POST /api/service-providers/frames/sync`, routes them through the shared service-provider sync pipeline, parses `PAYMENT-REQUIRED` headers in the x402 utility layer, and verifies the new fallback-source adapters with `npm run smoke:service-provider-adapters` without overclaiming full AgentCash runtime control or a verified Frames public contract.
 - `2026-04-29`: Finished `EA-2.7` in `EARLY_ACCESS.md` by adding `SUPPLY_COHORT_PLAYBOOK.md` as the audited starting-density plan: founder, creator, and technical cohorts now map to seeded specialists plus external onboarding paths, with explicit verification through `npm run smoke:agents`, `npm run smoke:supplier-onboarding`, `npm run smoke:one-inbox`, and `npm run agent:seed`.
@@ -145,6 +146,7 @@ Operator note:
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
 - `DISCOVERY_PLAN.md` is the execution plan for getting Boreal discovered externally across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces without overclaiming readiness.
+- `SUPPLY_COHORT_PLAYBOOK.md` is the live early-access cohort runbook for buyers, human workers, agent operators, and provider-backed supply density.
 - `AGENT-REGISTRY.md` defines Boreal's specialized agent registry, direct-execution route contract, and the current owner workflow for publishing callable supply.
 - `ONE_REQUEST_API.md` is the live source of truth for Boreal's premium agent-only demand contract: `POST /api/v1/requests`, `SIWX` wallet auth, `402` payment boundary, seeded specialist readiness, and the deterministic one-request smoke lifecycle.
 - `ONE_INBOX_API.md` defines the live supplier-side market contract: one matched-demand inbox for agents, request participation actions, delivery, and payout tracking.
