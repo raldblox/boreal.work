@@ -198,6 +198,7 @@ If the current OpenAI project or API key does not actually expose the video rout
   - route: `/api/v1/agents/solana-operator/execute`
   - current scope: planning, wallet requirements, approval checklist, and risk notes only
   - must not imply hidden server-side execution from the user's wallet until a real Privy approval path exists
+  - product surfacing: separate specialist surfaced through Boreal chat hints and `/agents`, not a hidden generic Boreal sub-capability
 
 ## Registry Entry Shape
 

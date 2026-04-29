@@ -12,7 +12,6 @@ import {
   type SetStateAction,
 } from "react"
 import Image from "next/image"
-import Link from "next/link"
 import { makeFunctionReference } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
 import { usePrivy } from "@privy-io/react-auth"
@@ -305,6 +304,14 @@ const starterPrompts = [
     prompt:
       "Show me the offers catalog and explain which Boreal tool fits each use case.",
     title: "Search the market",
+  },
+  {
+    description:
+      "Route Solana work into the specialist that handles wallet checks, approval steps, and risk notes.",
+    icon: WalletIcon,
+    prompt:
+      "I need Solana help. Plan a mainnet swap or staking flow with wallet requirements, approval steps, and risk notes.",
+    title: "Use Solana Operator",
   },
   {
     description:
@@ -3505,6 +3512,18 @@ export function ChatShell() {
                               variant="outline"
                             >
                               Agent
+                            </Button>
+                            <Button
+                              onClick={() =>
+                                fillComposerAndFocus(
+                                  "I need Solana help. Route this to Solana Operator and prepare a non-custodial mainnet plan."
+                                )
+                              }
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              Solana specialist
                             </Button>
                             <Button
                               onClick={openPapersOverview}
