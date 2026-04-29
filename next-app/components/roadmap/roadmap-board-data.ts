@@ -97,7 +97,7 @@ export const roadmapTickets: BoardTicket[] = [
       "The live app already supports mounted specialist selection from Offers, request creation, route preview, specialist follow-up, delivery, review, and attached checkout state on one record.",
     id: "BRL-101",
     report:
-      "This is the strongest current Boreal feature story. The board can safely present it as live because the same request thread already carries approval, fulfillment, proof, and review without splitting into a second system of record.",
+      "This is the strongest current Boreal feature story. The board can safely present it as live because the same request thread already carries mounted start or approval, fulfillment, proof, and review without splitting into a second system of record.",
     routes: ["/chat", "/api/v1/requests", "/one-request-api.md"],
     status: "live",
     summary:

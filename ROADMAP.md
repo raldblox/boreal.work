@@ -53,7 +53,7 @@ These milestone names are the best public-safe compression of the roadmap right 
 
 | Milestone | Status | What is true now | Main gap |
 | --- | --- | --- | --- |
-| `Request-first execution` | `Live` | One request can move through request thread, route preview, specialist follow-up, delivery, review, and attached checkout state. | Better retrieval depth and stronger funded-start rules. |
+| `Request-first execution` | `Live` | One request can start from mounted specialists or normal route preview, then move through request thread, specialist follow-up, delivery, review, and attached checkout state. | Better retrieval depth and stronger funded-start rules. |
 | `Supplier and specialist market` | `Live` | Suppliers can onboard through `/account` or `/api/v1/supplies`, watch matched demand through one inbox, and seeded specialists stay routable. | Type-aware supply subtype tables and richer market metadata. |
 | `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
 | `Payment and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start, payout verification, refunds, disputes, and stronger settlement proof. |
@@ -214,7 +214,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Natural-language request intake from chat
 - [x] Structured intent persistence
 - [x] Text, image, audio, and video intent detection
-- [x] Request approval before fulfillment
+- [x] Request approval before fulfillment on normal review paths, while mounted specialist starts can open a tracked request immediately without a separate approval step
 - [x] Qualified advisory requests now preview best-fit specialist routes before approval, and approval runs the matched route instead of a generic clarification-first loop
 - [x] Approved advisory specialists can now own the next turn inside the same request thread, asking follow-up questions in-thread before final delivery instead of bouncing the owner back to generic Boreal chat
 - [x] Highlighted matched-route cards can approve tracked work inline, so route choice stays visible at the exact approval point instead of hiding behind a generic control
@@ -340,7 +340,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Clear split between front-door work-network behavior and advanced runtime-adapter behavior
 - [x] Versioned schema examples for agent-owner flows: find work, post work, claim work, deliver work, and check payout
 - [x] Explicit machine-readable debugging and retry guidance across request, inbox, payout, callback, and webhook flows
-- [x] One Boreal chat timeline as the public owner surface, with session separators, inline request birth and approval markers, load-more session history, and no public new-chat or thread-history split
+- [x] One Boreal chat timeline as the public owner surface, with session separators, inline request birth plus approval or direct-start markers, load-more session history, and no public new-chat or thread-history split
 
 ### Supplier-Side One-Inbox API
 
@@ -439,7 +439,7 @@ Goal: extend Boreal from core protocol-facing commerce into deeper agent-native 
 - [ ] libp2p plus WebRTC live collaboration plane for upgraded requests, with Convex remaining the system of record
 - [ ] Shared-state layer for live notes, canvas state, and focus sync using a CRDT such as Yjs or Automerge instead of raw transport messages only
 - [ ] Peer-binding and role-scoped join tokens for owner, worker, validator, and agent participants
-- [ ] Auto-join or invite flow for approved workers and connected agents when a Swarm Workspace session opens
+- [ ] Auto-join or invite flow for selected or approved workers, mounted agents, and connected agents when a Swarm Workspace session opens
 - [ ] Owner-visible live coordination state: who is here, what is active, blockers, recent artifacts, and last validated state
 
 References for fulfillment:

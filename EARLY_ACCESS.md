@@ -159,7 +159,7 @@ Goal: paying users, suppliers, and Boreal can trust the payment boundary, funded
 | `EA-3.3` | `Done` | Persist transaction, settlement, and payout records on the request lifecycle. | payout and settlement data model, request APIs, `npm run smoke:one-request` | Auditable economic lifecycle. |
 | `EA-3.4` | `Done` | Track payout progression through `pending`, `processing`, and `paid`. | `npm run smoke:payouts`, payout mutations | Deterministic payout state machine. |
 | `EA-3.5` | `In progress` | Harden the mainnet-default payment path for open early access beyond the current quote-locked proof flow. | `ONE_REQUEST_API.md`, `SERVICE_PROVIDER.MD`, current network defaults | A production payment rail. |
-| `EA-3.6` | `Not started` | Add request-level funded start for non-instant human or agent work: route approved, quote locked, escrow funded, then work begins. | `ROADMAP.md`, request lifecycle docs, settlement model | Escrow-backed async labor start. |
+| `EA-3.6` | `Not started` | Add request-level funded start for non-instant human or agent work: assignment locked, quote locked, escrow funded, then work begins. | `ROADMAP.md`, request lifecycle docs, settlement model | Escrow-backed async labor start. |
 | `EA-3.7` | `Not started` | Require independent on-chain payout verification before marking supplier payouts `paid`. | payout mutation path and smoke expectations | Stronger real-money payout safety. |
 | `EA-3.8` | `Not started` | Add refund, dispute, and operator intervention runbooks for paid failures. | docs and ops flows not yet present | Safer money-handling operations. |
 
@@ -179,7 +179,7 @@ Manual replication:
 3. Confirm execution does not start before payment proof is accepted.
 4. Confirm payout status moves cleanly from `pending` to `paid`.
 5. For launch readiness, repeat the same flow on the intended mainnet rail once it exists.
-6. For async human or agent work, confirm approved work cannot start until a funded escrow state exists once that path ships.
+6. For async human or agent work, confirm assigned non-instant work cannot start until a funded escrow state exists once that path ships.
 
 Clean pass means:
 
