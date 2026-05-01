@@ -212,6 +212,10 @@ import {
   resolvePresetTeamDefinitionFromParticipants,
   resolvePresetTeamDefinitionFromBlueprint,
 } from "@/lib/boreal/swarm/preset-teams"
+import {
+  getPresetRoomRetryDelayMs,
+  PRESET_ROOM_ADVANCE_DELAY_MS,
+} from "@/lib/boreal/swarm/preset-room-control"
 import { inferPresetRoomStateFromMessages } from "@/lib/boreal/swarm/preset-team-state"
 import type { PresetTeamState } from "@/lib/boreal/swarm/team-blueprint"
 import type { NormalizedConnectedWallet } from "@/lib/boreal/integrations/service-providers/wallets/reown"
@@ -395,9 +399,8 @@ const COLLAPSED_SIDEBAR_WIDTH = "4.5rem"
 const CENTER_PANEL_CLASS = "mx-auto w-full max-w-4xl px-4"
 const CONTENT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 py-6`
 const CHAT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 pt-6 pb-6`
-const PRESET_ROOM_ADVANCE_DELAY_MS = 3000
-const PRESET_ROOM_RETRY_DELAYS_MS = [10000, 15000, 30000, 45000, 60000] as const
-const PRESET_ROOM_RETRY_MAX_DELAY_MS = 60000
+const SHOULD_USE_CLIENT_PRESET_ROOM_FALLBACK =
+  process.env.NODE_ENV !== "production"
 const HOME_PANEL_CLASS = `${CENTER_PANEL_CLASS} flex h-full flex-col justify-center py-8`
 const CHAT_COMPOSER_CLASS = `${CENTER_PANEL_CLASS} flex flex-col gap-3`
 
@@ -556,7 +559,7 @@ export function ChatShell() {
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null)
   const [activePresetRoomTurn, setActivePresetRoomTurn] =
     useState<PresetTeamStreamTurn | null>(null)
-  const [presetRoomRetryStatus, setPresetRoomRetryStatus] = useState<{
+  const [clientPresetRoomRetryStatus, setClientPresetRoomRetryStatus] = useState<{
     attempt: number
     delayMs: number
     displayName: string
@@ -633,7 +636,7 @@ export function ChatShell() {
     activeChatAbortControllerRef.current?.abort()
     activeChatAbortControllerRef.current = null
     setActivePresetRoomTurn(null)
-    setPresetRoomRetryStatus(null)
+    setClientPresetRoomRetryStatus(null)
     setMessages((current) =>
       current.filter(
         (message) =>
@@ -641,7 +644,7 @@ export function ChatShell() {
             message.role === "assistant" &&
             message.presetTeamTurns &&
             message.presetTeamTurns.length > 0
-          )
+        )
       )
     )
   }
@@ -664,7 +667,7 @@ export function ChatShell() {
     clearPresetRoomAdvanceTimeout()
     clearPresetRoomRetryTimeout()
     setErrorMessage(null)
-    setPresetRoomRetryStatus(null)
+    setClientPresetRoomRetryStatus(null)
     setIsSubmitting(true)
     setActivePresetRoomTurn(turn)
     lastPresetRoomAdvanceKeyRef.current = `${input.cycleNumber}:${input.expectedTurnIndex}`
@@ -737,7 +740,7 @@ export function ChatShell() {
       const retryDelayMs = getPresetRoomRetryDelayMs(retryAttempt, error)
 
       if (retryDelayMs !== null) {
-        setPresetRoomRetryStatus({
+        setClientPresetRoomRetryStatus({
           attempt: retryAttempt + 1,
           delayMs: retryDelayMs,
           displayName: turn.displayName,
@@ -757,7 +760,7 @@ export function ChatShell() {
         return
       }
 
-      setPresetRoomRetryStatus(null)
+      setClientPresetRoomRetryStatus(null)
       setMessages((current) =>
         current.filter((message) => message.id !== assistantMessageId)
       )
@@ -931,6 +934,33 @@ export function ChatShell() {
       })?.[0] ?? null,
     [activeIntentId, activePresetDefinition, activePresetRoomState]
   )
+  const presetRoomRetryStatus = useMemo(() => {
+    if (clientPresetRoomRetryStatus) {
+      return {
+        attempt: clientPresetRoomRetryStatus.attempt,
+        displayName: clientPresetRoomRetryStatus.displayName,
+        lastError: null,
+        turnIndex: clientPresetRoomRetryStatus.turnIndex,
+      }
+    }
+
+    if (
+      !pendingPresetRoomTurn ||
+      !activePresetRoomState ||
+      activePresetRoomState.runStatus !== "running" ||
+      !activePresetRoomState.retryScheduledAt ||
+      activePresetRoomState.retryAttempt <= 0
+    ) {
+      return null
+    }
+
+    return {
+      attempt: activePresetRoomState.retryAttempt,
+      displayName: pendingPresetRoomTurn.displayName,
+      lastError: activePresetRoomState.lastError,
+      turnIndex: pendingPresetRoomTurn.turnIndex,
+    }
+  }, [activePresetRoomState, clientPresetRoomRetryStatus, pendingPresetRoomTurn])
   const mountedComposerStarterPromptOptions = getMountedComposerStarterPrompts(
     activeComposerAgents
   )
@@ -1040,6 +1070,10 @@ export function ChatShell() {
     undefined
 
   useEffect(() => {
+    if (!SHOULD_USE_CLIENT_PRESET_ROOM_FALLBACK) {
+      return
+    }
+
     clearPresetRoomAdvanceTimeout()
     clearPresetRoomRetryTimeout()
 
@@ -1065,6 +1099,10 @@ export function ChatShell() {
       if (!presetState || presetState.runStatus !== "running") {
         lastPresetRoomAdvanceKeyRef.current = null
       }
+      return
+    }
+
+    if ((presetState.retryAttempt ?? 0) > 0 && presetState.retryScheduledAt) {
       return
     }
 
@@ -1104,7 +1142,7 @@ export function ChatShell() {
     clearPresetRoomRetryTimeout()
     lastPresetRoomAdvanceKeyRef.current = null
     setActivePresetRoomTurn(null)
-    setPresetRoomRetryStatus(null)
+    setClientPresetRoomRetryStatus(null)
   }, [activeIntentId])
 
   const borealChatSessions = useMemo(
@@ -2041,7 +2079,7 @@ export function ChatShell() {
     setErrorMessage(null)
     clearPresetRoomAdvanceTimeout()
     clearPresetRoomRetryTimeout()
-    setPresetRoomRetryStatus(null)
+    setClientPresetRoomRetryStatus(null)
     setIsSubmitting(true)
     setPendingApprovalIntentId(null)
     const now = Date.now()
@@ -5787,8 +5825,8 @@ function RequestChatTimeline({
   isMarkingRequestFulfilled: boolean
   presetRoomRetryStatus: {
     attempt: number
-    delayMs: number
     displayName: string
+    lastError: string | null
     turnIndex: number
   } | null
   isRefreshingRequest: boolean
@@ -5931,9 +5969,7 @@ function RequestChatTimeline({
             presetRoomRetryStatus &&
             presetRoomRetryStatus.turnIndex === pendingTurn.turnIndex &&
             presetRoomRetryStatus.displayName === pendingTurn.displayName
-              ? `${pendingTurn.displayName} is borealizing again in ${Math.round(
-                  presetRoomRetryStatus.delayMs / 1000
-                )}s...`
+              ? `${pendingTurn.displayName} is borealizing again. Retry attempt ${presetRoomRetryStatus.attempt} is queued.`
               : null
 
           return (
@@ -9022,7 +9058,11 @@ function buildPendingPresetTeamTurns(input: {
   presetDefinition: ReturnType<typeof resolvePresetTeamDefinitionFromBlueprint>
   presetState: PresetTeamState | null | undefined
 }): PresetTeamStreamTurn[] | undefined {
-  if (!input.presetDefinition) {
+  if (
+    !input.presetDefinition ||
+    !input.presetState ||
+    input.presetState.runStatus !== "running"
+  ) {
     return undefined
   }
 
@@ -9064,38 +9104,6 @@ function buildPendingPresetTeamTurns(input: {
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
-}
-
-function isRetryablePresetRoomError(error: unknown) {
-  const message =
-    error instanceof Error
-      ? error.message.toLowerCase()
-      : String(error).toLowerCase()
-  const status =
-    typeof error === "object" &&
-    error !== null &&
-    "status" in error &&
-    typeof (error as { status?: unknown }).status === "number"
-      ? ((error as { status: number }).status as number)
-      : null
-
-  if (status !== null && [408, 409, 425, 429, 500, 502, 503, 504].includes(status)) {
-    return true
-  }
-
-  return /429|limit|rate|quota|timeout|temporar|unavailable|overloaded|fetch failed|network|try again/i.test(
-    message
-  )
-}
-
-function getPresetRoomRetryDelayMs(errorAttempt: number, error: unknown) {
-  if (!isRetryablePresetRoomError(error)) {
-    return null
-  }
-
-  return (
-    PRESET_ROOM_RETRY_DELAYS_MS[errorAttempt] ?? PRESET_ROOM_RETRY_MAX_DELAY_MS
-  )
 }
 
 async function consumeChatStream(input: {

@@ -1,5 +1,5 @@
-import type { PresetTeamDefinition } from "@/lib/boreal/swarm/preset-teams"
-import type { PresetTeamState } from "@/lib/boreal/swarm/team-blueprint"
+import type { PresetTeamDefinition } from "./preset-teams"
+import type { PresetTeamState } from "./team-blueprint"
 
 type PresetRoomMessage = {
   createdAt: number
@@ -64,8 +64,11 @@ export function inferPresetRoomStateFromMessages(input: {
     currentSpeakerKey,
     cycleNumber: Math.max(1, input.cycleNumber ?? 1),
     cycleStartedAt,
+    lastError: null,
     lastAdvanceAt: cycleMessages[cycleMessages.length - 1]?.createdAt ?? null,
     nextTurnIndex,
+    retryAttempt: 0,
+    retryScheduledAt: null,
     runStatus,
   } satisfies PresetTeamState
 }

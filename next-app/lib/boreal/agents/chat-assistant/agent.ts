@@ -20,6 +20,7 @@ import {
   saveConversationExchange,
   saveArtifactMetadata,
   saveIntentPipelineRecord,
+  schedulePresetRoomAdvance,
 } from "@/lib/boreal/dal/intent-repository";
 import type { ComposableAgent } from "@/lib/boreal/agents/base";
 import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
@@ -40,6 +41,7 @@ import type {
   CatalogItem,
   ChatUiContext,
   MediaArtifact,
+  PresetRoomAdvanceCommand,
   WorkspaceState,
 } from "@/lib/boreal/schemas/chat";
 import {
@@ -87,6 +89,10 @@ import {
 } from "@/lib/boreal/swarm/preset-team-runtime";
 import type { PresetTeamTurnResult } from "@/lib/boreal/swarm/preset-team-presenter";
 import { inferPresetRoomStateFromMessages } from "@/lib/boreal/swarm/preset-team-state";
+import {
+  getPresetRoomRetryDelayMs,
+  PRESET_ROOM_ADVANCE_DELAY_MS,
+} from "@/lib/boreal/swarm/preset-room-control";
 import {
   buildAutoReopenForWorkersCopy,
   shouldAutoReopenRequestForWorkers,
@@ -675,100 +681,19 @@ async function continueApprovedRequestThread(input: {
     assignedPresetTeam &&
     canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
   ) {
-    const currentRoomState =
-      requestDetail.assignment?.team?.presetState ??
-      inferPresetRoomStateFromMessages({
-        cycleNumber: requestDetail.assignment?.team?.presetState?.cycleNumber ?? 1,
-        definition: assignedPresetTeam,
-        messages: requestDetail.messages.map((message) => ({
-          createdAt: message.createdAt,
-          sender: {
-            externalId: message.sender.externalId ?? null,
-            isCurrentUser: message.sender.isCurrentUser,
-          },
-        })),
-      });
-
-    if (
-      isPresetRoomAdvance &&
-      !canAdvancePresetRoom({
-        expectedCycleNumber: presetRoomCommand?.cycleNumber ?? 0,
-        expectedTurnIndex: presetRoomCommand?.expectedTurnIndex ?? -1,
-        roomState: currentRoomState,
-      })
-    ) {
-      return buildPresetRoomThreadResponse({
-        conversationId: request.conversationId ?? crypto.randomUUID(),
-        intent: persistedIntent,
-        intentId: requestId,
-      });
-    }
-
-    const isStartingNewCycle =
-      !isPresetRoomAdvance &&
-      currentRoomState?.runStatus === "awaiting_owner";
-    const cycleNumber = isStartingNewCycle
-      ? (currentRoomState?.cycleNumber ?? 0) + 1
-      : currentRoomState?.cycleNumber ?? 1;
-    const cycleStartedAt = isStartingNewCycle
-      ? getLatestOwnerThreadMessageCreatedAt(requestDetail, ownerExternalId)
-      : currentRoomState?.cycleStartedAt ?? null;
-    const startTurnIndex = isStartingNewCycle
-      ? 0
-      : getNextPresetTurnIndex(
-          assignedPresetTeam,
-          currentRoomState?.nextTurnIndex,
-        );
-    const cycle = await runPresetTeamRequestCycleDetailed({
-      definition: assignedPresetTeam,
-      latestOwnerMessage: isPresetRoomAdvance ? null : input.input.message,
+    return runAssignedPresetRoomTurn({
+      assignedPresetTeam,
+      isPresetRoomAdvance,
+      latestOwnerMessage: input.input.message,
       onStreamEvent: input.input.onStreamEvent,
+      ownerExternalId,
+      persistedIntent,
+      presetRoomCommand,
       provider: input.provider,
       request,
       requestDetail,
-      roomState: {
-        currentSpeakerKey:
-          currentRoomState?.currentSpeakerKey ??
-          assignedPresetTeam.members[0]?.agentKey ??
-          null,
-        cycleNumber,
-        cycleStartedAt,
-        lastAdvanceAt: currentRoomState?.lastAdvanceAt ?? null,
-        nextTurnIndex: startTurnIndex,
-        runStatus: "running",
-      },
-      startTurnIndex,
-      turnLimit: 1,
+      requestId,
       runtimeConfig: input.runtimeConfig,
-    });
-    const assignedTeamJson = serializeAssignedPresetTeam(
-      assignedPresetTeam,
-      {
-        currentSpeakerKey: cycle.currentSpeakerKey,
-        cycleNumber: cycle.cycleNumber,
-        cycleStartedAt: cycle.cycleStartedAt,
-        lastAdvanceAt: cycle.lastAdvanceAt,
-        nextTurnIndex: cycle.nextTurnIndex,
-        runStatus: cycle.runStatusAfter,
-      },
-    );
-
-    await appendPresetTeamTurnMessages({
-      assignedTeamJson,
-      cycleNumber: cycle.cycleNumber,
-      definition: assignedPresetTeam,
-      intentId: requestId,
-      roomStatusAfter: cycle.runStatusAfter,
-      ownerExternalId,
-      request,
-      status: "in_progress",
-      transcript: cycle.transcript,
-    });
-
-    return buildPresetRoomThreadResponse({
-      conversationId: request.conversationId ?? crypto.randomUUID(),
-      intent: persistedIntent,
-      intentId: requestId,
     });
   }
 
@@ -1216,6 +1141,7 @@ function serializeAssignedPresetTeam(
       currentSpeakerKey: presetState?.currentSpeakerKey,
       executionMode: definition.executionMode,
       key: definition.key,
+      lastError: presetState?.lastError,
       lastAdvanceAt: presetState?.lastAdvanceAt,
       members: definition.members.map((member) => ({
         agentKey: member.agentKey,
@@ -1224,6 +1150,8 @@ function serializeAssignedPresetTeam(
         role: member.role,
       })),
       nextTurnIndex: presetState?.nextTurnIndex ?? 0,
+      retryAttempt: presetState?.retryAttempt,
+      retryScheduledAt: presetState?.retryScheduledAt,
       runStatus: presetState?.runStatus,
       teamDisplayName: definition.teamDisplayName,
     }),
@@ -1239,6 +1167,294 @@ function getNextPresetTurnIndex(
   }
 
   return nextTurnIndex >= definition.turns.length ? 0 : nextTurnIndex;
+}
+
+function getCurrentPresetRoomState(input: {
+  definition: PresetTeamDefinition;
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>;
+}) {
+  return (
+    input.requestDetail.assignment?.team?.presetState ??
+    inferPresetRoomStateFromMessages({
+      cycleNumber: input.requestDetail.assignment?.team?.presetState?.cycleNumber ?? 1,
+      definition: input.definition,
+      messages: input.requestDetail.messages.map((message) => ({
+        createdAt: message.createdAt,
+        sender: {
+          externalId: message.sender.externalId ?? null,
+          isCurrentUser: message.sender.isCurrentUser,
+        },
+      })),
+    })
+  );
+}
+
+function canScheduleDurablePresetRoomAdvanceFromApp() {
+  const secret = process.env.BOREAL_INTERNAL_PRESET_ROOM_SECRET?.trim();
+  const origin =
+    process.env.BOREAL_PUBLIC_ORIGIN?.trim() ??
+    (process.env.NODE_ENV === "production" ? "https://boreal.work" : null);
+
+  if (!secret || !origin) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(origin);
+    const hostname = parsed.hostname.trim().toLowerCase();
+
+    return !(
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.endsWith(".localhost")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function queuePresetRoomAdvance(input: {
+  delayMs: number;
+  expectedCycleNumber: number;
+  expectedTurnIndex: number;
+  intentId: string;
+  lastError?: string;
+  ownerExternalId: string;
+  retryAttempt?: number;
+}) {
+  if (!canScheduleDurablePresetRoomAdvanceFromApp()) {
+    return { scheduled: false, scheduledAt: null };
+  }
+
+  return schedulePresetRoomAdvance({
+    delayMs: input.delayMs,
+    expectedCycleNumber: input.expectedCycleNumber,
+    expectedTurnIndex: input.expectedTurnIndex,
+    intentId: input.intentId,
+    lastError: input.lastError,
+    ownerExternalId: input.ownerExternalId,
+    retryAttempt: input.retryAttempt,
+  });
+}
+
+async function runAssignedPresetRoomTurn(input: {
+  assignedPresetTeam: PresetTeamDefinition;
+  isPresetRoomAdvance: boolean;
+  latestOwnerMessage: string | null;
+  onStreamEvent?: ChatAssistantAgentInput["onStreamEvent"];
+  ownerExternalId: string;
+  persistedIntent: PersistedIntent;
+  presetRoomCommand?: PresetRoomAdvanceCommand | null;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>;
+  requestId: string;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const currentRoomState = getCurrentPresetRoomState({
+    definition: input.assignedPresetTeam,
+    requestDetail: input.requestDetail,
+  });
+
+  if (
+    input.isPresetRoomAdvance &&
+    !canAdvancePresetRoom({
+      expectedCycleNumber: input.presetRoomCommand?.cycleNumber ?? 0,
+      expectedTurnIndex: input.presetRoomCommand?.expectedTurnIndex ?? -1,
+      roomState: currentRoomState,
+    })
+  ) {
+    return buildPresetRoomThreadResponse({
+      conversationId: input.request.conversationId ?? crypto.randomUUID(),
+      intent: input.persistedIntent,
+      intentId: input.requestId,
+    });
+  }
+
+  const isStartingNewCycle =
+    !input.isPresetRoomAdvance && currentRoomState?.runStatus === "awaiting_owner";
+  const cycleNumber = isStartingNewCycle
+    ? (currentRoomState?.cycleNumber ?? 0) + 1
+    : currentRoomState?.cycleNumber ?? 1;
+  const cycleStartedAt = isStartingNewCycle
+    ? getLatestOwnerThreadMessageCreatedAt(input.requestDetail, input.ownerExternalId)
+    : currentRoomState?.cycleStartedAt ?? null;
+  const startTurnIndex = isStartingNewCycle
+    ? 0
+    : getNextPresetTurnIndex(
+        input.assignedPresetTeam,
+        currentRoomState?.nextTurnIndex,
+      );
+
+  try {
+    const cycle = await runPresetTeamRequestCycleDetailed({
+      definition: input.assignedPresetTeam,
+      latestOwnerMessage: input.isPresetRoomAdvance
+        ? null
+        : input.latestOwnerMessage,
+      onStreamEvent: input.onStreamEvent,
+      provider: input.provider,
+      request: input.request,
+      requestDetail: input.requestDetail,
+      roomState: {
+        currentSpeakerKey:
+          currentRoomState?.currentSpeakerKey ??
+          input.assignedPresetTeam.members[0]?.agentKey ??
+          null,
+        cycleNumber,
+        cycleStartedAt,
+        lastAdvanceAt: currentRoomState?.lastAdvanceAt ?? null,
+        nextTurnIndex: startTurnIndex,
+        retryAttempt: 0,
+        retryScheduledAt: null,
+        lastError: null,
+        runStatus: "running",
+      },
+      startTurnIndex,
+      turnLimit: 1,
+      runtimeConfig: input.runtimeConfig,
+    });
+    const assignedTeamJson = serializeAssignedPresetTeam(
+      input.assignedPresetTeam,
+      {
+        currentSpeakerKey: cycle.currentSpeakerKey,
+        cycleNumber: cycle.cycleNumber,
+        cycleStartedAt: cycle.cycleStartedAt,
+        lastAdvanceAt: cycle.lastAdvanceAt,
+        nextTurnIndex: cycle.nextTurnIndex,
+        retryAttempt: 0,
+        retryScheduledAt: null,
+        lastError: null,
+        runStatus: cycle.runStatusAfter,
+      },
+    );
+
+    await appendPresetTeamTurnMessages({
+      assignedTeamJson,
+      cycleNumber: cycle.cycleNumber,
+      definition: input.assignedPresetTeam,
+      intentId: input.requestId,
+      ownerExternalId: input.ownerExternalId,
+      request: input.request,
+      roomStatusAfter: cycle.runStatusAfter,
+      status: "in_progress",
+      transcript: cycle.transcript,
+    });
+
+    if (
+      cycle.runStatusAfter === "running" &&
+      cycle.nextTurnIndex !== null
+    ) {
+      await queuePresetRoomAdvance({
+        delayMs: PRESET_ROOM_ADVANCE_DELAY_MS,
+        expectedCycleNumber: cycle.cycleNumber,
+        expectedTurnIndex: cycle.nextTurnIndex,
+        intentId: input.requestId,
+        ownerExternalId: input.ownerExternalId,
+        retryAttempt: 0,
+      });
+    }
+
+    return buildPresetRoomThreadResponse({
+      conversationId: input.request.conversationId ?? crypto.randomUUID(),
+      intent: input.persistedIntent,
+      intentId: input.requestId,
+    });
+  } catch (error) {
+    const retryDelayMs = getPresetRoomRetryDelayMs(
+      currentRoomState?.retryAttempt ?? 0,
+      error,
+    );
+
+    if (retryDelayMs !== null) {
+      await queuePresetRoomAdvance({
+        delayMs: retryDelayMs,
+        expectedCycleNumber: cycleNumber,
+        expectedTurnIndex: startTurnIndex,
+        intentId: input.requestId,
+        lastError:
+          error instanceof Error
+            ? error.message
+            : "Preset room turn could not continue automatically.",
+        ownerExternalId: input.ownerExternalId,
+        retryAttempt: (currentRoomState?.retryAttempt ?? 0) + 1,
+      });
+
+      return buildPresetRoomThreadResponse({
+        conversationId: input.request.conversationId ?? crypto.randomUUID(),
+        intent: input.persistedIntent,
+        intentId: input.requestId,
+      });
+    }
+
+    throw error;
+  }
+}
+
+export async function advancePresetRoomOffTab(input: {
+  expectedCycleNumber: number;
+  expectedTurnIndex: number;
+  intentId: string;
+  ownerExternalId: string;
+}) {
+  const runtimeConfig = getBorealRuntimeConfig();
+  const provider = resolveProviderAdapter();
+  const requestDetail = await getRequestDetailRecord({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+  const request = await getRequestExecutionContext({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+
+  if (!requestDetail.intent || !requestDetail.access?.canViewChat || !request) {
+    return { advanced: false };
+  }
+
+  const assignedPresetTeam = resolvePresetTeamDefinitionFromBlueprint({
+    members: requestDetail.assignment?.team?.members,
+    presetKey: requestDetail.assignment?.team?.presetKey,
+    teamDisplayName:
+      requestDetail.assignment?.team?.teamDisplayName ??
+      requestDetail.assignment?.agent ??
+      undefined,
+  });
+
+  if (
+    !requestDetail.access?.isOwner ||
+    !assignedPresetTeam ||
+    !canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
+  ) {
+    return { advanced: false };
+  }
+
+  const persistedIntent = toPersistedExecutionIntent(
+    request,
+    runtimeConfig,
+    provider.key,
+  );
+
+  await runAssignedPresetRoomTurn({
+    assignedPresetTeam,
+    isPresetRoomAdvance: true,
+    latestOwnerMessage: null,
+    ownerExternalId: input.ownerExternalId,
+    persistedIntent,
+    presetRoomCommand: {
+      command: "advance_next_turn",
+      cycleNumber: input.expectedCycleNumber,
+      expectedTurnIndex: input.expectedTurnIndex,
+    },
+    provider,
+    request,
+    requestDetail,
+    requestId: input.intentId,
+    runtimeConfig,
+  });
+
+  return { advanced: true };
 }
 
 async function appendPresetTeamTurnMessages(input: {
@@ -1265,15 +1481,7 @@ async function appendPresetTeamTurnMessages(input: {
     return;
   }
 
-  const finalTurnIndex = input.definition.turns.length - 1;
-
   for (const turn of input.transcript) {
-    const turnStatus =
-      input.roomStatusAfter === "awaiting_owner" &&
-      turn.turnIndex >= finalTurnIndex
-        ? "fulfilled"
-        : input.status;
-
     await appendRequestExecution({
       activityPayload: JSON.stringify({
         assignedAgent: input.definition.teamDisplayName,
@@ -1299,7 +1507,7 @@ async function appendPresetTeamTurnMessages(input: {
       senderDisplayName: turn.displayName,
       senderExternalId: turn.senderExternalId,
       senderHandle: turn.senderHandle,
-      status: turnStatus,
+      status: input.status,
     });
   }
 }
@@ -3088,6 +3296,17 @@ async function startMountedPresetTeamExecution(input: {
     },
     type: "request-opened",
   });
+
+  if (input.input.requester?.externalId) {
+    await queuePresetRoomAdvance({
+      delayMs: PRESET_ROOM_ADVANCE_DELAY_MS,
+      expectedCycleNumber: 1,
+      expectedTurnIndex: 0,
+      intentId: persistedResult.intentId,
+      ownerExternalId: input.input.requester.externalId,
+      retryAttempt: 0,
+    });
+  }
 
   return {
     assistantMessage: openingMessage,

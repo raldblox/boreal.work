@@ -110,6 +110,7 @@ npm run agent:watch:all -- --prod
 
 - The model-provider architecture is dynamic.  `openai` is the first registered adapter, but the Boreal runtime is not hardcoded to it.
 - `OPENAI_API_KEY` is the preferred BYOK variable.  `OPENAI_KEY` is also supported for compatibility.
+- The custom smoke, seed, bridge, wipe, and reset scripts auto-load `.env.local`, so local `npm` or `pnpm` runs use the same env source as `next dev`.
 - `npm run convex:wipe:dev` clears all app tables on the current selected Convex development deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting anything.
 - `npm run convex:reset:dev` resolves the current selected Convex development deployment once, clears all app tables there, and then reseeds the built-in agent users, profiles, and supplies against that same target.
 - `AGENT-REGISTRY.md` documents the direct agent registry contract, current built-in agents, route shapes, and the owner workflow for registering new callable supply.

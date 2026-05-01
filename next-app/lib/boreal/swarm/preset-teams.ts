@@ -1,4 +1,4 @@
-import type { CatalogEntry } from "@/lib/boreal/integrations/convex/function-refs"
+import type { CatalogEntry } from "../integrations/convex/function-refs"
 
 export type PresetTeamExecutionMode =
   | "fanout_merge"

@@ -1,12 +1,18 @@
-import { mutation, query } from "./_generated/server";
+import { internalAction, internalQuery, mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
 
 import {
   normalizeIntentExtraction,
   type RequestedOutputType,
   type ToolRoute,
 } from "../lib/boreal/schemas/intent";
+import {
+  parseRequestTeamBlueprint,
+  serializeRequestTeamBlueprint,
+} from "../lib/boreal/swarm/team-blueprint.ts";
+import { getPresetRoomRetryDelayMs } from "../lib/boreal/swarm/preset-room-control.ts";
 import { proposalIncludesParticipant } from "./collectives";
 import { intentStatusValidator, persistedIntentValidator } from "./validators";
 import { persistIntentMatchCandidates } from "./matching";
@@ -905,6 +911,185 @@ export const appendRequestExecution = mutation({
   },
 });
 
+export const schedulePresetRoomAdvance = mutation({
+  args: {
+    delayMs: v.number(),
+    expectedCycleNumber: v.number(),
+    expectedTurnIndex: v.number(),
+    intentId: v.id("intents"),
+    lastError: v.optional(v.string()),
+    ownerExternalId: v.string(),
+    retryAttempt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (!intent || !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))) {
+      return { scheduled: false, scheduledAt: null };
+    }
+
+    if (intent.status !== "claimed" && intent.status !== "in_progress") {
+      return { scheduled: false, scheduledAt: null };
+    }
+
+    const blueprint = parseRequestTeamBlueprint(intent.assignedTeamJson);
+
+    if (!blueprint?.presetKey || !blueprint.presetState) {
+      return { scheduled: false, scheduledAt: null };
+    }
+
+    const now = Date.now();
+    const retryAttempt = Math.max(0, Math.floor(args.retryAttempt ?? 0));
+    const scheduledAt = now + Math.max(0, Math.floor(args.delayMs));
+    const nextSpeakerKey =
+      blueprint.members[args.expectedTurnIndex]?.agentKey ??
+      blueprint.presetState.currentSpeakerKey ??
+      blueprint.members[0]?.agentKey ??
+      null;
+
+    await ctx.db.patch(args.intentId, {
+      assignedTeamJson: serializeRequestTeamBlueprint({
+        ...blueprint,
+        presetState: {
+          ...blueprint.presetState,
+          currentSpeakerKey: nextSpeakerKey,
+          cycleNumber: Math.max(1, Math.floor(args.expectedCycleNumber)),
+          lastError:
+            retryAttempt > 0 && args.lastError?.trim()
+              ? args.lastError.trim()
+              : null,
+          nextTurnIndex: Math.max(0, Math.floor(args.expectedTurnIndex)),
+          retryAttempt,
+          retryScheduledAt: retryAttempt > 0 ? scheduledAt : null,
+          runStatus: "running",
+        },
+      }),
+      updatedAt: now,
+    });
+
+    await ctx.scheduler.runAfter(
+      Math.max(0, Math.floor(args.delayMs)),
+      internal.chats.runScheduledPresetRoomAdvance,
+      {
+        expectedCycleNumber: Math.max(1, Math.floor(args.expectedCycleNumber)),
+        expectedTurnIndex: Math.max(0, Math.floor(args.expectedTurnIndex)),
+        intentId: args.intentId,
+        ownerExternalId: args.ownerExternalId,
+        retryAttempt,
+      },
+    );
+
+    return { scheduled: true, scheduledAt };
+  },
+});
+
+export const getScheduledPresetRoomAdvanceState = internalQuery({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (!intent || !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))) {
+      return null;
+    }
+
+    const blueprint = parseRequestTeamBlueprint(intent.assignedTeamJson);
+
+    return {
+      presetState: blueprint?.presetState ?? null,
+      status: intent.status,
+    };
+  },
+});
+
+export const runScheduledPresetRoomAdvance = internalAction({
+  args: {
+    expectedCycleNumber: v.number(),
+    expectedTurnIndex: v.number(),
+    intentId: v.id("intents"),
+    ownerExternalId: v.string(),
+    retryAttempt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const origin = getPresetRoomInternalOrigin();
+    const secret = getPresetRoomInternalSecret();
+
+    if (!secret || isUnreachablePresetRoomOrigin(origin)) {
+      return { delivered: false, rescheduled: false, skipped: true };
+    }
+
+    const currentState = await ctx.runQuery(
+      internal.chats.getScheduledPresetRoomAdvanceState,
+      {
+        intentId: args.intentId,
+        ownerExternalId: args.ownerExternalId,
+      },
+    );
+
+    if (
+      !currentState ||
+      (currentState.status !== "claimed" && currentState.status !== "in_progress") ||
+      !currentState.presetState ||
+      currentState.presetState.runStatus !== "running" ||
+      currentState.presetState.cycleNumber !== args.expectedCycleNumber ||
+      (currentState.presetState.nextTurnIndex ?? 0) !== args.expectedTurnIndex
+    ) {
+      return { delivered: false, rescheduled: false, skipped: true };
+    }
+
+    try {
+      const response = await fetch(`${origin}/api/internal/preset-rooms/advance`, {
+        body: JSON.stringify({
+          expectedCycleNumber: args.expectedCycleNumber,
+          expectedTurnIndex: args.expectedTurnIndex,
+          intentId: args.intentId,
+          ownerExternalId: args.ownerExternalId,
+        }),
+        headers: {
+          "content-type": "application/json",
+          "x-boreal-internal-secret": secret,
+        },
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        const error = new Error(
+          responseText.trim().length > 0
+            ? responseText
+            : `Preset room advance callback failed with ${response.status}.`,
+        );
+        (error as Error & { status?: number }).status = response.status;
+        throw error;
+      }
+
+      return { delivered: true, rescheduled: false };
+    } catch (error) {
+      const retryAttempt = Math.max(0, Math.floor(args.retryAttempt ?? 0));
+      const delayMs = getPresetRoomRetryDelayMs(retryAttempt, error);
+
+      if (delayMs !== null) {
+        await ctx.runMutation(api.chats.schedulePresetRoomAdvance, {
+          delayMs,
+          expectedCycleNumber: args.expectedCycleNumber,
+          expectedTurnIndex: args.expectedTurnIndex,
+          intentId: args.intentId,
+          lastError:
+            error instanceof Error ? error.message : "Preset room callback failed.",
+          ownerExternalId: args.ownerExternalId,
+          retryAttempt: retryAttempt + 1,
+        });
+
+        return { delivered: false, rescheduled: true };
+      }
+
+      throw error;
+    }
+  },
+});
+
 export const rateRequest = mutation({
   args: {
     comment: v.optional(v.string()),
@@ -1335,6 +1520,44 @@ function buildConversationTitle(body: string) {
   }
 
   return trimmed.length > 72 ? `${trimmed.slice(0, 69)}...` : trimmed;
+}
+
+function getPresetRoomInternalOrigin() {
+  if (process.env.BOREAL_PUBLIC_ORIGIN?.trim()) {
+    return process.env.BOREAL_PUBLIC_ORIGIN.trim();
+  }
+
+  return process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:3000"
+    : "https://boreal.work";
+}
+
+function getPresetRoomInternalSecret() {
+  if (process.env.BOREAL_INTERNAL_PRESET_ROOM_SECRET?.trim()) {
+    return process.env.BOREAL_INTERNAL_PRESET_ROOM_SECRET.trim();
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return "boreal-preset-room-dev-secret";
+  }
+
+  return null;
+}
+
+function isUnreachablePresetRoomOrigin(origin: string) {
+  try {
+    const parsed = new URL(origin);
+    const hostname = parsed.hostname.trim().toLowerCase();
+
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.endsWith(".localhost")
+    );
+  } catch {
+    return true;
+  }
 }
 
 async function hasRequestAccess(

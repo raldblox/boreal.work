@@ -1,7 +1,7 @@
 import { makeFunctionReference } from "convex/server";
 
-import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
-import type { RequestTeamBlueprint } from "@/lib/boreal/swarm/team-blueprint";
+import type { PersistedIntent } from "../../schemas/intent";
+import type { RequestTeamBlueprint } from "../../swarm/team-blueprint";
 
 export type RecordIntentPipelineArgs = {
   assignedTeamJson?: string;
@@ -744,6 +744,19 @@ export const convexFunctionRefs = {
     },
     { appended: boolean }
   >("chats:appendRequestExecution"),
+  schedulePresetRoomAdvance: makeFunctionReference<
+    "mutation",
+    {
+      delayMs: number;
+      expectedCycleNumber: number;
+      expectedTurnIndex: number;
+      intentId: string;
+      lastError?: string;
+      ownerExternalId: string;
+      retryAttempt?: number;
+    },
+    { scheduled: boolean; scheduledAt: number | null }
+  >("chats:schedulePresetRoomAdvance"),
   getConversationThread: makeFunctionReference<
     "query",
     {

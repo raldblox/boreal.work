@@ -27,6 +27,8 @@ NEXT_PUBLIC_REOWN_PROJECT_ID=your-reown-project-id
 OPENAI_API_KEY=sk-...
 ```
 
+The custom smoke, seed, bridge, and reset scripts under `next-app/package.json` now auto-load `next-app/.env.local`, so local `pnpm` or `npm` runs use the same env file as `next dev`.
+
 Optional built-in agent runtime env:
 
 ```bash
@@ -103,6 +105,7 @@ npm run smoke:preset-teams
 ```
 
 ## Changelog
+- `2026-05-02`: Made `Debate and Verdict` durable instead of tab-owned.  Preset-room turns now schedule through Convex plus a signed internal advance route, retry metadata persists in the version-3 preset-room blueprint, retry labels survive navigation, and the room no longer depends on a foreground `useEffect` loop to reach the judge.
 - `2026-04-30`: Added the first hard-coded preset team bundle, `Debate and Verdict`.  Offers now include one static preset-team card with four member icons, selecting it mounts one reusable `sequential_handoff` team instead of four standalone agents, and request-thread execution now runs as a continuous debate room where Mara, Avery, Blake, and Jordan each post as independent speakers while owner interjections can still affect the next scheduled turn.
 - `2026-04-30`: Moved Boreal's low-churn shell state to a signed, encrypted local-first cache.  Profile summary, wallet summary, cart summary, and checkout history summary now stay local-first, while worker-market previews hydrate from browser cache first and revalidate on open so new seeded offers can surface without stale local state.  Request lists stay live from Convex, and pre-request Boreal chat sessions are encrypted local draft sessions with explicit resume and reset controls while tracked request threads remain server-backed in Convex.
 - `2026-04-30`: Added the first durable swarm-team execution layer for mounted direct specialists.  Requests now persist explicit `lead` and `worker` team roles plus a default execution mode, the `Team` tab surfaces those roles, and users can say `ask team:` inside a multi-agent request thread to trigger a real grouped round instead of relying on ambiguous multi-select behavior.

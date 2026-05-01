@@ -17,8 +17,11 @@ export type PresetTeamState = {
   currentSpeakerKey: string | null;
   cycleNumber: number;
   cycleStartedAt: number | null;
+  lastError: string | null;
   lastAdvanceAt: number | null;
   nextTurnIndex: number | null;
+  retryAttempt: number;
+  retryScheduledAt: number | null;
   runStatus: PresetTeamRunStatus;
 };
 
@@ -70,9 +73,12 @@ export function buildPresetTeamBlueprint(input: {
   currentSpeakerKey?: string | null;
   executionMode: RequestTeamExecutionMode;
   key: string;
+  lastError?: string | null;
   lastAdvanceAt?: number | null;
   members: RequestTeamMember[];
   nextTurnIndex?: number | null;
+  retryAttempt?: number;
+  retryScheduledAt?: number | null;
   runStatus?: PresetTeamRunStatus;
   teamDisplayName: string;
 }): RequestTeamBlueprint | null {
@@ -92,8 +98,11 @@ export function buildPresetTeamBlueprint(input: {
         resolvePresetSpeakerKey(input.members, normalizedNextTurnIndex),
       cycleNumber: Math.max(1, input.cycleNumber ?? 1),
       cycleStartedAt: input.cycleStartedAt ?? null,
+      lastError: input.lastError ?? null,
       lastAdvanceAt: input.lastAdvanceAt ?? null,
       nextTurnIndex: normalizedNextTurnIndex,
+      retryAttempt: Math.max(0, input.retryAttempt ?? 0),
+      retryScheduledAt: input.retryScheduledAt ?? null,
       runStatus: input.runStatus ?? "running",
     },
     presetKey: input.key,
@@ -260,12 +269,28 @@ function normalizePresetState(
       Number.isFinite(presetState.cycleStartedAt)
         ? presetState.cycleStartedAt
         : null,
+    lastError:
+      typeof presetState.lastError === "string" &&
+      presetState.lastError.trim().length > 0
+        ? presetState.lastError
+        : null,
     lastAdvanceAt:
       typeof presetState.lastAdvanceAt === "number" &&
       Number.isFinite(presetState.lastAdvanceAt)
         ? presetState.lastAdvanceAt
         : null,
     nextTurnIndex,
+    retryAttempt:
+      typeof presetState.retryAttempt === "number" &&
+      Number.isFinite(presetState.retryAttempt) &&
+      presetState.retryAttempt > 0
+        ? Math.floor(presetState.retryAttempt)
+        : 0,
+    retryScheduledAt:
+      typeof presetState.retryScheduledAt === "number" &&
+      Number.isFinite(presetState.retryScheduledAt)
+        ? presetState.retryScheduledAt
+        : null,
     runStatus:
       presetState.runStatus === "awaiting_owner"
         ? "awaiting_owner"
