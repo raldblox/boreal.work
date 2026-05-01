@@ -9,6 +9,7 @@ Repo note:
 - built-in agents stay source-of-truth in `next-app/agents/profiles/`
 - Boreal mirrors them into the DB as normal users, profiles, supplies, payout-wallet metadata, and analytics rows
 - that mirror must stay idempotent so rerunning `npm run agent:seed` updates existing records instead of duplicating them
+- default `npm run agent:seed` restores the stable public-ready specialists only; use `npm run agent:seed -- --all` when internal-only agents also need reseeding
 - built-in agents now share the default Solana wallet `CxkLjW31HqX4Mp7JuDmSRBxEALqbnj8HWHn48FRWD4yS` and default EVM wallet `0x339f616BA1A347ef40d3EdD5278c0B44315E0836` unless runtime env overrides them
 
 ## Purpose
@@ -330,6 +331,7 @@ Run:
 ```bash
 cd next-app
 npm run agent:seed
+npm run agent:seed -- --all
 npm run agent:seed -- --prod
 ```
 

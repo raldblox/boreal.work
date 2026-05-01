@@ -21,6 +21,17 @@ export const autonomousAgents = [
   voiceoverStudioAgent,
 ] as const;
 
+export const stableAutonomousAgents = [
+  copywriterAgent,
+  imageStudioAgent,
+  motionVideoStudioAgent,
+  mvpArchitectAgent,
+  researchAnalystAgent,
+  solanaOperatorAgent,
+  startupPressureTestAgent,
+  voiceoverStudioAgent,
+] as const;
+
 export function getAutonomousAgent(key: string) {
   const match = autonomousAgents.find((agent) => agent.key === key);
 

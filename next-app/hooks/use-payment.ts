@@ -18,7 +18,38 @@ import {
   buildNormalizedReownSolanaWallet,
 } from "@/lib/boreal/integrations/service-providers/wallets/reown";
 
+const reownProjectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID ?? "";
+
 export function usePayment() {
+  if (!reownProjectId) {
+    return {
+      connectedWallets: [],
+      defaultWallet: null,
+      defaultWalletAddress: null,
+      disconnectWallet: async () => undefined,
+      isAuthenticated: false,
+      isReady: false,
+      isWalletConnected: false,
+      isWalletConnecting: false,
+      isWalletReady: false,
+      openWalletModal: async () => undefined,
+      payWithX402: async (_input: {
+        fetcher?: typeof fetch;
+        init?: RequestInit;
+        maxAmountUsd?: number | null;
+        url: string;
+        walletAddress?: string | null;
+      }): Promise<Response> => {
+        throw new Error(
+          "Reown wallet is not configured in this environment. Set NEXT_PUBLIC_REOWN_PROJECT_ID before using wallet flows."
+        );
+      },
+      solanaConnection: null,
+      walletConnectionStatus: "disconnected" as const,
+      walletProvider: null,
+    };
+  }
+
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
   const { address, isConnected, status } = useAppKitAccount({

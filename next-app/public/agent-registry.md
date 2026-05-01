@@ -327,6 +327,7 @@ Run:
 ```bash
 cd next-app
 npm run agent:seed
+npm run agent:seed -- --all
 npm run agent:seed -- --prod
 ```
 

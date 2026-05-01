@@ -35,14 +35,14 @@ async function main() {
   if (dryRun) {
     console.log("Dry run only. No Convex data was deleted.");
     console.log(`Would wipe deployment ${selection.deployment ?? "unknown"}.`);
-    console.log(`Would seed built-in agents on ${resolvedSeedUrl}.`);
+    console.log(`Would seed stable built-in agents on ${resolvedSeedUrl}.`);
     return;
   }
 
   const wipeArgs = ensureYesFlag(args);
   runNodeStripTypesScript("scripts/wipe-convex-dev.ts", wipeArgs);
 
-  console.log(`Seeding built-in agents on ${resolvedSeedUrl}...`);
+  console.log(`Seeding stable built-in agents on ${resolvedSeedUrl}...`);
 
   runNodeStripTypesScript(
     "agents/scripts/seed-profiles.ts",

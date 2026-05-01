@@ -22,6 +22,43 @@ export async function POST(request: Request) {
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
     const encoder = new TextEncoder();
+    let streamClosed = false;
+
+    const safeWrite = async (payload: string) => {
+      if (streamClosed) {
+        return false;
+      }
+
+      try {
+        await writer.write(encoder.encode(payload));
+        return true;
+      } catch (error) {
+        if (isClosedWritableStreamError(error) || request.signal.aborted) {
+          streamClosed = true;
+          return false;
+        }
+
+        throw error;
+      }
+    };
+
+    const safeClose = async () => {
+      if (streamClosed) {
+        return;
+      }
+
+      streamClosed = true;
+
+      try {
+        await writer.close();
+      } catch (error) {
+        if (isClosedWritableStreamError(error) || request.signal.aborted) {
+          return;
+        }
+
+        throw error;
+      }
+    };
 
     void (async () => {
       try {
@@ -30,15 +67,13 @@ export async function POST(request: Request) {
           message: body.message,
           onDebugEvent: body.debugPipeline
             ? async (event: ChatAssistantDebugEvent) => {
-                await writer.write(
-                  encoder.encode(
-                    `${JSON.stringify({ payload: event, type: "debug" })}\n`,
-                  ),
+                await safeWrite(
+                  `${JSON.stringify({ payload: event, type: "debug" })}\n`,
                 );
               }
             : undefined,
           onStreamEvent: async (event: ChatAssistantStreamEvent) => {
-            await writer.write(encoder.encode(`${JSON.stringify(event)}\n`));
+            await safeWrite(`${JSON.stringify(event)}\n`);
           },
           requester: {
             displayName: user.name ?? undefined,
@@ -48,29 +83,25 @@ export async function POST(request: Request) {
         });
 
         for (const delta of chunkAssistantMessage(result.assistantMessage)) {
-          await writer.write(
-            encoder.encode(
-              `${JSON.stringify({ delta, type: "assistant-delta" })}\n`,
-            ),
+          const didWrite = await safeWrite(
+            `${JSON.stringify({ delta, type: "assistant-delta" })}\n`,
           );
+
+          if (!didWrite) {
+            break;
+          }
         }
 
-        await writer.write(
-          encoder.encode(
-            `${JSON.stringify({ payload: result, type: "final" })}\n`,
-          ),
+        await safeWrite(
+          `${JSON.stringify({ payload: result, type: "final" })}\n`,
         );
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Chat request failed.";
 
-        await writer.write(
-          encoder.encode(
-            `${JSON.stringify({ message, type: "error" })}\n`,
-          ),
-        );
+        await safeWrite(`${JSON.stringify({ message, type: "error" })}\n`);
       } finally {
-        await writer.close();
+        await safeClose();
       }
     })();
 
@@ -178,4 +209,15 @@ function chunkAssistantMessage(message: string) {
   }
 
   return chunks;
+}
+
+function isClosedWritableStreamError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.name === "TypeError" &&
+    /writablestream is closed|invalid state/i.test(error.message)
+  );
 }

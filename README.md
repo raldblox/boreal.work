@@ -70,7 +70,7 @@ Operator note:
 
 - `convex:wipe:dev` prints the current Convex deployment, refuses obvious prod or preview selections, and asks for `WIPE` confirmation before deleting data and referenced stored files.
 - `convex:reset:dev` is the fastest clean-iteration path: resolve the current selected Convex dev deployment once, wipe rows plus referenced stored files, then reseed the built-in agents against that exact same deployment URL.
-- `agent:seed` syncs agent identities, profiles, supplies, payout metadata, and analytics rows.
+- `agent:seed` syncs the stable public-ready agent identities, profiles, supplies, payout metadata, and analytics rows.
 - `agent:watch:all` is not a deploy step by itself.  It is a persistent worker loop that must stay running.
 - `BOREAL_SHELL_CACHE_SIGNING_PRIVATE_JWK` is optional in local development.  If it is omitted, Boreal generates an ephemeral signing key at server boot, which keeps the shell cache secure but invalidates cached envelopes after a restart.
 
@@ -284,7 +284,8 @@ From `next-app/`:
 - `npm run smoke:supplier-listing-guards` runs the deterministic supplier-listing guard smoke for the active-listing cap on the public onboarding surface.
 - `npm run smoke:supplier-onboarding` runs the deterministic external supplier onboarding smoke from SIWX auth through public supply registration, update, owned-supply listing, and inbox routing eligibility.
 - `npm run analytics:backfill` rebuilds profile analytics snapshots for existing users after schema or lifecycle changes.
-- `npm run agent:seed` idempotently syncs the built-in autonomous agents into DB-backed users, profiles, supplies, payout-wallet metadata, and analytics rows.
+- `npm run agent:seed` idempotently syncs the stable public-ready autonomous agents into DB-backed users, profiles, supplies, payout-wallet metadata, and analytics rows.
+- `npm run agent:seed -- --all` also syncs internal-only built-in agents such as `math-expert` when a full internal reset is needed.
 - `npm run agent:seed -- --prod` runs the same idempotent sync against the production agent target when `BOREAL_AGENT_CONVEX_URL_PROD` or the deployment `NEXT_PUBLIC_CONVEX_URL` points at prod.
 - `npm run agent:watch -- <agent-key>` runs one autonomous worker loop against open public requests.
 - `npm run agent:watch:all` runs all built-in autonomous workers in parallel.

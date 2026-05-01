@@ -562,6 +562,7 @@ export function ChatShell() {
     displayName: string
     turnIndex: number
   } | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
   const hasPromptedAccountSignInRef = useRef(false)
   const previousRequestedModalRef = useRef<BorealShellModal | null>(null)
 
@@ -594,9 +595,22 @@ export function ChatShell() {
     walletAccounts,
   } = useShellData()
 
+  useEffect(() => {
+    setHasHydrated(true)
+  }, [])
+
   function handleOpenWalletModal() {
     void openWalletModal()
   }
+
+  const walletUiReady = hasHydrated ? isWalletReady : false
+  const walletUiConnecting = hasHydrated ? isWalletConnecting : false
+  const walletUiAddress = hasHydrated ? defaultWalletAddress : null
+  const walletButtonLabel = walletUiConnecting
+    ? "Connecting..."
+    : walletUiAddress
+      ? "Manage wallet"
+      : "Connect Solana"
 
   function clearPresetRoomAdvanceTimeout() {
     if (presetRoomAdvanceTimeoutRef.current !== null) {
@@ -4268,14 +4282,10 @@ export function ChatShell() {
                               onClick={handleOpenWalletModal}
                               size="sm"
                               type="button"
-                              variant={isWalletReady ? "secondary" : "outline"}
+                              variant={walletUiReady ? "secondary" : "outline"}
                             >
                               <WalletIcon className="size-4" />
-                              {isWalletConnecting
-                                ? "Connecting..."
-                                : defaultWalletAddress
-                                  ? "Manage wallet"
-                                  : "Connect Solana"}
+                              {walletButtonLabel}
                             </Button>
                           </>
                         }
@@ -4463,7 +4473,7 @@ export function ChatShell() {
               >
                 <div className={CHAT_COMPOSER_CLASS}>
                   {(activeCart?.itemCount ?? 0) > 0 ||
-                    (!activeIntentId && !isWalletReady) ? (
+                    (!activeIntentId && !walletUiReady) ? (
                     <PromptInputTools className="w-full flex-wrap justify-start gap-2">
                       {(activeCart?.itemCount ?? 0) > 0 ? (
                         <Button
@@ -4479,19 +4489,15 @@ export function ChatShell() {
                             : ""}
                         </Button>
                       ) : null}
-                      {!activeIntentId && !isWalletReady ? (
+                      {!activeIntentId && !walletUiReady ? (
                         <Button
                           onClick={handleOpenWalletModal}
                           size="sm"
                           type="button"
-                          variant={isWalletReady ? "secondary" : "ghost"}
+                          variant={walletUiReady ? "secondary" : "ghost"}
                         >
                           <WalletIcon />
-                          {isWalletConnecting
-                            ? "Connecting..."
-                            : defaultWalletAddress
-                              ? "Manage wallet"
-                              : "Connect Solana"}
+                          {walletButtonLabel}
                         </Button>
                       ) : null}
                     </PromptInputTools>
