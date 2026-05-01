@@ -32,7 +32,7 @@ export async function syncAgentPresence(agent: AutonomousAgentDefinition) {
   });
 
   if (agent.settlement) {
-    await client.mutation(api.wallets.syncWalletAccount, {
+    const walletSync = await client.mutation(api.wallets.syncWalletAccount, {
       chainFamily: agent.settlement.chainFamily,
       environment: agent.settlement.environment,
       networkKey: agent.settlement.networkKey,
@@ -44,6 +44,13 @@ export async function syncAgentPresence(agent: AutonomousAgentDefinition) {
       walletAddress: agent.settlement.payoutAddress,
       walletProvider: "manual",
     });
+
+    if (walletSync.walletAccountId) {
+      await client.mutation(api.wallets.setDefaultPayoutWalletAccount, {
+        ownerExternalId: agent.identity.externalId,
+        walletAccountId: walletSync.walletAccountId,
+      });
+    }
   }
 
   const supplyResult = await client.mutation(

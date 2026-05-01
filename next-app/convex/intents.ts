@@ -21,6 +21,12 @@ import {
 import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtime.ts";
 import { shouldFetchRequestMatches } from "../lib/boreal/request-matching-policy.ts";
 import { parseRequestTeamBlueprint } from "../lib/boreal/swarm/team-blueprint.ts";
+import {
+  getPresetTeamDefinition,
+  getPresetTeamMemberByAgentKey,
+  resolvePresetTeamDefinitionFromBlueprint,
+} from "../lib/boreal/swarm/preset-teams.ts";
+import { inferPresetRoomStateFromMessages } from "../lib/boreal/swarm/preset-team-state.ts";
 import { persistIntentMatchCandidates } from "./matching";
 import { listIntentMatchCandidates } from "./supplies";
 
@@ -287,7 +293,12 @@ export const getRequestDetail = query({
       .take(24);
 
     const artifact = artifacts[0];
-    const participants = await getRequestParticipants(ctx, intent, acceptedProposal);
+    const participants = await getRequestParticipants(
+      ctx,
+      intent,
+      acceptedProposal,
+      requestMessages,
+    );
     const participantActivity = new Map<string, number>();
 
     for (const message of requestMessages) {
@@ -981,6 +992,13 @@ async function getRequestParticipants(
         status: string;
       }
     | undefined,
+  requestMessages?: Array<{
+    createdAt: number;
+    sender: {
+      externalId: string | null;
+      isCurrentUser?: boolean;
+    };
+  }>,
 ) {
   const assignedTeam = parseRequestTeamBlueprint(intent.assignedTeamJson);
   const participants: Array<{
@@ -996,12 +1014,27 @@ async function getRequestParticipants(
     mcpServerUrl: string | null;
     profileId: string | null;
     role: string | null;
+    roomPresence?: "ready" | "speaking" | "waiting" | null;
     runtimeSupplyId: string | null;
     status: string;
     supportsDirectInvoke: boolean;
     title: string | null;
   }> = [];
   const assignedAgent = intent.assignedAgent;
+  const assignedPresetTeam = resolvePresetTeamDefinitionFromBlueprint({
+    members: assignedTeam?.members,
+    presetKey: assignedTeam?.presetKey,
+    teamDisplayName: assignedTeam?.teamDisplayName ?? assignedAgent ?? undefined,
+  });
+  const presetRoomState =
+    assignedTeam?.presetState ??
+    (assignedPresetTeam
+      ? inferPresetRoomStateFromMessages({
+          cycleNumber: 1,
+          definition: assignedPresetTeam,
+          messages: requestMessages ?? [],
+        })
+      : null);
   const assignedDirectAgents = (intent.assignedToolNames ?? [])
     .map((toolName) => {
       const agentKey = toolName.trim().toLowerCase();
@@ -1050,6 +1083,7 @@ async function getRequestParticipants(
         mcpServerUrl: null,
         profileId: owner.externalId ? await getProfileIdByExternalId(ctx, owner.externalId) : null,
         role: null,
+        roomPresence: null,
         runtimeSupplyId: null,
         status: "owner",
         supportsDirectInvoke: false,
@@ -1077,6 +1111,7 @@ async function getRequestParticipants(
         role: proposer.externalId
           ? getCollectiveMemberRole(acceptedProposal, proposer.externalId)
           : null,
+        roomPresence: null,
         runtimeSupplyId: null,
         status: acceptedProposal.status,
         supportsDirectInvoke: false,
@@ -1114,6 +1149,7 @@ async function getRequestParticipants(
           mcpServerUrl: null,
           profileId: participant.profileId ?? null,
           role: getCollectiveMemberRole(acceptedProposal, participant.externalId),
+          roomPresence: null,
           runtimeSupplyId: null,
           status: acceptedProposal.status,
           supportsDirectInvoke: false,
@@ -1143,11 +1179,68 @@ async function getRequestParticipants(
       mcpServerUrl: runtimeSupply.mcpServerUrl ?? null,
       profileId: null,
       role: "runtime",
+      roomPresence: null,
       runtimeSupplyId: runtimeSupply._id,
       status: intent.status,
       supportsDirectInvoke: runtimeSupply.supportsDirectInvoke ?? false,
       title: runtimeSupply.title,
     });
+  }
+
+  if (assignedPresetTeam) {
+    const assignedMembers =
+      assignedTeam?.members.length && assignedTeam.members.length > 0
+        ? assignedTeam.members
+        : assignedPresetTeam.members.map((member) => ({
+            agentKey: member.agentKey,
+            displayName: member.displayName,
+            replyPolicy: member.replyPolicy,
+            role: member.role,
+          }));
+
+    for (const member of assignedMembers) {
+      const presetMember = getPresetTeamMemberByAgentKey(
+        assignedPresetTeam,
+        member.agentKey,
+      );
+
+      if (!presetMember) {
+        continue;
+      }
+
+      if (
+        participants.some(
+          (participant) =>
+            participant.externalId === presetMember.senderExternalId,
+        )
+      ) {
+        continue;
+      }
+
+      participants.push({
+        displayName: presetMember.displayName,
+        externalId: presetMember.senderExternalId,
+        handle: presetMember.senderHandle,
+        kind: "agent",
+        connectorHealthStatus: null,
+        connectorLastHeartbeatAt: null,
+        connectorLastTestedAt: null,
+        executorUrl: null,
+        lastActivityAt: null,
+        mcpServerUrl: null,
+        profileId: null,
+        role: member.role,
+        roomPresence: getPresetRoomPresence(
+          assignedPresetTeam,
+          presetRoomState,
+          member.agentKey,
+        ),
+        runtimeSupplyId: null,
+        status: intent.status,
+        supportsDirectInvoke: false,
+        title: assignedPresetTeam.teamDisplayName,
+      });
+    }
   }
 
   for (const directAgent of assignedDirectAgents) {
@@ -1174,6 +1267,7 @@ async function getRequestParticipants(
         role:
           assignedTeam?.members.find((member) => member.agentKey === directAgent.agentKey)?.role ??
           null,
+        roomPresence: null,
         runtimeSupplyId: null,
       status: intent.status,
       supportsDirectInvoke: false,
@@ -1190,6 +1284,7 @@ async function getRequestParticipants(
 
   if (
     assignedAgent &&
+    !assignedTeam?.presetKey &&
     assignedDirectAgents.length === 0 &&
     (!isImplicitBorealAgentName || hasExplicitBorealTool) &&
     !participants.some(
@@ -1214,6 +1309,7 @@ async function getRequestParticipants(
       mcpServerUrl: null,
       profileId: null,
       role: null,
+      roomPresence: null,
       runtimeSupplyId: null,
       status: intent.status,
       supportsDirectInvoke: false,
@@ -1222,6 +1318,39 @@ async function getRequestParticipants(
   }
 
   return dedupeRequestParticipants(participants);
+}
+
+function getPresetRoomPresence(
+  definition: NonNullable<ReturnType<typeof getPresetTeamDefinition>>,
+  roomState:
+    | NonNullable<ReturnType<typeof parseRequestTeamBlueprint>>["presetState"]
+    | null
+    | undefined,
+  agentKey: string,
+) {
+  if (!roomState) {
+    return null;
+  }
+
+  if (roomState.runStatus === "awaiting_owner") {
+    return "ready" as const;
+  }
+
+  if (roomState.currentSpeakerKey === agentKey) {
+    return "speaking" as const;
+  }
+
+  const nextTurnIndex = roomState.nextTurnIndex ?? 0;
+  const upcomingAgentKeys = definition.turns
+    .slice(nextTurnIndex)
+    .map((turn) =>
+      definition.members.find((member) => member.memberKey === turn.memberKey)?.agentKey ?? null,
+    )
+    .filter((value): value is string => Boolean(value));
+
+  return upcomingAgentKeys.includes(agentKey)
+    ? ("waiting" as const)
+    : ("ready" as const);
 }
 
 function dedupeRequestParticipants<
@@ -1237,6 +1366,7 @@ function dedupeRequestParticipants<
     lastActivityAt: number | null;
     mcpServerUrl: string | null;
     profileId: string | null;
+    roomPresence?: "ready" | "speaking" | "waiting" | null;
     runtimeSupplyId: string | null;
     status: string;
     supportsDirectInvoke: boolean;
@@ -1283,6 +1413,7 @@ function dedupeRequestParticipants<
       lastActivityAt: participant.lastActivityAt ?? current.lastActivityAt,
       mcpServerUrl: participant.mcpServerUrl ?? current.mcpServerUrl,
       profileId: current.profileId ?? participant.profileId,
+      roomPresence: participant.roomPresence ?? current.roomPresence,
       runtimeSupplyId: current.runtimeSupplyId ?? participant.runtimeSupplyId,
       status: nextStatusWins ? participant.status : current.status,
       supportsDirectInvoke:

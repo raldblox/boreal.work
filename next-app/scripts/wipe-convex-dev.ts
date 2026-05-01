@@ -9,6 +9,46 @@ import {
 const CONFIRMATION_PROMPT = "WIPE";
 const CONVEX_CONFIRMATION = "WIPE DEVELOPMENT DATA";
 const DEFAULT_BATCH_SIZE = 128;
+const DEV_WIPE_TABLES = [
+  "matchEvents",
+  "matchCandidates",
+  "activityEvents",
+  "evidences",
+  "fulfillments",
+  "proposals",
+  "artifacts",
+  "disputes",
+  "refunds",
+  "transactionScenarioRuns",
+  "transactionAuditEvents",
+  "payouts",
+  "settlements",
+  "transactions",
+  "webhookDeliveries",
+  "webhookSubscriptions",
+  "supplierRequestDecisions",
+  "agentRequestEvents",
+  "agentRequestSessions",
+  "walletSessions",
+  "transactionApprovals",
+  "paymentAttempts",
+  "serviceInvocations",
+  "serviceProviderSyncs",
+  "serviceCapabilities",
+  "serviceProviders",
+  "checkoutItems",
+  "checkouts",
+  "cartLineItems",
+  "carts",
+  "supplies",
+  "intentRuns",
+  "intents",
+  "chatMessages",
+  "conversations",
+  "walletAccounts",
+  "profiles",
+  "users",
+] as const;
 
 async function main() {
   const args = process.argv.slice(2);
@@ -49,14 +89,11 @@ async function main() {
 
   console.log("Wiping all app tables and referenced stored files from the current Convex development deployment...");
 
-  runConvexCommand([
-    "run",
-    "internal.devTools.wipeDevelopmentData",
-    formatConvexArgs({
-      batchSize,
-      confirm: CONVEX_CONFIRMATION,
-    }),
-  ]);
+  const summary = wipeDevelopmentDeployment(batchSize);
+
+  console.log(
+    `Wipe completed. Deleted ${summary.totalDeleted} rows and ${summary.totalStorageDeleted} stored files across ${summary.tablesTouched} tables.`,
+  );
 }
 
 function confirmWipe() {
@@ -97,10 +134,108 @@ function normalizeBatchSize(value: number) {
 function formatConvexArgs(input: {
   batchSize: number;
   confirm: string;
+  tableName: string;
 }) {
   const confirm = input.confirm.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const tableName = input.tableName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-  return `{batchSize:${input.batchSize},confirm:'${confirm}'}`;
+  return `{batchSize:${input.batchSize},confirm:'${confirm}',tableName:'${tableName}'}`;
+}
+
+function wipeDevelopmentDeployment(batchSize: number) {
+  let totalDeleted = 0;
+  let totalStorageDeleted = 0;
+  let tablesTouched = 0;
+
+  for (const tableName of DEV_WIPE_TABLES) {
+    let deletedCount = 0;
+    let deletedStorageCount = 0;
+
+    for (;;) {
+      const result = runConvexJson<{
+        deletedCount: number;
+        deletedStorageCount: number;
+        hasMore: boolean;
+        tableName: string;
+      }>([
+        "run",
+        "internal.devTools.wipeDevelopmentBatch",
+        formatConvexArgs({
+          batchSize,
+          confirm: CONVEX_CONFIRMATION,
+          tableName,
+        }),
+      ]);
+
+      deletedCount += result.deletedCount;
+      deletedStorageCount += result.deletedStorageCount;
+
+      if (!result.hasMore) {
+        break;
+      }
+    }
+
+    if (deletedCount > 0 || deletedStorageCount > 0) {
+      tablesTouched += 1;
+      console.log(
+        `  ${tableName}: ${deletedCount} rows, ${deletedStorageCount} stored files deleted`,
+      );
+    }
+
+    totalDeleted += deletedCount;
+    totalStorageDeleted += deletedStorageCount;
+  }
+
+  return {
+    tablesTouched,
+    totalDeleted,
+    totalStorageDeleted,
+  };
+}
+
+function runConvexJson<T>(args: string[]) {
+  const result = runConvexCommand(args, {
+    captureOutput: true,
+  });
+  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
+
+  const parsed = parseConvexJsonOutput(output);
+
+  return parsed as T;
+}
+
+function parseConvexJsonOutput(output: string) {
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    try {
+      return JSON.parse(lines[index]!);
+    } catch {
+      // Keep scanning until the last JSON line is found.
+    }
+  }
+
+  const objectStart = output.indexOf("{");
+  const objectEnd = output.lastIndexOf("}");
+
+  if (objectStart !== -1 && objectEnd > objectStart) {
+    const candidate = output.slice(objectStart, objectEnd + 1);
+
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Fall through to the explicit error below.
+    }
+  }
+
+  throw new Error(
+    output
+      ? `Could not parse Convex JSON output: ${output}`
+      : "Convex returned no JSON output.",
+  );
 }
 
 void main().catch((error) => {

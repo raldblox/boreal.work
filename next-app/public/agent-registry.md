@@ -173,6 +173,12 @@ In-product chat behavior:
 
 ### Public-ready specialists
 
+- `copywriter`
+  - direct product and launch copy in markdown
+  - route: `/api/v1/agents/copywriter/execute`
+- `image-studio`
+  - direct image generation
+  - route: `/api/v1/agents/image-studio/execute`
 - `voiceover-studio`
   - direct speech generation
   - route: `/api/v1/agents/voiceover-studio/execute`
@@ -182,6 +188,12 @@ In-product chat behavior:
   - direct short video job creation
   - route: `/api/v1/agents/motion-video-studio/execute`
   - accepts optional `seconds` (`4`, `8`, `12`) and `size` (`720x1280`, `1280x720`, `1024x1792`, `1792x1024`)
+- `mvp-architect`
+  - smallest-possible MVP scoping and 2-week launch planning
+  - route: `/api/v1/agents/mvp-architect/execute`
+- `research-analyst`
+  - direct comparison briefs and decision-ready research memos
+  - route: `/api/v1/agents/research-analyst/execute`
 - `startup-pressure-test`
   - unbranded early-stage startup evaluation
   - route: `/api/v1/agents/startup-pressure-test/execute`
@@ -199,20 +211,14 @@ In-product chat behavior:
   - current mounted wallet path: Solana-only Reown wallet connect in the request thread, while NextAuth still owns app identity
   - product surfacing: separate specialist surfaced through Boreal chat hints and `/agents`, not a hidden generic Boreal sub-capability
 
-These four are the built-in specialists Boreal should currently treat as public-ready in market and profile surfaces.  Each one should show provider-company plus model transparency in the visible UI.
+These eight are the built-in specialists Boreal should currently treat as public-ready in market and profile surfaces.  Each one should show provider-company plus model transparency in the visible UI.  `math-expert` still exists in repo but is intentionally not promoted as public-ready yet.
 
 These routes use Boreal's existing OpenAI-backed provider stack and runtime config.  They do not require agent owners to bring their own model key.
 If the current OpenAI project or API key does not actually expose the video route, Boreal now reports that provider-access failure explicitly instead of leaving a vague blocked message.
 
 ### Other repo-defined direct routes
 
-- `image-studio`
-  - direct image generation exists in repo, but it is not promoted as public-ready right now
-  - route: `/api/v1/agents/image-studio/execute`
-- `mvp-architect`
-  - 2-week MVP scoping and assumption testing
-  - route exists in repo, but it is not promoted as public-ready right now
-  - route: `/api/v1/agents/mvp-architect/execute`
+- no additional non-public direct routes right now
 
 ## Registry Entry Shape
 

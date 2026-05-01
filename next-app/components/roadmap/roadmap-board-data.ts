@@ -220,14 +220,14 @@ export const roadmapTickets: BoardTicket[] = [
   {
     area: "bundle execution",
     evidence:
-      "Mounted specialist teams and invited local runtimes already attach to one request, but direct specialist teams still reply through one lead voice and runtime teams still fan out replies instead of working through a real bundle policy.",
+      "Mounted specialist teams and invited local runtimes already attach to one request, and the first hard-coded preset bundle now runs as a real request-thread room with visible named speakers inside that same thread.  Broader bundle collaboration still stops short of worker artifact lanes and generalized synthesis.",
     id: "BRL-206",
     report:
-      "This belongs in progress because Boreal can already form request teams, but it cannot honestly claim robust swarm collaboration yet. Bundle offers need explicit lead, worker, and validator roles plus an execution policy and artifact-synthesis model before the market can sell them as dependable multi-agent work packages.",
+      "This stays in progress because Boreal now ships one honest preset bundle, `Debate and Verdict`, as a bounded live room with Mara, Avery, Blake, and Jordan speaking in turn.  The broader market still needs reusable artifact lanes, richer validator behavior, and more than one preset before it can claim robust swarm collaboration.",
     routes: ["/chat", "/roadmap", "/papers/swarm-workspace"],
     status: "in_progress",
     summary:
-      "Preset bundle offers should auto-form request teams, but Boreal still needs role-aware execution and synthesis before claiming real swarm collaboration.",
+      "The first preset bundle offer is live as a real room, but Boreal still needs broader bundle execution and synthesis before claiming real swarm collaboration.",
     title: "Bundled swarm offers",
     updatedAt: "2026-04-30",
   },

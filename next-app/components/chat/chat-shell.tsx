@@ -39,6 +39,7 @@ import {
   StarIcon,
   Trash2Icon,
   UserIcon,
+  UsersIcon,
   WalletIcon,
   XCircleIcon,
 } from "lucide-react"
@@ -58,6 +59,7 @@ import {
 } from "@/components/ai-elements/audio-player"
 import { AccountSettingsSurface } from "@/components/account/account-settings-surface"
 import { BorealAgentCue } from "@/components/chat/boreal-agent-cue"
+import { PresetTeamMemberIcons } from "@/components/chat/preset-team-member-icons"
 import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
@@ -150,7 +152,9 @@ import type {
   ChatAssistantDebugEvent,
   CatalogItem,
   ChatAssistantResponse,
+  ChatAssistantStreamEvent,
   ChatUiContext,
+  PresetTeamStreamTurn,
   WorkspaceState,
 } from "@/lib/boreal/schemas/chat"
 import {
@@ -199,6 +203,17 @@ import {
   getPublicReadySpecialistDisplayName,
   getPublicReadySpecialistMeta,
 } from "@/lib/boreal/agents/public-ready-specialists"
+import {
+  buildPresetTeamSourceCapabilityId,
+  getPresetTeamDefinition,
+  getPresetTeamDefinitionFromSourceCapabilityId,
+  getPresetTeamStarterPromptInventory,
+  inferPresetTeamDefinitionFromRequestLike,
+  resolvePresetTeamDefinitionFromParticipants,
+  resolvePresetTeamDefinitionFromBlueprint,
+} from "@/lib/boreal/swarm/preset-teams"
+import { inferPresetRoomStateFromMessages } from "@/lib/boreal/swarm/preset-team-state"
+import type { PresetTeamState } from "@/lib/boreal/swarm/team-blueprint"
 import type { NormalizedConnectedWallet } from "@/lib/boreal/integrations/service-providers/wallets/reown"
 import {
   compactHexLike,
@@ -239,13 +254,13 @@ import {
 } from "./request-ui"
 import { WorkspacePanel, type WorkspaceTab } from "./workspace-panel"
 import { FocusSheet } from "@/components/workboard/focus-sheet"
-import { DotmSquare17 } from "../ui/dotm-square-17"
 
 type ChatMessage = {
   content: string
   createdAt: number
   debugEvents?: ChatAssistantDebugEvent[]
   id: string
+  presetTeamTurns?: PresetTeamStreamTurn[]
   role: "assistant" | "user"
 }
 
@@ -256,6 +271,15 @@ type CenterSheetView = "about" | "agent" | "developers" | "papers" | "roadmap"
 type MountedComposerAgent = {
   actorKind: CatalogEntry["actorKind"]
   directAgentKey: string | null
+  kind?: "direct_agent" | "preset_team"
+  memberPreview?: Array<{
+    accentTone?: "amber" | "emerald" | "sky" | "violet"
+    displayName: string
+    initials: string
+    memberKey: string
+    roleLabel: string
+  }>
+  presetTeamKey?: string | null
   sourceCapabilityId: string | null
   supplyId: string
   title: string
@@ -371,6 +395,9 @@ const COLLAPSED_SIDEBAR_WIDTH = "4.5rem"
 const CENTER_PANEL_CLASS = "mx-auto w-full max-w-4xl px-4"
 const CONTENT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 py-6`
 const CHAT_RAIL_CLASS = `${CENTER_PANEL_CLASS} flex min-h-full flex-col gap-6 pt-6 pb-6`
+const PRESET_ROOM_ADVANCE_DELAY_MS = 3000
+const PRESET_ROOM_RETRY_DELAYS_MS = [10000, 15000, 30000, 45000, 60000] as const
+const PRESET_ROOM_RETRY_MAX_DELAY_MS = 60000
 const HOME_PANEL_CLASS = `${CENTER_PANEL_CLASS} flex h-full flex-col justify-center py-8`
 const CHAT_COMPOSER_CLASS = `${CENTER_PANEL_CLASS} flex flex-col gap-3`
 
@@ -394,6 +421,19 @@ const emptyLocalRuntimeDraft = (): LocalRuntimeDraft => ({
   runtimeKind: "ollama",
   title: "Ollama Runtime",
 })
+
+function getRenderableChatMessageContent(input: {
+  content: string
+  presetTeamTurns?: PresetTeamStreamTurn[]
+}) {
+  const streamedTurnContent =
+    [...(input.presetTeamTurns ?? [])]
+      .reverse()
+      .find((turn) => turn.content?.trim())
+      ?.content?.trim() ?? ""
+
+  return streamedTurnContent || input.content.trim()
+}
 
 const generateUploadUrlMutation = makeFunctionReference<
   "mutation",
@@ -503,6 +543,10 @@ export function ChatShell() {
   const [localRuntimeDraft, setLocalRuntimeDraft] =
     useState<LocalRuntimeDraft>(emptyLocalRuntimeDraft())
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const presetRoomAdvanceTimeoutRef = useRef<number | null>(null)
+  const presetRoomRetryTimeoutRef = useRef<number | null>(null)
+  const lastPresetRoomAdvanceKeyRef = useRef<string | null>(null)
+  const activeChatAbortControllerRef = useRef<AbortController | null>(null)
   const [centerSheetView, setCenterSheetView] =
     useState<CenterSheetView | null>(null)
   const [centerSheetPaperSlug, setCenterSheetPaperSlug] = useState<string | null>(
@@ -510,6 +554,14 @@ export function ChatShell() {
   )
   const [isCenterSheetOpen, setIsCenterSheetOpen] = useState(false)
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null)
+  const [activePresetRoomTurn, setActivePresetRoomTurn] =
+    useState<PresetTeamStreamTurn | null>(null)
+  const [presetRoomRetryStatus, setPresetRoomRetryStatus] = useState<{
+    attempt: number
+    delayMs: number
+    displayName: string
+    turnIndex: number
+  } | null>(null)
   const hasPromptedAccountSignInRef = useRef(false)
   const previousRequestedModalRef = useRef<BorealShellModal | null>(null)
 
@@ -539,13 +591,182 @@ export function ChatShell() {
     myProfileRecord,
     purgePublicMarket,
     refreshShellData,
-    sidebarIntents,
     walletAccounts,
   } = useShellData()
 
   function handleOpenWalletModal() {
     void openWalletModal()
   }
+
+  function clearPresetRoomAdvanceTimeout() {
+    if (presetRoomAdvanceTimeoutRef.current !== null) {
+      window.clearTimeout(presetRoomAdvanceTimeoutRef.current)
+      presetRoomAdvanceTimeoutRef.current = null
+    }
+  }
+
+  function clearPresetRoomRetryTimeout() {
+    if (presetRoomRetryTimeoutRef.current !== null) {
+      window.clearTimeout(presetRoomRetryTimeoutRef.current)
+      presetRoomRetryTimeoutRef.current = null
+    }
+  }
+
+  function stopActivePresetRoomRun() {
+    clearPresetRoomAdvanceTimeout()
+    clearPresetRoomRetryTimeout()
+    lastPresetRoomAdvanceKeyRef.current = null
+    activeChatAbortControllerRef.current?.abort()
+    activeChatAbortControllerRef.current = null
+    setActivePresetRoomTurn(null)
+    setPresetRoomRetryStatus(null)
+    setMessages((current) =>
+      current.filter(
+        (message) =>
+          !(
+            message.role === "assistant" &&
+            message.presetTeamTurns &&
+            message.presetTeamTurns.length > 0
+          )
+      )
+    )
+  }
+
+  async function advancePresetRoomTurn(
+    turn: PresetTeamStreamTurn,
+    input: {
+      cycleNumber: number
+      expectedTurnIndex: number
+    },
+    options?: {
+      assistantMessageId?: string
+      retryAttempt?: number
+    }
+  ) {
+    if (!activeIntentId) {
+      return
+    }
+
+    clearPresetRoomAdvanceTimeout()
+    clearPresetRoomRetryTimeout()
+    setErrorMessage(null)
+    setPresetRoomRetryStatus(null)
+    setIsSubmitting(true)
+    setActivePresetRoomTurn(turn)
+    lastPresetRoomAdvanceKeyRef.current = `${input.cycleNumber}:${input.expectedTurnIndex}`
+    const assistantMessageId = options?.assistantMessageId ?? crypto.randomUUID()
+    const retryAttempt = options?.retryAttempt ?? 0
+    const createdAt = Date.now()
+    const abortController = new AbortController()
+
+    activeChatAbortControllerRef.current?.abort()
+    activeChatAbortControllerRef.current = abortController
+
+    if (!options?.assistantMessageId) {
+      setMessages((current) => [
+        ...current,
+        {
+          content: "",
+          createdAt,
+          id: assistantMessageId,
+          presetTeamTurns: [{ ...turn, state: "pending" }],
+          role: "assistant",
+        },
+      ])
+    }
+
+    try {
+      const response = await fetch("/api/chat", {
+        body: JSON.stringify({
+          conversationId:
+            activeConversationId ?? requestDetail?.conversationId ?? crypto.randomUUID(),
+          context: buildChatUiContext({
+            activeIntentId,
+            composerAgents: activeComposerAgents,
+            requestDetail,
+            selectedCenterTab: activeCenterTab,
+            workspaceTab,
+            presetRoomCommand: {
+              command: "advance_next_turn",
+              cycleNumber: input.cycleNumber,
+              expectedTurnIndex: input.expectedTurnIndex,
+            },
+          }),
+          debugPipeline: pipelineTraceEnabled,
+          message: "__preset_room_advance__",
+          provider: "boreal-agent",
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        signal: abortController.signal,
+      })
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string }
+        const failure = new Error(payload.error ?? "Chat request failed.")
+        ;(failure as Error & { status?: number }).status = response.status
+        throw failure
+      }
+
+      await consumeChatStream({
+        assistantMessageId,
+        response,
+        setMessages,
+      })
+    } catch (error) {
+      if (isAbortError(error)) {
+        return
+      }
+
+      const retryDelayMs = getPresetRoomRetryDelayMs(retryAttempt, error)
+
+      if (retryDelayMs !== null) {
+        setPresetRoomRetryStatus({
+          attempt: retryAttempt + 1,
+          delayMs: retryDelayMs,
+          displayName: turn.displayName,
+          turnIndex: turn.turnIndex,
+        })
+        setErrorMessage(
+          `${turn.displayName} hit a temporary API limit. borealizing again in ${Math.round(
+            retryDelayMs / 1000
+          )}s (attempt ${retryAttempt + 1}).`
+        )
+        presetRoomRetryTimeoutRef.current = window.setTimeout(() => {
+          void advancePresetRoomTurn(turn, input, {
+            assistantMessageId,
+            retryAttempt: retryAttempt + 1,
+          })
+        }, retryDelayMs)
+        return
+      }
+
+      setPresetRoomRetryStatus(null)
+      setMessages((current) =>
+        current.filter((message) => message.id !== assistantMessageId)
+      )
+      setErrorMessage(
+        error instanceof Error
+          ? `${turn.displayName} could not continue automatically. ${error.message}`
+          : `${turn.displayName} could not continue automatically.`
+      )
+    } finally {
+      if (activeChatAbortControllerRef.current === abortController) {
+        activeChatAbortControllerRef.current = null
+      }
+      if (presetRoomRetryTimeoutRef.current === null) {
+        setActivePresetRoomTurn(null)
+      }
+      setIsSubmitting(false)
+    }
+  }
+  const sidebarIntentsResult = useQuery(
+    convexFunctionRefs.listSidebarIntents,
+    isXAuthenticated ? { limit: 24, ownerExternalId } : "skip"
+  )
+  const sidebarIntents = (sidebarIntentsResult ?? []) as SidebarIntentPreview[]
   const visibleSidebarIntents = useMemo(
     () => sidebarIntents.filter((intent) => intent.status !== "closed"),
     [sidebarIntents]
@@ -596,6 +817,27 @@ export function ChatShell() {
     Boolean(activeIntentId) &&
     requestDetailResult === undefined
   const requestDetail = (requestDetailResult ?? null) as RequestDetail | null
+  useEffect(() => {
+    if (
+      !activeIntentId ||
+      requestDetailResult === undefined ||
+      requestDetail ||
+      selectedIntent
+    ) {
+      return
+    }
+
+    updateWorkspaceUrl({
+      request: null,
+      view: null,
+    })
+    setErrorMessage("That request is no longer available.")
+  }, [
+    activeIntentId,
+    requestDetail,
+    requestDetailResult,
+    selectedIntent,
+  ])
   const resolvedProfileSheetDetail =
     activeProfileLookup?.kind === "externalId"
       ? profileSheetDetailByExternalId
@@ -635,6 +877,30 @@ export function ChatShell() {
     () => deriveRequestComposerAgents(requestDetail),
     [requestDetail]
   )
+  const activePresetDefinition = useMemo(
+    () => resolveRequestPresetDefinition(requestDetail, selectedIntent),
+    [requestDetail, selectedIntent]
+  )
+  const activePresetRoomState = useMemo(() => {
+    if (!activePresetDefinition || !requestDetail) {
+      return null
+    }
+
+    return (
+      requestDetail.assignment?.team?.presetState ??
+      inferPresetRoomStateFromMessages({
+        cycleNumber: requestDetail.assignment?.team?.presetState?.cycleNumber ?? 1,
+        definition: activePresetDefinition,
+        messages: requestDetail.messages.map((message) => ({
+          createdAt: message.createdAt,
+          sender: {
+            externalId: message.sender.externalId ?? null,
+            isCurrentUser: message.sender.isCurrentUser,
+          },
+        })),
+      })
+    )
+  }, [activePresetDefinition, requestDetail])
   const isBorealDefaultMounted =
     !activeIntentId && mountedComposerAgents.length === 0
   const activeComposerAgents = activeIntentId
@@ -642,6 +908,15 @@ export function ChatShell() {
     : mountedComposerAgents.length > 0
       ? mountedComposerAgents
       : [DEFAULT_MOUNTED_COMPOSER_AGENT]
+  const pendingPresetRoomTurn = useMemo(
+    () =>
+      buildPendingPresetTeamTurns({
+        activeIntentId,
+        presetDefinition: activePresetDefinition,
+        presetState: activePresetRoomState,
+      })?.[0] ?? null,
+    [activeIntentId, activePresetDefinition, activePresetRoomState]
+  )
   const mountedComposerStarterPromptOptions = getMountedComposerStarterPrompts(
     activeComposerAgents
   )
@@ -749,6 +1024,74 @@ export function ChatShell() {
     conversationId ??
     requestDetail?.conversationId ??
     undefined
+
+  useEffect(() => {
+    clearPresetRoomAdvanceTimeout()
+    clearPresetRoomRetryTimeout()
+
+    if (
+      !activeIntentId ||
+      isMarkingRequestFulfilled ||
+      !requestDetail?.access?.isOwner ||
+      (requestDetail.intent?.status !== "claimed" &&
+        requestDetail.intent?.status !== "in_progress") ||
+      !pendingPresetRoomTurn
+    ) {
+      return
+    }
+
+    const presetState = activePresetRoomState
+
+    if (
+      !presetState ||
+      presetState.runStatus !== "running" ||
+      isSubmitting ||
+      activePresetRoomTurn
+    ) {
+      if (!presetState || presetState.runStatus !== "running") {
+        lastPresetRoomAdvanceKeyRef.current = null
+      }
+      return
+    }
+
+    const advanceKey = `${presetState.cycleNumber}:${presetState.nextTurnIndex ?? 0}`
+
+    if (lastPresetRoomAdvanceKeyRef.current === advanceKey) {
+      return
+    }
+
+    presetRoomAdvanceTimeoutRef.current = window.setTimeout(() => {
+      void advancePresetRoomTurn(pendingPresetRoomTurn, {
+        cycleNumber: presetState.cycleNumber,
+        expectedTurnIndex: presetState.nextTurnIndex ?? 0,
+      })
+    }, PRESET_ROOM_ADVANCE_DELAY_MS)
+
+    return () => {
+      clearPresetRoomAdvanceTimeout()
+      clearPresetRoomRetryTimeout()
+    }
+  }, [
+    activeIntentId,
+    activePresetRoomTurn,
+    activePresetRoomState,
+    isMarkingRequestFulfilled,
+    isSubmitting,
+    pendingPresetRoomTurn,
+    requestDetail,
+  ])
+
+  useEffect(() => {
+    if (activeIntentId) {
+      return
+    }
+
+    clearPresetRoomAdvanceTimeout()
+    clearPresetRoomRetryTimeout()
+    lastPresetRoomAdvanceKeyRef.current = null
+    setActivePresetRoomTurn(null)
+    setPresetRoomRetryStatus(null)
+  }, [activeIntentId])
 
   const borealChatSessions = useMemo(
     () =>
@@ -865,7 +1208,6 @@ export function ChatShell() {
   }
 
   async function refreshRequestShellData() {
-    await refreshShellData(["sidebar-summary"])
     purgePublicMarket(["requests"])
   }
 
@@ -988,7 +1330,7 @@ export function ChatShell() {
         throw new Error("Could not update profile availability.")
       }
 
-      await refreshShellData(["profile-summary", "sidebar-summary"])
+      await refreshShellData(["profile-summary"])
 
       setAccountNotice(
         checked
@@ -1082,7 +1424,18 @@ export function ChatShell() {
     const nextMountedComposerAgents =
       mountedAgent.supplyId === DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId
         ? []
-        : toggleMountedComposerAgents(mountedComposerAgents, mountedAgent)
+        : isMountedPresetTeam(mountedAgent)
+          ? mountedComposerAgents.some(
+              (agent) => agent.supplyId === mountedAgent.supplyId
+            )
+            ? []
+            : [mountedAgent]
+          : toggleMountedComposerAgents(
+              mountedComposerAgents.filter(
+                (agent) => !isMountedPresetTeam(agent)
+              ),
+              mountedAgent
+            )
 
     setMountedComposerAgents(nextMountedComposerAgents)
     updateWorkspaceUrl({
@@ -1672,6 +2025,9 @@ export function ChatShell() {
     }
 
     setErrorMessage(null)
+    clearPresetRoomAdvanceTimeout()
+    clearPresetRoomRetryTimeout()
+    setPresetRoomRetryStatus(null)
     setIsSubmitting(true)
     setPendingApprovalIntentId(null)
     const now = Date.now()
@@ -1733,9 +2089,20 @@ export function ChatShell() {
     }
 
     const optimisticUserMessageId = crypto.randomUUID()
-    const assistantMessageId = isRequestThreadSubmit
-      ? null
-      : crypto.randomUUID()
+    const assistantMessageId = crypto.randomUUID()
+    const abortController = new AbortController()
+    const pendingPresetTeamTurns = buildPendingPresetTeamTurns({
+      activeIntentId,
+      presetDefinition: activePresetDefinition,
+      presetState: activePresetRoomState,
+    })
+
+    activeChatAbortControllerRef.current?.abort()
+    activeChatAbortControllerRef.current = abortController
+
+    if (activeIntentId && pendingPresetTeamTurns?.[0]) {
+      setActivePresetRoomTurn(pendingPresetTeamTurns[0])
+    }
     setMessages((current) => [
       ...current,
       {
@@ -1744,14 +2111,13 @@ export function ChatShell() {
         id: optimisticUserMessageId,
         role: "user" as const,
       },
-      ...(assistantMessageId
-        ? [{
-          content: "",
-          createdAt: now,
-          id: assistantMessageId,
-          role: "assistant" as const,
-        }]
-        : []),
+      {
+        content: "",
+        createdAt: now,
+        id: assistantMessageId,
+        presetTeamTurns: pendingPresetTeamTurns,
+        role: "assistant" as const,
+      },
     ])
     setComposerText("")
 
@@ -1774,6 +2140,7 @@ export function ChatShell() {
           "Content-Type": "application/json",
         },
         method: "POST",
+        signal: abortController.signal,
       })
 
       if (!response.ok) {
@@ -1785,14 +2152,38 @@ export function ChatShell() {
         throw new Error("Chat stream was unavailable.")
       }
 
+      let streamedRequestIntentId: string | null = null
       const finalPayload = await consumeChatStream({
         assistantMessageId,
+        onRequestOpened: (intentId) => {
+          streamedRequestIntentId = intentId
+
+          if (activeIntentId) {
+            return
+          }
+
+          updateWorkspaceUrl({
+            browse: "workers",
+            chat: null,
+            request: intentId,
+            view: "chat",
+          })
+          setConversationId(undefined)
+          setShowWorkspace(true)
+          setPendingApprovalIntentId(null)
+        },
         response,
         setMessages,
       })
 
       setConversationId(finalPayload.conversationId)
       setWorkspace(finalPayload.workspace)
+
+      if (!finalPayload.assistantMessage.trim() && !pendingPresetTeamTurns?.length) {
+        setMessages((current) =>
+          current.filter((message) => message.id !== assistantMessageId)
+        )
+      }
 
       if (!activeIntentId && finalPayload.intentId && nextConversationId) {
         await removeDraftSession(draftOwnerScope, nextConversationId)
@@ -1801,14 +2192,21 @@ export function ChatShell() {
       }
 
       if (!activeIntentId && mountedComposerAgents.length > 0 && finalPayload.intentId) {
-        updateWorkspaceUrl({
-          browse: "workers",
-          chat: null,
-          request: finalPayload.intentId,
-          view: "chat",
-        })
-        setConversationId(undefined)
-        setMessages([])
+        if (streamedRequestIntentId !== finalPayload.intentId) {
+          updateWorkspaceUrl({
+            browse: "workers",
+            chat: null,
+            request: finalPayload.intentId,
+            view: "chat",
+          })
+          setConversationId(undefined)
+        }
+        if (
+          !pendingPresetTeamTurns?.length &&
+          !mountedComposerAgents.some(isMountedPresetTeam)
+        ) {
+          setMessages([])
+        }
         setShowWorkspace(true)
         setPendingApprovalIntentId(null)
         return
@@ -1827,25 +2225,27 @@ export function ChatShell() {
 
       setPendingApprovalIntentId(null)
     } catch (error) {
-      if (isRequestThreadSubmit) {
-        setMessages((current) =>
-          current.filter(
-            (currentMessage) =>
-              currentMessage.id !== optimisticUserMessageId &&
-              currentMessage.id !== assistantMessageId
-          )
-        )
-      } else if (assistantMessageId) {
-        setMessages((current) =>
-          current.filter(
-            (currentMessage) => currentMessage.id !== assistantMessageId
-          )
-        )
+      if (isAbortError(error)) {
+        return
       }
+
+      setMessages((current) =>
+        current.filter(
+          (currentMessage) =>
+            currentMessage.id !== optimisticUserMessageId &&
+            currentMessage.id !== assistantMessageId
+        )
+      )
       setErrorMessage(
         error instanceof Error ? error.message : "Chat request failed."
       )
     } finally {
+      if (activeChatAbortControllerRef.current === abortController) {
+        activeChatAbortControllerRef.current = null
+      }
+      if (activeIntentId) {
+        setActivePresetRoomTurn(null)
+      }
       setIsSubmitting(false)
     }
   }
@@ -1932,6 +2332,10 @@ export function ChatShell() {
 
   async function handleResetDraftSessions() {
     clearStoredDraftSessions(draftOwnerScope)
+    purgePublicMarket(["requests"])
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("boreal.shell-cache.v1:sidebar-summary")
+    }
     setDraftSessions([])
     setBorealChatSessionLimit(6)
 
@@ -2252,6 +2656,8 @@ export function ChatShell() {
     }
 
     setErrorMessage(null)
+    stopActivePresetRoomRun()
+    setIsSubmitting(false)
     setIsMarkingRequestFulfilled(true)
 
     try {
@@ -2730,7 +3136,7 @@ export function ChatShell() {
         })
       }
 
-      await refreshShellData(["profile-summary", "sidebar-summary"])
+      await refreshShellData(["profile-summary"])
       if (activeIntentId) {
         await refreshRequestShellData()
       }
@@ -3516,6 +3922,7 @@ export function ChatShell() {
                         {requestDetail?.intent ? (
                           <div className="w-full md:w-auto md:shrink-0">
                             <RequestHeaderMeta
+                              assignment={requestDetail.assignment}
                               status={requestDetail.intent.status}
                             />
                           </div>
@@ -3577,6 +3984,7 @@ export function ChatShell() {
                           <ScrollArea className="h-full">
                             <div className={CONTENT_RAIL_CLASS}>
                               <RequestWorkersPanel
+                                activePresetRoomTurn={activePresetRoomTurn}
                                 onBrowseWorkers={() => {
                                   openMarketplaceTab("workers")
                                 }}
@@ -3587,6 +3995,7 @@ export function ChatShell() {
                                 canInviteLocalRuntime={canInviteLocalRuntime}
                                 isSolanaWalletReady={isWalletReady}
                                 requestDetail={requestDetail}
+                                selectedIntent={selectedIntent}
                                 shareUrl={selectedRequestShareUrl}
                               />
                             </div>
@@ -3681,6 +4090,7 @@ export function ChatShell() {
                                   isMarkingRequestFulfilled={
                                     isMarkingRequestFulfilled
                                   }
+                                  presetRoomRetryStatus={presetRoomRetryStatus}
                                   isRefreshingRequest={isRefreshingRequest}
                                   isRetryingRequest={isRetryingRequest}
                                   isRefreshingVideo={isRefreshingVideo}
@@ -3730,16 +4140,6 @@ export function ChatShell() {
                                   workspace={effectiveWorkspace}
                                 />
 
-                                {isSubmitting ? (
-                                  <Message from="assistant">
-                                    <MessageContent>
-                                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <DotMatrixSpinner />
-                                        <span>Working...</span>
-                                      </div>
-                                    </MessageContent>
-                                  </Message>
-                                ) : null}
                               </ConversationContent>
                               <ConversationScrollButton />
                             </Conversation>
@@ -3972,15 +4372,17 @@ export function ChatShell() {
                         {displayedMessages.map((message) => (
                           <Message from={message.role} key={message.id}>
                             <MessageContent>
-                              {message.content.trim().length > 0 ? (
+                              {message.presetTeamTurns &&
+                              message.presetTeamTurns.length > 0 ? (
+                                <PresetTeamStreamingCard
+                                  turns={message.presetTeamTurns}
+                                />
+                              ) : message.content.trim().length > 0 ? (
                                 <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
                                   {message.content}
                                 </MessageResponse>
                               ) : (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <DotmSquare17 color="var(--color-dotmatrix)" speed={1.5} size={24} dotSize={3} opacityMid={0.5} opacityBase={0.2} />
-                                  <span>Borealizing...</span>
-                                </div>
+                                <BorealizingInlineLoader />
                               )}
 
                               {message.role === "assistant" &&
@@ -4672,12 +5074,15 @@ function RequestViewTabTrigger({
 }
 
 function RequestHeaderMeta({
+  assignment,
   status,
 }: {
+  assignment: RequestDetail["assignment"] | null | undefined
   status: NonNullable<RequestDetail["intent"]>["status"]
 }) {
   const progressStage = getRequestHeaderStage(status)
   const isWorking = status === "claimed" || status === "in_progress"
+  const assignmentSummary = getRequestAssignmentSummary(assignment)
   const progressItems = [
     { icon: SearchIcon, label: "Scope" },
     { icon: CheckIcon, label: "Approve" },
@@ -4686,7 +5091,20 @@ function RequestHeaderMeta({
   ] as const
 
   return (
-    <div className="w-full md:w-auto">
+    <div className="w-full space-y-2 md:w-auto">
+      {assignmentSummary ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+            {assignmentSummary.label}
+          </span>
+          <span className="text-xs font-medium">{assignmentSummary.title}</span>
+          {assignmentSummary.meta ? (
+            <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+              {assignmentSummary.meta}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <TooltipProvider>
         <div className="flex justify-end">
           <div className="flex min-w-0 items-center py-1.5">
@@ -4759,9 +5177,43 @@ function getRequestHeaderStage(status: string) {
   return 0
 }
 
+function getRequestAssignmentSummary(
+  assignment: RequestDetail["assignment"] | null | undefined
+) {
+  if (!assignment) {
+    return null
+  }
+
+  const team = assignment.team
+  const teamTitle = team?.teamDisplayName ?? assignment.agent ?? null
+
+  if (team?.presetKey) {
+    return {
+      label: "Bundle",
+      meta: `${team.members.length} voices`,
+      title: teamTitle ?? "Preset bundle",
+    }
+  }
+
+  if (team && team.members.length > 1) {
+    return {
+      label: "Team",
+      meta: `${team.members.length} members`,
+      title: teamTitle ?? "Assigned team",
+    }
+  }
+
+  return {
+    label: "Agent",
+    meta: null,
+    title: assignment.agent ?? "Waiting for team",
+  }
+}
+
 function InlineRequestActionEvent({
   access,
   activity,
+  assignedTeam,
   approvingProposalId,
   intent,
   isArchivingRequest,
@@ -4786,6 +5238,7 @@ function InlineRequestActionEvent({
 }: {
   access: RequestDetail["access"]
   activity: RequestDetail["activity"]
+  assignedTeam: NonNullable<RequestDetail["assignment"]>["team"] | null | undefined
   approvingProposalId: string | null
   intent: NonNullable<RequestDetail["intent"]>
   isArchivingRequest: boolean
@@ -4810,6 +5263,7 @@ function InlineRequestActionEvent({
 }) {
   const actionState = getRequestActionState(
     intent,
+    assignedTeam,
     access,
     shouldPromptReview,
     activity
@@ -4913,6 +5367,32 @@ function InlineRequestActionEvent({
             </div>
           ))}
         </div>
+      </div>
+    )
+  }
+
+  if (actionState.kind === "clarification") {
+    return (
+      <div className="space-y-2 border border-border/70 bg-background/60 px-3 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">{actionState.title}</p>
+          <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+            Reply in thread
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">{actionState.description}</p>
+        {intent.suggestedReplies.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {intent.suggestedReplies.slice(0, 3).map((reply) => (
+              <span
+                className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase"
+                key={reply}
+              >
+                {reply}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
     )
   }
@@ -5265,6 +5745,7 @@ function RequestChatTimeline({
   isApprovingRequest,
   isCancellingRequest,
   isMarkingRequestFulfilled,
+  presetRoomRetryStatus,
   isRefreshingRequest,
   isRetryingRequest,
   isRefreshingVideo,
@@ -5298,6 +5779,12 @@ function RequestChatTimeline({
   isApprovingRequest: boolean
   isCancellingRequest: boolean
   isMarkingRequestFulfilled: boolean
+  presetRoomRetryStatus: {
+    attempt: number
+    delayMs: number
+    displayName: string
+    turnIndex: number
+  } | null
   isRefreshingRequest: boolean
   isRetryingRequest: boolean
   isRefreshingVideo: boolean
@@ -5331,9 +5818,14 @@ function RequestChatTimeline({
   const completedSolanaActionIds = collectCompletedSolanaActionIds(
     requestDetail.activity
   )
+  const requestPresetDefinition = useMemo(
+    () => resolveRequestPresetDefinition(requestDetail),
+    [requestDetail]
+  )
   const requestActionState = requestDetail.intent
     ? getRequestActionState(
       requestDetail.intent,
+      requestDetail.assignment?.team ?? null,
       requestDetail.access,
       shouldPromptReview,
       requestDetail.activity
@@ -5358,7 +5850,6 @@ function RequestChatTimeline({
           onMarkRequestFulfilled={onMarkRequestFulfilled}
           onOpenProfileBuilder={onOpenProfileBuilder}
           onRefreshRequest={onRefreshRequest}
-          participants={requestDetail.participants}
           proposals={requestDetail.proposals}
         />
       ) : null}
@@ -5376,8 +5867,20 @@ function RequestChatTimeline({
             <Message from={role} key={entry.key}>
               {!entry.item.sender.isCurrentUser ? (
                 <p className="mb-1 flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-                  <SenderIcon actorKind={entry.item.sender.actorKind} />
+                  <ParticipantIdentityBadge
+                    actorKind={entry.item.sender.actorKind}
+                    className="size-3"
+                    displayName={entry.item.sender.displayName}
+                    externalId={entry.item.sender.externalId}
+                    handle={entry.item.sender.handle}
+                    presetDefinition={requestPresetDefinition}
+                  />
                   <span>{entry.item.sender.displayName}</span>
+                  <ParticipantRolePill
+                    displayName={entry.item.sender.displayName}
+                    externalId={entry.item.sender.externalId}
+                    presetDefinition={requestPresetDefinition}
+                  />
                 </p>
               ) : null}
               <MessageContent>
@@ -5397,6 +5900,17 @@ function RequestChatTimeline({
                     preferredWalletAddress={preferredWalletAddress}
                   />
                 ) : null}
+                {parsedMessage.text.trim().length === 0 &&
+                !parsedMessage.action ? (
+                  entry.item.sender.actorKind === "agent" ? (
+                    <PresetSpeakerInlineLoader
+                      displayName={entry.item.sender.displayName}
+                      presetDefinition={requestPresetDefinition}
+                    />
+                  ) : (
+                    <BorealizingInlineLoader />
+                  )
+                ) : null}
               </MessageContent>
             </Message>
           )
@@ -5405,20 +5919,63 @@ function RequestChatTimeline({
         if (entry.kind === "live") {
           const parsedMessage = parseSolanaThreadMessage(entry.item.content)
           const liveAssistantLabel = getLiveRequestAssistantLabel(requestDetail)
+          const pendingTurn = entry.item.presetTeamTurns?.[0] ?? null
+          const pendingRetryLabel =
+            pendingTurn &&
+            presetRoomRetryStatus &&
+            presetRoomRetryStatus.turnIndex === pendingTurn.turnIndex &&
+            presetRoomRetryStatus.displayName === pendingTurn.displayName
+              ? `${pendingTurn.displayName} is borealizing again in ${Math.round(
+                  presetRoomRetryStatus.delayMs / 1000
+                )}s...`
+              : null
 
           return (
             <Message from={entry.item.role} key={entry.key}>
-              {entry.item.role === "assistant" ? (
+              {entry.item.role === "assistant" && !pendingTurn ? (
                 <p className="mb-1 flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
                   <BotIcon className="size-3" />
                   <span>{liveAssistantLabel}</span>
                 </p>
               ) : null}
               <MessageContent>
-                {parsedMessage.text.trim().length > 0 ? (
+                {pendingTurn ? (
+                  <div className="space-y-2">
+                    <p className="mb-1 flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                      <ParticipantIdentityBadge
+                        actorKind="agent"
+                        className="size-3"
+                        displayName={pendingTurn.displayName}
+                        memberKey={pendingTurn.memberKey}
+                        presetDefinition={requestPresetDefinition}
+                      />
+                      <span>{pendingTurn.displayName}</span>
+                      <ParticipantRolePill
+                        displayName={pendingTurn.displayName}
+                        memberKey={pendingTurn.memberKey}
+                        presetDefinition={requestPresetDefinition}
+                        roleLabel={pendingTurn.roleLabel}
+                      />
+                    </p>
+                    {pendingTurn.content?.trim() ? (
+                      <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
+                        {pendingTurn.content}
+                      </MessageResponse>
+                    ) : (
+                      <PresetSpeakerInlineLoader
+                        displayName={pendingTurn.displayName}
+                        label={pendingRetryLabel ?? undefined}
+                        memberKey={pendingTurn.memberKey}
+                        presetDefinition={requestPresetDefinition}
+                      />
+                    )}
+                  </div>
+                ) : parsedMessage.text.trim().length > 0 ? (
                   <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
                     {parsedMessage.text}
                   </MessageResponse>
+                ) : entry.item.role === "assistant" ? (
+                  <BorealizingInlineLoader label={`${liveAssistantLabel} is replying...`} />
                 ) : null}
                 {parsedMessage.action && requestDetail.intent ? (
                   <SolanaThreadActionCard
@@ -5474,6 +6031,7 @@ function RequestChatTimeline({
       {requestDetail.intent ? (
         <InlineRequestActionEvent
           access={requestDetail.access}
+          assignedTeam={requestDetail.assignment?.team}
           approvingProposalId={approvingProposalId}
           intent={requestDetail.intent}
           isArchivingRequest={isArchivingRequest}
@@ -5631,10 +6189,11 @@ function filterPersistedThreadLiveMessages(
   return liveMessages.filter((liveMessage) => {
     for (let index = persistedIndex; index < persistedMessages.length; index += 1) {
       const persisted = persistedMessages[index]
+      const liveContent = getRenderableChatMessageContent(liveMessage)
 
       if (
         persisted?.role === liveMessage.role &&
-        persisted.content.trim() === liveMessage.content.trim()
+        persisted.content.trim() === liveContent
       ) {
         persistedIndex = index + 1
         return false
@@ -5669,8 +6228,12 @@ function isMountedRequestSetupMessage(
 
   return (
     (body.startsWith("Boreal opened ") &&
-      body.includes("work thread") &&
-      body.includes("started the request immediately")) ||
+      (body.includes("work thread") || body.includes(" room")) &&
+      (body.includes("started the request immediately") ||
+        body.includes("started the debate immediately") ||
+        body.includes("started that preset team immediately") ||
+        body.includes("started that agent team immediately") ||
+        body.includes("is framing the comparison now."))) ||
     body.endsWith("was selected from offers and is starting now.") ||
     body.endsWith("were selected from offers and are starting now.")
   )
@@ -5688,7 +6251,6 @@ function RequestInFlightBanner({
   onMarkRequestFulfilled,
   onOpenProfileBuilder,
   onRefreshRequest,
-  participants,
   proposals,
 }: {
   isMarkingRequestFulfilled: boolean
@@ -5697,14 +6259,10 @@ function RequestInFlightBanner({
   onMarkRequestFulfilled: () => Promise<void>
   onOpenProfileBuilder: () => void
   onRefreshRequest: () => Promise<void>
-  participants: RequestDetail["participants"]
   proposals: RequestDetail["proposals"]
 }) {
   const acceptedProposal =
     (proposals ?? []).find((proposal) => proposal.status === "accepted") ?? null
-  const workingParticipants = (participants ?? []).filter(
-    (participant) => participant.status !== "owner"
-  )
 
   return (
     <div className="sticky top-3 z-20 flex justify-center px-3 pb-4">
@@ -5712,14 +6270,6 @@ function RequestInFlightBanner({
         <span className="inline-flex items-center border border-accent bg-accent/5 px-2 py-1 text-[11px] tracking-[0.16em] text-accent-foreground uppercase">
           Work in flight
         </span>
-        {workingParticipants.length > 0 ? (
-          <span className="border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-            Working now{" "}
-            {workingParticipants
-              .map((participant) => participant.displayName)
-              .join(", ")}
-          </span>
-        ) : null}
         {acceptedProposal?.etaAt ? (
           <span className="border border-border px-2 py-1 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
             Est. delivery {formatRequestDate(acceptedProposal.etaAt)}
@@ -6007,12 +6557,149 @@ function InlineReviewActions({
   )
 }
 
-function SenderIcon({ actorKind }: { actorKind: "agent" | "human" | "tool" }) {
-  if (actorKind === "agent") {
-    return <BotIcon className="size-3" />
+function findPresetRoomMember(input: {
+  displayName?: string | null
+  externalId?: string | null
+  memberKey?: string | null
+  presetDefinition: ReturnType<typeof resolvePresetTeamDefinitionFromBlueprint>
+}) {
+  if (!input.presetDefinition) {
+    return null
   }
 
-  return <UserIcon className="size-3" />
+  return (
+    input.presetDefinition.members.find((member) => {
+      if (input.memberKey && member.memberKey === input.memberKey) {
+        return true
+      }
+
+      if (input.externalId && member.senderExternalId === input.externalId) {
+        return true
+      }
+
+      if (input.displayName && member.displayName === input.displayName) {
+        return true
+      }
+
+      return false
+    }) ?? null
+  )
+}
+
+function getPresetAccentClasses(
+  tone?: "amber" | "emerald" | "sky" | "violet"
+) {
+  switch (tone) {
+    case "emerald":
+      return {
+        badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        label: "text-emerald-700 dark:text-emerald-300",
+        pill: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+      }
+    case "amber":
+      return {
+        badge: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+        label: "text-amber-700 dark:text-amber-300",
+        pill: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+      }
+    case "violet":
+      return {
+        badge: "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+        label: "text-violet-700 dark:text-violet-300",
+        pill: "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+      }
+    case "sky":
+    default:
+      return {
+        badge: "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+        label: "text-sky-700 dark:text-sky-300",
+        pill: "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+      }
+  }
+}
+
+function ParticipantIdentityBadge(input: {
+  actorKind: "agent" | "human" | "tool"
+  className?: string
+  displayName?: string | null
+  externalId?: string | null
+  handle?: string | null
+  memberKey?: string | null
+  presetDefinition: ReturnType<typeof resolvePresetTeamDefinitionFromBlueprint>
+  title?: string | null
+}) {
+  const presetMember = findPresetRoomMember({
+    displayName: input.displayName,
+    externalId: input.externalId,
+    memberKey: input.memberKey,
+    presetDefinition: input.presetDefinition,
+  })
+
+  if (presetMember) {
+    return (
+      <span
+        className={cn(
+          "inline-flex size-5 items-center justify-center rounded-full border text-[10px] font-medium",
+          getPresetAccentClasses(presetMember.accentTone).badge,
+          input.className
+        )}
+        title={`${presetMember.displayName} / ${presetMember.roleLabel}`}
+      >
+        {presetMember.initials}
+      </span>
+    )
+  }
+
+  if (input.actorKind === "agent") {
+    return (
+      <AgentIdentityIcon
+        actorKind={input.actorKind}
+        className={input.className}
+        displayName={input.displayName ?? undefined}
+        externalId={input.externalId ?? undefined}
+        handle={input.handle ?? undefined}
+        title={input.title ?? undefined}
+      />
+    )
+  }
+
+  return input.actorKind === "human" ? (
+    <UserIcon className={input.className} />
+  ) : (
+    <BotIcon className={input.className} />
+  )
+}
+
+function ParticipantRolePill(input: {
+  displayName?: string | null
+  externalId?: string | null
+  memberKey?: string | null
+  presetDefinition: ReturnType<typeof resolvePresetTeamDefinitionFromBlueprint>
+  roleLabel?: string | null
+}) {
+  const presetMember = findPresetRoomMember({
+    displayName: input.displayName,
+    externalId: input.externalId,
+    memberKey: input.memberKey,
+    presetDefinition: input.presetDefinition,
+  })
+
+  if (!presetMember && !input.roleLabel) {
+    return null
+  }
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] tracking-[0.16em] uppercase",
+        presetMember
+          ? getPresetAccentClasses(presetMember.accentTone).pill
+          : "border-border text-muted-foreground"
+      )}
+    >
+      {presetMember?.roleLabel ?? input.roleLabel}
+    </span>
+  )
 }
 
 function LoadingRequestPanel() {
@@ -6023,23 +6710,68 @@ function LoadingRequestPanel() {
   )
 }
 
+function BorealizingInlineLoader({
+  label = "borealizing...",
+  size = 34,
+}: {
+  label?: string
+  size?: number
+}) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <DotMatrixSpinner className="shrink-0 text-muted-foreground" size={size} />
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function PresetSpeakerInlineLoader(input: {
+  displayName: string
+  label?: string
+  memberKey?: string | null
+  presetDefinition: ReturnType<typeof resolvePresetTeamDefinitionFromBlueprint>
+}) {
+  const presetMember = findPresetRoomMember({
+    displayName: input.displayName,
+    memberKey: input.memberKey,
+    presetDefinition: input.presetDefinition,
+  })
+  const tone = getPresetAccentClasses(presetMember?.accentTone)
+
+  return (
+    <div className={tone.label}>
+      <BorealizingInlineLoader
+        label={input.label ?? `${input.displayName} is borealizing...`}
+      />
+    </div>
+  )
+}
+
 function RequestWorkersPanel({
+  activePresetRoomTurn,
   onBrowseWorkers,
   onInviteLocalRuntime,
   onViewProfile,
   canInviteLocalRuntime,
   isSolanaWalletReady,
   requestDetail,
+  selectedIntent,
   shareUrl,
 }: {
+  activePresetRoomTurn: PresetTeamStreamTurn | null
   onBrowseWorkers: () => void
   onInviteLocalRuntime: () => void
   onViewProfile: (profileId: string) => void
   canInviteLocalRuntime: boolean
   isSolanaWalletReady: boolean
   requestDetail: RequestDetail | null
+  selectedIntent: SidebarIntentPreview | null
   shareUrl: string | null
 }) {
+  const requestPresetDefinition = useMemo(
+    () => resolveRequestPresetDefinition(requestDetail, selectedIntent),
+    [requestDetail, selectedIntent]
+  )
   const [copied, setCopied] = useState(false)
   const intent = requestDetail?.intent
   const participants = useMemo(
@@ -6049,6 +6781,10 @@ function RequestWorkersPanel({
   const [runtimePresence, setRuntimePresence] = useState<
     Record<string, "active" | "checking" | "offline">
   >({})
+  const assignmentSummary = useMemo(
+    () => getRequestAssignmentSummary(requestDetail?.assignment),
+    [requestDetail?.assignment]
+  )
   const isWaitingForWorkers =
     participants.filter((participant) => participant.status !== "owner")
       .length === 0 &&
@@ -6192,120 +6928,390 @@ function RequestWorkersPanel({
       ) : null}
 
       <div className="space-y-3 border border-border p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-            Team
-          </p>
-          {canInviteLocalRuntime ? (
-            <Button
-              onClick={onInviteLocalRuntime}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              <BotIcon className="size-4" />
-              Invite local runtime
-            </Button>
-          ) : null}
-        </div>
-        <div className="space-y-3">
-          {participants.map((participant) => (
-            <div
-              className="border border-border p-3"
-              key={`${participant.displayName}-${participant.status}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex size-9 items-center justify-center border border-border">
-                  <AgentIdentityIcon
-                    actorKind={participant.kind}
-                    className="size-4 text-muted-foreground"
-                    displayName={participant.displayName}
-                    externalId={participant.externalId}
-                    handle={participant.handle}
-                    title={participant.title}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
+        {requestPresetDefinition ? (
+          <PresetRoomTeamPanel
+            activePresetRoomTurn={activePresetRoomTurn}
+            assignmentSummary={assignmentSummary}
+            canInviteLocalRuntime={canInviteLocalRuntime}
+            onInviteLocalRuntime={onInviteLocalRuntime}
+            participants={participants}
+            presetDefinition={requestPresetDefinition}
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-1">
+                <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+                  Team
+                </p>
+                {assignmentSummary ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">
-                      {participant.displayName}
-                    </p>
-                    <span
-                      className={cn(
-                        "text-[11px] tracking-[0.16em] uppercase",
-                        getRequestParticipantPresenceTone(
-                          participant,
-                          participant.runtimeSupplyId
-                            ? runtimePresence[participant.runtimeSupplyId] ??
-                            "checking"
-                            : undefined
-                        )
-                      )}
-                    >
-                      {getRequestParticipantPresenceLabel(
-                        participant,
-                        participant.runtimeSupplyId
-                          ? runtimePresence[participant.runtimeSupplyId] ??
-                          "checking"
-                          : undefined
-                      )}
+                    <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+                      {assignmentSummary.label}
                     </span>
-                    <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-                      {participant.status}
+                    <span className="text-sm font-medium">
+                      {assignmentSummary.title}
                     </span>
-                    {participant.role ? (
+                    {assignmentSummary.meta ? (
                       <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-                        {participant.role}
-                      </span>
-                    ) : null}
-                    {isSolanaWalletReady &&
-                      isSolanaOperatorIdentity({
-                        displayName: participant.displayName,
-                        externalId: participant.externalId,
-                        handle: participant.handle,
-                        title: participant.title,
-                      }) ? (
-                      <span className="text-[11px] tracking-[0.16em] text-emerald-600 uppercase">
-                        Solana connected
+                        {assignmentSummary.meta}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {participant.runtimeSupplyId
-                      ? participant.executorUrl ??
-                      participant.mcpServerUrl ??
-                      participant.handle ??
-                      participant.kind
-                      : participant.handle
-                        ? `@${participant.handle}`
-                        : participant.kind}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {participant.profileId ? (
-                      <Button
-                        onClick={() => onViewProfile(participant.profileId!)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        View profile
-                      </Button>
-                    ) : null}
+                ) : null}
+              </div>
+              {canInviteLocalRuntime ? (
+                <Button
+                  onClick={onInviteLocalRuntime}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <BotIcon className="size-4" />
+                  Invite local runtime
+                </Button>
+              ) : null}
+            </div>
+            <div className="space-y-3">
+              {participants.map((participant) => (
+                <div
+                  className="border border-border p-3"
+                  key={`${participant.displayName}-${participant.status}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 items-center justify-center border border-border">
+                      <ParticipantIdentityBadge
+                        actorKind={
+                          participant.kind === "human"
+                            ? "human"
+                            : participant.kind === "tool"
+                              ? "tool"
+                              : "agent"
+                        }
+                        className="size-4 text-muted-foreground"
+                        displayName={participant.displayName}
+                        externalId={participant.externalId}
+                        handle={participant.handle}
+                        presetDefinition={requestPresetDefinition}
+                        title={participant.title}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium">
+                          {participant.displayName}
+                        </p>
+                        <span
+                          className={cn(
+                            "text-[11px] tracking-[0.16em] uppercase",
+                            getRequestParticipantPresenceTone(
+                              participant,
+                              activePresetRoomTurn?.displayName,
+                              participant.runtimeSupplyId
+                                ? runtimePresence[participant.runtimeSupplyId] ??
+                                  "checking"
+                                : undefined
+                            )
+                          )}
+                        >
+                          {getRequestParticipantPresenceLabel(
+                            participant,
+                            activePresetRoomTurn?.displayName,
+                            participant.runtimeSupplyId
+                              ? runtimePresence[participant.runtimeSupplyId] ??
+                                "checking"
+                              : undefined
+                          )}
+                        </span>
+                        <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                          {participant.status}
+                        </span>
+                        {participant.role ? (
+                          <ParticipantRolePill
+                            displayName={participant.displayName}
+                            externalId={participant.externalId}
+                            presetDefinition={requestPresetDefinition}
+                            roleLabel={participant.role}
+                          />
+                        ) : null}
+                        {isSolanaWalletReady &&
+                          isSolanaOperatorIdentity({
+                            displayName: participant.displayName,
+                            externalId: participant.externalId,
+                            handle: participant.handle,
+                            title: participant.title,
+                          }) ? (
+                          <span className="text-[11px] tracking-[0.16em] text-emerald-600 uppercase">
+                            Solana connected
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {participant.runtimeSupplyId
+                          ? participant.executorUrl ??
+                            participant.mcpServerUrl ??
+                            participant.handle ??
+                            participant.kind
+                          : participant.handle
+                            ? `@${participant.handle}`
+                            : participant.kind}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {participant.profileId ? (
+                          <Button
+                            onClick={() => onViewProfile(participant.profileId!)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            View profile
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PresetRoomTeamPanel(input: {
+  activePresetRoomTurn: PresetTeamStreamTurn | null
+  assignmentSummary: ReturnType<typeof getRequestAssignmentSummary>
+  canInviteLocalRuntime: boolean
+  onInviteLocalRuntime: () => void
+  participants: RequestDetail["participants"]
+  presetDefinition: NonNullable<ReturnType<typeof resolveRequestPresetDefinition>>
+}) {
+  const ownerParticipant =
+    input.participants.find((participant) => participant.status === "owner") ??
+    null
+  const orderedParticipants = input.presetDefinition.members.map((member) => ({
+    member,
+    participant:
+      input.participants.find(
+        (participant) =>
+          participant.externalId === member.senderExternalId ||
+          participant.displayName === member.displayName
+      ) ?? null,
+  }))
+  const activeSpeakerLabel =
+    input.activePresetRoomTurn?.displayName ??
+    orderedParticipants.find(
+      ({ participant }) => participant?.roomPresence === "speaking"
+    )?.member.displayName ??
+    null
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+            <UsersIcon className="size-3.5" />
+            <span>Team</span>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">
+              {input.assignmentSummary?.title ?? input.presetDefinition.teamDisplayName}
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <PresetTeamMemberIcons
+                countLabel={`${input.presetDefinition.memberPreview.length} voices`}
+                members={input.presetDefinition.memberPreview}
+              />
+              <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                One owner
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+            {activeSpeakerLabel ? (
+              <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-700 dark:text-emerald-300">
+                {activeSpeakerLabel} on turn
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full border border-border px-2 py-1">
+                Awaiting next turn
+              </span>
+            )}
+          </div>
+        </div>
+        {input.canInviteLocalRuntime ? (
+          <Button
+            onClick={input.onInviteLocalRuntime}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            <BotIcon className="size-4" />
+            Invite local runtime
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {ownerParticipant ? (
+          <PresetRoomOwnerCard participant={ownerParticipant} />
+        ) : null}
+        {orderedParticipants.map(({ member, participant }) => (
+          <PresetRoomMemberCard
+            activePresetSpeakerName={input.activePresetRoomTurn?.displayName}
+            key={member.memberKey}
+            member={member}
+            participant={participant}
+            presetDefinition={input.presetDefinition}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PresetRoomOwnerCard({
+  participant,
+}: {
+  participant: RequestDetail["participants"][number]
+}) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-background/60 p-3">
+      <div className="flex items-start gap-3">
+        <div className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground">
+          <UserIcon className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{participant.displayName}</p>
+            <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+              owner
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Can reply between turns and steer the next speaker.
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
+function PresetRoomMemberCard(input: {
+  activePresetSpeakerName?: string | null
+  member: NonNullable<ReturnType<typeof resolveRequestPresetDefinition>>["members"][number]
+  presetDefinition: NonNullable<ReturnType<typeof resolveRequestPresetDefinition>>
+  participant: RequestDetail["participants"][number] | null
+}) {
+  const presenceLabel = input.participant
+    ? getRequestParticipantPresenceLabel(
+        input.participant,
+        input.activePresetSpeakerName
+      )
+    : input.activePresetSpeakerName === input.member.displayName
+      ? "speaking"
+      : "ready"
+  const presenceTone = input.participant
+    ? getRequestParticipantPresenceTone(
+        input.participant,
+        input.activePresetSpeakerName
+      )
+    : presenceLabel === "speaking"
+      ? "text-emerald-600"
+      : "text-muted-foreground"
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-background/60 p-3">
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            "inline-flex size-9 items-center justify-center rounded-full border text-[10px] font-medium",
+            getPresetAccentClasses(input.member.accentTone).badge
+          )}
+        >
+          {input.member.initials}
+        </span>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{input.member.displayName}</p>
+            <ParticipantRolePill
+              displayName={input.member.displayName}
+              externalId={input.member.senderExternalId}
+              memberKey={input.member.memberKey}
+              presetDefinition={input.presetDefinition}
+              roleLabel={input.member.roleLabel}
+            />
+            <span
+              className={cn(
+                "text-[11px] tracking-[0.16em] uppercase",
+                presenceTone
+              )}
+            >
+              {formatPresetRoomPresenceLabel(presenceLabel)}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {getPresetRoomMemberSummary(input.member.memberKey)}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getPresetRoomMemberSummary(memberKey: string) {
+  switch (memberKey) {
+    case "moderator":
+      return "Frames the motion, sets the criteria, and keeps both sides aligned."
+    case "affirmative":
+      return "Builds the strongest serious case for the first option."
+    case "negative":
+      return "Presses the strongest serious case for the second option."
+    case "judge":
+      return "Closes the room with the verdict and recommendation."
+    default:
+      return "Participates as a named voice in the debate room."
+  }
+}
+
+function formatPresetRoomPresenceLabel(label: string) {
+  switch (label) {
+    case "speaking":
+      return "on turn"
+    case "waiting":
+      return "queued"
+    case "ready":
+      return "ready"
+    case "active now":
+      return "active"
+    default:
+      return label
+  }
+}
+
 function getRequestParticipantPresenceLabel(
   participant: RequestDetail["participants"][number],
+  activePresetSpeakerName?: string | null,
   runtimePresence?: "active" | "checking" | "offline"
 ) {
+  if (activePresetSpeakerName && participant.displayName === activePresetSpeakerName) {
+    return "speaking"
+  }
+
+  if (participant.roomPresence === "speaking") {
+    return "speaking"
+  }
+
+  if (participant.roomPresence === "waiting") {
+    return "waiting"
+  }
+
+  if (participant.roomPresence === "ready") {
+    return "ready"
+  }
+
   if (participant.runtimeSupplyId) {
     if (runtimePresence === "active") {
       return "active now"
@@ -6339,11 +7345,16 @@ function getRequestParticipantPresenceLabel(
 
 function getRequestParticipantPresenceTone(
   participant: RequestDetail["participants"][number],
+  activePresetSpeakerName?: string | null,
   runtimePresence?: "active" | "checking" | "offline"
 ) {
-  const label = getRequestParticipantPresenceLabel(participant, runtimePresence)
+  const label = getRequestParticipantPresenceLabel(
+    participant,
+    activePresetSpeakerName,
+    runtimePresence
+  )
 
-  if (label === "active now") {
+  if (label === "active now" || label === "speaking") {
     return "text-emerald-600"
   }
 
@@ -7751,6 +8762,7 @@ function pickTxHash(receipt: Record<string, unknown> | null) {
 
 function getRequestActionState(
   intent: NonNullable<RequestDetail["intent"]>,
+  assignedTeam: NonNullable<RequestDetail["assignment"]>["team"] | null | undefined,
   access: RequestDetail["access"],
   reviewPending: boolean,
   activity: RequestDetail["activity"]
@@ -7772,12 +8784,16 @@ function getRequestActionState(
     }
   }
 
-  if (intent.needsClarification && intent.missingDetails.length > 0) {
+  if (
+    !assignedTeam?.presetKey &&
+    intent.needsClarification &&
+    intent.missingDetails.length > 0
+  ) {
     return {
       description:
         status === "proposed"
           ? "This draft is still being scoped. Reply in chat or use the prompts below before Boreal opens it as tracked work."
-          : "This request is blocked on missing scope. Reply in thread to unblock it.",
+          : "Reply in thread to steer the request or narrow the comparison if you want a more specific result.",
       kind: "clarification" as const,
       title: "Needs scope",
     }
@@ -7995,8 +9011,90 @@ function normalizePublicPaperSlug(
   return papers.some((paper) => paper.slug === value) ? value : null
 }
 
+function buildPendingPresetTeamTurns(input: {
+  activeIntentId: string | null
+  presetDefinition: ReturnType<typeof resolvePresetTeamDefinitionFromBlueprint>
+  presetState: PresetTeamState | null | undefined
+}): PresetTeamStreamTurn[] | undefined {
+  if (!input.presetDefinition) {
+    return undefined
+  }
+
+  const rawTurnIndex = input.activeIntentId
+    ? input.presetState?.nextTurnIndex ?? 0
+    : 0
+  const turnIndex =
+    rawTurnIndex >= input.presetDefinition.turns.length || rawTurnIndex < 0
+      ? 0
+      : rawTurnIndex
+  const turn = input.presetDefinition.turns[turnIndex]
+
+  if (!turn) {
+    return undefined
+  }
+
+  const member =
+    input.presetDefinition.members.find(
+      (candidate) => candidate.memberKey === turn.memberKey
+    ) ?? null
+
+  if (!member) {
+    return undefined
+  }
+
+  return [
+    {
+      content: null,
+      displayName: member.displayName,
+      memberKey: member.memberKey,
+      roleLabel: member.roleLabel,
+      state: "pending",
+      teamDisplayName: input.presetDefinition.teamDisplayName,
+      totalTurns: input.presetDefinition.turns.length,
+      turnIndex,
+    },
+  ]
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError"
+}
+
+function isRetryablePresetRoomError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message.toLowerCase()
+      : String(error).toLowerCase()
+  const status =
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof (error as { status?: unknown }).status === "number"
+      ? ((error as { status: number }).status as number)
+      : null
+
+  if (status !== null && [408, 409, 425, 429, 500, 502, 503, 504].includes(status)) {
+    return true
+  }
+
+  return /429|limit|rate|quota|timeout|temporar|unavailable|overloaded|fetch failed|network|try again/i.test(
+    message
+  )
+}
+
+function getPresetRoomRetryDelayMs(errorAttempt: number, error: unknown) {
+  if (!isRetryablePresetRoomError(error)) {
+    return null
+  }
+
+  return (
+    PRESET_ROOM_RETRY_DELAYS_MS[errorAttempt] ?? PRESET_ROOM_RETRY_MAX_DELAY_MS
+  )
+}
+
 async function consumeChatStream(input: {
-  assistantMessageId: string | null
+  assistantMessageId: string
+  onRequestOpened?: (intentId: string) => void
   response: Response
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>
 }) {
@@ -8032,13 +9130,10 @@ async function consumeChatStream(input: {
         | { delta: string; type: "assistant-delta" }
         | { payload: ChatAssistantDebugEvent; type: "debug" }
         | { message: string; type: "error" }
+        | ChatAssistantStreamEvent
         | { payload: ChatAssistantResponse; type: "final" }
 
       if (event.type === "assistant-delta") {
-        if (!input.assistantMessageId) {
-          continue
-        }
-
         input.setMessages((current) =>
           current.map((message) =>
             message.id === input.assistantMessageId
@@ -8050,10 +9145,6 @@ async function consumeChatStream(input: {
       }
 
       if (event.type === "debug") {
-        if (!input.assistantMessageId) {
-          continue
-        }
-
         input.setMessages((current) =>
           current.map((message) =>
             message.id === input.assistantMessageId
@@ -8064,6 +9155,28 @@ async function consumeChatStream(input: {
                   event.payload
                 ),
               }
+              : message
+          )
+        )
+        continue
+      }
+
+      if (event.type === "request-opened") {
+        input.onRequestOpened?.(event.payload.intentId)
+        continue
+      }
+
+      if (event.type === "preset-team-turn") {
+        input.setMessages((current) =>
+          current.map((message) =>
+            message.id === input.assistantMessageId
+              ? {
+                  ...message,
+                  presetTeamTurns: upsertPresetTeamTurn(
+                    message.presetTeamTurns,
+                    event.payload
+                  ),
+                }
               : message
           )
         )
@@ -8082,20 +9195,114 @@ async function consumeChatStream(input: {
     throw new Error("Chat response was incomplete.")
   }
 
-  if (input.assistantMessageId) {
-    input.setMessages((current) =>
-      current.map((message) =>
-        message.id === input.assistantMessageId
+  input.setMessages((current) =>
+    current.map((message) =>
+      message.id === input.assistantMessageId
+        ? finalPayload.assistantMessage.trim()
           ? {
-            ...message,
-            content: message.content || finalPayload.assistantMessage,
-          }
+              ...message,
+              content: finalPayload.assistantMessage,
+              presetTeamTurns: undefined,
+            }
           : message
-      )
+        : message
     )
-  }
+  )
 
   return finalPayload
+}
+
+function upsertPresetTeamTurn(
+  current: PresetTeamStreamTurn[] | undefined,
+  nextTurn: PresetTeamStreamTurn
+) {
+  const turns = [...(current ?? [])]
+  const existingIndex = turns.findIndex(
+    (turn) => turn.turnIndex === nextTurn.turnIndex
+  )
+
+  if (existingIndex >= 0) {
+    turns[existingIndex] = {
+      ...turns[existingIndex],
+      ...nextTurn,
+    }
+  } else {
+    turns.push(nextTurn)
+  }
+
+  return turns.sort((left, right) => left.turnIndex - right.turnIndex)
+}
+
+function PresetTeamStreamingCard({
+  turns,
+}: {
+  turns: PresetTeamStreamTurn[]
+}) {
+  const teamDisplayName = turns[0]?.teamDisplayName ?? "Preset team"
+  const presetDefinition = getPresetTeamDefinition("debate-and-verdict")
+
+  return (
+    <div className="space-y-3 border border-border bg-card/60 p-3">
+      <div className="flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+        <BotIcon className="size-3" />
+        <span>{teamDisplayName} live</span>
+      </div>
+      <div className="space-y-3">
+        {turns.map((turn) => (
+          <div className="space-y-1" key={`${turn.memberKey}-${turn.turnIndex}`}>
+            {(() => {
+              const presetMember = findPresetRoomMember({
+                displayName: turn.displayName,
+                memberKey: turn.memberKey,
+                presetDefinition,
+              })
+
+              return (
+            <div className="flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+              <span
+                className={cn(
+                  "inline-flex size-5 items-center justify-center rounded-full border text-[10px] font-medium",
+                  getPresetAccentClasses(presetMember?.accentTone).badge
+                )}
+              >
+                {turn.displayName.slice(0, 1)}
+              </span>
+              <span>{turn.displayName}</span>
+              <ParticipantRolePill
+                displayName={turn.displayName}
+                memberKey={turn.memberKey}
+                presetDefinition={presetDefinition}
+                roleLabel={turn.roleLabel}
+              />
+              {turn.state === "pending" ? (
+                <span
+                  className={cn(
+                    "inline-flex items-center",
+                    getPresetAccentClasses(presetMember?.accentTone).label
+                  )}
+                >
+                  <span>borealizing</span>
+                </span>
+              ) : null}
+            </div>
+              )
+            })()}
+            {turn.content?.trim() ? (
+              <MessageResponse className="[&_a]:inline-flex [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-border [&_a]:px-2.5 [&_a]:py-1 [&_a]:text-xs [&_a]:tracking-[0.16em] [&_a]:uppercase">
+                {turn.content}
+              </MessageResponse>
+            ) : turn.state === "pending" ? (
+              <PresetSpeakerInlineLoader
+                displayName={turn.displayName}
+                memberKey={turn.memberKey}
+                presetDefinition={presetDefinition}
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function AssistantDebugTools({
@@ -8146,6 +9353,7 @@ function upsertAssistantDebugEvent(
 function buildChatUiContext(input: {
   activeIntentId: string | null
   composerAgents: MountedComposerAgent[]
+  presetRoomCommand?: ChatUiContext["presetRoomCommand"]
   requestDetail: RequestDetail | null
   selectedCenterTab: CenterViewTab
   workspaceTab: WorkspaceTab
@@ -8164,11 +9372,20 @@ function buildChatUiContext(input: {
     mountedAgentKeys: mountedMarketAgents
       .map((agent) => agent.directAgentKey)
       .filter((value): value is string => Boolean(value)),
+    mountedPresetTeamKey:
+      primaryMountedAgent && isMountedPresetTeam(primaryMountedAgent)
+        ? primaryMountedAgent.presetTeamKey ?? null
+        : null,
+    mountedPresetTeamTitle:
+      primaryMountedAgent && isMountedPresetTeam(primaryMountedAgent)
+        ? primaryMountedAgent.title
+        : null,
     mountedSupplyActorKind: primaryMountedAgent?.actorKind ?? null,
     mountedSupplyId: primaryMountedAgent?.supplyId ?? null,
     mountedSupplyIds: mountedMarketAgents.map((agent) => agent.supplyId),
     mountedSupplyTitle: primaryMountedAgent?.title ?? null,
     mountedSupplyTitles: mountedMarketAgents.map((agent) => agent.title),
+    presetRoomCommand: input.presetRoomCommand ?? null,
     requestId: input.activeIntentId,
     requestRole: input.activeIntentId
       ? isOwner
@@ -8225,6 +9442,29 @@ function getDirectAgentDisplayName(key: string) {
   ) ?? key
 }
 
+function isMountedPresetTeam(agent: MountedComposerAgent | null | undefined) {
+  return agent?.kind === "preset_team" || Boolean(agent?.presetTeamKey)
+}
+
+function buildMountedPresetTeamSelection(presetTeamKey: string) {
+  const definition = getPresetTeamDefinition(presetTeamKey)
+
+  if (!definition) {
+    return null
+  }
+
+  return {
+    actorKind: "agent" as const,
+    directAgentKey: null,
+    kind: "preset_team" as const,
+    memberPreview: definition.memberPreview,
+    presetTeamKey: definition.key,
+    sourceCapabilityId: buildPresetTeamSourceCapabilityId(definition.key),
+    supplyId: buildPresetTeamSourceCapabilityId(definition.key),
+    title: definition.teamDisplayName,
+  } satisfies MountedComposerAgent
+}
+
 function getLiveRequestAssistantLabel(requestDetail: RequestDetail) {
   const activeParticipants = requestDetail.participants
     .filter(
@@ -8236,6 +9476,10 @@ function getLiveRequestAssistantLabel(requestDetail: RequestDetail) {
 
   if (activeParticipants.length > 0) {
     return activeParticipants.join(", ")
+  }
+
+  if (requestDetail.assignment?.team?.teamDisplayName) {
+    return requestDetail.assignment.team.teamDisplayName
   }
 
   const assignedTools = requestDetail.assignment?.tools ?? []
@@ -8255,6 +9499,27 @@ function getLiveRequestAssistantLabel(requestDetail: RequestDetail) {
 function resolveMountedComposerAgent(listing: CatalogEntry) {
   if (listing._id === DEFAULT_MOUNTED_COMPOSER_AGENT.supplyId) {
     return DEFAULT_MOUNTED_COMPOSER_AGENT
+  }
+
+  const presetTeam = getPresetTeamDefinitionFromSourceCapabilityId(
+    listing.sourceCapabilityId
+  )
+
+  if (
+    listing.actorKind === "agent" &&
+    listing.supportsDirectInvoke &&
+    presetTeam
+  ) {
+    return {
+      actorKind: listing.actorKind,
+      directAgentKey: null,
+      kind: "preset_team",
+      memberPreview: presetTeam.memberPreview,
+      presetTeamKey: presetTeam.key,
+      sourceCapabilityId: listing.sourceCapabilityId ?? null,
+      supplyId: listing._id,
+      title: presetTeam.teamDisplayName,
+    } satisfies MountedComposerAgent
   }
 
   const directAgentKey = getMountedAgentKeyFromSourceCapabilityId(
@@ -8302,6 +9567,10 @@ function formatMountedComposerTeamLabel(agents: MountedComposerAgent[]) {
 }
 
 function getMountedComposerStarterPrompts(agents: MountedComposerAgent[]) {
+  if (agents.length === 1 && isMountedPresetTeam(agents[0])) {
+    return getPresetTeamStarterPromptInventory(agents[0]?.presetTeamKey)
+  }
+
   return getMountedAgentStarterPrompts(
     agents.map((agent) => agent.directAgentKey),
   )
@@ -8312,6 +9581,19 @@ function buildMountedTeamIntroMessage(agents: MountedComposerAgent[]): ChatMessa
     agents.length === 1
       ? getPublicReadySpecialistMeta(agents[0]!.directAgentKey)
       : null
+  const presetTeam =
+    agents.length === 1 && isMountedPresetTeam(agents[0])
+      ? getPresetTeamDefinition(agents[0]?.presetTeamKey)
+      : null
+
+  if (presetTeam) {
+    return {
+      content: `${presetTeam.teamDisplayName} is selected. Send one professional comparison or tradeoff and Boreal will open the request and start the room right away.`,
+      createdAt: Date.now(),
+      id: MOUNTED_TEAM_THREAD_MESSAGE_ID,
+      role: "assistant",
+    }
+  }
 
   return {
     content:
@@ -8327,6 +9609,15 @@ function buildMountedTeamIntroMessage(agents: MountedComposerAgent[]): ChatMessa
 function deriveRequestComposerAgents(requestDetail: RequestDetail | null) {
   if (!requestDetail) {
     return []
+  }
+
+  const presetDefinition = resolveRequestPresetDefinition(requestDetail)
+  const presetSelection = presetDefinition
+    ? buildMountedPresetTeamSelection(presetDefinition.key)
+    : null
+
+  if (presetSelection) {
+    return [presetSelection]
   }
 
   const participantAgents = requestDetail.participants
@@ -8399,6 +9690,36 @@ function deriveRequestComposerAgents(requestDetail: RequestDetail | null) {
   }
 
   return [DEFAULT_MOUNTED_COMPOSER_AGENT]
+}
+
+function resolveRequestPresetDefinition(
+  requestDetail: RequestDetail | null | undefined,
+  fallbackPreview?: SidebarIntentPreview | null,
+) {
+  if (!requestDetail && !fallbackPreview) {
+    return null
+  }
+
+  return (
+    resolvePresetTeamDefinitionFromBlueprint({
+      members: requestDetail?.assignment?.team?.members,
+      presetKey: requestDetail?.assignment?.team?.presetKey,
+      teamDisplayName:
+        requestDetail?.assignment?.team?.teamDisplayName ??
+        requestDetail?.assignment?.agent ??
+        fallbackPreview?.assignedAgent ??
+        undefined,
+    }) ??
+    resolvePresetTeamDefinitionFromParticipants(
+      requestDetail?.participants ?? fallbackPreview?.participants ?? []
+    ) ??
+    inferPresetTeamDefinitionFromRequestLike({
+      assignedAgent:
+        requestDetail?.assignment?.agent ?? fallbackPreview?.assignedAgent,
+      summary: requestDetail?.intent?.summary ?? fallbackPreview?.summary,
+      title: requestDetail?.intent?.title ?? fallbackPreview?.title,
+    })
+  )
 }
 
 function MountedComposerTeamCues({
@@ -8830,6 +10151,7 @@ function ActivityThreadPanel({
   const reopenedAfterFailure =
     intent?.status === "open" &&
     Boolean(requestDetail && getLatestBlockedErrorMessage(requestDetail.activity))
+  const assignmentSummary = getRequestAssignmentSummary(requestDetail?.assignment)
 
   return (
     <div className="space-y-4">
@@ -8858,9 +10180,14 @@ function ActivityThreadPanel({
             {reopenedAfterFailure ? "Last automatic route" : "Assignment"}
           </p>
           <div className="space-y-2 text-sm">
-            <p>
-              Agent: {requestDetail.assignment.agent ?? "Waiting for team"}
-            </p>
+            {assignmentSummary ? (
+              <p>
+                {assignmentSummary.label}: {assignmentSummary.title}
+                {assignmentSummary.meta ? ` / ${assignmentSummary.meta}` : ""}
+              </p>
+            ) : (
+              <p>Agent: Waiting for team</p>
+            )}
             <p>Provider: {requestDetail.assignment.provider}</p>
             <p>
               Tools:{" "}

@@ -6,10 +6,12 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
+import { useQuery } from "convex/react"
 import {
   PackageIcon,
   SearchIcon,
   BotIcon,
+  UsersIcon,
 } from "lucide-react"
 
 import { AgentIdentityIcon } from "@/components/ui/agent-identity-icon"
@@ -19,10 +21,12 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { usePublicMarketCache } from "@/components/shell-data-provider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PresetTeamMemberIcons } from "@/components/chat/preset-team-member-icons"
 import {
   type CatalogEntry,
   type SidebarIntentPreview,
 } from "@/lib/boreal/integrations/convex/function-refs"
+import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import {
   BOREAL_AGENT_BIO,
   BOREAL_AGENT_CAPABILITY_TAGS,
@@ -37,6 +41,10 @@ import {
   getPublicReadySpecialistMetaBySourceCapabilityId,
   isPublicReadySpecialistKey,
 } from "@/lib/boreal/agents/public-ready-specialists"
+import {
+  getPresetTeamDefinitionFromSourceCapabilityId,
+  listPublicPresetTeamCatalogEntries,
+} from "@/lib/boreal/swarm/preset-teams"
 import { cn } from "@/lib/utils"
 
 import { RequestListCard } from "./request-list-card"
@@ -83,38 +91,58 @@ export function WorkspacePanel({
   const workersMarket = usePublicMarketCache({
     enabled: activeTab === "workers",
     limit: 36,
-    query: deferredSearch,
+    query: "",
     tab: "workers",
   })
   const supplyListings = useMemo(() => {
     const fetchedListings = (workersMarket.data ?? []) as CatalogEntry[]
+    const presetTeamListings = listPublicPresetTeamCatalogEntries()
     const normalizedQuery = deferredSearch.toLowerCase()
+    const visiblePresetTeamListings =
+      normalizedQuery.length === 0
+        ? presetTeamListings
+        : presetTeamListings.filter((listing) =>
+            matchesCatalogListing(listing, normalizedQuery)
+          )
     const spotlightMatches =
       normalizedQuery.length === 0 ||
       matchesCatalogListing(BOREAL_AGENT_HUMAN_OPTIMIZER, normalizedQuery)
     const mergedListings = spotlightMatches
       ? [
           BOREAL_AGENT_HUMAN_OPTIMIZER,
+          ...visiblePresetTeamListings,
           ...fetchedListings.filter(
-            (listing) => listing._id !== BOREAL_AGENT_HUMAN_OPTIMIZER._id
+            (listing) =>
+              listing._id !== BOREAL_AGENT_HUMAN_OPTIMIZER._id &&
+              !presetTeamListings.some((preset) => preset._id === listing._id)
           ),
         ]
-      : fetchedListings
+      : [
+          ...visiblePresetTeamListings,
+          ...fetchedListings.filter(
+            (listing) =>
+              !presetTeamListings.some((preset) => preset._id === listing._id)
+          ),
+        ]
 
     return mergedListings
       .filter(shouldSurfaceMarketListing)
       .sort(compareDiscoverySupplyListings)
   }, [deferredSearch, workersMarket.data])
   const isWorkersLoading = activeTab === "workers" && workersMarket.isLoading
-  const requestsMarket = usePublicMarketCache({
-    enabled: activeTab === "requests",
-    limit: 48,
-    query: deferredSearch,
-    tab: "requests",
-  })
+  const requestsMarket = useQuery(
+    convexFunctionRefs.listMarketplaceIntents,
+    activeTab === "requests"
+      ? {
+          limit: 48,
+          ownerExternalId,
+          query: deferredSearch.length > 0 ? deferredSearch : undefined,
+        }
+      : "skip",
+  )
   const publicRequests = useMemo(
-    () => (requestsMarket.data ?? []) as SidebarIntentPreview[],
-    [requestsMarket.data]
+    () => (requestsMarket ?? []) as SidebarIntentPreview[],
+    [requestsMarket]
   )
   const visiblePublicRequests = useMemo(
     () =>
@@ -124,7 +152,7 @@ export function WorkspacePanel({
       ),
     [publicRequests]
   )
-  const isRequestsLoading = activeTab === "requests" && requestsMarket.isLoading
+  const isRequestsLoading = activeTab === "requests" && requestsMarket === undefined
 
   if (!isMounted) {
     return (
@@ -164,7 +192,7 @@ export function WorkspacePanel({
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={
                   activeTab === "workers"
-                    ? "Search offers, services, products, or workers"
+                    ? "Search agents, teams, or capabilities"
                     : "Search requests, asks, or unresolved work"
                 }
                 value={search}
@@ -298,19 +326,28 @@ function SupplyCard({
   const specialistMeta = getPublicReadySpecialistMetaBySourceCapabilityId(
     listing.sourceCapabilityId
   )
+  const presetTeamMeta = getPresetTeamDefinitionFromSourceCapabilityId(
+    listing.sourceCapabilityId
+  )
   const supportsTeamSelect = canSelectAgentListing(listing) && !!onInvokeListing
   const isProfileClickable = Boolean(profileId)
   const isDefaultBorealCard =
     listing._id === BOREAL_AGENT_DIRECT_SUPPLY_ID && isBorealDefaultMounted
   const displayTitle = specialistMeta?.displayName ?? listing.title
-  const displaySubtitle = specialistMeta?.headline ?? listing.subtitle
+  const displaySubtitle = presetTeamMeta
+    ? "Moderator, two option voices, and a judge in one request thread."
+    : specialistMeta?.headline ?? listing.subtitle
   const displayDescription =
-    specialistMeta?.supplyDescription ?? listing.description
+    presetTeamMeta
+      ? "Bring one real tradeoff. Mara frames the comparison, Avery and Blake argue both paths, and Jordan closes with the verdict."
+      : specialistMeta?.supplyDescription ?? listing.description
   const displaySellerName =
     specialistMeta?.displayName ?? listing.seller?.displayName ?? null
   const runtimeLabel = specialistMeta
     ? `${specialistMeta.providerCompany} • ${specialistMeta.model}`
     : null
+  const combinedRuntimeLabel = presetTeamMeta ? null : runtimeLabel
+  const showSpecialistMeta = Boolean(specialistMeta) && !presetTeamMeta
   const selectionLabel = isDefaultBorealCard
     ? "Default in chat"
     : isMounted
@@ -348,12 +385,16 @@ function SupplyCard({
     >
       <div className="flex items-start gap-3">
         <div className="flex size-10 items-center justify-center border border-border">
-          <AgentIdentityIcon
-            actorKind={listing.actorKind}
-            className="size-4 text-muted-foreground"
-            displayName={displaySellerName ?? displayTitle}
-            title={displayTitle}
-          />
+          {presetTeamMeta ? (
+            <UsersIcon className="size-4 text-muted-foreground" />
+          ) : (
+            <AgentIdentityIcon
+              actorKind={listing.actorKind}
+              className="size-4 text-muted-foreground"
+              displayName={displaySellerName ?? displayTitle}
+              title={displayTitle}
+            />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -373,9 +414,11 @@ function SupplyCard({
                 {listing.matchScore}% match
               </span>
             ) : null}
-            <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-              {listing.fulfillmentKind}
-            </span>
+            {!presetTeamMeta && !showSpecialistMeta ? (
+              <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                {listing.fulfillmentKind}
+              </span>
+            ) : null}
           </div>
           {displaySubtitle ? (
             <p className="mt-1 text-xs">{displaySubtitle}</p>
@@ -383,17 +426,38 @@ function SupplyCard({
           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
             {displayDescription}
           </p>
-          {runtimeLabel ? (
+          {combinedRuntimeLabel ? (
             <p className="mt-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-              Runtime: {runtimeLabel}
+              Runtime: {combinedRuntimeLabel}
             </p>
           ) : null}
-          {displaySellerName ? (
+          {presetTeamMeta ? (
+            <PresetTeamMemberIcons
+              countLabel={`${presetTeamMeta.memberPreview.length} voices`}
+              members={presetTeamMeta.memberPreview}
+            />
+          ) : null}
+          {displaySellerName && !presetTeamMeta && !showSpecialistMeta ? (
             <p className="mt-2 text-xs text-muted-foreground">
               By {displaySellerName}
             </p>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+          {presetTeamMeta ? (
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+              <span>same request thread</span>
+              <span>owner can interrupt</span>
+              <span>judge verdict</span>
+            </div>
+          ) : null}
+          {showSpecialistMeta ? (
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+              <span>{listing.category}</span>
+              <span>direct in chat</span>
+              <span>{listing.estimatedDeliveryLabel ?? "Instant"}</span>
+            </div>
+          ) : null}
+          {!presetTeamMeta && !showSpecialistMeta ? (
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
             <span>{listing.category}</span>
             <span>{listing.deliveryType}</span>
             <span>
@@ -412,8 +476,9 @@ function SupplyCard({
                   : ""}
               </span>
             ) : null}
-          </div>
-          {listing.matchReasons.length > 0 ? (
+            </div>
+          ) : null}
+          {!presetTeamMeta && listing.matchReasons.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {listing.matchReasons.map((reason) => (
                 <span
@@ -519,15 +584,19 @@ function getDiscoverySupplyPriority(listing: CatalogEntry) {
     return 0
   }
 
-  if (isSolanaOperatorListing(listing)) {
+  if (isPresetTeamListing(listing)) {
     return 1
   }
 
-  if (listing.seller?.profileId === BOREAL_AGENT_PROFILE_ID) {
+  if (isSolanaOperatorListing(listing)) {
     return 2
   }
 
-  return 3
+  if (listing.seller?.profileId === BOREAL_AGENT_PROFILE_ID) {
+    return 3
+  }
+
+  return 4
 }
 
 function matchesCatalogListing(listing: CatalogEntry, normalizedQuery: string) {
@@ -583,6 +652,10 @@ function canSelectAgentListing(listing: CatalogEntry) {
     return true
   }
 
+  if (isPresetTeamListing(listing)) {
+    return true
+  }
+
   return (
     listing.actorKind === "agent" &&
     listing.supportsDirectInvoke &&
@@ -596,15 +669,25 @@ function shouldSurfaceMarketListing(listing: CatalogEntry) {
     return true
   }
 
+  if (isPresetTeamListing(listing)) {
+    return true
+  }
+
   const directAgentKey = getAutonomousAgentKeyFromSourceCapabilityId(
     listing.sourceCapabilityId
   )
 
-  if (!directAgentKey) {
-    return true
-  }
+  return Boolean(
+    directAgentKey &&
+      isPublicReadySpecialistKey(directAgentKey) &&
+      canSelectAgentListing(listing)
+  )
+}
 
-  return isPublicReadySpecialistKey(directAgentKey)
+function isPresetTeamListing(listing: CatalogEntry) {
+  return Boolean(
+    getPresetTeamDefinitionFromSourceCapabilityId(listing.sourceCapabilityId)
+  )
 }
 
 function EmptyBlock({ subtitle, title }: { subtitle: string; title: string }) {

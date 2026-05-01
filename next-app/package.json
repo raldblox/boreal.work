@@ -25,6 +25,7 @@
     "smoke:one-request": "node --experimental-strip-types scripts/smoke-one-request.ts",
     "smoke:one-request-guards": "node --experimental-strip-types scripts/smoke-one-request-guards.ts",
     "smoke:payouts": "node --experimental-strip-types scripts/smoke-payouts.ts",
+    "smoke:preset-teams": "node --experimental-strip-types scripts/smoke-preset-teams.ts",
     "smoke:request-callbacks": "node --experimental-strip-types scripts/smoke-request-callbacks.ts",
     "smoke:request-classification": "node --experimental-strip-types scripts/smoke-request-classification.ts",
     "smoke:request-fetch-paths": "node --experimental-strip-types scripts/smoke-request-fetch-paths.ts",

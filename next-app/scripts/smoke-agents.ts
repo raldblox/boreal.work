@@ -10,9 +10,11 @@ import { buildDirectExecutionProtocolDescriptor } from "../agents/shared/registr
 import { buildAgentSupplyMutationArgs } from "../agents/shared/runtime.ts";
 
 const expectedDirectAgents = [
+  "copywriter",
   "image-studio",
   "motion-video-studio",
   "mvp-architect",
+  "research-analyst",
   "solana-operator",
   "startup-pressure-test",
   "voiceover-studio",

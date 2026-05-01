@@ -634,6 +634,7 @@ export type RequestDetail = {
     mcpServerUrl: string | null;
     profileId: string | null;
     role: string | null;
+    roomPresence?: "ready" | "speaking" | "waiting" | null;
     runtimeSupplyId: string | null;
     supportsDirectInvoke: boolean;
     status: string;

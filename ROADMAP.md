@@ -1,6 +1,6 @@
 # Boreal Roadmap
 
-This roadmap translates `BOREAL_BOOK.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 29, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
+This roadmap translates `BOREAL_BOOK.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 30, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
 
 ## Current Readout
 
@@ -19,9 +19,12 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
 - Boreal now has an explicit merchant-native `/account` path for custom services and digital products, plus owned-offer management with provider-synced listings kept visible but read-only.
 - Boreal chat now treats Boreal Agent as the default, lets users mount specialist agents directly from `Offers`, shows the selected team in the composer, and turns the next submit into one tracked request for that team without a separate approval step.
+- Boreal's first preset bundle now behaves like a real request-thread room: `Debate and Verdict` mounts one hard-coded team, shows Mara, Avery, Blake, and Jordan as visible participants, auto-advances one speaker at a time while the tab stays open, and lets owner interjections affect the next scheduled turn.
 - Active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, route follow-up messages into those runtimes inside the same request thread, and keep Boreal Agent off the team unless it was explicitly mounted or selected.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
 - Boreal now has a first honest offline repeat-visit path: the shell can render from cached route and static assets through a service worker, while live request, inbox, and market data still depend on the network.
+- Boreal now has its first local-first shell cache boundary: low-churn shell summaries hydrate from signed, encrypted browser cache, worker-market previews hydrate from cache first and revalidate on open, and request lists plus request-native work stay server-backed.
+- Boreal no longer treats casual pre-request chat as durable server chat by default.  Pre-request Boreal sessions are now encrypted local draft sessions with explicit resume and reset controls, and request promotion moves only the request-native thread into Convex.
 - Boreal's payment and wallet flow is materially more coherent now: checkout, proposal approval, settlements, wallet sync, scenario audits, and smoke verification all write through the same transaction spine, with Solana-first mainnet defaults and explicit testnet / EVM routing flags.
 - Boreal now has the first canonical commerce spine in the schema: `walletAccounts`, `transactions`, `settlements`, `payouts`, `refunds`, and `disputes`, plus transaction-scenario and environment tagging across the active commerce paths.
 - Boreal now also has a canonical transaction-scenario registry and audit stream: scenario IDs, scenario verification runs, per-stage audit events, and wallet-readiness gates are wired into checkout, proposal approval, supply publishing, provider payment, and fulfillment submission.
@@ -85,8 +88,9 @@ These milestone names are the best public-safe compression of the roadmap right 
 | `Request-first execution` | `Live` | One request can start from mounted specialists or normal route preview, then move through request thread, specialist follow-up, delivery, review, and attached checkout state. | Better retrieval depth and stronger funded-start rules. |
 | `Supplier and specialist market` | `Live` | Suppliers can onboard through `/account` or `/api/v1/supplies`, watch matched demand through one inbox, and seeded specialists stay routable. | Type-aware supply subtype tables and richer market metadata. |
 | `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
+| `Local-first shell performance` | `Live` | Low-churn shell summaries, worker-market lists, and pre-request Boreal drafts now load from signed local cache before any refresh, while request lists stay live from Convex. | Lighter server-side summary queries and payload-size trimming still need a second pass. |
 | `Payment and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start, payout verification, refunds, disputes, and stronger settlement proof. |
-| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, and the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes are all live. | Bundle presets with lead or worker or validator roles, execution policy, richer connector health history, and deeper multi-party coordination. |
+| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes, plus one live preset-room bundle are all real. | Broader preset coverage, richer execution policy, connector health history, and deeper multi-party coordination. |
 | `Release ops and trust` | `In progress` | Boreal has early-access truth docs, a cohort rollout playbook, and a safer public claim boundary. | Release metrics, incident runbooks, kill switches, and portable reputation exports. |
 
 ## Continuous Roadmap Execution Cadence
@@ -225,6 +229,8 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 
 - [x] `/` now acts as the chat-native landing state, while `/about` carries the feature/spec narrative and `/roadmap` carries the public-safe Jira-style status board
 - [x] Repeat visits can reopen a cached Boreal shell with route loading skeletons and an explicit offline fallback, even when live content is unavailable
+- [x] Low-churn shell summaries now load through a signed, encrypted local-first shell cache instead of always-live Convex subscriptions from the main shell
+- [x] Pre-request Boreal chat sessions are now encrypted local draft sessions with explicit resume and reset controls, while request-native threads stay server-backed
 - [x] Signed-in owner request tracking in the left sidebar
 - [x] Public browsing of supply and public requests in the right rail
 - [x] Request workboard with `Chat`, `Activity`, `Team`, and `Workboard`
@@ -282,9 +288,9 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Reviews and ratings attached to the completed lifecycle
 - [x] Owner-side request workboard for proposals, delivery, and matching refinement
 - [x] Manual mark-fulfilled path for chat-native work that does not produce a formal asset
-- [ ] Bundle offers that can auto-form one request team with a preset output contract instead of acting like loose multi-select agent piles
-- [ ] Explicit request-team role model for mounted bundles and invited runtimes: `lead`, `worker`, and `validator`
-- [ ] Request-thread execution policy for bundles: `lead_only`, `fanout_merge`, `sequential_handoff`, and `validator_gate`
+- [x] First hard-coded preset bundle offer can auto-form one request team with a preset output contract: `Debate and Verdict`
+- [x] Explicit request-team role model for mounted teams and preset bundles: `lead`, `worker`, and `validator`
+- [ ] Broader request-thread execution policy coverage for bundles and invited runtimes: `lead_only`, `fanout_merge`, `sequential_handoff`, and `validator_gate`
 - [ ] Worker artifact lane plus lead synthesis so bundled teams can collaborate without noisy multi-reply chat
 - [ ] Revision-request loop between owner and fulfiller
 - [x] Stronger request-to-supply recommendation UX

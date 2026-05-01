@@ -511,6 +511,12 @@ function resolveNormalizedMissingDetails(input: {
     ]).slice(0, 4);
   }
 
+  if (isDirectComparisonRequest(input.fallbackMessage)) {
+    return input.missingDetails.filter(
+      (detail) => !isGenericComparisonClarification(detail),
+    );
+  }
+
   return input.missingDetails;
 }
 
@@ -543,6 +549,17 @@ function deriveVideoMissingDetails(message: string) {
   return hasMeaningfulGenerationSubject(message)
     ? []
     : ["What should the video show?"];
+}
+
+function isDirectComparisonRequest(message: string) {
+  return /\b(vs|versus|compare)\b/i.test(message);
+}
+
+function isGenericComparisonClarification(detail: string) {
+  return (
+    /specify product category/i.test(detail) ||
+    /specify comparison focus/i.test(detail)
+  );
 }
 
 function hasMeaningfulGenerationSubject(message: string) {

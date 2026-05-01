@@ -166,7 +166,9 @@ const directAgents = [
       key,
       model: meta.model,
       outputs:
-        key === "voiceover-studio"
+        key === "image-studio"
+          ? "image_generation"
+          : key === "voiceover-studio"
           ? "speech_generation"
           : key === "motion-video-studio"
             ? "video_generation"

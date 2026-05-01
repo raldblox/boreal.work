@@ -15,7 +15,6 @@ export type StaticShellCacheKey =
   | "cart-summary"
   | "checkout-history-summary"
   | "profile-summary"
-  | "sidebar-summary"
   | "wallet-summary"
 
 export type PublicMarketTab = "requests" | "workers"
@@ -29,7 +28,6 @@ export type ShellBootstrapPayload = {
   cartSummary: ActiveCart
   checkoutHistorySummary: CheckoutRecord[]
   profileSummary: MyProfileRecord | null
-  sidebarSummary: SidebarIntentPreview[]
   walletSummary: WalletAccountRecord
 }
 
@@ -37,7 +35,6 @@ export type ShellCachePayloadByKey = {
   "cart-summary": ActiveCart
   "checkout-history-summary": CheckoutRecord[]
   "profile-summary": MyProfileRecord | null
-  "sidebar-summary": SidebarIntentPreview[]
   "wallet-summary": WalletAccountRecord
 }
 
@@ -102,6 +99,14 @@ export type DraftSessionMessage = {
 export type DraftMountedAgent = {
   actorKind: "agent" | "human" | "tool"
   directAgentKey: string | null
+  kind?: "direct_agent" | "preset_team"
+  memberPreview?: Array<{
+    displayName: string
+    initials: string
+    memberKey: string
+    roleLabel: string
+  }>
+  presetTeamKey?: string | null
   sourceCapabilityId: string | null
   supplyId: string
   title: string

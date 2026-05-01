@@ -13,17 +13,49 @@ export type ChatAssistantDebugEvent = {
   type: ToolUIPart["type"];
 };
 
+export type PresetTeamStreamTurn = {
+  content?: string | null;
+  displayName: string;
+  memberKey: string;
+  roleLabel: string;
+  state: "complete" | "pending";
+  teamDisplayName: string;
+  totalTurns: number;
+  turnIndex: number;
+};
+
+export type ChatAssistantStreamEvent =
+  | {
+      payload: {
+        intentId: string;
+      };
+      type: "request-opened";
+    }
+  | {
+      payload: PresetTeamStreamTurn;
+      type: "preset-team-turn";
+    };
+
+export type PresetRoomAdvanceCommand = {
+  command: "advance_next_turn";
+  cycleNumber: number;
+  expectedTurnIndex: number;
+};
+
 export type ChatUiContext = {
   browseTab?: "requests" | "workers" | null;
   canApproveProposals?: boolean;
   canSubmitProposal?: boolean;
   centerTab?: "activity" | "chat" | "participants" | "proposals" | "workspace" | "workers" | null;
   mountedAgentKeys?: string[];
+  mountedPresetTeamKey?: string | null;
+  mountedPresetTeamTitle?: string | null;
   mountedSupplyActorKind?: "agent" | "human" | "tool" | null;
   mountedSupplyId?: string | null;
   mountedSupplyIds?: string[];
   mountedSupplyTitle?: string | null;
   mountedSupplyTitles?: string[];
+  presetRoomCommand?: PresetRoomAdvanceCommand | null;
   requestId?: string | null;
   requestRole?: "none" | "owner" | "supplier" | "viewer";
   requestStatus?: string | null;

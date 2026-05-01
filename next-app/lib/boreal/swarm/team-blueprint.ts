@@ -11,6 +11,17 @@ export type RequestTeamReplyPolicy =
 
 export type RequestTeamRole = "lead" | "validator" | "worker";
 
+export type PresetTeamRunStatus = "awaiting_owner" | "running";
+
+export type PresetTeamState = {
+  currentSpeakerKey: string | null;
+  cycleNumber: number;
+  cycleStartedAt: number | null;
+  lastAdvanceAt: number | null;
+  nextTurnIndex: number | null;
+  runStatus: PresetTeamRunStatus;
+};
+
 export type RequestTeamMember = {
   agentKey: string;
   displayName: string;
@@ -22,7 +33,10 @@ export type RequestTeamBlueprint = {
   executionMode: RequestTeamExecutionMode;
   leadAgentKey: string | null;
   members: RequestTeamMember[];
-  version: 1;
+  presetState?: PresetTeamState;
+  presetKey?: string;
+  teamDisplayName?: string;
+  version: 1 | 2 | 3;
 };
 
 export function buildDirectAgentTeamBlueprint(
@@ -50,6 +64,44 @@ export function buildDirectAgentTeamBlueprint(
   };
 }
 
+export function buildPresetTeamBlueprint(input: {
+  cycleNumber?: number;
+  cycleStartedAt?: number | null;
+  currentSpeakerKey?: string | null;
+  executionMode: RequestTeamExecutionMode;
+  key: string;
+  lastAdvanceAt?: number | null;
+  members: RequestTeamMember[];
+  nextTurnIndex?: number | null;
+  runStatus?: PresetTeamRunStatus;
+  teamDisplayName: string;
+}): RequestTeamBlueprint | null {
+  if (input.members.length === 0) {
+    return null;
+  }
+
+  const normalizedNextTurnIndex = input.nextTurnIndex ?? 0;
+
+  return {
+    executionMode: input.executionMode,
+    leadAgentKey: input.members[0]?.agentKey ?? null,
+    members: input.members,
+    presetState: {
+      currentSpeakerKey:
+        input.currentSpeakerKey ??
+        resolvePresetSpeakerKey(input.members, normalizedNextTurnIndex),
+      cycleNumber: Math.max(1, input.cycleNumber ?? 1),
+      cycleStartedAt: input.cycleStartedAt ?? null,
+      lastAdvanceAt: input.lastAdvanceAt ?? null,
+      nextTurnIndex: normalizedNextTurnIndex,
+      runStatus: input.runStatus ?? "running",
+    },
+    presetKey: input.key,
+    teamDisplayName: input.teamDisplayName,
+    version: 3,
+  };
+}
+
 export function parseRequestTeamBlueprint(
   value: string | null | undefined,
 ): RequestTeamBlueprint | null {
@@ -61,7 +113,9 @@ export function parseRequestTeamBlueprint(
     const parsed = JSON.parse(value) as Partial<RequestTeamBlueprint>;
 
     if (
-      parsed?.version !== 1 ||
+      (parsed?.version !== 1 &&
+        parsed?.version !== 2 &&
+        parsed?.version !== 3) ||
       !Array.isArray(parsed.members) ||
       typeof parsed.executionMode !== "string"
     ) {
@@ -93,9 +147,17 @@ export function parseRequestTeamBlueprint(
     return {
       executionMode: normalizeExecutionMode(parsed.executionMode),
       leadAgentKey:
-        typeof parsed.leadAgentKey === "string" ? parsed.leadAgentKey : members[0]!.agentKey,
+        typeof parsed.leadAgentKey === "string"
+          ? parsed.leadAgentKey
+          : members[0]!.agentKey,
       members,
-      version: 1,
+      presetState: normalizePresetState(parsed.presetState, members),
+      presetKey: typeof parsed.presetKey === "string" ? parsed.presetKey : undefined,
+      teamDisplayName:
+        typeof parsed.teamDisplayName === "string"
+          ? parsed.teamDisplayName
+          : undefined,
+      version: parsed.version,
     };
   } catch {
     return null;
@@ -165,4 +227,59 @@ function normalizeRole(
     default:
       return "lead";
   }
+}
+
+function normalizePresetState(
+  value: unknown,
+  members: RequestTeamMember[],
+): PresetTeamState | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const presetState = value as Partial<PresetTeamState>;
+  const nextTurnIndex =
+    presetState.nextTurnIndex === null ||
+    typeof presetState.nextTurnIndex === "number"
+      ? presetState.nextTurnIndex ?? null
+      : null;
+
+  return {
+    currentSpeakerKey:
+      typeof presetState.currentSpeakerKey === "string"
+        ? presetState.currentSpeakerKey
+        : resolvePresetSpeakerKey(members, nextTurnIndex),
+    cycleNumber:
+      typeof presetState.cycleNumber === "number" &&
+      Number.isFinite(presetState.cycleNumber) &&
+      presetState.cycleNumber > 0
+        ? Math.floor(presetState.cycleNumber)
+        : 1,
+    cycleStartedAt:
+      typeof presetState.cycleStartedAt === "number" &&
+      Number.isFinite(presetState.cycleStartedAt)
+        ? presetState.cycleStartedAt
+        : null,
+    lastAdvanceAt:
+      typeof presetState.lastAdvanceAt === "number" &&
+      Number.isFinite(presetState.lastAdvanceAt)
+        ? presetState.lastAdvanceAt
+        : null,
+    nextTurnIndex,
+    runStatus:
+      presetState.runStatus === "awaiting_owner"
+        ? "awaiting_owner"
+        : "running",
+  };
+}
+
+function resolvePresetSpeakerKey(
+  members: RequestTeamMember[],
+  nextTurnIndex: number | null,
+) {
+  if (nextTurnIndex === null || nextTurnIndex !== 0) {
+    return null;
+  }
+
+  return members[nextTurnIndex]?.agentKey ?? null;
 }

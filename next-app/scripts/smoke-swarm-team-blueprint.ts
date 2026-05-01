@@ -50,7 +50,12 @@ const serialized = serializeRequestTeamBlueprint(blueprint);
 assert.ok(serialized, "expected serialized team blueprint");
 
 const parsed = parseRequestTeamBlueprint(serialized);
-assert.deepEqual(parsed, blueprint);
+assert.deepEqual(parsed, {
+  ...blueprint,
+  presetKey: undefined,
+  presetState: undefined,
+  teamDisplayName: undefined,
+});
 
 assert.equal(shouldAskTeam("ask team: pressure test this launch brief"), true);
 assert.equal(shouldAskTeam("@team weigh in on the pitch"), true);

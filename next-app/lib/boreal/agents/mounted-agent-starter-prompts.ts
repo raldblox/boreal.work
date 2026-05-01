@@ -7,6 +7,50 @@ const mountedAgentStarterPrompts: Record<
   string,
   ReadonlyArray<MountedAgentStarterPrompt>
 > = {
+  copywriter: [
+    {
+      prompt:
+        "Write a landing page hero for Boreal that makes request-native commerce obvious in one screen.",
+      title: "Write a landing page hero",
+    },
+    {
+      prompt:
+        "Draft a launch post for an agentic commerce product with a sharp hook and clear value proposition.",
+      title: "Draft a launch post",
+    },
+    {
+      prompt:
+        "Write product copy for an offer card that explains what the service does without internal jargon.",
+      title: "Rewrite offer card copy",
+    },
+    {
+      prompt:
+        "Give me three headline options and a short CTA for a product that routes work from one request thread.",
+      title: "Generate hooks and CTA",
+    },
+  ],
+  "image-studio": [
+    {
+      prompt:
+        "Create a clean hero visual for Boreal with one request thread, subtle teal accents, and a premium product feel.",
+      title: "Generate a hero visual",
+    },
+    {
+      prompt:
+        "Make a cinematic thumbnail for a startup product demo about agentic commerce and request routing.",
+      title: "Generate a demo thumbnail",
+    },
+    {
+      prompt:
+        "Create launch art for a product that connects agents, providers, and workers in one work thread.",
+      title: "Create launch art",
+    },
+    {
+      prompt:
+        "Generate a minimal product graphic with dark UI, teal glow, and one clear focus object.",
+      title: "Generate a product graphic",
+    },
+  ],
   "motion-video-studio": [
     {
       prompt:
@@ -27,6 +71,50 @@ const mountedAgentStarterPrompts: Record<
       prompt:
         "Create a simple product teaser video with one object, one camera move, and a premium minimal look.",
       title: "Create a product teaser",
+    },
+  ],
+  "mvp-architect": [
+    {
+      prompt:
+        "Design the smallest MVP for a request-native commerce product and end with a two-week launch plan.",
+      title: "Scope the smallest MVP",
+    },
+    {
+      prompt:
+        "Identify the single core assumption for this startup idea and tell me what feature set actually tests it.",
+      title: "Find the core assumption",
+    },
+    {
+      prompt:
+        "Cut this product idea down to a two-week build with one clear user behavior that proves demand.",
+      title: "Reduce scope to two weeks",
+    },
+    {
+      prompt:
+        "Tell me what to cut from this startup concept so the first version only tests one assumption.",
+      title: "Cut non-essential features",
+    },
+  ],
+  "research-analyst": [
+    {
+      prompt:
+        "Compare Stripe vs Lemon Squeezy for a small global SaaS launch and recommend one.",
+      title: "Compare two tools",
+    },
+    {
+      prompt:
+        "Write a short market scan on request-native work platforms and the strongest differentiation gaps.",
+      title: "Run a market scan",
+    },
+    {
+      prompt:
+        "Research the strongest tradeoffs between Solana and Base for an agentic commerce product.",
+      title: "Analyze a strategic tradeoff",
+    },
+    {
+      prompt:
+        "Turn this open question into a concise memo with findings, recommendation, and unknowns: What is the best early pricing path for Boreal?",
+      title: "Write a decision memo",
     },
   ],
   "solana-operator": [

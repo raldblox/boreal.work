@@ -1,5 +1,9 @@
 export type PublicReadySpecialistKey =
+  | "copywriter"
+  | "image-studio"
   | "motion-video-studio"
+  | "mvp-architect"
+  | "research-analyst"
   | "solana-operator"
   | "startup-pressure-test"
   | "voiceover-studio"
@@ -17,8 +21,12 @@ export type PublicReadySpecialistMeta = {
 
 export const PUBLIC_READY_SPECIALIST_KEYS: ReadonlyArray<PublicReadySpecialistKey> =
   [
+    "copywriter",
+    "image-studio",
     "voiceover-studio",
     "motion-video-studio",
+    "mvp-architect",
+    "research-analyst",
     "solana-operator",
     "startup-pressure-test",
   ] as const
@@ -27,6 +35,32 @@ const PUBLIC_READY_SPECIALIST_META: Record<
   PublicReadySpecialistKey,
   PublicReadySpecialistMeta
 > = {
+  copywriter: {
+    displayName: "Copywriter",
+    headline: "Direct product and launch copy",
+    key: "copywriter",
+    liveScope:
+      "Returns structured landing-page, launch, email, and product copy in markdown through Boreal's direct text route.",
+    model: "gpt-4.1-mini",
+    profileBio:
+      "Writes direct product, launch, and landing-page copy with clear structure, alternate hooks, and tone control.",
+    providerCompany: "OpenAI",
+    supplyDescription:
+      "Direct product and launch copy for landing pages, emails, offer pages, and messaging drafts.",
+  },
+  "image-studio": {
+    displayName: "Image Studio",
+    headline: "Direct image generation",
+    key: "image-studio",
+    liveScope:
+      "Generates one image asset directly in the request thread through Boreal's OpenAI-backed image route.",
+    model: "gpt-image-1",
+    profileBio:
+      "Generates thumbnails, hero visuals, launch art, and product graphics through Boreal's direct image route.",
+    providerCompany: "OpenAI",
+    supplyDescription:
+      "Direct image generation for thumbnails, hero visuals, product art, and launch graphics.",
+  },
   "motion-video-studio": {
     displayName: "Video Generation",
     headline: "Direct short video generation",
@@ -39,6 +73,32 @@ const PUBLIC_READY_SPECIALIST_META: Record<
     providerCompany: "OpenAI",
     supplyDescription:
       "Direct short video generation for product shots, loops, and launch visuals.",
+  },
+  "mvp-architect": {
+    displayName: "MVP Architect",
+    headline: "Direct MVP scoping and launch plan",
+    key: "mvp-architect",
+    liveScope:
+      "Returns a smallest-possible MVP plan, one core assumption, and a two-week launch path in markdown.",
+    model: "gpt-4.1-mini",
+    profileBio:
+      "Cuts a startup idea down to one testable assumption, minimum feature set, and two-week launch plan.",
+    providerCompany: "OpenAI",
+    supplyDescription:
+      "Direct MVP scoping for founders who need one assumption, one launch path, and a sharply reduced feature set.",
+  },
+  "research-analyst": {
+    displayName: "Research Analyst",
+    headline: "Direct comparison and research memos",
+    key: "research-analyst",
+    liveScope:
+      "Turns one research question into a concise memo with findings, comparison, recommendation, and unknowns.",
+    model: "gpt-4.1-mini",
+    profileBio:
+      "Produces concise comparison briefs and decision-ready research memos for product, market, and operator questions.",
+    providerCompany: "OpenAI",
+    supplyDescription:
+      "Direct research memos for comparisons, market scans, and decision support.",
   },
   "solana-operator": {
     displayName: "Solana Operator",

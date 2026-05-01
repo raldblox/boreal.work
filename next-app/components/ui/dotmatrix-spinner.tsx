@@ -13,8 +13,22 @@ function DotMatrixSpinner({
   size,
 }: DotMatrixSpinnerProps) {
   return (
-    <DotmSquare17 color="var(--color-dotmatrix)" speed={1.5} size={36} dotSize={5} opacityMid={0.5} opacityBase={0.2} />
-
+    <span
+      aria-label={ariaLabel}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center",
+        className,
+      )}
+      role="status"
+    >
+      <DotmSquare17
+        color="var(--color-dotmatrix)"
+        opacityBase={0.2}
+        opacityMid={0.5}
+        size={size}
+        speed={1.5}
+      />
+    </span>
   )
 }
 

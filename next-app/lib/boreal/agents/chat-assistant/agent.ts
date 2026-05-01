@@ -6,6 +6,7 @@ import { directExecutionAgents } from "../../../../agents/index.ts";
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
 import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
 import { runRequestRuntimeChat } from "../../external-agents/runtime.ts";
+import type { RequestDetail } from "@/lib/boreal/integrations/convex/function-refs";
 import {
   appendConversationAssistantMessage,
   appendRequestExecution,
@@ -35,6 +36,7 @@ import { getDefaultSolanaNetworkKey } from "@/lib/boreal/solana-network.ts";
 import type {
   ChatAssistantResponse,
   ChatAssistantDebugEvent,
+  ChatAssistantStreamEvent,
   CatalogItem,
   ChatUiContext,
   MediaArtifact,
@@ -67,11 +69,24 @@ import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-inten
 import { withRetry } from "@/lib/boreal/utils/retry";
 import {
   buildDirectAgentTeamBlueprint,
+  buildPresetTeamBlueprint,
   serializeRequestTeamBlueprint,
   shouldAskTeam,
   stripTeamDirective,
+  type PresetTeamState,
   type RequestTeamBlueprint,
 } from "@/lib/boreal/swarm/team-blueprint";
+import {
+  getPresetTeamDefinition,
+  getPresetTeamMemberByAgentKey,
+  resolvePresetTeamDefinitionFromBlueprint,
+  type PresetTeamDefinition,
+} from "@/lib/boreal/swarm/preset-teams";
+import {
+  runPresetTeamRequestCycleDetailed,
+} from "@/lib/boreal/swarm/preset-team-runtime";
+import type { PresetTeamTurnResult } from "@/lib/boreal/swarm/preset-team-presenter";
+import { inferPresetRoomStateFromMessages } from "@/lib/boreal/swarm/preset-team-state";
 import {
   buildAutoReopenForWorkersCopy,
   shouldAutoReopenRequestForWorkers,
@@ -102,6 +117,7 @@ type ChatAssistantAgentInput = {
   conversationId?: string;
   message: string;
   onDebugEvent?: (event: ChatAssistantDebugEvent) => void | Promise<void>;
+  onStreamEvent?: (event: ChatAssistantStreamEvent) => void | Promise<void>;
   requester?: RequesterIdentity;
   uiContext?: ChatUiContext;
 };
@@ -396,14 +412,35 @@ export const chatAssistantAgent: ComposableAgent<
       intent: persistedIntent,
       message: input.message,
     });
+    const mountedPresetTeam = getPresetTeamDefinition(
+      input.uiContext?.mountedPresetTeamKey,
+    );
     const mountedRoutePlan = buildMountedSpecialistRoutePlan({
       intent: persistedIntent,
       mountedAgentKeys: input.uiContext?.mountedAgentKeys,
     });
     const previewCatalogItems = mergePreviewCatalogItems(
       relatedCatalogItems,
-      buildRoutePreviewCatalogItems(mountedRoutePlan ?? specialistRoutePlan),
+      mountedPresetTeam
+        ? buildPresetTeamPreviewCatalogItems(mountedPresetTeam)
+        : buildRoutePreviewCatalogItems(mountedRoutePlan ?? specialistRoutePlan),
     );
+
+    if (
+      input.uiContext?.surface !== "request" &&
+      mountedPresetTeam &&
+      input.requester?.externalId
+    ) {
+      return startMountedPresetTeamExecution({
+        conversationId,
+        input,
+        intent: persistedIntent,
+        presetTeam: mountedPresetTeam,
+        previewCatalogItems,
+        provider,
+        runtimeConfig,
+      });
+    }
 
     if (
       input.uiContext?.surface !== "request" &&
@@ -564,6 +601,9 @@ async function continueApprovedRequestThread(input: {
 }): Promise<ChatAssistantResponse | null> {
   const requestId = input.input.uiContext?.requestId;
   const ownerExternalId = input.input.requester?.externalId;
+  const presetRoomCommand = input.input.uiContext?.presetRoomCommand;
+  const isPresetRoomAdvance =
+    presetRoomCommand?.command === "advance_next_turn";
 
   if (
     input.input.uiContext?.surface !== "request" ||
@@ -586,16 +626,18 @@ async function continueApprovedRequestThread(input: {
     return null;
   }
 
-  const posted = await postThreadMessage({
-    body: input.input.message,
-    intentId: requestId,
-    ownerDisplayName: input.input.requester?.displayName,
-    ownerExternalId,
-    ownerHandle: input.input.requester?.handle,
-  });
+  if (!isPresetRoomAdvance) {
+    const posted = await postThreadMessage({
+      body: input.input.message,
+      intentId: requestId,
+      ownerDisplayName: input.input.requester?.displayName,
+      ownerExternalId,
+      ownerHandle: input.input.requester?.handle,
+    });
 
-  if (!posted.sent) {
-    throw new Error("Could not post into this request thread.");
+    if (!posted.sent) {
+      throw new Error("Could not post into this request thread.");
+    }
   }
 
   const requestDetail = await getRequestDetailRecord({
@@ -616,9 +658,119 @@ async function continueApprovedRequestThread(input: {
     input.runtimeConfig,
     input.provider.key,
   );
+  const assignedPresetTeam = resolvePresetTeamDefinitionFromBlueprint({
+    members: requestDetail.assignment?.team?.members,
+    presetKey: requestDetail.assignment?.team?.presetKey,
+    teamDisplayName:
+      requestDetail.assignment?.team?.teamDisplayName ??
+      requestDetail.assignment?.agent ??
+      undefined,
+  });
   const assignedTextAgents = resolveAssignedTextThreadAgents(
     requestDetail.assignment?.tools ?? [],
   );
+
+  if (
+    requestDetail.access?.isOwner &&
+    assignedPresetTeam &&
+    canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
+  ) {
+    const currentRoomState =
+      requestDetail.assignment?.team?.presetState ??
+      inferPresetRoomStateFromMessages({
+        cycleNumber: requestDetail.assignment?.team?.presetState?.cycleNumber ?? 1,
+        definition: assignedPresetTeam,
+        messages: requestDetail.messages.map((message) => ({
+          createdAt: message.createdAt,
+          sender: {
+            externalId: message.sender.externalId ?? null,
+            isCurrentUser: message.sender.isCurrentUser,
+          },
+        })),
+      });
+
+    if (
+      isPresetRoomAdvance &&
+      !canAdvancePresetRoom({
+        expectedCycleNumber: presetRoomCommand?.cycleNumber ?? 0,
+        expectedTurnIndex: presetRoomCommand?.expectedTurnIndex ?? -1,
+        roomState: currentRoomState,
+      })
+    ) {
+      return buildPresetRoomThreadResponse({
+        conversationId: request.conversationId ?? crypto.randomUUID(),
+        intent: persistedIntent,
+        intentId: requestId,
+      });
+    }
+
+    const isStartingNewCycle =
+      !isPresetRoomAdvance &&
+      currentRoomState?.runStatus === "awaiting_owner";
+    const cycleNumber = isStartingNewCycle
+      ? (currentRoomState?.cycleNumber ?? 0) + 1
+      : currentRoomState?.cycleNumber ?? 1;
+    const cycleStartedAt = isStartingNewCycle
+      ? getLatestOwnerThreadMessageCreatedAt(requestDetail, ownerExternalId)
+      : currentRoomState?.cycleStartedAt ?? null;
+    const startTurnIndex = isStartingNewCycle
+      ? 0
+      : getNextPresetTurnIndex(
+          assignedPresetTeam,
+          currentRoomState?.nextTurnIndex,
+        );
+    const cycle = await runPresetTeamRequestCycleDetailed({
+      definition: assignedPresetTeam,
+      latestOwnerMessage: isPresetRoomAdvance ? null : input.input.message,
+      onStreamEvent: input.input.onStreamEvent,
+      provider: input.provider,
+      request,
+      requestDetail,
+      roomState: {
+        currentSpeakerKey:
+          currentRoomState?.currentSpeakerKey ??
+          assignedPresetTeam.members[0]?.agentKey ??
+          null,
+        cycleNumber,
+        cycleStartedAt,
+        lastAdvanceAt: currentRoomState?.lastAdvanceAt ?? null,
+        nextTurnIndex: startTurnIndex,
+        runStatus: "running",
+      },
+      startTurnIndex,
+      turnLimit: 1,
+      runtimeConfig: input.runtimeConfig,
+    });
+    const assignedTeamJson = serializeAssignedPresetTeam(
+      assignedPresetTeam,
+      {
+        currentSpeakerKey: cycle.currentSpeakerKey,
+        cycleNumber: cycle.cycleNumber,
+        cycleStartedAt: cycle.cycleStartedAt,
+        lastAdvanceAt: cycle.lastAdvanceAt,
+        nextTurnIndex: cycle.nextTurnIndex,
+        runStatus: cycle.runStatusAfter,
+      },
+    );
+
+    await appendPresetTeamTurnMessages({
+      assignedTeamJson,
+      cycleNumber: cycle.cycleNumber,
+      definition: assignedPresetTeam,
+      intentId: requestId,
+      roomStatusAfter: cycle.runStatusAfter,
+      ownerExternalId,
+      request,
+      status: "in_progress",
+      transcript: cycle.transcript,
+    });
+
+    return buildPresetRoomThreadResponse({
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intent: persistedIntent,
+      intentId: requestId,
+    });
+  }
 
   if (
     requestDetail.access?.isOwner &&
@@ -1050,6 +1202,215 @@ function serializeAssignedTeamFromSelections(
 ) {
   return serializeAssignedTeamFromAgents(
     selections.map((selection) => selection.agent),
+  );
+}
+
+function serializeAssignedPresetTeam(
+  definition: PresetTeamDefinition,
+  presetState?: Partial<PresetTeamState>,
+) {
+  return serializeRequestTeamBlueprint(
+    buildPresetTeamBlueprint({
+      cycleNumber: presetState?.cycleNumber,
+      cycleStartedAt: presetState?.cycleStartedAt,
+      currentSpeakerKey: presetState?.currentSpeakerKey,
+      executionMode: definition.executionMode,
+      key: definition.key,
+      lastAdvanceAt: presetState?.lastAdvanceAt,
+      members: definition.members.map((member) => ({
+        agentKey: member.agentKey,
+        displayName: member.displayName,
+        replyPolicy: member.replyPolicy,
+        role: member.role,
+      })),
+      nextTurnIndex: presetState?.nextTurnIndex ?? 0,
+      runStatus: presetState?.runStatus,
+      teamDisplayName: definition.teamDisplayName,
+    }),
+  );
+}
+
+function getNextPresetTurnIndex(
+  definition: PresetTeamDefinition,
+  nextTurnIndex: number | null | undefined,
+) {
+  if (nextTurnIndex === null || nextTurnIndex === undefined) {
+    return 0;
+  }
+
+  return nextTurnIndex >= definition.turns.length ? 0 : nextTurnIndex;
+}
+
+async function appendPresetTeamTurnMessages(input: {
+  assignedTeamJson: string | undefined;
+  cycleNumber: number;
+  definition: PresetTeamDefinition;
+  intentId: string;
+  ownerExternalId?: string;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  roomStatusAfter: "awaiting_owner" | "running";
+  status: "fulfilled" | "in_progress";
+  transcript: PresetTeamTurnResult[];
+}) {
+  const latestRequest = await getRequestExecutionContext({
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+  });
+
+  if (
+    latestRequest &&
+    latestRequest.status !== "claimed" &&
+    latestRequest.status !== "in_progress"
+  ) {
+    return;
+  }
+
+  const finalTurnIndex = input.definition.turns.length - 1;
+
+  for (const turn of input.transcript) {
+    const turnStatus =
+      input.roomStatusAfter === "awaiting_owner" &&
+      turn.turnIndex >= finalTurnIndex
+        ? "fulfilled"
+        : input.status;
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent: input.definition.teamDisplayName,
+        executionMode: input.definition.executionMode,
+        memberKey: turn.memberKey,
+        presetTeamKey: input.definition.key,
+        routeLabel: input.definition.teamDisplayName,
+        routeTarget: input.request.routeTarget,
+        roomStatusAfter: input.roomStatusAfter,
+        speaker: turn.displayName,
+        speakerExternalId: turn.senderExternalId,
+        speakerHandle: turn.senderHandle,
+        speakerRole: turn.roleLabel,
+        turnCycleNumber: input.cycleNumber,
+        turnIndex: turn.turnIndex,
+      }),
+      activityType: "thread.reply_posted",
+      assignedAgent: input.definition.teamDisplayName,
+      assignedTeamJson: input.assignedTeamJson,
+      assistantMessage: turn.content,
+      intentId: input.intentId,
+      ownerExternalId: input.ownerExternalId,
+      senderDisplayName: turn.displayName,
+      senderExternalId: turn.senderExternalId,
+      senderHandle: turn.senderHandle,
+      status: turnStatus,
+    });
+  }
+}
+
+function normalizePresetTeamIntentForExecution(
+  intent: PersistedIntent,
+  presetTeam: PresetTeamDefinition,
+): PersistedIntent {
+  const routeTarget: ToolRoute = "general_assistance";
+  const requestedOutputTypes: PersistedIntent["requestedOutputTypes"] = ["text"];
+
+  return {
+    ...intent,
+    catalogQuery: "",
+    category: "advisory",
+    classification: deriveRequestClassification({
+      advisoryRequest: true,
+      intentType: intent.intentType,
+      needsClarification: false,
+      requestedOutputTypes,
+      routeTarget,
+      routing: {
+        ...intent.routing,
+        resolutionTier: "auto",
+        shouldCreateFulfillmentRequest: true,
+      },
+      shouldSearchCatalog: false,
+    }),
+    generationSignals: {
+      ...intent.generationSignals,
+      primaryMode: "text",
+      requestsImageGeneration: false,
+      requestsSpeechGeneration: false,
+      requestsText: true,
+      requestsVideoGeneration: false,
+    },
+    missingDetails: [],
+    needsClarification: false,
+    persistence: {
+      ...intent.persistence,
+      isUnresolved: false,
+      reason: `preset_team_selected:${presetTeam.key}`,
+      shouldPersist: true,
+    },
+    requestedOutputTypes,
+    responseInstructions:
+      "Run this through the selected preset debate room. Mara frames the scenario first and later speakers follow her brief inside the same request thread.",
+    routeTarget,
+    shouldSearchCatalog: false,
+    suggestedReplies: [],
+    summary:
+      intent.summary.trim().length > 0
+        ? intent.summary
+        : `${presetTeam.teamDisplayName} request`,
+    title:
+      intent.title.trim().length > 0
+        ? intent.title
+        : presetTeam.teamDisplayName,
+  };
+}
+
+function canAdvancePresetRoom(input: {
+  expectedCycleNumber: number;
+  expectedTurnIndex: number;
+  roomState: PresetTeamState | null;
+}) {
+  if (!input.roomState || input.roomState.runStatus !== "running") {
+    return false;
+  }
+
+  return (
+    input.roomState.cycleNumber === input.expectedCycleNumber &&
+    (input.roomState.nextTurnIndex ?? 0) === input.expectedTurnIndex
+  );
+}
+
+function buildPresetRoomThreadResponse(input: {
+  conversationId: string;
+  intent: PersistedIntent;
+  intentId: string;
+}): ChatAssistantResponse {
+  return {
+    assistantMessage: "",
+    conversationId: input.conversationId,
+    intent: input.intent,
+    intentId: input.intentId,
+    persisted: false,
+    relatedCatalogItems: [],
+    requiresApproval: false,
+    workspace: {
+      kind: "empty",
+      subtitle:
+        "The debate room is running in this request thread. Keep the scenario and follow-up inside the same room.",
+      title: "Preset team thread",
+    },
+  };
+}
+
+function getLatestOwnerThreadMessageCreatedAt(
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>,
+  ownerExternalId: string,
+) {
+  return (
+    [...requestDetail.messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.sender.isCurrentUser ||
+          message.sender.externalId === ownerExternalId
+      )
+      ?.createdAt ?? Date.now()
   );
 }
 
@@ -2674,6 +3035,77 @@ function isTextOnlyRoutePlan(routePlan: OneRequestRoutePlan) {
   );
 }
 
+async function startMountedPresetTeamExecution(input: {
+  conversationId: string;
+  input: ChatAssistantAgentInput;
+  intent: PersistedIntent;
+  presetTeam: PresetTeamDefinition;
+  previewCatalogItems: CatalogItem[];
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const initialCycleStartedAt = Date.now();
+  const openingMessage =
+    input.presetTeam.teamDisplayName === "Debate and Verdict"
+      ? "Boreal opened the Debate and Verdict room. Mara is framing the comparison now."
+      : `Boreal opened the ${input.presetTeam.teamDisplayName} room and the lead is starting now.`;
+  const normalizedIntent = normalizePresetTeamIntentForExecution(
+    input.intent,
+    input.presetTeam,
+  );
+  const assignedTeamJson = serializeAssignedPresetTeam(input.presetTeam, {
+    currentSpeakerKey: input.presetTeam.members[0]?.agentKey ?? null,
+    cycleNumber: 1,
+    cycleStartedAt: initialCycleStartedAt,
+    lastAdvanceAt: null,
+    nextTurnIndex: 0,
+    runStatus: "running",
+  });
+  const persistedResult = await saveIntentPipelineRecord({
+    assignedTeamJson,
+    assistantMessage: openingMessage,
+    conversationId: input.conversationId,
+    initialStatus: "claimed",
+    intent: normalizedIntent,
+    ownerDisplayName: input.input.requester?.displayName,
+    ownerExternalId: input.input.requester?.externalId,
+    ownerHandle: input.input.requester?.handle,
+    userMessage: input.input.message,
+  });
+
+  await approveRequestDraft({
+    assignedAgent: input.presetTeam.teamDisplayName,
+    assignedTeamJson,
+    assistantMessage: openingMessage,
+    intentId: persistedResult.intentId,
+    ownerExternalId: input.input.requester?.externalId,
+    status: "claimed",
+  });
+
+  await input.input.onStreamEvent?.({
+    payload: {
+      intentId: persistedResult.intentId,
+    },
+    type: "request-opened",
+  });
+
+  return {
+    assistantMessage: openingMessage,
+    conversationId: persistedResult.conversationId,
+    intent: normalizedIntent,
+    intentId: persistedResult.intentId,
+    persisted: true,
+    relatedCatalogItems: input.previewCatalogItems,
+    requiresApproval: false,
+    workspace: {
+      kind: "empty",
+      subtitle:
+        "The debate room is open. Mara will frame the room first, then the next speakers will continue in this same request thread.",
+      title: "Preset team thread",
+    } satisfies WorkspaceState,
+  } satisfies ChatAssistantResponse;
+}
+
 async function startMountedRequestExecution(input: {
   conversationId: string;
   input: ChatAssistantAgentInput;
@@ -2718,6 +3150,13 @@ async function startMountedRequestExecution(input: {
     intentId: persistedResult.intentId,
     ownerExternalId: input.input.requester?.externalId,
     status: "claimed",
+  });
+
+  await input.input.onStreamEvent?.({
+    payload: {
+      intentId: persistedResult.intentId,
+    },
+    type: "request-opened",
   });
 
   const request = await getRequestExecutionContext({
@@ -2832,6 +3271,51 @@ function buildRoutePreviewCatalogItems(
     successProbability: selection.score,
     title: selection.agent.supplyEntry.title,
   }));
+}
+
+function buildPresetTeamPreviewCatalogItems(
+  presetTeam: PresetTeamDefinition,
+): CatalogItem[] {
+  return [
+    {
+      actorKind: "agent",
+      averageRating: null,
+      brand: "Boreal",
+      capabilityTags: ["debate", "simulation", "strategy", "verdict"],
+      category: "advisory",
+      checkoutProtocol: null,
+      currency: "USD",
+      deliveryType: "instant",
+      description: presetTeam.description,
+      estimatedDeliveryLabel: "Instant debate",
+      executionSurface: "sdk",
+      executorUrl: null,
+      fulfillmentKind: "service",
+      gatedOutReasons: [],
+      id: `preset-team:${presetTeam.key}`,
+      isCartEnabled: false,
+      isPinned: true,
+      matchReasons: [],
+      matchScore: null,
+      matchStage: null,
+      paymentNetworkHints: [],
+      paymentProtocol: "none",
+      priceAmount: null,
+      priceLabel: "Preset team",
+      requiresHumanApproval: false,
+      reviewCount: 0,
+      seller: null,
+      sourceCapabilityId: `preset-team:${presetTeam.key}`,
+      sourceListingUrl: null,
+      sourceProviderKey: "manual",
+      subtitle: presetTeam.subtitle,
+      supplyType: "collective",
+      supportsDirectInvoke: true,
+      supportsPrivyWallet: false,
+      successProbability: null,
+      title: presetTeam.teamDisplayName,
+    },
+  ];
 }
 
 function mergePreviewCatalogItems(

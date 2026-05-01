@@ -47,7 +47,6 @@ const BOOTSTRAP_KEYS = [
   "cart-summary",
   "checkout-history-summary",
   "profile-summary",
-  "sidebar-summary",
   "wallet-summary",
 ] as const satisfies StaticShellCacheKey[]
 
@@ -55,7 +54,6 @@ type ShellDataState = {
   activeCart: ActiveCart
   checkoutHistory: CheckoutRecord[]
   myProfileRecord: MyProfileRecord | null
-  sidebarIntents: SidebarIntentPreview[]
   walletAccounts: WalletAccountRecord
 }
 
@@ -69,7 +67,6 @@ const emptyShellDataState: ShellDataState = {
   activeCart: null,
   checkoutHistory: [],
   myProfileRecord: null,
-  sidebarIntents: [],
   walletAccounts: [],
 }
 
@@ -112,9 +109,6 @@ export function ShellDataProvider({ children }: { children: ReactNode }) {
               break
             case "profile-summary":
               next.myProfileRecord = envelope.payload as MyProfileRecord | null
-              break
-            case "sidebar-summary":
-              next.sidebarIntents = envelope.payload as SidebarIntentPreview[]
               break
             case "wallet-summary":
               next.walletAccounts = envelope.payload as WalletAccountRecord
@@ -176,6 +170,10 @@ export function ShellDataProvider({ children }: { children: ReactNode }) {
     }
 
     if (!ownerScope) {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("boreal.shell-cache.v1:sidebar-summary")
+      }
+      clearPublicMarketCaches(["requests"])
       setState(emptyShellDataState)
       setIsReady(true)
       return
@@ -187,6 +185,10 @@ export function ShellDataProvider({ children }: { children: ReactNode }) {
 
     async function hydrateFromCache() {
       setIsReady(false)
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("boreal.shell-cache.v1:sidebar-summary")
+      }
+      clearPublicMarketCaches(["requests"])
       const cachedEntries = await Promise.all(
         BOOTSTRAP_KEYS.map(async (key) => [
           key,
@@ -378,6 +380,7 @@ export function usePublicMarketCache<T extends PublicMarketTab>(input: {
     }
 
     let cancelled = false
+    let hadCachedPayload = false
 
     async function hydrate() {
       const cached = await readSignedEnvelope<
@@ -389,12 +392,13 @@ export function usePublicMarketCache<T extends PublicMarketTab>(input: {
       }
 
       if (cached) {
+        hadCachedPayload = true
         setData(cached.payload)
         setIsLoading(false)
-        return
+      } else {
+        setIsLoading(true)
       }
 
-      setIsLoading(true)
       const response = await fetch(
         `/api/cache/public-market?tab=${encodeURIComponent(input.tab)}&limit=${input.limit}&query=${encodeURIComponent(normalizedQuery)}`,
         {
@@ -424,16 +428,18 @@ export function usePublicMarketCache<T extends PublicMarketTab>(input: {
       setIsLoading(false)
     }
 
-    void hydrate().catch(() => {
-      if (!cancelled) {
-        setData(
-          [] as unknown as T extends "workers"
-            ? CatalogEntry[]
-            : SidebarIntentPreview[],
-        )
-        setIsLoading(false)
-      }
-    })
+      void hydrate().catch(() => {
+        if (!cancelled) {
+          if (!hadCachedPayload) {
+            setData(
+              [] as unknown as T extends "workers"
+                ? CatalogEntry[]
+                : SidebarIntentPreview[],
+            )
+          }
+          setIsLoading(false)
+        }
+      })
 
     return () => {
       cancelled = true

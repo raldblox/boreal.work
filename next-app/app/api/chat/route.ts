@@ -5,6 +5,7 @@ import { chatAssistantAgent } from "@/lib/boreal/agents/chat-assistant/agent";
 import { stripSolanaActionMarker } from "@/lib/boreal/solana-thread-actions";
 import type {
   ChatAssistantDebugEvent,
+  ChatAssistantStreamEvent,
   ChatUiContext,
 } from "@/lib/boreal/schemas/chat";
 
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
                 );
               }
             : undefined,
+          onStreamEvent: async (event: ChatAssistantStreamEvent) => {
+            await writer.write(encoder.encode(`${JSON.stringify(event)}\n`));
+          },
           requester: {
             displayName: user.name ?? undefined,
             externalId: user.id ?? undefined,

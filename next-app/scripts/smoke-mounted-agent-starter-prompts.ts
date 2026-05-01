@@ -6,6 +6,32 @@ import {
 import { planSolanaThreadAction } from "../lib/boreal/solana-thread-actions.ts"
 
 function main() {
+  const copywriterPrompts =
+    getMountedAgentStarterPromptInventory("copywriter")
+  assert.equal(copywriterPrompts.length, 4)
+  assert.deepEqual(
+    copywriterPrompts.map((entry) => entry.title),
+    [
+      "Write a landing page hero",
+      "Draft a launch post",
+      "Rewrite offer card copy",
+      "Generate hooks and CTA",
+    ],
+  )
+
+  const imagePrompts =
+    getMountedAgentStarterPromptInventory("image-studio")
+  assert.equal(imagePrompts.length, 4)
+  assert.deepEqual(
+    imagePrompts.map((entry) => entry.title),
+    [
+      "Generate a hero visual",
+      "Generate a demo thumbnail",
+      "Create launch art",
+      "Generate a product graphic",
+    ],
+  )
+
   const voiceoverPrompts =
     getMountedAgentStarterPromptInventory("voiceover-studio")
   assert.equal(voiceoverPrompts.length, 4)
@@ -42,6 +68,32 @@ function main() {
       "Find the core assumption",
       "Rank the likely failure modes",
       "Give a blunt verdict",
+    ],
+  )
+
+  const mvpPrompts =
+    getMountedAgentStarterPromptInventory("mvp-architect")
+  assert.equal(mvpPrompts.length, 4)
+  assert.deepEqual(
+    mvpPrompts.map((entry) => entry.title),
+    [
+      "Scope the smallest MVP",
+      "Find the core assumption",
+      "Reduce scope to two weeks",
+      "Cut non-essential features",
+    ],
+  )
+
+  const researchPrompts =
+    getMountedAgentStarterPromptInventory("research-analyst")
+  assert.equal(researchPrompts.length, 4)
+  assert.deepEqual(
+    researchPrompts.map((entry) => entry.title),
+    [
+      "Compare two tools",
+      "Run a market scan",
+      "Analyze a strategic tradeoff",
+      "Write a decision memo",
     ],
   )
 

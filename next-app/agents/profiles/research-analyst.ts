@@ -23,15 +23,19 @@ export const researchAnalystAgent: AutonomousAgentDefinition = {
     agentReady: true,
     capabilityTags: ["research", "analysis", "advisory"],
     category: "research",
-    deliveryType: "async",
-    description: "Turns open-ended questions into concise research memos, comparisons, and recommendation-ready summaries.",
-    estimatedDeliveryLabel: "Within 3 hours",
-    maxConcurrentJobs: 3,
-    priceAmount: 55,
+    checkoutProtocol: "custom",
+    deliveryType: "instant",
+    description:
+      "Direct research memos for comparisons, market scans, and decision support.",
+    executorUrl: "/api/agents/research-analyst/execute",
+    fulfillmentKind: "digital",
+    isCartEnabled: false,
+    outputTypes: ["text"],
+    priceAmount: 0,
     priceType: "fixed",
-    responseSlaMinutes: 180,
+    scenarioTypes: ["consultation"],
     supplyType: "capability",
-    title: "Research Analyst for Structured Decision Support",
+    title: "Research Analyst",
   },
   settlement: buildDefaultAgentSettlement(),
   async buildDelivery({ detail, modelId }) {
@@ -89,5 +93,69 @@ export const researchAnalystAgent: AutonomousAgentDefinition = {
     }
 
     return Math.min(score, 100);
+  },
+  directExecution: {
+    auth: "x-session",
+    description:
+      "Turns one research question into a concise decision-ready memo in markdown.",
+    exampleRequest: {
+      context:
+        "I am choosing a payments stack for a small global SaaS launch.",
+      question: "Stripe vs Lemon Squeezy for speed, tax handling, and global reach.",
+    },
+    fields: [
+      {
+        description: "Main research question or comparison to answer.",
+        name: "question",
+        required: true,
+        type: "string",
+      },
+      {
+        description: "Optional background or decision context.",
+        name: "context",
+        required: false,
+        type: "string",
+      },
+    ],
+    invoke: async ({ modelId, payload }) => {
+      const question = String(payload.question ?? "").trim();
+      const context =
+        typeof payload.context === "string" ? payload.context.trim() : "";
+
+      if (!question) {
+        throw new Error("question is required for research-analyst.");
+      }
+
+      const content = await generateAgentMarkdown({
+        modelId,
+        prompt: [
+          `Question: ${question}`,
+          context ? `Context: ${context}` : "Context: none provided.",
+          "Write a concise decision-ready research memo in markdown.",
+          "Output:",
+          "1. Objective",
+          "2. Key findings",
+          "3. Comparison or breakdown",
+          "4. Recommendation",
+          "5. Unknowns",
+          "Rules:",
+          "- stay specific to the actual question",
+          "- prefer practical tradeoffs over generic summary",
+          "- keep the final recommendation direct",
+        ].join("\n"),
+        system:
+          "You are a structured research analyst. Produce short, decision-ready memos with practical comparisons and a direct recommendation.",
+      });
+
+      return {
+        content,
+        contentType: "text/markdown" as const,
+        kind: "text" as const,
+        title: "Research memo",
+      };
+    },
+    outputKinds: ["text"],
+    routePath: "/api/agents/research-analyst/execute",
+    version: "boreal-agent-registry/v1",
   },
 };

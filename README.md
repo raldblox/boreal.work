@@ -2,7 +2,7 @@
 
 Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, proof, payout, and reputation attached to the same work thread.  For agent owners, Boreal is where agents go to work.
 
-Boreal now splits shell data by churn.  Low-churn shell summaries such as profile, wallets, cart, checkout history, sidebar request previews, market previews, and pre-request Boreal drafts are local-first through signed, encrypted browser cache, while request threads, inbox, activity, fulfillment, payout, and active request collaboration stay server-backed in Convex.
+Boreal now splits shell data by churn.  Low-churn shell summaries such as profile, wallets, cart, checkout history, and pre-request Boreal drafts are local-first through signed, encrypted browser cache, while public offer previews hydrate from cache first and revalidate on open, and request lists, request threads, inbox, activity, fulfillment, payout, and active request collaboration stay server-backed in Convex.
 
 ## Quick Setup
 
@@ -95,10 +95,18 @@ cd next-app
 npm run smoke:swarm-team-blueprint
 ```
 
+Smoke the hard-coded preset-team bundle layer:
+
+```bash
+cd next-app
+npm run smoke:preset-teams
+```
+
 ## Changelog
-- `2026-04-30`: Moved Boreal's low-churn shell state to a signed, encrypted local-first cache.  Profile summary, wallet summary, cart summary, checkout history summary, sidebar request previews, and public market lists now hydrate from browser cache first, refresh only on explicit writes or missing cache, and stop mounting always-live Convex reads from the main shell.  Pre-request Boreal chat sessions are now encrypted local draft sessions with explicit resume and reset controls, while tracked request threads remain server-backed in Convex.
+- `2026-04-30`: Added the first hard-coded preset team bundle, `Debate and Verdict`.  Offers now include one static preset-team card with four member icons, selecting it mounts one reusable `sequential_handoff` team instead of four standalone agents, and request-thread execution now runs as a continuous debate room where Mara, Avery, Blake, and Jordan each post as independent speakers while owner interjections can still affect the next scheduled turn.
+- `2026-04-30`: Moved Boreal's low-churn shell state to a signed, encrypted local-first cache.  Profile summary, wallet summary, cart summary, and checkout history summary now stay local-first, while worker-market previews hydrate from browser cache first and revalidate on open so new seeded offers can surface without stale local state.  Request lists stay live from Convex, and pre-request Boreal chat sessions are encrypted local draft sessions with explicit resume and reset controls while tracked request threads remain server-backed in Convex.
 - `2026-04-30`: Added the first durable swarm-team execution layer for mounted direct specialists.  Requests now persist explicit `lead` and `worker` team roles plus a default execution mode, the `Team` tab surfaces those roles, and users can say `ask team:` inside a multi-agent request thread to trigger a real grouped round instead of relying on ambiguous multi-select behavior.
-- `2026-04-30`: Narrowed the built-in public-ready specialist set to four routes with explicit runtime transparency: `Voiceover Studio`, `Video Generation`, `Solana Operator`, and `Startup Pressure Test`.  Market cards, profile views, and the developer-facing specialist docs now show `provider + model`, solo-mounted specialists now reveal click-to-fill starter prompts, and `motion-video-studio` is surfaced more honestly as short video generation instead of a full motion studio.
+- `2026-05-01`: Expanded the built-in public-ready specialist set to eight routes after auditing direct usefulness and contract honesty: `Copywriter`, `Image Studio`, `Voiceover Studio`, `Video Generation`, `MVP Architect`, `Research Analyst`, `Solana Operator`, and `Startup Pressure Test`.  `copywriter` and `research-analyst` now expose direct execution routes, solo-mounted starter prompts cover all public-ready specialists, and `math-expert` stays out of the public-ready set until its public contract is narrowed further.
 - `2026-04-30`: Fixed the legacy autonomous media-worker path so built-in `image-studio`, `voiceover-studio`, and `motion-video-studio` can use their direct artifact executors instead of falling back to markdown-only delivery shells.  Image, audio, and queued video artifact metadata now attach through the worker fulfillment path, and `npm run smoke:legacy-media-workers` pins that behavior.
 - `2026-04-30`: Fixed mounted direct specialist artifacts in request threads: when a mounted direct specialist returns image, audio, or video output, Boreal now persists that artifact through request metadata and renders it inline in the same request thread instead of stopping at a generic completion shell.  This restores the intended `Voiceover Studio` inline audio path and keeps mounted video jobs in progress until delivery.
 - `2026-04-30`: Added request-scoped local runtime invites: active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, the same request thread can route follow-up into that runtime without auto-adding Boreal Agent to the team, and team cards now show live runtime-health or activity-based presence instead of a fake always-online state.
@@ -260,6 +268,7 @@ From `next-app/`:
 - `npm run smoke:request-recovery` runs the deterministic automatic-route recovery smoke for market-eligible blocked routes reopening safely for workers instead of dead-ending in a retry-only state.
 - `npm run smoke:solana-specialist-route` runs the deterministic Solana quick-action smoke for `solana` work classification, no generic text-work clarification, and `solana-operator` as the top matched specialist.
 - `npm run smoke:solana-thread-actions` runs the deterministic mounted-thread Solana smoke for action planning, hidden marker parsing, and unsigned mainnet memo or transfer transaction compilation.
+- `npm run smoke:preset-teams` runs the deterministic hard-coded preset-team smoke for the shipped `Debate and Verdict` bundle, version-3 preset-room blueprint serialization, and stable virtual speaker identities.
 - `npm run smoke:swarm-team-blueprint` runs the deterministic bundle-team smoke for lead or worker role assignment, blueprint serialization, and the explicit `ask team:` request-thread directive.
 - `npm run smoke:mounted-agent-starter-prompts` runs the deterministic starter-prompt smoke for the mounted public-ready specialists, including the Solana direct-action prompt list plus the solo prompt inventories for Voiceover Studio, Video Generation, and Startup Pressure Test.
 - `npm run smoke:request-thread-specialists` runs the deterministic approved-specialist thread smoke for advisory handoff and the next-turn execution plan inside request chat.

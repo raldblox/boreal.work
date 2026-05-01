@@ -232,7 +232,7 @@ export function AccountPageClient() {
         throw new Error("Could not update profile availability.")
       }
 
-      await refreshShellData(["profile-summary", "sidebar-summary"])
+      await refreshShellData(["profile-summary"])
 
       setNotice(
         checked
@@ -321,7 +321,7 @@ export function AccountPageClient() {
         }
       }
 
-      await refreshShellData(["profile-summary", "sidebar-summary"])
+      await refreshShellData(["profile-summary"])
       purgePublicMarket(["workers"])
 
       setNotice(

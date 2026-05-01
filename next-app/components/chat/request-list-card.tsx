@@ -1,7 +1,7 @@
 "use client"
 
+import { PresetTeamMemberIcons } from "@/components/chat/preset-team-member-icons"
 import { AgentIdentityIcon } from "@/components/ui/agent-identity-icon"
-import { Button } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
@@ -9,10 +9,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { SidebarIntentPreview } from "@/lib/boreal/integrations/convex/function-refs"
+import {
+  inferPresetTeamDefinitionFromRequestLike,
+  resolvePresetTeamDefinitionFromParticipants,
+} from "@/lib/boreal/swarm/preset-teams"
 import { cn } from "@/lib/utils"
 
 import {
-  formatNotificationCount,
   getDefaultRequestNavigationView,
   getPreviewRequestNotificationCounts,
   type RequestNavigationView,
@@ -32,6 +35,13 @@ export function RequestListCard({
   const nonOwnerParticipants = intent.participants.filter(
     (participant) => participant.status !== "owner"
   )
+  const presetDefinition =
+    resolvePresetTeamDefinitionFromParticipants(nonOwnerParticipants) ??
+    inferPresetTeamDefinitionFromRequestLike({
+      assignedAgent: intent.assignedAgent,
+      summary: intent.summary,
+      title: intent.title,
+    })
   const counts = getPreviewRequestNotificationCounts(intent)
   const defaultView = getDefaultRequestNavigationView(counts)
 
@@ -69,45 +79,8 @@ export function RequestListCard({
         <ParticipantAvatarRow
           onOpenParticipants={() => onOpen(intent, "participants")}
           participants={nonOwnerParticipants}
+          presetDefinition={presetDefinition}
         />
-        <div className="flex flex-wrap items-center gap-1.5">
-          {nonOwnerParticipants.length > 0 ? (
-            <Button
-              className="h-6 px-2.5 text-[11px] tracking-[0.16em] uppercase"
-              onClick={() => onOpen(intent, "participants")}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Team
-              {formatNotificationCount(counts.participants)}
-            </Button>
-          ) : (
-            <Button
-              className="h-6 px-2.5 text-[11px] tracking-[0.16em] uppercase"
-              onClick={() => onOpen(intent, "participants")}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              No team yet
-            </Button>
-          )}
-          {counts.workspace > 0 ? (
-            <Button
-              className="h-6 px-2.5 text-[11px] tracking-[0.16em] uppercase"
-              onClick={() => onOpen(intent, "workspace")}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              Workboard
-              <span className="text-primary">
-                {formatNotificationCount(counts.workspace)}
-              </span>
-            </Button>
-          ) : null}
-        </div>
       </div>
     </div>
   )
@@ -116,47 +89,57 @@ export function RequestListCard({
 function ParticipantAvatarRow({
   onOpenParticipants,
   participants,
+  presetDefinition,
 }: {
   onOpenParticipants: () => void
   participants?: SidebarIntentPreview["participants"]
+  presetDefinition?: ReturnType<typeof resolvePresetTeamDefinitionFromParticipants>
 }) {
   const safeParticipants = participants ?? []
 
-  if (safeParticipants.length === 0) {
+  if (safeParticipants.length === 0 && !presetDefinition) {
     return null
   }
 
   return (
     <TooltipProvider>
       <button
-        className="flex items-center"
+        className="flex items-center gap-2"
         onClick={onOpenParticipants}
         type="button"
       >
-        {safeParticipants.slice(0, 4).map((participant, index) => {
-          return (
-            <Tooltip key={`${participant.displayName}-${index}`}>
-              <TooltipTrigger asChild>
-                <span
-                  className={cn(
-                    "relative -ml-1.5 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground first:ml-0"
-                  )}
-                >
-                  <AgentIdentityIcon
-                    actorKind={participant.kind}
-                    className="size-3.5"
-                    displayName={participant.displayName}
-                    externalId={participant.externalId}
-                    handle={participant.handle}
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                {participant.displayName}
-              </TooltipContent>
-            </Tooltip>
-          )
-        })}
+        {presetDefinition ? (
+          <PresetTeamMemberIcons
+            countLabel={`${presetDefinition.memberPreview.length} voices`}
+            members={presetDefinition.memberPreview}
+            size="sm"
+          />
+        ) : (
+          safeParticipants.slice(0, 4).map((participant, index) => {
+            return (
+              <Tooltip key={`${participant.displayName}-${index}`}>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "relative -ml-1.5 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground first:ml-0"
+                    )}
+                  >
+                    <AgentIdentityIcon
+                      actorKind={participant.kind}
+                      className="size-3.5"
+                      displayName={participant.displayName}
+                      externalId={participant.externalId}
+                      handle={participant.handle}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {participant.displayName}
+                </TooltipContent>
+              </Tooltip>
+            )
+          })
+        )}
       </button>
     </TooltipProvider>
   )

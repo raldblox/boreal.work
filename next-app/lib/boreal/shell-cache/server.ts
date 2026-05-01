@@ -59,12 +59,6 @@ export async function getSignedBootstrapEnvelopes() {
         payload: payload.profileSummary,
         signer,
       }),
-      "sidebar-summary": await signEnvelope({
-        cacheKey: "sidebar-summary",
-        ownerScope: `user:${ownerExternalId}`,
-        payload: payload.sidebarSummary,
-        signer,
-      }),
       "wallet-summary": await signEnvelope({
         cacheKey: "wallet-summary",
         ownerScope: `user:${ownerExternalId}`,
@@ -193,7 +187,6 @@ export function isStaticShellCacheKey(key: CacheKey): key is StaticShellCacheKey
     key === "cart-summary" ||
     key === "checkout-history-summary" ||
     key === "profile-summary" ||
-    key === "sidebar-summary" ||
     key === "wallet-summary"
   )
 }
@@ -212,7 +205,6 @@ async function loadShellBootstrapPayload(
       ownerExternalId,
     ),
     profileSummary: await loadStaticShellPayload("profile-summary", ownerExternalId),
-    sidebarSummary: await loadStaticShellPayload("sidebar-summary", ownerExternalId),
     walletSummary: await loadStaticShellPayload("wallet-summary", ownerExternalId),
   }
 }
@@ -235,11 +227,6 @@ async function loadStaticShellPayload<K extends StaticShellCacheKey>(
       }) as Promise<ShellCachePayloadByKey[K]>
     case "profile-summary":
       return convex.query(convexFunctionRefs.getMyProfile, {
-        ownerExternalId,
-      }) as Promise<ShellCachePayloadByKey[K]>
-    case "sidebar-summary":
-      return convex.query(convexFunctionRefs.listSidebarIntents, {
-        limit: 24,
         ownerExternalId,
       }) as Promise<ShellCachePayloadByKey[K]>
     case "wallet-summary":
