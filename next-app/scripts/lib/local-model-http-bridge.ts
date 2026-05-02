@@ -183,6 +183,11 @@ async function handleRequest(input: {
 }) {
   const url = new URL(input.request.url ?? "/", "http://127.0.0.1");
 
+  if (input.request.method === "OPTIONS") {
+    writePreflight(input.response);
+    return;
+  }
+
   if (input.request.method === "GET" && url.pathname === input.config.healthPath) {
     writeJson(input.response, 200, {
       baseUrl: input.config.baseUrl,
@@ -201,8 +206,9 @@ async function handleRequest(input: {
   }
 
   if (input.request.method === "GET" && url.pathname === input.config.promptPath) {
-    input.response.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-    input.response.end(
+    writeText(
+      input.response,
+      200,
       createQuickConnectPrompt({
         borealOrigin: input.config.borealOrigin,
         bridgeUrl: `${guessPublicBaseUrl(input.config)}${input.config.path}`,
@@ -531,7 +537,29 @@ async function readJsonBody(request: IncomingMessage) {
 
 function writeJson(response: ServerResponse, statusCode: number, value: unknown) {
   response.writeHead(statusCode, {
+    ...BRIDGE_CORS_HEADERS,
     "Content-Type": "application/json; charset=utf-8",
   });
   response.end(JSON.stringify(value));
+}
+
+// Browser-side runtime presence checks now hit the local bridge directly
+// instead of tunneling through Boreal's server runtime.
+const BRIDGE_CORS_HEADERS = {
+  "Access-Control-Allow-Headers": "Content-Type, X-Boreal-Connected-Agent",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Origin": "*",
+};
+
+function writePreflight(response: ServerResponse) {
+  response.writeHead(204, BRIDGE_CORS_HEADERS);
+  response.end();
+}
+
+function writeText(response: ServerResponse, statusCode: number, value: string) {
+  response.writeHead(statusCode, {
+    ...BRIDGE_CORS_HEADERS,
+    "Content-Type": "text/plain; charset=utf-8",
+  });
+  response.end(value);
 }

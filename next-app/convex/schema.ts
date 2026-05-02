@@ -632,6 +632,17 @@ export default defineSchema({
     .index("by_actorExternalId_and_lastUsedAt", ["actorExternalId", "lastUsedAt"])
     .index("by_walletAddress", ["walletAddress"]),
 
+  siwxChallenges: defineTable({
+    challengeTokenHash: v.string(),
+    consumedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    updatedAt: v.number(),
+    walletAddress: v.string(),
+  })
+    .index("by_challengeTokenHash", ["challengeTokenHash"])
+    .index("by_walletAddress_and_createdAt", ["walletAddress", "createdAt"]),
+
   agentRequestSessions: defineTable({
     chainFamily: chainFamilyValidator,
     conversationId: v.optional(v.string()),

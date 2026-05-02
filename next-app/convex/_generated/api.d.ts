@@ -24,6 +24,7 @@ import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
 import type * as requestApi from "../requestApi.js";
 import type * as serviceProviders from "../serviceProviders.js";
+import type * as siwxChallenges from "../siwxChallenges.js";
 import type * as supplies from "../supplies.js";
 import type * as transactionScenarios from "../transactionScenarios.js";
 import type * as validators from "../validators.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   proposals: typeof proposals;
   requestApi: typeof requestApi;
   serviceProviders: typeof serviceProviders;
+  siwxChallenges: typeof siwxChallenges;
   supplies: typeof supplies;
   transactionScenarios: typeof transactionScenarios;
   validators: typeof validators;

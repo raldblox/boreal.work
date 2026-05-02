@@ -8,16 +8,6 @@ type LocalRuntimeSupplyShape = {
   title?: string | null;
 };
 
-const LOCAL_RUNTIME_TAGS = new Set([
-  "local",
-  "local-runtime",
-  "localhost",
-  "lmstudio",
-  "ollama",
-  "request-runtime",
-  "runtime",
-])
-
 export function isLoopbackHostname(hostname: string) {
   const normalized = hostname.trim().toLowerCase()
   return (
@@ -48,7 +38,10 @@ export function isLocalRuntimeEndpoint(endpoint: string | null | undefined) {
     return false
   }
 
-  return isLoopbackHostname(parsed.hostname)
+  return (
+    (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+    isLoopbackHostname(parsed.hostname)
+  )
 }
 
 export function isLocalRuntimeSupply(input: LocalRuntimeSupplyShape) {
@@ -64,24 +57,15 @@ export function isLocalRuntimeSupply(input: LocalRuntimeSupplyShape) {
     return false
   }
 
-  if (
-    isLocalRuntimeEndpoint(input.executorUrl) ||
-    isLocalRuntimeEndpoint(input.mcpServerUrl)
-  ) {
-    return true
-  }
-
-  const tags = (input.capabilityTags ?? []).map((tag) => tag.toLowerCase())
-  if (tags.some((tag) => LOCAL_RUNTIME_TAGS.has(tag))) {
-    return true
-  }
-
-  const title = input.title?.trim().toLowerCase() ?? ""
+  // Tags and titles are discovery hints only. Treat a supply as request-scoped
+  // local runtime only when the stored execution endpoint itself is loopback.
   return (
-    title.includes("ollama") ||
-    title.includes("lm studio") ||
-    title.includes("lmstudio") ||
-    title.includes("local runtime")
+    (input.executionSurface === "http" || input.executionSurface === "jsonrpc"
+      ? isLocalRuntimeEndpoint(input.executorUrl)
+      : false) ||
+    (input.executionSurface === "mcp"
+      ? isLocalRuntimeEndpoint(input.mcpServerUrl)
+      : false)
   )
 }
 

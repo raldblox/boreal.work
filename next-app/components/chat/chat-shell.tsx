@@ -7119,19 +7119,33 @@ function RequestWorkersPanel({
       const results = await Promise.all(
         runtimeTargets.map(async (target) => {
           const healthUrl = getRuntimeHealthUrl(target.endpoint) ?? target.endpoint
+          const controller = new AbortController()
+          const timer = window.setTimeout(() => controller.abort(), 4000)
 
           try {
-            const response = await fetch(
-              `/api/runtime-presence?endpoint=${encodeURIComponent(healthUrl)}`,
-              {
-                cache: "no-store",
-              }
-            )
-            const payload = (await response.json()) as { ok?: boolean }
+            // Probe from the owner's browser so localhost resolves to the
+            // owner's machine, not Boreal's server runtime.
+            const response = await fetch(healthUrl, {
+              cache: "no-store",
+              headers: {
+                Accept: "application/json",
+              },
+              method: "GET",
+              mode: "cors",
+              signal: controller.signal,
+            })
+            const payload = (await response
+              .json()
+              .catch(() => null)) as { ok?: boolean } | null
 
-            return [target.supplyId, payload.ok ? "active" : "offline"] as const
+            return [
+              target.supplyId,
+              response.ok && payload?.ok !== false ? "active" : "offline",
+            ] as const
           } catch {
             return [target.supplyId, "offline"] as const
+          } finally {
+            window.clearTimeout(timer)
           }
         })
       )

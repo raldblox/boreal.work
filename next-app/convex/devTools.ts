@@ -31,6 +31,7 @@ const DEV_WIPE_TABLES = [
   "supplierRequestDecisions",
   "agentRequestEvents",
   "agentRequestSessions",
+  "siwxChallenges",
   "walletSessions",
   "transactionApprovals",
   "paymentAttempts",

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { createSiwxChallenge } from "@/lib/boreal/one-request/auth";
+import { api } from "@/convex/_generated/api";
+import { createConvexServerClient } from "@/lib/boreal/integrations/convex/server-client";
+import {
+  createSignedTokenFingerprint,
+  createSiwxChallenge,
+} from "@/lib/boreal/one-request/auth";
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +19,16 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(createSiwxChallenge({ walletAddress }));
+    const challenge = createSiwxChallenge({ walletAddress });
+    const convex = createConvexServerClient();
+
+    await convex.mutation(api.siwxChallenges.registerChallenge, {
+      challengeTokenHash: createSignedTokenFingerprint(challenge.challengeToken),
+      expiresAt: challenge.expiresAt,
+      walletAddress,
+    });
+
+    return NextResponse.json(challenge);
   } catch (error) {
     return NextResponse.json(
       {

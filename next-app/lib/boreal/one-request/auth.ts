@@ -32,6 +32,7 @@ type ChallengePayload = {
 const BOREAL_HOST = "boreal.work";
 const DEFAULT_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CHALLENGE_TTL_MS = 10 * 60 * 1000;
+const DEVELOPMENT_SIGNING_SECRET = "boreal-one-request-dev-secret";
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
@@ -63,10 +64,7 @@ export function verifySiwxChallenge(input: {
   signature: string;
   walletAddress: string;
 }) {
-  const payload = verifySignedPayload<ChallengePayload>(
-    input.challengeToken,
-    "boreal-siwx-challenge",
-  );
+  const payload = readSiwxChallengeToken(input.challengeToken);
 
   if (payload.walletAddress !== input.walletAddress) {
     throw new Error("Wallet address does not match the issued challenge.");
@@ -85,6 +83,13 @@ export function verifySiwxChallenge(input: {
     }),
     walletAddress: input.walletAddress,
   };
+}
+
+export function readSiwxChallengeToken(challengeToken: string) {
+  return verifySignedPayload<ChallengePayload>(
+    challengeToken,
+    "boreal-siwx-challenge",
+  );
 }
 
 export function createSessionToken(input: { walletAddress: string }) {
@@ -121,6 +126,10 @@ export function createRequestFingerprint(message: string) {
   return createHash("sha256")
     .update(normalizeMessage(message))
     .digest("hex");
+}
+
+export function createSignedTokenFingerprint(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function createOpaqueToken(label: string, seed?: string) {
@@ -304,7 +313,21 @@ function verifySignedPayload<T extends { exp: number; purpose: string }>(
 }
 
 function getSigningSecret() {
-  return process.env.BOREAL_ONE_REQUEST_SECRET ?? "boreal-one-request-dev-secret";
+  const configuredSecret = process.env.BOREAL_ONE_REQUEST_SECRET?.trim();
+
+  if (configuredSecret) {
+    return configuredSecret;
+  }
+
+  // Production must fail closed here. A shared fallback secret would let
+  // anyone mint Boreal bearer tokens for arbitrary wallets.
+  if (process.env.NODE_ENV !== "production") {
+    return DEVELOPMENT_SIGNING_SECRET;
+  }
+
+  throw new Error(
+    "Missing BOREAL_ONE_REQUEST_SECRET for the one-request auth boundary.",
+  );
 }
 
 function base64UrlEncode(value: Buffer) {

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { createConvexServerClient } from "@/lib/boreal/integrations/convex/server-client";
 import {
+  createSignedTokenFingerprint,
   getWalletDisplayName,
   getWalletExternalId,
   verifySiwxChallenge,
@@ -36,6 +37,21 @@ export async function POST(request: Request) {
       walletAddress,
     });
     const convex = createConvexServerClient();
+    const consumeResult = await convex.mutation(api.siwxChallenges.consumeChallenge, {
+      challengeTokenHash: createSignedTokenFingerprint(challengeToken),
+      walletAddress,
+    });
+
+    if (!consumeResult.consumed) {
+      throw new Error(
+        consumeResult.reason === "challenge_used"
+          ? "SIWX challenge already used. Request a fresh challenge."
+          : consumeResult.reason === "challenge_expired"
+            ? "SIWX challenge expired. Request a fresh challenge."
+            : "SIWX challenge not found. Request a fresh challenge.",
+      );
+    }
+
     const ownerExternalId = getWalletExternalId(walletAddress);
     const networkKey = getDefaultSolanaNetworkKey();
     const environment = getDefaultSolanaEnvironment();
