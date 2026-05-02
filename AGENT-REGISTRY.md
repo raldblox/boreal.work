@@ -1,6 +1,6 @@
 # Boreal Agent Registry
 
-Boreal exposes specialized agents as callable supply.  Boreal Agent stays focused on core request orchestration, while specialized agents publish their own public profile, supply entry, direct execution route, and protocol descriptor.
+Boreal exposes specialized agents as callable supply.  Boreal Agent stays focused on free request orchestration, while specialized agents publish their own public profile, supply entry, direct execution route, and funded execution contract.
 
 This document is now the source of truth for the advanced specialist surface.  The live request-first demand front door lives in `ONE_REQUEST_API.md`, and the live supplier-side market companion lives in `ONE_INBOX_API.md`.
 
@@ -21,7 +21,7 @@ Use the registry when an agent should:
 - run with Boreal-owned credentials and routing policy
 - stay callable by Boreal, other agent owners, or future external integrations after a request has already been routed or when a caller explicitly wants a specialist contract
 
-This is the current pattern for media-generation agents and structured advisory agents.
+This is the current pattern for media-generation agents and structured advisory agents, and it should converge toward the same request-first funded-start model Boreal already uses in `ONE_REQUEST_API.md`.
 
 ## Current Version
 
@@ -51,6 +51,12 @@ Compatibility note:
 - the older `/api/agents/*` aliases still exist
 - public docs and new integrations should use `/api/v1/agents/*`
 
+Strategic direction:
+
+- keep these routes as advanced direct specialist surfaces
+- treat `POST /api/v1/requests` as the canonical paid execution front door
+- migrate Boreal's visible paid specialist UX toward the same funded request-thread model instead of splitting paid behavior across multiple stories
+
 ### Live request-first front door
 
 The premium agent-facing contract is request-first, not registry-first:
@@ -74,6 +80,26 @@ Current hardening note:
 - Boreal does not yet claim treasury/payto-grade settlement verification on this path
 
 The registry remains important, but it should not be the first demand API a caller has to understand.
+
+## Funding Model By Route Type
+
+Use this split everywhere:
+
+- `Boreal Agent`
+  - free orchestration
+  - intake, clarification, routing, and request formation
+- `Request-first specialist execution`
+  - canonical paid path
+  - one locked route
+  - `402 payment_required`
+  - Solana verification before execution
+- `Direct registry execution`
+  - advanced specialist surface
+  - not the main paid Boreal story
+  - useful when a caller intentionally wants a single specialist contract
+- `Supplier inbox and proposal work`
+  - custom market path
+  - proposals, claim, delivery, and payout on top of the request
 
 ### Live supplier-side inbox and onboarding
 
@@ -164,8 +190,9 @@ Role:
 - default home-chat orchestration when no specialist is mounted
 - work-thread state management
 
+Boreal Agent should stay free at the orchestration layer.
 Boreal Agent is not the public execution surface for media generation anymore.
-Boreal Agent is also not the premium `one request` media executor.  It routes, freezes quotes, and coordinates specialist execution.
+Boreal Agent is also not the premium `one request` executor.  It routes, freezes quotes, and coordinates specialist execution.
 
 In-product chat behavior:
 
@@ -173,9 +200,16 @@ In-product chat behavior:
 - only agent offers mount into the composer team
 - mounting one or more non-Boreal specialists puts chat into a ready work-thread posture immediately
 - the next submit opens one tracked request for that selected specialist team without a separate approval gate
+- if that selected route is paid, Boreal's canonical behavior should be to move the request into a funded-start boundary instead of silently starting execution
 - once mounted text specialists own the request, follow-up messages stay on that request thread, the assigned specialist team should answer there instead of bouncing the owner back into generic Boreal sessions, and request chat should not shadow those replies with duplicate Boreal-agent output
 
 ### Public-ready specialists
+
+Product policy:
+
+- Boreal Agent stays free for orchestration
+- public-ready specialists should be treated as funded execution routes by default unless a route is explicitly free or allowlisted
+- the long-term goal is for Boreal-owned and external x402-compatible specialists to share the same request-first funded-start behavior
 
 - `copywriter`
   - direct product and launch copy in markdown

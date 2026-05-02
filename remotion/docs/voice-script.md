@@ -1,17 +1,17 @@
 # Boreal Voice Script
 
-This is the master voiceover and shot-timing source for the Remotion film.  
-It now matches the scene timing in `remotion/src/data/video-variants.ts` and the lighter, demo-first composition in `remotion/src/components/BorealSurface.tsx`.
+This is the master voiceover source for the Boreal Remotion film.  
+It should now stay aligned with `remotion/docs/scenes.md`, the funded-request wedge in `ONE_REQUEST_API.md`, and the product canon in `BOREAL_BOOK.md`.
 
 ## Rule
 
-This is not a slide deck voiceover.  
-Each section should sound like narration over a product film:
+This is product narration, not a feature dump.
 
 - one idea at a time
-- no scene numbers spoken
-- no UI labels repeated unless they matter
-- on-screen overlay should reinforce, not duplicate, the narration
+- do not read button labels unless they matter
+- do not over-explain providers or internal routing
+- keep Solana practical, not ideological
+- let the UI prove the claim
 
 Calibrated for a confident read at roughly 135 to 145 words per minute.
 
@@ -20,280 +20,260 @@ Calibrated for a confident read at roughly 135 to 145 words per minute.
 Composition: `HackathonUpdate60Sec`  
 Runtime: `1:00`
 
-This is the cut to submit as the current-state Solana hackathon update.  
-It should feel like a technical progress proof, not a generic launch ad.
+This cut should feel like a sharp progress update.  
+Lead with what changed in the product loop, not with a company introduction.
 
-### 00:00 - 00:07
+### 00:00 - 00:08
 
 Visual:
-- demand heatmap
-- unresolved logs
-- dead-end request fragments
+- unresolved prompts
+- dead-end work fragments
+- frozen request attempts
 
 Overlay sequence:
-- `Intent disappears into logs, dashboards, and dead threads.`
-- `The demand signal is there. The route is not.`
+- `Requests still disappear.`
+- `Execution still starts too late.`
 
 Voiceover:
 
-> Every day, valuable requests disappear into chat logs, dashboards, and dead threads.  
-> The demand signal exists. What is missing is a route to real fulfillment.
+> Most AI and software tools still stop at the ask.  
+> The request disappears before execution ever gets funded or tracked.
 
-### 00:07 - 00:20
+### 00:08 - 00:18
 
 Visual:
-- request enters chat
-- Boreal structures the workspace
-- score breakdown appears
+- Boreal home or chat shell
+- Boreal Agent mounted by default
+- one real prompt enters
 
 Overlay sequence:
-- `Boreal turns the ask into a live request.`
-- `The matching engine scores the route.`
-- `Direct supply, open market, or both.`
+- `Boreal Agent handles intake for free.`
+- `The ask becomes a request.`
 
 Voiceover:
 
-> Boreal turns the ask into a live request instead of another dead message.  
-> Its matching engine scores humans, agents, products, and provider-backed services against the request.  
-> Then it picks the best path: direct supply, open market, or both together.
+> Boreal Agent now handles intake, clarification, and routing for free.  
+> When the work is real, Boreal turns that ask into one tracked request.
 
-### 00:20 - 00:33
+### 00:18 - 00:30
 
 Visual:
-- instant route
-- matched provider-backed workflow
-- attached evidence and artifacts
+- route preview
+- specialist selected
+- request state becomes `payment required`
 
 Overlay sequence:
-- `When supply already exists, Boreal resolves it fast.`
-- `A provider-backed workflow is matched now.`
-- `Approval starts fulfillment.`
-- `Evidence and delivery attach automatically.`
+- `Best route found.`
+- `Funding starts execution.`
 
 Voiceover:
 
-> When supply already exists, Boreal resolves the request fast.  
-> The system surfaces the best ready path, including provider-backed workflows that can execute now.  
-> One approval moves the request into fulfillment.  
-> Evidence, artifacts, and the result all attach back to the same request.
+> Boreal locks the best specialist route it can support and makes funding the explicit start condition for execution.  
+> Paid work does not begin invisibly.
 
-### 00:33 - 00:44
+### 00:30 - 00:42
 
 Visual:
-- public request board
-- humans and agents respond
-- swarm proposals arrive
+- quote
+- signature or payment proof
+- verified Solana mainnet state
+- request resumes
 
 Overlay sequence:
-- `When it does not, Boreal opens a swarm.`
-- `Humans and agents converge on the work.`
-- `The right builders can find the work.`
+- `Verified on Solana mainnet.`
+- `The same request resumes.`
 
 Voiceover:
 
-> When the right supply does not already exist, Boreal opens a swarm around the request.  
-> Humans and agents converge through searchable profiles, proposals, and open requests in one market surface.  
-> That makes the work legible to the right builders before it disappears again.
+> Boreal verifies the payment authorization against a real Solana mainnet transaction before work starts.  
+> Then the same request resumes instead of restarting somewhere else.
 
-### 00:44 - 00:54
+### 00:42 - 00:54
 
 Visual:
-- accepted proposal
-- delivery thread
-- attached evidence
+- specialist output in-thread
+- delivery or artifact
+- Debate and Verdict or Solana action proof moment
 
 Overlay sequence:
-- `Proposal, approval, delivery.`
-- `The request stays accountable to completion.`
+- `Execution, evidence, delivery.`
+- `Still one thread.`
 
 Voiceover:
 
-> Proposal, approval, and delivery stay attached to one accountable thread.  
-> The request does not disappear. It stays accountable all the way to completion.
+> Execution, evidence, and delivery stay on the same thread.  
+> That same surface already holds structured multi-agent work and wallet-approved Solana actions.
 
 ### 00:54 - 01:00
 
 Visual:
-- launch status board
-- built-now tiles
-- close mark
+- closing montage
+- request thread
+- Boreal mark
 
 Overlay sequence:
-- `Matching live. Profiles live. Requests live.`
-- `Provider sync wired. Closing in on launch.`
+- `One request.`
+- `One funded work thread.`
 
 Voiceover:
 
-> What you are seeing now is already live: matching, profiles, requests, and accountable delivery.  
-> Boreal is closing in on launch. Commerce, headed north.
+> Boreal is the request-native work and payment layer for the agent economy.
 
 ## Master Cut
 
 Composition: `HackathonPitch3Min`  
 Runtime: `3:00`
 
-### 00:00 - 00:18
+### 00:00 - 00:14
 
 Visual:
 - unresolved demand fragments
-- prompts and dead ends
+- dead-end asks
+- chat or tool detritus
 
 Overlay sequence:
-- `Need this done by Friday.`
-- `Can someone handle this?`
+- `Need this done.`
 - `Still unresolved.`
-- `Intent disappears.`
+- `The request disappears.`
 
 Voiceover:
 
-> Every day, people ask for outcomes in chat, search, and software.  
-> Most of that demand gets answered, summarized, or pushed into a log.  
-> The request disappears before the work ever gets routed.  
-> That is the gap Boreal is built to close.
+> Every day, people ask for real outcomes in chat, software, and workflows.  
+> Most of that demand still disappears before the work ever starts.
 
-### 00:18 - 00:38
+### 00:14 - 00:32
 
 Visual:
 - homepage reveal
-- category framing
-- request-to-market loop
+- category card
+- light motion into the shell
 
 Overlay sequence:
-- `A request should not die in chat.`
-- `Demand becomes structured work.`
-- `Supply becomes reachable.`
-- `Fulfillment stays attached.`
+- `Boreal keeps the request alive.`
+- `Chat becomes funded execution.`
 
 Voiceover:
 
-> Boreal is the missing layer between asking and getting something real done.  
-> It turns a vague ask into a tracked request with scope, approval, and context.  
-> It makes the right humans, agents, tools, and products visible at the moment they matter.  
-> And it keeps the outcome attached until the work is actually delivered.
+> Boreal is the request-native work and payment layer for the agent economy.  
+> It turns an AI or human request into a funded work thread.
 
-### 00:38 - 01:08
+### 00:32 - 00:56
 
 Visual:
-- `/chat` workspace
-- request draft
-- approval path
-- matched routes
+- `/chat`
+- Boreal Agent mounted
+- real intake prompt
+- request-ready structure
 
 Overlay sequence:
-- `Start where the ask already exists.`
-- `The ask becomes a request.`
-- `Scope and approval stay explicit.`
-- `Matching stays visible.`
-- `Chat becomes an operating surface.`
+- `Start in natural language.`
+- `Boreal Agent routes for free.`
 
 Voiceover:
 
 > Boreal starts where users already think: in natural language.  
-> A rough prompt becomes a structured workspace instead of another answer in a thread.  
-> The system can clarify the outcome, ask for approval, or open the work for the right participants.  
-> Matching, proposals, direct fulfillment, and spend all stay reviewable in the same surface.  
-> The chat is no longer the product. It is the entry into accountable work.
+> Boreal Agent handles intake, clarification, and routing for free, so the first step is not a checkout and not a ticket form.
 
-### 01:08 - 01:35
+### 00:56 - 01:20
 
 Visual:
-- public supply directory
-- searchable listings
-- Boreal Agent profile
-- open requests
+- request opens
+- route preview
+- selected specialist from `Offers`
+- request thread shell
 
 Overlay sequence:
-- `This is a market, not a private thread.`
-- `Profiles make supply legible.`
-- `Listings stay searchable.`
-- `The right path can be chosen in context.`
+- `The ask becomes one tracked request.`
+- `The best route is locked.`
 
 Voiceover:
 
-> Boreal is not a closed assistant. It is a live market surface.  
-> Humans and agents show up as real profiles with capabilities, trust signals, activity, and packaging.  
-> Services, digital products, and provider-backed tools become searchable supply with structured metadata.  
-> That makes discovery useful at the exact moment a request needs a route.
+> When the work is real, Boreal turns the ask into one tracked request.  
+> It locks the best specialist or team route it can support and keeps the work on one thread.
 
-### 01:35 - 02:00
+### 01:20 - 01:42
 
 Visual:
-- proposal
-- approval
-- work submission
-- review
+- request state `payment required`
+- quote block
+- seller block
+- funding summary
 
 Overlay sequence:
-- `The request stays alive.`
-- `Proposal.`
-- `Approval.`
-- `Delivery and review.`
+- `Payment required.`
+- `Funding starts execution.`
 
 Voiceover:
 
-> Instead of vanishing into a transcript, the request persists as a real workspace.  
-> Participants can propose price, timing, and deliverables directly against the request.  
-> Owners approve the right path explicitly before work or spend moves forward.  
-> Messages, files, fulfillment, and review all stay attached to the same accountable thread.
+> Paid work does not start invisibly.  
+> Boreal shows the quote, the seller, and the exact request that will resume after funding.  
+> The funding boundary is explicit because execution is the thing being bought.
 
-### 02:00 - 02:22
+### 01:42 - 02:04
 
 Visual:
-- direct generation
-- matched listing
-- cart and checkout
-- attached result
+- payment signature
+- receipt proof
+- Solana mainnet verification
+- request moves to `funded` or `executing`
 
 Overlay sequence:
-- `Some work needs a specialist.`
-- `Some work should resolve right here.`
-- `One request. Multiple routes.`
-- `The result still lands on the request.`
+- `Verified on Solana mainnet.`
+- `No rematch. No restart.`
 
 Voiceover:
 
-> Some requests should route to people or specialist agents.  
-> Others should resolve immediately through known supply, products, or provider-backed services.  
-> Boreal handles both inside one operating surface without losing the original context.  
-> The result comes back to the same request instead of getting scattered across tools.
+> Boreal verifies the signed payment authorization against a real Solana mainnet transaction before work begins.  
+> That keeps approval and payment inside the same product loop.  
+> The same request resumes after payment instead of rematching or restarting.
 
-### 02:22 - 02:42
+### 02:04 - 02:30
 
 Visual:
-- market loop
-- approval and settlement framing
-- Solana architecture close
+- specialist execution in-thread
+- artifact or delivery proof
+- follow-up state
 
 Overlay sequence:
-- `Approval can become economic coordination.`
-- `Fast enough to stay in flow.`
-- `Programmable enough to stay trustworthy.`
-- `The market deserves settlement.`
+- `Execution stays attached.`
+- `Evidence stays attached.`
+- `Delivery stays attached.`
 
 Voiceover:
 
-> This market eventually needs more than chat-native workflow. It needs economic coordination.  
-> Solana fits because approvals, payment, and settlement need to be fast enough to stay inside the product loop.  
-> It also needs programmable trust, evidence, and composable payment logic for human-and-agent commerce.  
-> That is why Boreal belongs on Solana.
+> Once funded, specialists execute on the same request thread.  
+> Messages, evidence, artifacts, delivery, and review stay attached to the work instead of scattering across tools.
 
-### 02:42 - 03:00
+### 02:30 - 02:47
 
 Visual:
+- Debate and Verdict room
+- Mara, Avery, Blake, Jordan
+
+Overlay sequence:
+- `Structured multi-agent work.`
+- `Still one request thread.`
+
+Voiceover:
+
+> Boreal can already host structured multi-agent work in that same thread.  
+> Debate and Verdict gives one moderator, two sides, and one closer without losing the request context.
+
+### 02:47 - 03:00
+
+Visual:
+- Solana Operator action card
+- wallet-approved motion
 - closing montage
-- market loop
-- category close
 
 Overlay sequence:
-- `Search finds information.`
-- `Chat generates text.`
-- `Boreal keeps work alive to fulfillment.`
+- `Wallet-approved actions.`
+- `One request. One funded work thread.`
 
 Voiceover:
 
-> Search finds information.  
-> Chat generates text.  
-> Boreal keeps intent alive until it becomes supply, work, commerce, and fulfillment.
+> It can also carry explicit wallet-approved Solana actions in the same surface.  
+> Search finds information. Chat generates text. Boreal keeps the request alive until it becomes funded execution.
 
 ## Derived Cuts
 
@@ -302,48 +282,48 @@ Voiceover:
 Composition: `LaunchCut90Sec`
 
 Use only:
-- `Intent Disappears`
-- `The Missing Layer`
-- `Chat Becomes Structure`
-- `Direct Fulfillment`
-- `The Missing Piece`
+- `Requests disappear`
+- `Boreal names the layer`
+- `Free Boreal intake`
+- `Payment required`
+- `Solana verifies the start`
+- `One request, one funded work thread`
 
-Read tighter.  
-Do not explain Solana or marketplace depth here.  
-This cut should feel like product positioning and proof.
+Keep this cut tight.  
+Do not explain Debate and Verdict or supply breadth unless the UI needs one quick proof moment.
 
 ### Product Pitch
 
 Composition: `ProductPitch2Min`
 
 Use only:
-- `Intent Disappears`
-- `The Missing Layer`
-- `Chat Becomes Structure`
-- `Demand Meets Real Supply`
-- `Proposal To Delivery`
-- `The Missing Piece`
+- `Requests disappear`
+- `Boreal names the layer`
+- `Free Boreal intake`
+- `Best route found`
+- `Payment required`
+- `Specialists execute on the same thread`
 
-This is the best general-purpose product film.  
-Keep the narration focused on category, workflow, and accountability.
+This is the best general-purpose startup film.  
+Keep the narration centered on the funded request loop.
 
 ### Technical Demo
 
 Composition: `TechnicalDemo150Sec`
 
 Use only:
-- `Chat Becomes Structure`
-- `Demand Meets Real Supply`
-- `Proposal To Delivery`
-- `Direct Fulfillment`
-- `Why Solana`
+- `Free Boreal intake`
+- `Best route found`
+- `Payment required`
+- `Solana verifies the start`
+- `Specialists execute on the same thread`
 
-This cut can afford slightly more implementation language, but it should still sound like a product demo, not a system architecture lecture.
+This cut can use slightly more implementation language, but it should still sound like a product demo instead of a system lecture.
 
 ## Delivery Notes
 
 - Read with conviction, not startup hype.
-- Pause slightly before each final overlay line in a scene.
-- Do not over-pronounce product labels like button text.
-- Let the UI do most of the explanation.
-- If audio is generated later, keep clips scene-scoped so each Remotion `Sequence` can be synced or replaced independently.
+- Pause before final overlay lines.
+- Do not oversell unshipped escrow or generalized settlement.
+- Keep Debate and Verdict as proof, not thesis.
+- Keep Solana practical: verification, approval, payment, execution start.

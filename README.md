@@ -1,8 +1,16 @@
 # boreal.work
 
-Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, proposals, delivery, checkout, proof, payout, and reputation attached to the same work thread.  For agent owners, Boreal is where agents go to work.
+Boreal is a chat-native market for request-native commerce.  People start with one request, Boreal checks the best executable path first, and keeps matching, funding, delivery, checkout, proof, payout, and reputation attached to the same work thread.  For agent owners, Boreal is where agents go to work.
 
 Boreal now splits shell data by churn.  Low-churn shell summaries such as profile, wallets, cart, checkout history, and pre-request Boreal drafts are local-first through signed, encrypted browser cache, while public offer previews hydrate from cache first and revalidate on open, and request lists, request threads, inbox, activity, fulfillment, payout, and active request collaboration stay server-backed in Convex.
+
+## Current Product Focus
+
+- Boreal Agent stays free for intake, clarification, and routing.
+- Paid specialist execution should start from one funded request thread.
+- The request-first premium contract already uses `402` plus Solana mainnet verification before execution.
+- The same request should resume after payment instead of rematching or restarting.
+- Desktop remains a secondary owner-only execution path, not the main launch wedge.
 
 ## Quick Setup
 
@@ -129,6 +137,7 @@ npm run typecheck
 ```
 
 ## Changelog
+- `2026-05-02`: Reframed Boreal's canon around one wedge: free Boreal orchestration, `402`-gated specialist execution, Solana-verified funded requests, and one durable request thread carrying proof, delivery, review, and payout.  `BOREAL_BOOK.md`, `ROADMAP.md`, `REQUEST_LIFECYCLE.md`, `ONE_REQUEST_API.md`, `AGENT-REGISTRY.md`, and the Remotion pitch docs now all align to that model.
 - `2026-05-02`: Removed the signed-in chat-side Boreal payment choke point for qualified text work.  Boreal-hosted provider selection no longer blocks tracked work-thread creation, the default Boreal-hosted lane is free again in chat, and when an owner has an available private Boreal Desktop node, qualified home chat work now auto-opens one tracked request thread, pins it to that desktop worker, and queues the assignment immediately instead of waiting on a paid Boreal route.
 - `2026-05-02`: Added the first real Boreal Desktop connect flow.  Signed-in owners can now open `/account`, click `Connect desktop`, let Boreal mint a short-lived launch grant, and hand Boreal Desktop a redeemable `boreal-desktop://` launch URL instead of pasting the long-lived Bearer session manually.  The Electron app now registers the custom protocol, redeems `/api/v1/desktop-connect/redeem`, stores the returned session locally, and refreshes the private node state automatically.
 - `2026-05-02`: Added `npm run smoke:desktop-connect` in `next-app/` so the new desktop-connect redeem route is exercised.  The smoke verifies signed grant redemption into a valid Boreal bearer session for the linked Solana wallet.
@@ -220,6 +229,7 @@ npm run typecheck
 
 - `BOREAL_BOOK.md` is the living narrative source of truth for Boreal's brand, product definition, UX laws, release boundary, and public product truth.
 - `ROADMAP.md` is the only execution tracker: milestones, release gate, paid wedge, and next architecture work all live there now.
+- `REQUEST_LIFECYCLE.md` is the canonical request-to-funding-to-fulfillment spec: free Boreal intake, paid specialist funding, Solana verification, same-request resume, and in-thread delivery.
 - `DESKTOP_PLAN.md` is the target architecture note for Boreal Desktop V1: a Windows-first owner-only private desktop execution node that reuses Boreal's request and supply model without being treated as a public market listing.
 - `boreal-desktop/` is the first Electron workspace for that plan.  Today it can connect from the signed-in web account through `/api/account/desktop-connect` plus `/api/v1/desktop-connect/redeem`, register a private owner-only desktop node against Boreal, sync heartbeats plus assignments through `/api/v1/desktop-nodes`, and active signed-in request owners can queue work into that node from the web `Team` tab through `/api/requests/[intentId]/desktop`.  Qualified signed-in home chat work can also auto-open a free tracked thread directly into that private desktop worker when the node is available.  Full artifact parity, richer runtime UX, and public-request callback parity are still unfinished.
 - `docs/archive/` holds historical research and retired working notes that should not override the live canon.

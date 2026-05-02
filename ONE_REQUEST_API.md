@@ -1,23 +1,47 @@
 # Boreal One-Request API
 
-Status: live agent-only request-first contract.
+Status: live request-first paid execution contract.
 
 Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed mainnet payment authorization receipt plus an independently fetched Solana mainnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  `SIWX` challenges are single-use, and deployed one-request auth must provide `BOREAL_ONE_REQUEST_SECRET` instead of relying on a shared production fallback.  What is still not claimed is treasury/payto-grade settlement verification.
 
 ## Purpose
 
-Boreal exposes one agent-facing front door for demand:
+Boreal exposes one canonical paid front door for request execution:
 
 - one request in
-- fastest automatable path out
+- one locked route
 - payment before expensive execution
-- one live request state across routing, work, proof, and settlement
+- one live request state across routing, funding, work, proof, and settlement
 
-This surface is pure agent-facing.  It is not a frontend-first flow, and it does not depend on X auth.
+This is the contract Boreal should converge around whenever work is paid and deterministic.
+
+Boreal Agent can stay free in the product chat surface for intake, clarification, and routing.  This contract starts when Boreal has a paid route to lock and needs one funded request thread to carry the work.
+
+This surface is agent-facing first.  It is not X-auth-based, and it does not require the caller to choose a provider or specialist up front.
 
 Supplier-side companion:
 
 - `ONE_INBOX_API.md` locks the matched-demand inbox contract for agents that want to participate, deliver, and earn.
+
+## Product Model
+
+This is the paid request model Boreal should keep consistent:
+
+1. submit one request
+2. Boreal locks the best deterministic paid route it can support
+3. Boreal returns `402 payment_required`
+4. the caller signs and funds the same request
+5. Boreal verifies the Solana mainnet proof
+6. the exact same request resumes into execution
+7. delivery, proof, and payout stay attached to that request
+
+Critical behavior rules:
+
+- the request is the durable object
+- `payment_required` is a valid request state, not a dead end
+- Boreal does not rematch after payment
+- the same `requestToken`, `quoteToken`, request body, and `Idempotency-Key` should resume the route
+- this contract is the strongest current truth for paid Boreal specialist execution
 
 ## Live Endpoints
 
@@ -66,6 +90,7 @@ Compatibility note:
 
 - the older `/api/agents/*` direct specialist routes still exist
 - `/api/v1/agents/*` and `/api/v1/supplies/*` are the public versioned entrypoints to prefer in docs and integrations
+- those surfaces remain secondary to `POST /api/v1/requests` for Boreal's canonical paid execution story
 
 ## Request Shape
 
@@ -177,6 +202,14 @@ The route returns one of:
 - `202 executing`
 - `200 delivered`
 
+Interpretation:
+
+- `402 payment_required` means Boreal found a paid route and locked it successfully
+- `202 executing` means funding is already satisfied or not required for that route
+- `200 delivered` is a completed fast path
+- `409 fallback_required` means the deterministic route failed and Boreal wants a different fulfillment path
+- `422 clarification_required` means Boreal still needs scope, not payment
+
 Behavior-first uses on this contract:
 
 - post work through `POST /api/v1/requests`
@@ -237,6 +270,12 @@ Representative response:
 }
 ```
 
+Product rule:
+
+- this is the funded-start boundary
+- execution should not begin before this request is funded and verified
+- the owner should understand that payment starts work on the same thread
+
 ### Step 3. Sign the payment authorization and retry the same request
 
 Current v1 payment confirmation uses a signed receipt header plus a real Solana mainnet transaction hash:
@@ -262,7 +301,15 @@ Critical rule:
 - Boreal does not rematch after payment
 - the signed receipt and verified mainnet transaction resume the frozen quote and route
 
-### Step 4. Track status and events
+### Step 4. Let the same request resume
+
+After Boreal verifies the signed receipt and the Solana proof:
+
+- the same request moves forward
+- the same specialist route executes
+- progress, evidence, artifacts, and delivery stay attached to that request
+
+### Step 5. Track status and events
 
 Request status:
 
@@ -285,7 +332,7 @@ Current event types:
 - `request.delivered`
 - `request.failed`
 
-### Step 5. Register webhook delivery when polling is not enough
+### Step 6. Register webhook delivery when polling is not enough
 
 `POST /api/v1/webhooks`
 

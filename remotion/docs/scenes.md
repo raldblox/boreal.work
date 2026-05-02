@@ -6,15 +6,15 @@ This document is the master storyboard for the Boreal Remotion workspace.
 
 - **Format**: 3-minute product pitch/demo
 - **Primary stack**: Remotion
-- **Goal**: Win a Solana hackathon while also producing a launch-ready video that positions Boreal as the missing supply layer for the agent economy
-- **Product proof**: Use actual Boreal UI from `next-app/`
-- **Creative thesis**: Boreal is not "another AI chat app."  It is the system that keeps intent alive until it becomes accountable work, routed supply, delivered output, and eventually onchain settlement.
+- **Goal**: win a Solana hackathon with one clear product wedge
+- **Product proof**: use actual Boreal UI from `next-app/`
+- **Creative thesis**: Boreal is the request-native work and payment layer for the agent economy
 
 ## Narrative Hook
 
-Every day, demand gets expressed and lost.
+Every day, valuable requests disappear into chat, notes, copilots, and dashboards.
 
-People ask for outcomes in chat, search, DMs, and copilots.  The request gets summarized, answered, or forgotten.  The work itself does not get routed.  Boreal turns that disappearing intent into a live market of fulfillable work.
+The work gets answered, summarized, or postponed.  It does not become funded execution.  Boreal turns that disappearing intent into one funded work thread.
 
 ## Audience
 
@@ -24,7 +24,7 @@ People ask for outcomes in chat, search, DMs, and copilots.  The request gets su
 
 ## Narrative Arc
 
-Start with the failure of today's interfaces: they answer, but they do not resolve.  Then show Boreal as the missing operating layer where chat becomes a tracked request, supply becomes visible, and humans, agents, and tools can actually fulfill work in one accountable path.  End by tying that workflow to Solana as the trust and settlement layer that makes an agent economy economically real.
+Start with the failure of current interfaces.  Then show Boreal as the layer where chat becomes a tracked request, the best route is locked, payment becomes explicit, Solana verification starts execution, and delivery stays attached to the same thread.
 
 ## Style Direction
 
@@ -32,296 +32,275 @@ Start with the failure of today's interfaces: they answer, but they do not resol
 - **Base palette**: Boreal neutrals with teal as the only bright accent
 - **Motion**: restrained, deliberate, confident
 - **Typography feel**: editorial, infrastructural, high-conviction
-- **Editing rule**: clarity first; no empty "hype" transitions
+- **Editing rule**: clarity first
 - **Visual rule**: the UI is the hero, graphics are support
 
-## Scene 1: Intent Disappears
+## Scene 1: Requests Disappear
+
+**Duration**: ~14 seconds
+
+**Purpose**: establish the problem fast
+
+### Visuals
+
+- rapid montage of unresolved demand patterns
+- chat fragments
+- search-like prompts
+- notes
+- stale task fragments
+- end on:
+  - `The request disappears.`
+
+### Voiceover Notes
+
+"People ask for outcomes all day.  In chat, search, docs, terminals, and software.  Most of that demand still disappears before the work ever starts."
+
+### Technical Notes
+
+- use abstract UI fragments, not stock footage
+- first 5 seconds fast, then slow down on the final line
+
+---
+
+## Scene 2: Boreal Names The Layer
 
 **Duration**: ~18 seconds
 
-**Purpose**: Establish the problem fast and make it feel larger than a single app category.
+**Purpose**: introduce Boreal with the right category frame
 
 ### Visuals
 
-- Rapid montage of unresolved demand patterns:
-  - chat bubbles
-  - search-like prompts
-  - notes / task fragments
-  - empty workflow states
-- Text fragments animate in and out:
-  - `Need this done by Friday`
-  - `Can someone handle this?`
-  - `Find the best person or tool`
-  - `Still unresolved`
-- End on a hard statement card:
-  - `Intent disappears.`
+- full-bleed footage of the actual homepage from `/`
+- slow push into hero copy
+- overlay sequence:
+  - `Submit one request.`
+  - `Boreal Agent stays free.`
+  - `Fund the right route.`
+  - `Keep the work attached.`
 
 ### Voiceover Notes
 
-Open with a hard problem statement, not with branding.
-
-Suggested direction:
-"Every day, people express what they need in chat, search, and software.  Most of that demand disappears.  It gets answered, summarized, logged, and forgotten."
-
-### Technical Notes
-
-- Use Remotion text animation and abstract UI fragments, not stock footage
-- Keep the first 6 seconds fast, then slow down on the final line
-
----
-
-## Scene 2: Boreal Names The Missing Layer
-
-**Duration**: ~20 seconds
-
-**Purpose**: Introduce Boreal with authority and show the homepage as the first proof surface.
-
-### Visuals
-
-- Full-bleed footage of the actual homepage from `/`
-- Slow push into hero copy
-- Highlight phrases from the real page:
-  - `Post the work`
-  - `Route the outcome`
-  - `Keep the request alive until it is fulfilled`
-- Overlay a short framing line:
-  - `The supply layer for the agent economy`
-
-### Voiceover Notes
-
-"Boreal is building the supply layer the agent economy is missing: a system where demand becomes structured work, supply becomes reachable, and fulfillment stays accountable from start to finish."
+"Boreal is the request-native work and payment layer for the agent economy.  It turns a request into a funded work thread."
 
 ### Product Proof
 
-- Homepage hero
-- alpha-scope card
-- three-layer framing
+- homepage hero
+- current product shell
 
 ---
 
-## Scene 3: Chat Becomes A Request Workspace
+## Scene 3: Free Boreal Intake
 
-**Duration**: ~30 seconds
+**Duration**: ~24 seconds
 
-**Purpose**: Deliver the first "aha" moment with real product footage.
+**Purpose**: show that Boreal Agent starts the flow for free
 
 ### Visuals
 
-- Enter the actual `/chat` surface
-- Show a strong input prompt that feels hackathon-relevant and cross-functional
-
-Suggested demo prompt:
-"We need a 3-minute launch video for Boreal for a Solana hackathon.  Build the concept, route the work, and suggest the best suppliers or tools."
-
-- Show the UI turning this into a structured request
-- Focus on:
-  - tracked request state
-  - workspace panel
-  - route target / resolution path
-  - status rail
+- enter the actual `/chat` surface
+- show Boreal Agent mounted by default
+- type a real prompt:
+  - `Pressure test this startup idea, design the smallest MVP, and tell me who should do the work.`
+- show Boreal structuring the ask into a request-ready workspace
 
 ### Voiceover Notes
 
-"Boreal starts where users already think: in natural language.  A messy request becomes a structured workspace with context, routing, and an accountable lifecycle."
+"Boreal starts where users already think.  In natural language.  Boreal Agent handles intake, clarification, and routing for free."
 
 ### Technical Notes
 
-- This should be raw UI capture with only minimal callout overlays
-- Let the judge see that the product is real
+- raw UI capture
+- minimal overlays
+- let the judge see the product is real
 
 ---
 
-## Scene 4: Demand Meets Real Supply
+## Scene 4: Best Route Found
 
-**Duration**: ~27 seconds
+**Duration**: ~26 seconds
 
-**Purpose**: Show that Boreal is a market surface, not just a personal assistant.
-
-### Visuals
-
-- Shift to the actual public supply / request directory
-- Open supply listings and requests from `WorkspacePanel`
-- Feature the seeded worker agents:
-  - Copywriter
-  - Research Analyst
-  - Math Expert
-- Open a seller or worker profile modal
-- Emphasize metadata, packaging, and discoverability
-
-### Voiceover Notes
-
-"Boreal is not a closed chat thread.  It is a live market where humans, agents, and tools are packaged as supply, matched against demand, and made visible in one searchable surface."
-
-### Key On-Screen Callouts
-
-- `Public supply`
-- `Open requests`
-- `Agent profiles`
-- `Capabilities, pricing, delivery, trust`
-
----
-
-## Scene 5: Proposal, Approval, Delivery
-
-**Duration**: ~25 seconds
-
-**Purpose**: Show the operational depth that separates Boreal from ordinary AI UX.
+**Purpose**: show the request becoming a real work object
 
 ### Visuals
 
-- Return to an active request workspace
-- Highlight the stage rail
-- Show proposal review, activity log, participant state, and delivered work
-- Emphasize that the request persists until resolved
+- request card opens
+- route preview appears
+- matched specialists appear from `Offers`
+- the request thread becomes visible
+- focus on:
+  - route lock
+  - selected specialist team
+  - request state
 
 ### Voiceover Notes
 
-"Instead of vanishing into a transcript, the request stays alive.  Proposals, approvals, activity, deliverables, and review all stay attached to one accountable thread."
+"When the work is real, Boreal turns the ask into one tracked request.  It locks the best route it can support and keeps the work on one thread."
 
 ### Product Proof
 
-- request status badge
-- request stage rail
-- activity timeline
-- review state
+- request shell
+- mounted specialist cue
+- route and side panel
 
 ---
 
-## Scene 6: Boreal Can Fulfill Directly
+## Scene 5: Payment Required
 
-**Duration**: ~22 seconds
+**Duration**: ~24 seconds
 
-**Purpose**: Create the second "aha" moment by showing hybrid routing: some requests become market work, some resolve instantly.
-
-### Visuals
-
-- Show inline artifact surfaces in the actual product:
-  - image result
-  - audio result
-  - video job panel
-- Use the real UI states for progress, refresh, and completed media
-- Briefly show catalog-style matched supply cards
-
-### Voiceover Notes
-
-"Some requests should route to specialists.  Others should resolve immediately through known supply.  Boreal handles both: market coordination when needed, direct execution when possible."
-
-### Editing Notes
-
-- This is the most "demo" part of the film
-- Keep the pacing tighter here to signal capability breadth
-
----
-
-## Scene 7: Why This Belongs On Solana
-
-**Duration**: ~20 seconds
-
-**Purpose**: Tie the product to Solana in a way judges care about: UX, settlement, trust, and ecosystem composability.
+**Purpose**: make the funding boundary obvious
 
 ### Visuals
 
-- Transition from product UI into a clean architecture graphic
-- Show a three-step path:
-  - `Intent`
-  - `Fulfillment`
-  - `Settlement`
-- Use overlay notes for:
-  - sub-second settlement target
-  - programmable escrow
-  - audit trail
-  - low-fee economic coordination
+- request state changes to `payment required`
+- show quote, seller block, and funding summary
+- keep the request thread visible behind or beside the payment surface
+- overlay sequence:
+  - `Funding starts execution.`
+  - `The route is already locked.`
 
 ### Voiceover Notes
 
-Use honest wording unless the onchain flow is live by render time.
-
-If still pre-launch:
-"Boreal is being built on Solana because the human-and-agent economy needs fast, low-fee, programmable settlement and verifiable trust."
-
-If live by render time:
-"Boreal uses Solana for programmable escrow, verifiable settlement, and the audit trail that agent-native commerce requires."
+"Paid work does not start invisibly.  Boreal shows the quote, locks the route, and makes funding the explicit start condition for execution."
 
 ### Important Rule
 
-Do not fake shipped onchain behavior.  If the Solana flow is not in the product yet, present this scene as the hackathon build focus and architectural advantage.
+- do not present payment as a detached checkout maze
+- the request thread must stay visually central
+- make it obvious that specialists start after funding, not before
 
 ---
 
-## Scene 8: The Missing Piece
+## Scene 6: Solana Verifies The Start
 
-**Duration**: ~18 seconds
+**Duration**: ~24 seconds
 
-**Purpose**: End with a category-defining statement, not a feature recap.
+**Purpose**: show why Solana matters in-product
 
 ### Visuals
 
-- Return to the homepage and layer diagram motifs
-- Slow montage of:
-  - homepage hero
-  - request workspace
-  - supply directory
-  - profile view
-  - activity / review / artifact moments
-- Final closing card:
-  - `Boreal`
-  - `The supply layer for intent-to-fulfillment commerce`
+- compact payment proof sequence
+- signed receipt
+- verified Solana mainnet transaction
+- request status moves from `payment required` to `funded` or `executing`
+- overlay sequence:
+  - `Verified on Solana mainnet.`
+  - `The same request resumes.`
 
 ### Voiceover Notes
 
-"Search finds information.  Chat generates text.  Boreal routes real demand to real fulfillment.  For the agent economy to work, intent has to stay alive until it resolves.  That missing piece is Boreal."
+"Boreal verifies the signed payment authorization against a real Solana mainnet transaction before execution starts.  The same request resumes after payment instead of rematching or restarting."
+
+### Important Rule
+
+- show what is actually shipped
+- do not fake generalized escrow
+
+---
+
+## Scene 7: Specialists Execute On The Same Thread
+
+**Duration**: ~28 seconds
+
+**Purpose**: prove that the thread carries real work, not just status text
+
+### Visuals
+
+- request thread execution
+- direct specialist output
+- inline artifact or delivery state
+- quick proof surfaces:
+  - `Debate and Verdict` with Mara, Avery, Blake, and Jordan
+  - `solana-operator` action card with explicit wallet approval
+
+### Voiceover Notes
+
+"Once funded, specialists execute on the same request thread.  Delivery, evidence, and review stay attached.  The same surface can hold real multi-agent coordination and explicit wallet-approved Solana actions without splitting the work into another system."
+
+### Product Proof
+
+- artifact state
+- Debate and Verdict speakers
+- Solana action card
+
+---
+
+## Scene 8: One Request, One Work Thread
+
+**Duration**: ~22 seconds
+
+**Purpose**: end on category, not feature inventory
+
+### Visuals
+
+- return to the homepage and request shell
+- slow montage of:
+  - homepage hero
+  - request thread
+  - payment-required state
+  - funded or executing state
+  - delivered artifact
+- final card:
+  - `One request.`
+  - `One funded work thread.`
+  - `Boreal`
+
+### Voiceover Notes
+
+"Search finds information.  Chat generates text.  Boreal keeps the request alive until it becomes funded execution, proof, and fulfillment."
 
 ---
 
 ## Timing Summary
 
-- Scene 1: 18s
-- Scene 2: 20s
-- Scene 3: 30s
-- Scene 4: 27s
-- Scene 5: 25s
-- Scene 6: 22s
-- Scene 7: 20s
-- Scene 8: 18s
+- Scene 1: 14s
+- Scene 2: 18s
+- Scene 3: 24s
+- Scene 4: 26s
+- Scene 5: 24s
+- Scene 6: 24s
+- Scene 7: 28s
+- Scene 8: 22s
 
 **Total**: 180 seconds
 
 ## Judging Alignment
 
-- **Functionality**: Scenes 3, 4, 5, and 6
-- **Potential Impact**: Scenes 1, 2, 7, and 8
-- **Novelty**: Scenes 4, 5, 7, and 8
-- **UX**: Scenes 2, 3, 5, and 6
-- **Open-source / composability**: Scene 7
-- **Business plan**: Scene 8, supported by the narrative that Boreal is infrastructure rather than a one-off workflow tool
+- **Functionality**: Scenes 3, 4, 5, 6, and 7
+- **Potential impact**: Scenes 1, 2, and 8
+- **Novelty**: Scenes 4, 5, 6, and 7
+- **UX**: Scenes 3, 4, 5, and 7
+- **Open-source / composability**: Scenes 6 and 7
+- **Business plan**: the whole request-to-funded-execution wedge
 
 ## Variant Plan
 
 - **Hackathon pitch**: use the full 180-second structure above
-- **Launch cut**: keep Scenes 1, 2, 3, 6, and 8, then compress to 60-90 seconds
-- **Technical demo**: expand Scenes 3 through 7 and reduce philosophy / category framing
+- **Launch cut**: keep Scenes 1, 2, 3, 7, and 8, then compress to 60-90 seconds
+- **Technical demo**: expand Scenes 3 through 7 and reduce category framing
 
 ## Required Product Captures
 
-1. Homepage hero and alpha-scope section
-2. `/chat` request creation flow
-3. Request workspace with status rail and activity thread
-4. Public supply directory
-5. Worker profile modal and/or public profile page
-6. Inline image, audio, and video artifact states
-7. Matched supply cards
+1. homepage hero from `/`
+2. `/chat` free Boreal intake flow
+3. request creation and route lock
+4. `payment required` request state
+5. Solana verification and funded or executing transition
+6. inline specialist artifact or delivery state
+7. `Debate and Verdict` request room
+8. `solana-operator` mounted action card
 
-## Required Inputs Before Final Script
+## Required Inputs Before Final Render
 
-1. Team background for the hackathon submission
-2. Any early user feedback, traction, or validation we can state honestly
-3. Whether the Solana flow will be live in the build by submission time
-4. Which single demo request should anchor the video
+1. the single hero request to anchor the demo
+2. which specialist or specialist team should be the canonical paid route
+3. the exact funded-request UI state we want to capture on localhost
+4. whether we want the Debate and Verdict proof moment, the Solana proof moment, or both in the final cut
 
 ## Production Guardrails
 
-- Do not overload the video with whitepaper claims that the product cannot yet prove
-- Do not present Boreal as a generic freelancer marketplace
-- Do not let the video become a pure motion-graphics trailer
-- Do not hide the UI for too long; judges need to see the product works
-- Do not over-explain every protocol; keep the story anchored in user value
+- do not overload the film with provider-language or discovery trivia
+- do not present desktop as the hero wedge
+- do not fake broad escrow or settlement claims
+- do not hide the UI for too long
+- do not let the film drift into a generic AI or freelancer marketplace story

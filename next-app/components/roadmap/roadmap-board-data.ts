@@ -27,17 +27,17 @@ export type RoadmapPhaseReadout = {
 export const roadmapHighlights: RoadmapHighlight[] = [
   {
     label: "Live now",
-    note: "Request loop, supply market, merchant-native offers, payment base, connected agents, and provider-backed discovery all ship today.",
+    note: "Free Boreal orchestration, request threads, supply market, merchant-native offers, and the request-first payment base all ship today.",
     value: "6 milestones",
   },
   {
     label: "Hardening now",
-    note: "Mainnet payment depth, bundle execution policy, team ops, subtype storage, release ops, and trust infrastructure are the main active tracks.",
+    note: "Funded-start UX, mainnet payment depth, payout truth, subtype storage, release ops, and trust infrastructure are the main active tracks.",
     value: "6 tracks",
   },
   {
     label: "Queued next",
-    note: "Buyer-safe product pages, merchant lifecycle smoke, retrieval depth, exportable reputation, and the private desktop-node path are the clearest near-term upgrades.",
+    note: "Request-thread payment UX, funded acceptance for async work, merchant lifecycle smoke, retrieval depth, and external x402 reuse are the clearest near-term upgrades.",
     value: "5 moves",
   },
   {
@@ -94,15 +94,15 @@ export const roadmapTickets: BoardTicket[] = [
   {
     area: "request execution",
     evidence:
-      "The live app already supports mounted specialist selection from Offers, request creation, route preview, specialist follow-up, delivery, review, and attached checkout state on one record.",
+      "The live app already supports mounted specialist selection from Offers, request creation, route preview, specialist follow-up, delivery, review, and attached checkout state on one record, while the premium request-first API already enforces a 402 payment boundary before execution.",
     id: "BRL-101",
     report:
-      "This is the strongest current Boreal feature story. The board can safely present it as live because the same request thread already carries mounted start or approval, fulfillment, proof, and review without splitting into a second system of record.",
+      "This is the strongest current Boreal feature story. The board can safely present it as live because Boreal already keeps work on one request thread, and the next hardening step is to make funded-start the default in-product specialist path instead of a side contract.",
     routes: ["/chat", "/api/v1/requests", "/one-request-api.md"],
     status: "live",
     summary:
-      "One request can start from mounted specialist selection or normal route preview, then move through follow-up, delivery, review, and attached checkout without leaving the Boreal thread.",
-    title: "Request-first execution loop",
+      "One request can start from mounted specialist selection or normal route preview, then move through funding, follow-up, delivery, review, and attached checkout without leaving the Boreal thread.",
+    title: "Request-first funded execution loop",
     updatedAt: "2026-04-29",
   },
   {
@@ -167,7 +167,7 @@ export const roadmapTickets: BoardTicket[] = [
       "Wallet sync, a 402 boundary, Solana mainnet verification, payout progression, and provider-backed checkout states already write through the same transaction spine.",
     id: "BRL-105",
     report:
-      "This milestone is live because the payment and payout base is concrete and auditable. It still stays separate from the harder claim of full production payment rail readiness, funded-start discipline, or treasury-grade settlement proof.",
+      "This milestone is live because the payment and payout base is concrete and auditable. It still stays separate from the harder claim that every paid in-product specialist route already behaves like a funded request thread by default.",
     routes: ["/one-request-api.md", "/one-inbox-api.md", "/about"],
     status: "live",
     summary:
@@ -192,15 +192,15 @@ export const roadmapTickets: BoardTicket[] = [
   {
     area: "payment hardening",
     evidence:
-      "Mainnet verification is live, but EARLY_ACCESS still marks payment hardening, funded-start, payout verification, refunds, and disputes as unfinished release work.",
+      "Mainnet verification is live, but Boreal still needs the in-product specialist UX, seller block, receipt proof, payout verification, refunds, and disputes to converge on the same funded-start rule.",
     id: "BRL-201",
     report:
-      "This is one of the most important in-progress tracks because it separates today's auditable payment boundary from a broader public-ready production rail. It is not a missing base, but it is still the key trust gap before wider paid access.",
+      "This is the most important in-progress track because it separates today's auditable payment boundary from the broader product promise that a paid request should start, verify, execute, and complete on one visible thread.",
     routes: ["/roadmap", "/one-request-api.md", "/about"],
     status: "in_progress",
     summary:
       "Boreal is hardening from a verified 402 plus payout base into funded-start, stronger payout proof, and safer post-payment lifecycle handling.",
-    title: "Mainnet payment hardening",
+    title: "Funded-start payment hardening",
     updatedAt: "2026-04-29",
   },
   {
