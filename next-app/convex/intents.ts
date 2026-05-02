@@ -19,6 +19,8 @@ import {
   resolveCollectiveParticipants,
 } from "./collectives";
 import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtime.ts";
+import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens.ts";
+import { isDesktopNodeSupplyRecord, parseDesktopNodeMetadata } from "../lib/boreal/desktop-nodes/contracts.ts";
 import { shouldFetchRequestMatches } from "../lib/boreal/request-matching-policy.ts";
 import { parseRequestTeamBlueprint } from "../lib/boreal/swarm/team-blueprint.ts";
 import {
@@ -422,6 +424,7 @@ export const getRequestDetail = query({
         suggestedReplies: normalizedIntent.suggestedReplies,
         summary: intent.summary,
         title: intent.title,
+        requestToken: createPublicRequestToken(intent._id),
         videoSeconds: normalizedIntent.videoSeconds ?? DEFAULT_BOREAL_VIDEO_SECONDS,
         videoSize: normalizedIntent.videoSize ?? DEFAULT_BOREAL_VIDEO_SIZE,
       },
@@ -499,7 +502,7 @@ export const getExecutionContext = query({
         Boolean(
           supply &&
             supply.status === "active" &&
-            isLocalRuntimeSupply(supply),
+            isRequestParticipantRuntimeSupply(supply),
         ),
     );
 
@@ -1181,7 +1184,7 @@ async function getRequestParticipants(
       Boolean(
         supply &&
           supply.status === "active" &&
-          isLocalRuntimeSupply(supply),
+          isRequestParticipantRuntimeSupply(supply),
       ),
   );
 
@@ -1555,6 +1558,32 @@ function getParticipantActivityKey(participant: {
   );
 }
 
+function isRequestParticipantRuntimeSupply(
+  supply:
+    | {
+        executionSurface?: string | null;
+        metadataJson?: string | null;
+        offerSlug?: string | null;
+        sourceCapabilityId?: string | null;
+      }
+    | null
+    | undefined,
+) {
+  if (!supply) {
+    return false;
+  }
+
+  return (
+    isLocalRuntimeSupply(supply) ||
+    isDesktopNodeSupplyRecord({
+      executionSurface: supply.executionSurface ?? null,
+      metadataJson: supply.metadataJson ?? null,
+      offerSlug: supply.offerSlug ?? null,
+      sourceCapabilityId: supply.sourceCapabilityId ?? null,
+    })
+  );
+}
+
 export const inviteRuntimeToRequest = mutation({
   args: {
     intentId: v.id("intents"),
@@ -1615,7 +1644,73 @@ export const inviteRuntimeToRequest = mutation({
       type: "request.runtime_invited",
     });
 
-    return { invited: true, supplyId: supply._id };
+  return { invited: true, supplyId: supply._id };
+  },
+});
+
+export const assignDesktopNodeToRequest = mutation({
+  args: {
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+    supplyId: v.id("supplies"),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (
+      !intent ||
+      !(await hasRequestOwnerAccess(ctx, intent.ownerUserId, args.ownerExternalId))
+    ) {
+      return { assigned: false, reason: "request_not_open" as const, supplyId: null };
+    }
+
+    if (intent.status === "closed" || intent.status === "fulfilled") {
+      return { assigned: false, reason: "request_not_open" as const, supplyId: null };
+    }
+
+    const supply = await ctx.db.get(args.supplyId);
+
+    if (!supply || supply.status !== "active") {
+      return { assigned: false, reason: "supply_not_found" as const, supplyId: null };
+    }
+
+    if (supply.supplierUserId !== intent.ownerUserId) {
+      return { assigned: false, reason: "supply_not_owned" as const, supplyId: null };
+    }
+
+    if (!isDesktopNodeSupplyRecord(supply)) {
+      return { assigned: false, reason: "not_desktop_node" as const, supplyId: null };
+    }
+
+    const metadata = parseDesktopNodeMetadata(supply.metadataJson);
+    const now = Date.now();
+    const currentSupplyIds = intent.invitedRuntimeSupplyIds ?? [];
+    const nextSupplyIds = currentSupplyIds.includes(args.supplyId)
+      ? currentSupplyIds
+      : [...currentSupplyIds, args.supplyId];
+
+    await ctx.db.patch(args.intentId, {
+      invitedRuntimeSupplyIds: nextSupplyIds,
+      updatedAt: now,
+    });
+
+    if (!currentSupplyIds.includes(args.supplyId)) {
+      await ctx.db.insert("activityEvents", {
+        createdAt: now,
+        entityId: intent.intentKey,
+        entityType: "intent",
+        payload: JSON.stringify({
+          executionSurface: supply.executionSurface ?? null,
+          machineLabel: metadata?.machineLabel ?? null,
+          runtimeFamilies: metadata?.runtimeFamilies ?? [],
+          supplyId: supply._id,
+          title: supply.title,
+        }),
+        type: "request.desktop_assigned",
+      });
+    }
+
+    return { assigned: true, supplyId: supply._id };
   },
 });
 

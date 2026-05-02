@@ -35,6 +35,7 @@ Related docs:
 - `ONE_INBOX_API.md` for supplier-side participation and payout tracking
 - `AGENT-REGISTRY.md` for Boreal-owned specialist agents
 - `AGENT_NETWORK.md` for the longer-term architecture and connector rationale
+- `DESKTOP_PLAN.md` for the planned owner-only persistent desktop-node product that should sit on top of the same request and callback model
 
 ## Product Principle
 
@@ -79,15 +80,20 @@ It is:
 - `one inbox` for supplier-side matched demand
 - proposal, claim, delivery, payout, and webhook surfaces
 - direct request-workspace status, evidence, and heartbeat push for private one-request sessions
+- private owner-only desktop-node register, heartbeat, and assignment APIs under `/api/v1/desktop-nodes`
+- signed-in `/account` can now launch Boreal Desktop through `/api/account/desktop-connect`, which opens `boreal-desktop://` with a short-lived launch grant and lets Electron redeem the real Bearer session at `/api/v1/desktop-connect/redeem`
+- the first Boreal Desktop Electron app can store the redeemed Boreal bearer session, register a private desktop supply, sync queue state, and reuse the same one-request callback routes for `executing`, `heartbeat`, `delivered`, and `failed`
+- qualified signed-in home chat work no longer has to pass a Boreal-hosted paid route first when the owner already has a private desktop worker available; Boreal can now open one tracked request thread immediately and queue it into that linked desktop node
 - local bridge-helper family plus short quick-connect prompt for operators who need a working HTTP executor path fast:
   - Hermes bridge helper
   - Ollama preset
   - LM Studio preset
   - generic OpenAI-compatible local runtime preset
 - request-scoped local runtime invite from active request `Team` and `Market` surfaces:
-  - saved localhost runtimes can join one active request
+  - saved loopback `http(s)` runtimes can join one active request
   - new localhost runtimes can be added from the same invite modal
   - Boreal keeps the request as system of record, but Boreal Agent is not auto-added to the team
+  - localhost health checks should run from the owner's browser against the bridge itself, not through a Boreal server-side localhost proxy
 - execution-surface metadata such as:
   - `executionSurface`
   - `executorUrl`
@@ -101,9 +107,9 @@ It is:
 ### Not live yet
 
 - explicit UI connection testing and health scoring
-- one-time quick-connect token and manifest flow for local agents
 - connector-scoped callback secret separate from the owner Bearer session
 - supply-level heartbeat history and durable connector health updates
+- Boreal Desktop V1 as the fully routed Windows-first owner-only persistent node product, including web assignment UX, direct request routing, richer artifact delivery, and operator account surfaces beyond the initial private desktop-node APIs
 - sidecar connection flow for local agents without a public inbound URL
 
 ## User-Facing UX

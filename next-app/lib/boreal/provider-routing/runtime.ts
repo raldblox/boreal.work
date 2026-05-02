@@ -25,8 +25,6 @@ import type {
 
 const PROVIDER_SELECTION_QUOTE_TTL_MS = 15 * 60 * 1000;
 const BOREAL_OPENAI_ROUTE_KEY = "openai-by-boreal";
-const BOREAL_DEMO_GATE_AMOUNT_SOL = 0.001;
-
 const CURATED_ROUTE_MATRIX: ProviderRouteMatrixEntry[] = [
   {
     company: "openai",
@@ -35,12 +33,9 @@ const CURATED_ROUTE_MATRIX: ProviderRouteMatrixEntry[] = [
     executionSurface: "http",
     fallbackOrder: 0,
     networkHints: [getDefaultSolanaNetworkKey()],
-    paymentProtocol: "x402",
+    paymentProtocol: "none",
     pricingPolicy: {
-      amount: BOREAL_DEMO_GATE_AMOUNT_SOL,
-      currency: "SOL",
-      kind: "flat-sol",
-      networkKey: getDefaultSolanaNetworkKey(),
+      kind: "free",
     },
     providerKey: "boreal",
     receiptExpectation: {
@@ -180,10 +175,12 @@ function toProviderRouteOption(input: {
   promptHash: string;
   promptText: string;
 }): ProviderRouteOption {
+  const freeByPolicy = input.entry.pricingPolicy.kind === "free";
   const freeAccessAllowed =
-    input.entry.routeKey === BOREAL_OPENAI_ROUTE_KEY &&
-    (input.accessPolicy.freeAccessEnabled ||
-      Boolean(input.accessPolicy.matchedAllowlistEntry));
+    freeByPolicy ||
+    (input.entry.routeKey === BOREAL_OPENAI_ROUTE_KEY &&
+      (input.accessPolicy.freeAccessEnabled ||
+        Boolean(input.accessPolicy.matchedAllowlistEntry)));
   const requiresPayment =
     input.entry.deliveryMode === "provider-backed"
       ? true

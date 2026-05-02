@@ -9,6 +9,9 @@
     "allowImportingTsExtensions": true,
     "strict": true,
     "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": ["../*"]
+    },
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,

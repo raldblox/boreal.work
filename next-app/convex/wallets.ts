@@ -45,6 +45,39 @@ export const getMyWalletAccounts = query({
   },
 });
 
+export const getOwnerExternalIdByWalletAddress = query({
+  args: {
+    walletAddress: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const walletAddress = args.walletAddress.trim();
+
+    if (!walletAddress) {
+      return null;
+    }
+
+    const walletAccount = await ctx.db
+      .query("walletAccounts")
+      .withIndex("by_walletAddress", (queryBuilder) =>
+        queryBuilder.eq("walletAddress", walletAddress),
+      )
+      .unique();
+
+    if (walletAccount?.actorExternalId) {
+      return walletAccount.actorExternalId;
+    }
+
+    const walletSession = await ctx.db
+      .query("walletSessions")
+      .withIndex("by_walletAddress", (queryBuilder) =>
+        queryBuilder.eq("walletAddress", walletAddress),
+      )
+      .unique();
+
+    return walletSession?.actorExternalId ?? null;
+  },
+});
+
 export const syncWalletAccount = mutation({
   args: {
     chainFamily: v.optional(chainFamilyValidator),

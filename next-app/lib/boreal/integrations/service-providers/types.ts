@@ -14,6 +14,7 @@ export type PaymentProtocol =
   | "none";
 
 export type ExecutionSurface =
+  | "desktop"
   | "registry"
   | "http"
   | "mcp"

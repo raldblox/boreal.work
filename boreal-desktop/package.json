@@ -1,0 +1,23 @@
+{
+  "name": "boreal-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json && node scripts/finalize-preload-build.mjs",
+    "build:renderer": "tsc -p tsconfig.renderer.json && node scripts/copy-renderer-assets.mjs",
+    "dev": "npm run build && electron .",
+    "typecheck": "npm run typecheck:main && npm run typecheck:renderer",
+    "typecheck:main": "tsc -p tsconfig.main.json --noEmit",
+    "typecheck:renderer": "tsc -p tsconfig.renderer.json --noEmit"
+  },
+  "dependencies": {
+    "electron": "^35.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  }
+}

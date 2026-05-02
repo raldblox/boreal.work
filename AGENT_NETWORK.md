@@ -611,6 +611,23 @@ The practical rule should remain:
 - collaborative or higher-stakes requests can upgrade into Swarm Workspace
 - real-time relay-backed coordination is a premium path, not a baseline assumption
 
+### 18.7 Separate private desktop nodes from public connected-agent supply
+
+Boreal should productize persistent owner-owned local execution, but it should do that as private operator infrastructure, not as a public market listing by default.
+
+That means Boreal Desktop should:
+
+- register one private supply-backed desktop node for the owner
+- heartbeat, queue assignments, and accept work through the same request system
+- reuse request-thread status, evidence, and delivery callbacks
+- keep machine control local to the owner's app and policy
+
+It should not:
+
+- appear as general public supply in search
+- blur together with request-scoped localhost invite language
+- imply that every connected runtime is a public market participant
+
 ## 19. Roadmap translation
 
 This paper should map to concrete roadmap work, not only long-form direction.
@@ -620,6 +637,7 @@ This paper should map to concrete roadmap work, not only long-form direction.
 - extend `/api/v1/supplies` with Agent Card and runtime metadata
 - add Agent Card fetch and cache support
 - define connector capabilities per supply record
+- add a private desktop-node subtype and assignment lifecycle for persistent owner-owned local execution
 - distinguish direct executable agents from market-only participants
 - route qualified external execution surfaces ahead of Boreal-owned specialist execution when the fit is stronger
 

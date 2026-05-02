@@ -25,7 +25,9 @@ export function AccountSettingsSurface({
   accountName,
   builderSlot,
   connectedWallets,
+  desktopConnectWalletAddress = null,
   defaultWalletAddress,
+  isDesktopConnectLaunching = false,
   isEditingPublicSetup,
   isProfileAvailabilityUpdating,
   isPayoutWalletUpdating,
@@ -33,6 +35,7 @@ export function AccountSettingsSurface({
   isWalletReady,
   myProfileRecord,
   notice,
+  onConnectDesktop,
   onConnectWallet,
   onEditSupplyListing = () => {},
   onOpenProfileBuilder,
@@ -44,7 +47,9 @@ export function AccountSettingsSurface({
   accountName: string | null
   builderSlot?: ReactNode
   connectedWallets: NormalizedConnectedWallet[]
+  desktopConnectWalletAddress?: string | null
   defaultWalletAddress: string | null
+  isDesktopConnectLaunching?: boolean
   isEditingPublicSetup: boolean
   isProfileAvailabilityUpdating: boolean
   isPayoutWalletUpdating: string | null
@@ -53,6 +58,7 @@ export function AccountSettingsSurface({
   myProfileRecord: MyProfileRecord
   notice: string | null
   onConnectWallet: () => void
+  onConnectDesktop?: () => void
   onEditSupplyListing?: (supplyId: string) => void
   onOpenProfileBuilder: (
     path?: Exclude<ProfileBuilderListingPath, "provider_sync">
@@ -140,6 +146,12 @@ export function AccountSettingsSurface({
   })
   const hasRuntimeWallet = sortedWalletAccounts.some((account) =>
     account.networkKey.startsWith(`${runtimeChainPrefix}:`)
+  )
+  const showDesktopConnect = typeof onConnectDesktop === "function"
+  const liveRuntimeWalletAddress =
+    runtimeConnectedWallets[0]?.address ?? defaultWalletAddress ?? null
+  const desktopConnectReady = Boolean(
+    desktopConnectWalletAddress || liveRuntimeWalletAddress
   )
 
   return (
@@ -521,6 +533,67 @@ export function AccountSettingsSurface({
               </div>
             )}
           </section>
+
+          {showDesktopConnect ? (
+            <section className="rounded-2xl border border-border p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-base font-medium">Boreal Desktop</p>
+                <p className="text-sm text-muted-foreground">
+                  Connect the Windows desktop app from this signed-in account.
+                  Boreal will mint a short-lived launch grant for your linked
+                  Solana mainnet wallet, then Electron will redeem the real
+                  bearer session locally.
+                </p>
+              </div>
+              <Button
+                disabled={!desktopConnectReady || isDesktopConnectLaunching}
+                onClick={() => onConnectDesktop?.()}
+                size="sm"
+                type="button"
+                variant="default"
+              >
+                {isDesktopConnectLaunching ? (
+                  <LoaderIcon className="animate-spin" />
+                ) : (
+                  <WalletIcon />
+                )}
+                Connect desktop
+              </Button>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <StatusChip
+                label={
+                  desktopConnectReady
+                    ? desktopConnectWalletAddress
+                      ? "Wallet ready"
+                      : "Wallet connected"
+                    : "Wallet required first"
+                }
+                tone={desktopConnectReady ? "success" : "warning"}
+              />
+              <StatusChip
+                label={
+                  desktopConnectWalletAddress
+                    ? shortenWalletAddress(desktopConnectWalletAddress)
+                    : liveRuntimeWalletAddress
+                      ? shortenWalletAddress(liveRuntimeWalletAddress)
+                    : formatNetworkKeyLabel(runtimeDefaultNetworkKey)
+                }
+                tone="muted"
+              />
+            </div>
+
+            <p className="mt-4 text-sm text-muted-foreground">
+              {desktopConnectReady
+                ? desktopConnectWalletAddress
+                  ? "If the browser asks for permission to open Boreal Desktop, allow the protocol prompt. The app will store the session in secure local storage and then you can register or refresh the private node."
+                  : "Your wallet is connected in this browser session. Boreal will sync it during desktop connect, then hand the desktop app a short-lived launch grant."
+                : "Connect and sync a Solana mainnet wallet first. Boreal Desktop inherits this account identity through the linked wallet session."}
+            </p>
+            </section>
+          ) : null}
         </>
       ) : null}
     </div>
@@ -709,4 +782,12 @@ export function formatNetworkKeyLabel(networkKey: string) {
       return part.charAt(0).toUpperCase() + part.slice(1)
     })
     .join(" ")
+}
+
+function shortenWalletAddress(walletAddress: string) {
+  if (walletAddress.length <= 12) {
+    return walletAddress
+  }
+
+  return `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
 }

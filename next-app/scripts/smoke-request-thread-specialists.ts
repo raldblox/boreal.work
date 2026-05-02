@@ -9,6 +9,7 @@ import {
 } from "../lib/boreal/agents/request-thread-specialists.ts";
 import { isVideoProviderAccessUnavailableError } from "../lib/boreal/request-route-errors.ts";
 import type { RequestDetail } from "../lib/boreal/integrations/convex/function-refs.ts";
+import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens.ts";
 
 const now = Date.now();
 
@@ -66,6 +67,7 @@ const baseDetail: RequestDetail = {
     needsClarification: false,
     pinnedSupplyIds: [],
     provider: "boreal-agent",
+    requestToken: createPublicRequestToken("smoke-intent"),
     requestedOutputTypes: ["text"],
     resolutionTier: "auto",
     responseInstructions: "",

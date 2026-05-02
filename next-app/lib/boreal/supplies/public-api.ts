@@ -16,6 +16,7 @@ type SupplyCheckoutProtocol = "acp" | "custom" | "ucp";
 type SupplyDeliveryType = "async" | "instant" | "scheduled";
 type SupplyEvidenceMode = "none" | "receipt" | "response";
 type SupplyExecutionSurface =
+  | "desktop"
   | "handoff"
   | "http"
   | "jsonrpc"
@@ -58,6 +59,8 @@ export type PublicSupplyUpsertBody = {
   category?: string | null;
   checkoutProtocol?: SupplyCheckoutProtocol;
   checkoutProvider?: string | null;
+  connectorHealthStatus?: ConnectorHealthStatus | null;
+  connectorLastHeartbeatAt?: number | null;
   currency?: string | null;
   deliveryType?: SupplyDeliveryType;
   description?: string | null;
@@ -223,6 +226,11 @@ export function buildPublicSupplyMutationArgs(input: {
     checkoutProvider: normalizeOptionalText(
       input.body.checkoutProvider ?? existing?.checkoutProvider,
     ),
+    connectorHealthStatus:
+      input.body.connectorHealthStatus ?? existing?.connectorHealthStatus ?? undefined,
+    connectorLastHeartbeatAt:
+      normalizeOptionalNumber(input.body.connectorLastHeartbeatAt) ??
+      normalizeOptionalNumber(existing?.connectorLastHeartbeatAt),
     currency: normalizeCurrency(input.body.currency ?? existing?.currency),
     deliveryType,
     description,

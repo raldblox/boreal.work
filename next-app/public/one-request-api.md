@@ -6,7 +6,7 @@ This public file mirrors Boreal's live agent-only request-first contract.
 
 Status: live agent-only request-first contract.
 
-Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed mainnet payment authorization receipt plus an independently fetched Solana mainnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  What is still not claimed is treasury/payto-grade settlement verification.
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed mainnet payment authorization receipt plus an independently fetched Solana mainnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  `SIWX` challenges are single-use, and deployed one-request auth must provide `BOREAL_ONE_REQUEST_SECRET` instead of relying on a shared production fallback.  What is still not claimed is treasury/payto-grade settlement verification.
 
 ## Purpose
 
@@ -118,6 +118,11 @@ Response:
   "message": "Sign in with Boreal to open request-native execution on Solana mainnet.\n..."
 }
 ```
+
+Rules:
+
+- `challengeToken` is single-use and expires quickly; if verification or retry fails, request a fresh challenge instead of replaying the old one
+- deployed environments must set `BOREAL_ONE_REQUEST_SECRET` so Boreal can sign and verify request-first bearer sessions without a shared fallback secret
 
 ### 2. Sign and verify the challenge
 

@@ -18,6 +18,8 @@
     "smoke:agents": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-agents.ts",
     "smoke:collective-proposals": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-collective-proposals.ts",
     "smoke:connected-agents": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-connected-agents.ts",
+    "smoke:desktop-connect": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-desktop-connect.ts",
+    "smoke:desktop-nodes": "node --import ./scripts/register-local-env.mjs --import ./scripts/register-path-aliases.mjs --experimental-strip-types scripts/smoke-desktop-nodes.ts",
     "smoke:hermes-bridge": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-hermes-bridge.ts",
     "smoke:local-model-bridge": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-local-model-bridge.ts",
     "smoke:lifecycle": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-lifecycle.ts",

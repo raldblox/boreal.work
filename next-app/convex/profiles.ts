@@ -1,6 +1,8 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 
+import { isPrivateOperatorDesktopSupply } from "../lib/boreal/desktop-nodes/contracts";
+import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtime";
 import {
   emptyProfileAnalyticsSnapshot,
   readProfileAnalytics,
@@ -71,7 +73,10 @@ export const getMyProfile = query({
             productLabels: [],
             skillTags: [],
           },
-      supplies: supplies.map((supply) => ({
+      supplies: supplies.map((supply) => {
+        const isOwnerLocalExecution = isOwnerLocalExecutionSupply(supply);
+
+        return {
         _id: supply._id,
         availabilityStatus: supply.availabilityStatus ?? null,
         capabilityTags: supply.capabilityTags,
@@ -82,7 +87,7 @@ export const getMyProfile = query({
         description: supply.description,
         estimatedDeliveryLabel: supply.estimatedDeliveryLabel ?? null,
         isCartEnabled: supply.isCartEnabled,
-        priceAmount: supply.priceAmount ?? null,
+        priceAmount: isOwnerLocalExecution ? 0 : (supply.priceAmount ?? null),
         priceType: supply.priceType,
         deliveryType: supply.deliveryType,
         executionSurface: supply.executionSurface ?? null,
@@ -92,7 +97,7 @@ export const getMyProfile = query({
         mcpToolName: supply.mcpToolName ?? null,
         openApiUrl: supply.openApiUrl ?? null,
         outputTypes: supply.outputTypes ?? [],
-        paymentProtocol: supply.paymentProtocol ?? null,
+        paymentProtocol: isOwnerLocalExecution ? "none" : (supply.paymentProtocol ?? null),
         responseSlaMinutes: supply.responseSlaMinutes ?? null,
         sourceProviderKey: supply.sourceProviderKey ?? null,
         status: supply.status,
@@ -102,7 +107,7 @@ export const getMyProfile = query({
         supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
         supportsStatusUpdates: supply.supportsStatusUpdates ?? false,
         title: supply.title,
-      })),
+      }}),
       user: {
         _id: user._id,
         displayName: user.displayName,
@@ -111,6 +116,30 @@ export const getMyProfile = query({
     };
   },
 });
+
+function isOwnerLocalExecutionSupply(input: {
+  executionSurface?: string | null;
+  executorUrl?: string | null;
+  mcpServerUrl?: string | null;
+  metadataJson?: string | null;
+  sourceProviderKey?: string | null;
+  supportsDirectInvoke?: boolean | null;
+  title?: string | null;
+}) {
+  return (
+    isPrivateOperatorDesktopSupply({
+      metadataJson: input.metadataJson ?? null,
+    }) ||
+    isLocalRuntimeSupply({
+      executionSurface: input.executionSurface ?? null,
+      executorUrl: input.executorUrl ?? null,
+      mcpServerUrl: input.mcpServerUrl ?? null,
+      sourceProviderKey: input.sourceProviderKey ?? null,
+      supportsDirectInvoke: input.supportsDirectInvoke ?? false,
+      title: input.title ?? null,
+    })
+  );
+}
 
 export const upsertMyProfile = mutation({
   args: {

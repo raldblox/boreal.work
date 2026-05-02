@@ -27,7 +27,7 @@ export function HomeChatSurface({
           Early access
         </p>
         <h1 className="text-balance text-4xl font-medium tracking-tight sm:text-5xl">
-          Tell Boreal what you want done
+          Tell boreal what you want done
         </h1>
         <p className="mx-auto max-w-2xl text-sm/7 text-muted-foreground sm:text-base/7">
           Boreal turns intent into the best matched route and opens the right

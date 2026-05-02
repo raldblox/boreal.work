@@ -5,6 +5,7 @@ import {
   resolveRequestFetchPath,
   type RequestFetchPath,
 } from "../lib/boreal/request-matching-policy.ts";
+import { isPrivateOperatorDesktopSupply } from "../lib/boreal/desktop-nodes/contracts";
 import type { RequestClassification } from "../lib/boreal/schemas/intent.ts";
 
 type MatchStage = "feasible" | "notified" | "ranked" | "reserved" | "retrieved";
@@ -88,6 +89,7 @@ export async function buildRankedSupplyMatches(
   ]).filter(
     (candidate) =>
       candidate.status === "active" &&
+      !isPrivateOperatorDesktopSupply(candidate) &&
       filterSupplyForRequestClassification(candidate, input.classification),
   );
   const lexicalRanks = buildRankMap(lexicalCandidates.map((candidate) => candidate._id));

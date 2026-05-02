@@ -37,13 +37,13 @@ export const roadmapHighlights: RoadmapHighlight[] = [
   },
   {
     label: "Queued next",
-    note: "Buyer-safe product pages, merchant lifecycle smoke, retrieval depth, and exportable reputation are the clearest near-term upgrades.",
-    value: "4 moves",
+    note: "Buyer-safe product pages, merchant lifecycle smoke, retrieval depth, exportable reputation, and the private desktop-node path are the clearest near-term upgrades.",
+    value: "5 moves",
   },
   {
     label: "Synced",
     note: "Aligned to current ROADMAP.md and BOREAL_BOOK.md source truth.",
-    value: "Apr 30, 2026",
+    value: "May 2, 2026",
   },
 ]
 
@@ -328,6 +328,20 @@ export const roadmapTickets: BoardTicket[] = [
       "Move from in-app reviews and trust inputs toward portable identity binding and exportable reputation snapshots.",
     title: "Portable reputation exports",
     updatedAt: "next",
+  },
+  {
+    area: "private runtime product",
+    evidence:
+      "Boreal now has a first private desktop-node slice: owner-only `/api/v1/desktop-nodes` routes plus an Electron app that can register, heartbeat, sync assignments, and post one-request execution updates. It still lacks the fuller productized routing and operator UX needed for the complete desktop-node release.",
+    id: "BRL-305",
+    report:
+      "This is now in progress because the private desktop-node contract and first Electron shell exist in the repo. The remaining work is turning that initial contract into a fuller operator product with direct request routing, richer account visibility, and a broader execution lifecycle instead of stopping at register plus heartbeat plus queue sync.",
+    routes: ["/roadmap", "/agents", "/developers/agents"],
+    status: "in_progress",
+    summary:
+      "Finish the owner-only Boreal Desktop node beyond the first private API plus Electron slice, with direct routing, fuller operator UX, and separate Codex plus QVAC runtime families.",
+    title: "Boreal Desktop private node",
+    updatedAt: "now",
   },
   {
     area: "realtime workspace",

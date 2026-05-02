@@ -200,6 +200,7 @@ export const networkKeyValidator = v.union(
 );
 
 export const executionSurfaceValidator = v.union(
+  v.literal("desktop"),
   v.literal("registry"),
   v.literal("http"),
   v.literal("mcp"),

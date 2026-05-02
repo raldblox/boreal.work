@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Boreal Desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">B</div>
+          <div>
+            <p class="eyebrow">Boreal Desktop</p>
+            <h1>Private execution node</h1>
+          </div>
+        </div>
+        <p class="sidebar-copy">
+          Windows-first Electron shell for owner-only local execution. This
+          scaffold already persists node state locally and separates main,
+          preload, and renderer responsibilities.
+        </p>
+        <nav class="nav" id="nav"></nav>
+      </aside>
+
+      <main class="main">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Desktop runtime control</p>
+            <h2 id="hero-title">Loading node state</h2>
+            <p class="hero-copy" id="hero-copy">
+              Probing local runtimes and restoring queue state.
+            </p>
+          </div>
+          <div class="hero-actions">
+            <button data-action="probe">Probe runtimes</button>
+            <button data-action="seed-demo">Seed demo queue</button>
+            <button data-action="clear-finished" class="ghost">Clear finished</button>
+          </div>
+        </header>
+
+        <section class="notice hidden" id="notice"></section>
+
+        <div class="content-grid">
+          <section class="panel panel-main">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Workspace</p>
+                <h3 id="panel-title">Queue</h3>
+              </div>
+            </div>
+            <div id="panel-body"></div>
+          </section>
+
+          <aside class="panel panel-side">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Event stream</p>
+                <h3>Local audit log</h3>
+              </div>
+            </div>
+            <div class="event-feed" id="event-feed"></div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="./renderer/app.js"></script>
+  </body>
+</html>

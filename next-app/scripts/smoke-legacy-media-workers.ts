@@ -7,6 +7,7 @@ import {
   toAgentArtifactDelivery,
 } from "../agents/shared/runtime.ts";
 import type { RequestDetail } from "../lib/boreal/integrations/convex/function-refs.ts";
+import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens.ts";
 import type {
   AgentExecutionResult,
   AutonomousAgentDefinition,
@@ -68,6 +69,7 @@ const baseDetail: RequestDetail = {
     needsClarification: false,
     pinnedSupplyIds: [],
     provider: "boreal-agent",
+    requestToken: createPublicRequestToken("smoke-intent"),
     requestedOutputTypes: ["speech_generation"],
     resolutionTier: "auto",
     responseInstructions: "Calm, clear, slightly brisk delivery.",

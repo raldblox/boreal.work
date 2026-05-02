@@ -24,6 +24,8 @@ import {
   buildRankedSupplyMatches,
   getPersistedIntentMatches,
 } from "./matching";
+import { isPrivateOperatorDesktopSupply } from "../lib/boreal/desktop-nodes/contracts";
+import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtime";
 import { getDefaultPayoutWalletAccountId } from "./commerceCore";
 import {
   refreshBorealProfileAnalytics,
@@ -751,7 +753,7 @@ export async function mapSupplyListing(
     description: string;
     evidenceMode?: "none" | "receipt" | "response";
     estimatedDeliveryLabel?: string;
-    executionSurface?: "registry" | "http" | "mcp" | "jsonrpc" | "sdk" | "widget" | "handoff";
+    executionSurface?: "desktop" | "registry" | "http" | "mcp" | "jsonrpc" | "sdk" | "widget" | "handoff";
     executorUrl?: string;
     fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
     isCartEnabled: boolean;
@@ -804,6 +806,7 @@ export async function mapSupplyListing(
 ) {
   const seller = await getSupplySeller(ctx, supply.supplierUserId);
   const reviews = await getSupplyReviewSummary(ctx, supply._id);
+  const isOwnerLocalExecution = isOwnerLocalExecutionSupply(supply);
 
   return {
     _id: supply._id,
@@ -837,11 +840,11 @@ export async function mapSupplyListing(
     offerSlug: supply.offerSlug ?? null,
     openApiUrl: supply.openApiUrl ?? null,
     outputTypes: supply.outputTypes ?? [],
-    paymentNetworkHints: supply.paymentNetworkHints ?? [],
-    paymentProtocol: supply.paymentProtocol ?? null,
-    priceAmount: supply.priceAmount ?? null,
-    priceMax: supply.priceMax ?? null,
-    priceMin: supply.priceMin ?? null,
+    paymentNetworkHints: isOwnerLocalExecution ? [] : (supply.paymentNetworkHints ?? []),
+    paymentProtocol: isOwnerLocalExecution ? "none" : (supply.paymentProtocol ?? null),
+    priceAmount: isOwnerLocalExecution ? 0 : (supply.priceAmount ?? null),
+    priceMax: isOwnerLocalExecution ? 0 : (supply.priceMax ?? null),
+    priceMin: isOwnerLocalExecution ? 0 : (supply.priceMin ?? null),
     priceType: supply.priceType,
     responseSlaMinutes: supply.responseSlaMinutes ?? null,
     requiresHumanApproval: supply.requiresHumanApproval ?? false,
@@ -877,6 +880,7 @@ async function mapOwnedSupplyRecord(
   supply: Doc<"supplies">,
 ) {
   const seller = await getSupplySeller(ctx, supply.supplierUserId);
+  const isOwnerLocalExecution = isOwnerLocalExecutionSupply(supply);
 
   return {
     seller,
@@ -916,11 +920,11 @@ async function mapOwnedSupplyRecord(
       offerSlug: supply.offerSlug ?? null,
       openApiUrl: supply.openApiUrl ?? null,
       outputTypes: supply.outputTypes ?? [],
-      paymentNetworkHints: supply.paymentNetworkHints ?? [],
-      paymentProtocol: supply.paymentProtocol ?? null,
-      priceAmount: supply.priceAmount ?? null,
-      priceMax: supply.priceMax ?? null,
-      priceMin: supply.priceMin ?? null,
+      paymentNetworkHints: isOwnerLocalExecution ? [] : (supply.paymentNetworkHints ?? []),
+      paymentProtocol: isOwnerLocalExecution ? "none" : (supply.paymentProtocol ?? null),
+      priceAmount: isOwnerLocalExecution ? 0 : (supply.priceAmount ?? null),
+      priceMax: isOwnerLocalExecution ? 0 : (supply.priceMax ?? null),
+      priceMin: isOwnerLocalExecution ? 0 : (supply.priceMin ?? null),
       priceRawJson: supply.priceRawJson ?? null,
       priceType: supply.priceType,
       protocolDescriptorJson: supply.protocolDescriptorJson ?? null,
@@ -948,6 +952,33 @@ async function mapOwnedSupplyRecord(
   };
 }
 
+function isOwnerLocalExecutionSupply(
+  supply: Pick<
+    Doc<"supplies">,
+    | "executionSurface"
+    | "executorUrl"
+    | "mcpServerUrl"
+    | "metadataJson"
+    | "sourceProviderKey"
+    | "supportsDirectInvoke"
+    | "title"
+  >,
+) {
+  return (
+    isPrivateOperatorDesktopSupply({
+      metadataJson: supply.metadataJson ?? null,
+    }) ||
+    isLocalRuntimeSupply({
+      executionSurface: supply.executionSurface ?? null,
+      executorUrl: supply.executorUrl ?? null,
+      mcpServerUrl: supply.mcpServerUrl ?? null,
+      sourceProviderKey: supply.sourceProviderKey ?? null,
+      supportsDirectInvoke: supply.supportsDirectInvoke ?? false,
+      title: supply.title ?? null,
+    })
+  );
+}
+
 export async function listCatalogListings(ctx: MutationCtx | QueryCtx, limit: number) {
   const supplies = await ctx.db
     .query("supplies")
@@ -958,9 +989,9 @@ export async function listCatalogListings(ctx: MutationCtx | QueryCtx, limit: nu
     .take(Math.max(limit * 3, 36));
 
   const mapped = await Promise.all(
-    supplies.map((supply) =>
-      mapSupplyListing(ctx, supply, { matchScore: null, matchReasons: [] }),
-    ),
+    supplies
+      .filter((supply) => !isPrivateOperatorDesktopSupply(supply))
+      .map((supply) => mapSupplyListing(ctx, supply, { matchScore: null, matchReasons: [] })),
   );
 
   return mapped
@@ -1195,7 +1226,7 @@ function buildSupplySearchText(input: {
   estimatedDeliveryLabel?: string;
   exampleIntents?: string[];
   exclusions?: string[];
-  executionSurface?: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
+  executionSurface?: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
   executorUrl?: string;
   fulfillmentKind: "digital" | "service" | "physical" | "hybrid";
   fulfillmentRate: number;

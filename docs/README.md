@@ -8,6 +8,8 @@ Use this folder for narrower support docs only:
 
 - [CHARACTER.md](C:\Users\raldb\boreal.work\docs\CHARACTER.md)
   Boreal agent behavior and prompt-character source
+- [DESKTOP_PLAN.md](C:\Users\raldb\boreal.work\DESKTOP_PLAN.md)
+  target architecture note for Boreal Desktop V1 and its owner-only private desktop-node model
 - [papers/BOREAL_WORK_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\BOREAL_WORK_NETWORK.md)
   flagship public paper
 - [papers/HUMAN_SUPPLY_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\HUMAN_SUPPLY_NETWORK.md)

@@ -161,7 +161,7 @@ export type CatalogEntry = {
   deliveryType: string;
   description: string;
   estimatedDeliveryLabel: string | null;
-  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+  executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   fulfillmentKind: string;
   gatedOutReasons: string[];
@@ -260,7 +260,7 @@ export type CheckoutRecord = {
     serviceInvocation: {
       endpointMethod: string | null;
       endpointUrl: string | null;
-      executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
+      executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
       providerKey: "agentcash" | "agentic-market" | "frames" | "manual" | "moonpay" | "solana-agent-kit";
       responseJson: string | null;
       resultUrl: string | null;
@@ -306,7 +306,7 @@ export type ProfileSupplyEntry = {
   deliveryType?: string;
   description: string;
   estimatedDeliveryLabel: string | null;
-  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+  executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   isCartEnabled: boolean;
   maxConcurrentJobs: number | null;
@@ -361,7 +361,7 @@ export type ConnectedAgentControlRecord = {
     capabilityTags: string[];
     connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
     deliveryType: string;
-    executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+    executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
     executorUrl: string | null;
     mcpServerUrl: string | null;
     mcpToolName: string | null;
@@ -585,6 +585,7 @@ export type RequestDetail = {
     resolutionTier: string;
     reviewPending: boolean;
     routeTarget: PersistedIntent["routeTarget"];
+    requestToken: string;
     shouldSearchCatalog: boolean;
     startedAt: number | null;
     status: string;
@@ -700,7 +701,7 @@ export type RequestExecutionContext = {
     connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
     connectorLastHeartbeatAt: number | null;
     connectorLastTestedAt: number | null;
-    executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+    executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
     executorUrl: string | null;
     mcpServerUrl: string | null;
     mcpToolName: string | null;
@@ -1048,7 +1049,7 @@ export const convexFunctionRefs = {
           returnsTxHash: boolean;
           supportsSchemaMetadata: boolean;
         };
-        executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
+        executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
         keywords: string[];
         paymentNetworkHints: string[];
         paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402";
@@ -1237,7 +1238,7 @@ export const convexFunctionRefs = {
       description: string;
       estimatedDeliveryLabel?: string;
       exampleIntents?: string[];
-      executionSurface?: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
+      executionSurface?: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
       executorUrl?: string;
       exclusions?: string[];
       fulfillmentKind?: "digital" | "hybrid" | "physical" | "service";

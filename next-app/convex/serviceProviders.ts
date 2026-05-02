@@ -564,7 +564,7 @@ function buildSupplySearchText(input: {
   evidenceMode?: "none" | "receipt" | "response";
   exampleIntents?: string[];
   exclusions?: string[];
-  executionSurface?: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
+  executionSurface?: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget";
   executorUrl?: string;
   fulfillmentKind: "digital" | "hybrid" | "physical" | "service";
   fulfillmentRate: number;

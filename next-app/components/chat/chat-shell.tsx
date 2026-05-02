@@ -197,6 +197,11 @@ import {
   getRuntimeHealthUrl,
   isLocalRuntimeSupply,
 } from "@/lib/boreal/external-agents/local-runtime"
+import type {
+  DesktopNodeAssignment,
+  DesktopNodeEnvelope,
+  DesktopNodeRuntimeFamily,
+} from "@/lib/boreal/desktop-nodes/contracts"
 import {
   buildAccountSettingsHref,
   type BorealShellAccountView,
@@ -304,6 +309,13 @@ type LocalRuntimeDraft = {
   executorUrl: string
   runtimeKind: "custom" | "lmstudio" | "ollama"
   title: string
+}
+
+type RequestDesktopEnvelope = {
+  assignment: DesktopNodeAssignment | null
+  created?: boolean
+  node: DesktopNodeEnvelope["node"] | null
+  requestToken: string | null
 }
 
 const DEFAULT_MOUNTED_COMPOSER_AGENT: MountedComposerAgent = {
@@ -544,6 +556,8 @@ export function ChatShell() {
   const [isDraftingProfileBuilder, setIsDraftingProfileBuilder] =
     useState(false)
   const [isSavingProfileBuilder, setIsSavingProfileBuilder] = useState(false)
+  const [isDesktopConnectLaunching, setIsDesktopConnectLaunching] =
+    useState(false)
   const [accountNotice, setAccountNotice] = useState<string | null>(null)
   const [profileBuilderMessage, setProfileBuilderMessage] = useState("")
   const [profileBuilderDraft, setProfileBuilderDraft] =
@@ -1001,6 +1015,24 @@ export function ChatShell() {
     chainFamily: runtimePrimaryChainFamily,
     environment: runtimeEnvironment,
   })
+  const connectedRuntimeWalletAddress =
+    connectedWallets.find(
+      (wallet) => wallet.networkKey === runtimeDefaultNetworkKey
+    )?.address ?? null
+  const desktopConnectWalletAddress =
+    connectedRuntimeWalletAddress ??
+    walletAccounts.find(
+      (account) =>
+        account.networkKey === runtimeDefaultNetworkKey && account.isDefaultBuyer
+    )?.walletAddress ??
+    walletAccounts.find(
+      (account) =>
+        account.networkKey === runtimeDefaultNetworkKey && account.isDefaultPayout
+    )?.walletAddress ??
+    walletAccounts.find(
+      (account) => account.networkKey === runtimeDefaultNetworkKey
+    )?.walletAddress ??
+    null
   const isChatSurfaceActive = !activeIntentId || activeCenterTab === "chat"
   const shouldShowChatComposer =
     isXAuthenticated && isChatSurfaceActive && (!activeIntentId || canViewRequestChat)
@@ -1417,6 +1449,58 @@ export function ChatShell() {
       )
     } finally {
       setIsProfileAvailabilityUpdating(false)
+    }
+  }
+
+  async function handleConnectDesktop() {
+    if (!ownerExternalId) {
+      setAccountNotice("Sign in with X first so Boreal can link Boreal Desktop.")
+      return
+    }
+
+    if (!desktopConnectWalletAddress) {
+      setAccountNotice(
+        "Connect a Solana mainnet wallet first so Boreal Desktop can inherit this account identity."
+      )
+      return
+    }
+
+    setIsDesktopConnectLaunching(true)
+    setAccountNotice(null)
+
+    try {
+      const response = await fetch("/api/account/desktop-connect", {
+        body: JSON.stringify({
+          walletAddress: connectedRuntimeWalletAddress ?? undefined,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      })
+      const payload = (await response.json()) as {
+        error?: string
+        launchUrl?: string
+      }
+
+      if (!response.ok || !payload.launchUrl) {
+        throw new Error(
+          payload.error ?? "Could not prepare the Boreal Desktop connect flow."
+        )
+      }
+
+      setAccountNotice(
+        "Opening Boreal Desktop. Allow the browser protocol prompt if it appears."
+      )
+      window.location.assign(payload.launchUrl)
+    } catch (error) {
+      setAccountNotice(
+        error instanceof Error
+          ? error.message
+          : "Could not prepare the Boreal Desktop connect flow."
+      )
+    } finally {
+      setIsDesktopConnectLaunching(false)
     }
   }
 
@@ -4032,7 +4116,9 @@ export function ChatShell() {
                 <AccountSettingsSheet
                   accountName={session?.user?.name ?? null}
                   connectedWallets={connectedWallets}
+                  desktopConnectWalletAddress={desktopConnectWalletAddress}
                   defaultWalletAddress={defaultWalletAddress}
+                  isDesktopConnectLaunching={isDesktopConnectLaunching}
                   isOpen={isAccountSheetOpen}
                   isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
                   isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
@@ -4040,6 +4126,7 @@ export function ChatShell() {
                   isWalletReady={isWalletReady}
                   myProfileRecord={myProfileRecord}
                   notice={accountNotice}
+                  onConnectDesktop={handleConnectDesktop}
                   onConnectWallet={handleOpenWalletModal}
                   onOpenChange={(nextOpen) => {
                     if (nextOpen) {
@@ -4234,6 +4321,7 @@ export function ChatShell() {
                                 onInviteLocalRuntime={() =>
                                   setIsLocalRuntimeDialogOpen(true)
                                 }
+                                onRefreshRequest={refreshRequestShellData}
                                 onViewProfile={openProfileSheet}
                                 canInviteLocalRuntime={canInviteLocalRuntime}
                                 isSolanaWalletReady={isWalletReady}
@@ -4925,7 +5013,9 @@ export function ChatShell() {
 function AccountSettingsSheet({
   accountName,
   connectedWallets,
+  desktopConnectWalletAddress,
   defaultWalletAddress,
+  isDesktopConnectLaunching,
   isOpen,
   isProfileAvailabilityUpdating,
   isPayoutWalletUpdating,
@@ -4933,6 +5023,7 @@ function AccountSettingsSheet({
   isWalletReady,
   myProfileRecord,
   notice,
+  onConnectDesktop,
   onConnectWallet,
   onOpenChange,
   onOpenProfileBuilder,
@@ -4943,7 +5034,9 @@ function AccountSettingsSheet({
 }: {
   accountName: string | null
   connectedWallets: NormalizedConnectedWallet[]
+  desktopConnectWalletAddress: string | null
   defaultWalletAddress: string | null
+  isDesktopConnectLaunching: boolean
   isOpen: boolean
   isProfileAvailabilityUpdating: boolean
   isPayoutWalletUpdating: string | null
@@ -4951,6 +5044,7 @@ function AccountSettingsSheet({
   isWalletReady: boolean
   myProfileRecord: MyProfileRecord
   notice: string | null
+  onConnectDesktop: () => void
   onConnectWallet: () => void
   onOpenChange: (open: boolean) => void
   onOpenProfileBuilder: () => void
@@ -4970,7 +5064,9 @@ function AccountSettingsSheet({
           accountName={accountName}
           builderSlot={undefined}
           connectedWallets={connectedWallets}
+          desktopConnectWalletAddress={desktopConnectWalletAddress}
           defaultWalletAddress={defaultWalletAddress}
+          isDesktopConnectLaunching={isDesktopConnectLaunching}
           isEditingPublicSetup={false}
           isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
           isPayoutWalletUpdating={isPayoutWalletUpdating}
@@ -4978,6 +5074,7 @@ function AccountSettingsSheet({
           isWalletReady={isWalletReady}
           myProfileRecord={myProfileRecord}
           notice={notice}
+          onConnectDesktop={onConnectDesktop}
           onConnectWallet={onConnectWallet}
           onOpenProfileBuilder={onOpenProfileBuilder}
           onToggleProfileAvailability={onToggleProfileAvailability}
@@ -7048,6 +7145,7 @@ function RequestWorkersPanel({
   activePresetRoomTurn,
   onBrowseWorkers,
   onInviteLocalRuntime,
+  onRefreshRequest,
   onViewProfile,
   canInviteLocalRuntime,
   isSolanaWalletReady,
@@ -7058,6 +7156,7 @@ function RequestWorkersPanel({
   activePresetRoomTurn: PresetTeamStreamTurn | null
   onBrowseWorkers: () => void
   onInviteLocalRuntime: () => void
+  onRefreshRequest: () => Promise<void>
   onViewProfile: (profileId: string) => void
   canInviteLocalRuntime: boolean
   isSolanaWalletReady: boolean
@@ -7078,14 +7177,142 @@ function RequestWorkersPanel({
   const [runtimePresence, setRuntimePresence] = useState<
     Record<string, "active" | "checking" | "offline">
   >({})
+  const [desktopRouting, setDesktopRouting] =
+    useState<RequestDesktopEnvelope | null>(null)
+  const [desktopRoutingStatus, setDesktopRoutingStatus] = useState<
+    "idle" | "loading" | "ready"
+  >("idle")
+  const [desktopRoutingNotice, setDesktopRoutingNotice] = useState<string | null>(
+    null
+  )
+  const [assigningDesktopRuntime, setAssigningDesktopRuntime] =
+    useState<DesktopNodeRuntimeFamily | null>(null)
   const assignmentSummary = useMemo(
     () => getRequestAssignmentSummary(requestDetail?.assignment),
     [requestDetail?.assignment]
   )
+  const desktopIntentId = intent?._id ?? null
+  const desktopRequestToken = intent?.requestToken ?? null
+  const canAssignDesktop = Boolean(requestDetail?.access?.isOwner && intent?._id)
   const isWaitingForWorkers =
     participants.filter((participant) => participant.status !== "owner")
       .length === 0 &&
     (intent?.status === "open" || intent?.status === "proposed")
+
+  useEffect(() => {
+    if (!canAssignDesktop || !desktopIntentId || !desktopRequestToken) {
+      setDesktopRouting(null)
+      setDesktopRoutingNotice(null)
+      setDesktopRoutingStatus("idle")
+      return
+    }
+
+    let cancelled = false
+    setDesktopRoutingStatus("loading")
+    setDesktopRoutingNotice(null)
+
+    async function loadDesktopRouting() {
+      try {
+        const response = await fetch(`/api/requests/${desktopIntentId}/desktop`, {
+          cache: "no-store",
+          method: "GET",
+        })
+        const payload = (await response
+          .json()
+          .catch(() => null)) as
+          | RequestDesktopEnvelope
+          | { error?: string }
+          | null
+
+        if (!response.ok) {
+          throw new Error(
+            payload && "error" in payload && typeof payload.error === "string"
+              ? payload.error
+              : "Could not load Boreal Desktop routing."
+          )
+        }
+
+        if (cancelled) {
+          return
+        }
+
+        setDesktopRouting(payload as RequestDesktopEnvelope)
+        setDesktopRoutingStatus("ready")
+      } catch (error) {
+        if (cancelled) {
+          return
+        }
+
+        setDesktopRouting({
+          assignment: null,
+          node: null,
+          requestToken: desktopRequestToken,
+        })
+        setDesktopRoutingNotice(
+          error instanceof Error
+            ? error.message
+            : "Could not load Boreal Desktop routing."
+        )
+        setDesktopRoutingStatus("ready")
+      }
+    }
+
+    void loadDesktopRouting()
+
+    return () => {
+      cancelled = true
+    }
+  }, [canAssignDesktop, desktopIntentId, desktopRequestToken])
+
+  async function handleAssignDesktop(runtimeFamily: DesktopNodeRuntimeFamily) {
+    if (!desktopIntentId || assigningDesktopRuntime) {
+      return
+    }
+
+    setDesktopRoutingNotice(null)
+    setAssigningDesktopRuntime(runtimeFamily)
+
+    try {
+      const response = await fetch(`/api/requests/${desktopIntentId}/desktop`, {
+        body: JSON.stringify({ runtimeFamily }),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "POST",
+      })
+      const payload = (await response
+        .json()
+        .catch(() => null)) as
+        | RequestDesktopEnvelope
+        | { created?: boolean; error?: string }
+        | null
+
+      if (!response.ok) {
+        throw new Error(
+          payload && "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "Could not assign this request into Boreal Desktop."
+        )
+      }
+
+      setDesktopRouting(payload as RequestDesktopEnvelope)
+      setDesktopRoutingStatus("ready")
+      setDesktopRoutingNotice(
+        payload && "created" in payload && payload.created === false
+          ? "This request is already queued on Boreal Desktop."
+          : `Queued on ${runtimeFamily === "codex" ? "Codex" : "QVAC"}.`
+      )
+      await onRefreshRequest()
+    } catch (error) {
+      setDesktopRoutingNotice(
+        error instanceof Error
+          ? error.message
+          : "Could not assign this request into Boreal Desktop."
+      )
+    } finally {
+      setAssigningDesktopRuntime(null)
+    }
+  }
 
   useEffect(() => {
     const runtimeTargets = participants
@@ -7185,6 +7412,17 @@ function RequestWorkersPanel({
 
   return (
     <div className="space-y-4">
+      {canAssignDesktop ? (
+        <RequestDesktopAssignmentCard
+          assignment={desktopRouting?.assignment ?? null}
+          assigningRuntimeFamily={assigningDesktopRuntime}
+          isLoading={desktopRoutingStatus === "loading"}
+          node={desktopRouting?.node ?? null}
+          notice={desktopRoutingNotice}
+          onAssign={handleAssignDesktop}
+        />
+      ) : null}
+
       {isWaitingForWorkers ? (
         <div className="space-y-3 border border-border p-4">
           <p className="text-sm font-medium">Waiting for team</p>
@@ -7387,6 +7625,156 @@ function RequestWorkersPanel({
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function RequestDesktopAssignmentCard(input: {
+  assignment: DesktopNodeAssignment | null
+  assigningRuntimeFamily: DesktopNodeRuntimeFamily | null
+  isLoading: boolean
+  node: DesktopNodeEnvelope["node"] | null
+  notice: string | null
+  onAssign: (runtimeFamily: DesktopNodeRuntimeFamily) => Promise<void>
+}) {
+  const runtimeFamilies = input.node?.runtimeFamilies ?? []
+  const activeAssignment = Boolean(
+    input.assignment && isDesktopAssignmentInFlight(input.assignment.status)
+  )
+
+  return (
+    <div className="space-y-4 rounded-xl border border-border/80 bg-background/60 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+            <BotIcon className="size-3.5" />
+            <span>Boreal Desktop</span>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">
+              {input.node?.machineLabel ?? "Private desktop execution"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Queue this request into your private desktop node and let Codex or
+              QVAC deliver back into the same request thread.
+            </p>
+          </div>
+        </div>
+        {input.node ? (
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">
+              {formatDesktopAvailabilityLabel(input.node.availabilityStatus)}
+            </Badge>
+            <Badge variant="outline">
+              {formatDesktopHealthLabel(input.node.connectorHealthStatus)}
+            </Badge>
+          </div>
+        ) : null}
+      </div>
+
+      {input.isLoading && !input.node ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <LoaderIcon className="size-4 animate-spin" />
+          Checking Boreal Desktop routing...
+        </div>
+      ) : null}
+
+      {!input.isLoading && !input.node ? (
+        <div className="space-y-2 rounded-xl border border-dashed border-border px-4 py-3">
+          <p className="text-sm font-medium">No desktop node linked yet</p>
+          <p className="text-xs text-muted-foreground">
+            Open Boreal Desktop, sign in with the same wallet linked to this
+            Boreal account, and register the node first.
+          </p>
+        </div>
+      ) : null}
+
+      {input.node ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {runtimeFamilies.map((runtimeFamily) => (
+              <Badge key={runtimeFamily} variant="outline">
+                {runtimeFamily === "codex" ? "Codex" : "QVAC"}
+              </Badge>
+            ))}
+            {input.node.lastHeartbeatAt ? (
+              <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                Heartbeat {formatDesktopTimestamp(input.node.lastHeartbeatAt)}
+              </span>
+            ) : null}
+          </div>
+
+          {input.assignment ? (
+            <div className="space-y-2 rounded-xl border border-border px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] tracking-[0.16em] uppercase",
+                    getDesktopAssignmentTone(input.assignment.status)
+                  )}
+                >
+                  {formatDesktopAssignmentStatus(input.assignment.status)}
+                </span>
+                <span className="text-sm font-medium">
+                  {input.assignment.runtimeFamily === "codex" ? "Codex" : "QVAC"}
+                </span>
+                <span className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                  Updated {formatDesktopTimestamp(input.assignment.updatedAt)}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {input.assignment.summary}
+              </p>
+              {!input.assignment.requestCallbacksEnabled ? (
+                <p className="text-xs text-muted-foreground">
+                  Desktop queue is linked to this request, but live callback
+                  streaming is still limited to one-request API jobs.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            {runtimeFamilies.map((runtimeFamily) => {
+              const isAssigning = input.assigningRuntimeFamily === runtimeFamily
+              const label =
+                activeAssignment && input.assignment?.runtimeFamily === runtimeFamily
+                  ? runtimeFamily === "codex"
+                    ? "Queued on Codex"
+                    : "Queued on QVAC"
+                  : runtimeFamily === "codex"
+                    ? "Assign via Codex"
+                    : "Assign via QVAC"
+
+              return (
+                <Button
+                  disabled={
+                    input.node?.availabilityStatus !== "available" ||
+                    activeAssignment ||
+                    Boolean(input.assigningRuntimeFamily)
+                  }
+                  key={runtimeFamily}
+                  onClick={() => void input.onAssign(runtimeFamily)}
+                  size="sm"
+                  type="button"
+                  variant={
+                    input.assignment?.runtimeFamily === runtimeFamily
+                      ? "default"
+                      : "outline"
+                  }
+                >
+                  {isAssigning ? <LoaderIcon className="size-4 animate-spin" /> : null}
+                  {label}
+                </Button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {input.notice ? (
+        <p className="text-xs text-muted-foreground">{input.notice}</p>
+      ) : null}
     </div>
   )
 }
@@ -7602,6 +7990,101 @@ function formatPresetRoomPresenceLabel(label: string) {
   }
 }
 
+function formatDesktopAvailabilityLabel(
+  status: DesktopNodeEnvelope["node"]["availabilityStatus"]
+) {
+  switch (status) {
+    case "available":
+      return "available"
+    case "draining":
+      return "draining"
+    case "paused":
+      return "paused"
+    case "offline":
+      return "offline"
+    default:
+      return status
+  }
+}
+
+function formatDesktopAssignmentStatus(status: DesktopNodeAssignment["status"]) {
+  switch (status) {
+    case "queued_for_desktop":
+      return "queued"
+    case "accepted_by_desktop":
+      return "accepted"
+    case "executing_on_desktop":
+      return "executing"
+    case "waiting_for_owner_input":
+      return "waiting"
+    case "delivered_by_desktop":
+      return "delivered"
+    case "failed_on_desktop":
+      return "failed"
+    case "rejected_by_desktop":
+      return "rejected"
+    case "expired":
+      return "expired"
+  }
+
+  return "queued"
+}
+
+function formatDesktopHealthLabel(
+  status: DesktopNodeEnvelope["node"]["connectorHealthStatus"]
+) {
+  switch (status) {
+    case "healthy":
+      return "healthy"
+    case "failing":
+      return "offline"
+    default:
+      return "unknown"
+  }
+}
+
+function formatDesktopTimestamp(timestamp: string) {
+  const value = Date.parse(timestamp)
+
+  if (Number.isNaN(value)) {
+    return "just now"
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+  }).format(value)
+}
+
+function getDesktopAssignmentTone(status: DesktopNodeAssignment["status"]) {
+  switch (status) {
+    case "accepted_by_desktop":
+    case "delivered_by_desktop":
+    case "executing_on_desktop":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    case "queued_for_desktop":
+    case "waiting_for_owner_input":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    case "failed_on_desktop":
+    case "rejected_by_desktop":
+    case "expired":
+      return "border-destructive/30 bg-destructive/10 text-destructive"
+    default:
+      return "border-border text-muted-foreground"
+  }
+}
+
+function isDesktopAssignmentInFlight(status: DesktopNodeAssignment["status"]) {
+  return (
+    status === "queued_for_desktop" ||
+    status === "accepted_by_desktop" ||
+    status === "executing_on_desktop" ||
+    status === "waiting_for_owner_input"
+  )
+}
+
 function getRequestParticipantPresenceLabel(
   participant: RequestDetail["participants"][number],
   activePresetSpeakerName?: string | null,
@@ -7630,6 +8113,18 @@ function getRequestParticipantPresenceLabel(
 
     if (runtimePresence === "checking") {
       return "checking"
+    }
+
+    if (runtimePresence === "offline") {
+      return "offline"
+    }
+
+    if (participant.connectorHealthStatus === "healthy") {
+      return "active now"
+    }
+
+    if (participant.connectorHealthStatus === "unknown") {
+      return "assigned"
     }
 
     return "offline"
@@ -7733,7 +8228,7 @@ function LocalRuntimeInviteDialog({
           <DialogHeader className="border-b border-border px-6 py-4">
             <DialogTitle>Invite local runtime</DialogTitle>
             <DialogDescription>
-              Attach a localhost runtime to this active request.{" "}
+              Attach a localhost bridge runtime to this active request.{" "}
               {currentRequestTitle
                 ? `Current request: ${currentRequestTitle}.`
                 : "Only active request threads can use this flow."}
@@ -7746,7 +8241,8 @@ function LocalRuntimeInviteDialog({
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Saved local runtimes</p>
                   <p className="text-xs text-muted-foreground">
-                    Only localhost direct runtimes appear here.
+                    Only localhost HTTP or MCP bridges appear here. This does
+                    not use Boreal Desktop or raw Codex directly.
                   </p>
                 </div>
                 {runtimeCount === 0 ? (
@@ -7809,7 +8305,9 @@ function LocalRuntimeInviteDialog({
                   <p className="text-xs text-muted-foreground">
                     Boreal expects your local bridge URL, not the raw model
                     port. Examples: `npm run agent:bridge:ollama` or `npm run
-                    agent:bridge:lmstudio`.
+                    agent:bridge:lmstudio`. After invite, send your next message
+                    in this same request thread and Boreal will forward it to
+                    the runtime directly.
                   </p>
                 </div>
 
@@ -7894,7 +8392,8 @@ function LocalRuntimeInviteDialog({
 
           <DialogFooter className="border-t border-border px-6 py-4 sm:justify-between">
             <p className="text-xs text-muted-foreground">
-              Only active request threads can invite local runtimes.
+              Invite is the owner approval for localhost bridges. Boreal Desktop
+              uses the separate desktop-node flow.
             </p>
             <Button
               disabled={isCreating}
@@ -10609,6 +11108,7 @@ function labelActivity(type: string) {
     "request.approved": "Request approved",
     "request.awaiting_approval": "Awaiting approval",
     "request.blocked": "Execution blocked",
+    "request.desktop_assigned": "Desktop assigned",
     "request.delivered": "Route delivered",
     "request.execution_started": "Execution started",
     "request.follow_up": "Specialist follow-up",
@@ -10645,6 +11145,14 @@ function describeActivityPayload(payload: Record<string, unknown>) {
 
   if (typeof payload.status === "string") {
     parts.push(`Status: ${payload.status.replaceAll("_", " ")}`)
+  }
+
+  if (typeof payload.title === "string") {
+    parts.push(`Node: ${payload.title}`)
+  }
+
+  if (typeof payload.machineLabel === "string") {
+    parts.push(`Machine: ${payload.machineLabel}`)
   }
 
   if (typeof payload.rating === "number") {

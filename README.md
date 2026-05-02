@@ -106,7 +106,37 @@ cd next-app
 npm run smoke:preset-teams
 ```
 
+Build the first Boreal Desktop scaffold:
+
+```bash
+cd boreal-desktop
+npm install
+npm run build
+```
+
+Launch the local Electron shell:
+
+```bash
+cd boreal-desktop
+npm run dev
+```
+
+Typecheck the desktop workspace:
+
+```bash
+cd boreal-desktop
+npm run typecheck
+```
+
 ## Changelog
+- `2026-05-02`: Removed the signed-in chat-side Boreal payment choke point for qualified text work.  Boreal-hosted provider selection no longer blocks tracked work-thread creation, the default Boreal-hosted lane is free again in chat, and when an owner has an available private Boreal Desktop node, qualified home chat work now auto-opens one tracked request thread, pins it to that desktop worker, and queues the assignment immediately instead of waiting on a paid Boreal route.
+- `2026-05-02`: Added the first real Boreal Desktop connect flow.  Signed-in owners can now open `/account`, click `Connect desktop`, let Boreal mint a short-lived launch grant, and hand Boreal Desktop a redeemable `boreal-desktop://` launch URL instead of pasting the long-lived Bearer session manually.  The Electron app now registers the custom protocol, redeems `/api/v1/desktop-connect/redeem`, stores the returned session locally, and refreshes the private node state automatically.
+- `2026-05-02`: Added `npm run smoke:desktop-connect` in `next-app/` so the new desktop-connect redeem route is exercised.  The smoke verifies signed grant redemption into a valid Boreal bearer session for the linked Solana wallet.
+- `2026-05-02`: Added the first polished web request-to-desktop handoff.  Signed-in request owners can now queue active work into their private Boreal Desktop node from the request `Team` tab, Boreal records `request.desktop_assigned`, and the same request thread now shows the private desktop node as an execution participant when it is linked to the owner's account.
+- `2026-05-02`: Added `npm run smoke:desktop-nodes` in `next-app/` so the new private desktop-node APIs are actually exercised.  The smoke verifies owner-authenticated register plus heartbeat, queue create or accept or status or delete, canonical owned-supply persistence, public-catalog exclusion, and compatibility with Boreal's one-request status plus heartbeat plus delivery callback routes.
+- `2026-05-02`: Wired the first Boreal-connected `boreal-desktop/` slice into the repo truthfully.  Boreal now has private owner-only desktop-node API routes under `/api/v1/desktop-nodes`, `desktop` as a first-class supply execution surface, catalog and matching filters that keep desktop nodes out of the public market, and the Electron app can now store a Boreal bearer session, register or heartbeat the node, sync assignments, and push execution or delivery updates back through Boreal's existing request callback routes.
+- `2026-05-02`: Hardened Boreal's request-first auth and local runtime path.  `SIWX` challenges are now single-use instead of replayable, deployed one-request auth must provide `BOREAL_ONE_REQUEST_SECRET` instead of falling back to a shared production secret, request-scoped local runtime invites only accept real loopback `http(s)` endpoints, and runtime health probes now run from the owner's browser instead of through a server-side localhost proxy.
+- `2026-05-02`: Scaffolded the first real `boreal-desktop/` Electron workspace.  The app now has a main/preload/renderer split, typed IPC, a local state store, private desktop-node registration controls, runtime probes for Codex plus QVAC, a local policy editor, and a placeholder assignment queue that models the desktop lifecycle before Boreal API wiring lands.
 - `2026-05-02`: Added Boreal's pre-execution provider picker to the signed-in chat surface.  Boreal Agent now lands the owner bubble first, freezes a prompt snapshot, prepares curated provider lanes before execution, and starts the request only after the route is confirmed.  V1 keeps Boreal's first-party runtime OpenAI-only, makes `OpenAI by Boreal` the executable default lane, supports optional `FREE_ACCESS` / `BOREAL_FREE_ACCESS_ALLOWLIST` gating, records wallet receipts plus verification back into the request thread, and shows normalized receipt cards in both the timeline and the request side panel.
 - `2026-05-02`: Added `DESKTOP_PLAN.md` as the target architecture note for Boreal Desktop V1.  The repo now distinguishes the live request-scoped localhost runtime path from the planned Windows-first owner-only desktop node that will register as private supply, accept queued assignments, and run local Codex plus QVAC as separate runtime families.
 - `2026-05-02`: Made `Debate and Verdict` durable instead of tab-owned.  Preset-room turns now schedule through Convex plus a signed internal advance route, retry metadata persists in the version-3 preset-room blueprint, retry labels survive navigation, and the room no longer depends on a foreground `useEffect` loop to reach the judge.
@@ -191,6 +221,7 @@ npm run smoke:preset-teams
 - `BOREAL_BOOK.md` is the living narrative source of truth for Boreal's brand, product definition, UX laws, release boundary, and public product truth.
 - `ROADMAP.md` is the only execution tracker: milestones, release gate, paid wedge, and next architecture work all live there now.
 - `DESKTOP_PLAN.md` is the target architecture note for Boreal Desktop V1: a Windows-first owner-only private desktop execution node that reuses Boreal's request and supply model without being treated as a public market listing.
+- `boreal-desktop/` is the first Electron workspace for that plan.  Today it can connect from the signed-in web account through `/api/account/desktop-connect` plus `/api/v1/desktop-connect/redeem`, register a private owner-only desktop node against Boreal, sync heartbeats plus assignments through `/api/v1/desktop-nodes`, and active signed-in request owners can queue work into that node from the web `Team` tab through `/api/requests/[intentId]/desktop`.  Qualified signed-in home chat work can also auto-open a free tracked thread directly into that private desktop worker when the node is available.  Full artifact parity, richer runtime UX, and public-request callback parity are still unfinished.
 - `docs/archive/` holds historical research and retired working notes that should not override the live canon.
 - `docs/internal/` holds internal prompt-process notes that should not be treated as product truth.
 - `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, and `next-app/public/agent-registry.md` are generated public contract mirrors.  Regenerate them with `cd next-app && npm run docs:sync:public` instead of editing them by hand.
@@ -268,6 +299,8 @@ From `next-app/`:
 - `npm run smoke:one-request` runs the deterministic agent-only request-first smoke from SIWX auth through quote, payment receipt, specialist execution, delivery, settlement, and payout records.
 - `npm run smoke:one-request-guards` runs the deterministic wallet-scoped request-intake guard smoke for unpaid-quote caps and recent-request burst limits.
 - `npm run smoke:connected-agents` runs the deterministic advanced-runtime chat smoke for HTTP executor routing, MCP invocation, Bearer-session bootstrapping, and same-thread reply normalization.
+- `npm run smoke:desktop-nodes` runs the deterministic owner-only desktop-node smoke for private node register plus heartbeat, assignment queue lifecycle, owned-supply persistence, public-catalog exclusion, and one-request callback compatibility.
+- `npm run smoke:desktop-connect` runs the deterministic desktop-connect smoke for short-lived grant redemption into a valid Boreal bearer session.
 - `npm run smoke:hermes-bridge` runs the deterministic local Hermes bridge smoke for the minimal advanced-runtime HTTP contract.
 - `npm run smoke:local-model-bridge` runs the deterministic local-model bridge smoke for Ollama, LM Studio, and other OpenAI-compatible local runtimes behind Boreal's HTTP executor contract.
 - `npm run smoke:request-callbacks` runs the deterministic advanced-runtime callback smoke for request status, evidence, heartbeat, delivery, and payout-readiness progression.

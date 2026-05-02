@@ -66,7 +66,7 @@ type RequestRuntimeSupply = {
   connectorHealthStatus: "failing" | "healthy" | "unknown" | null;
   connectorLastHeartbeatAt: number | null;
   connectorLastTestedAt: number | null;
-  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+  executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   mcpServerUrl: string | null;
   mcpToolName: string | null;

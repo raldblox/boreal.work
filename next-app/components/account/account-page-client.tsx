@@ -69,6 +69,8 @@ export function AccountPageClient() {
   const [isSavingProfileBuilder, setIsSavingProfileBuilder] = useState(false)
   const [isProfileAvailabilityUpdating, setIsProfileAvailabilityUpdating] =
     useState(false)
+  const [isDesktopConnectLaunching, setIsDesktopConnectLaunching] =
+    useState(false)
   const [isSettingDefaultPayoutWalletId, setIsSettingDefaultPayoutWalletId] =
     useState<string | null>(null)
   const [editingSupplyId, setEditingSupplyId] = useState<string | null>(null)
@@ -80,6 +82,24 @@ export function AccountPageClient() {
       ? myProfileRecord.supplies.find((supply) => supply._id === editingSupplyId) ??
         null
       : null
+  const connectedRuntimeWalletAddress =
+    connectedWallets.find(
+      (wallet) => wallet.networkKey === runtimeDefaultNetworkKey
+    )?.address ?? null
+  const desktopConnectWalletAddress =
+    connectedRuntimeWalletAddress ??
+    walletAccounts.find(
+      (account) =>
+        account.networkKey === runtimeDefaultNetworkKey && account.isDefaultBuyer
+    )?.walletAddress ??
+    walletAccounts.find(
+      (account) =>
+        account.networkKey === runtimeDefaultNetworkKey && account.isDefaultPayout
+    )?.walletAddress ??
+    walletAccounts.find(
+      (account) => account.networkKey === runtimeDefaultNetworkKey
+    )?.walletAddress ??
+    null
 
   function handleOpenWalletModal() {
     void openWalletModal()
@@ -247,6 +267,58 @@ export function AccountPageClient() {
       )
     } finally {
       setIsProfileAvailabilityUpdating(false)
+    }
+  }
+
+  async function handleConnectDesktop() {
+    if (!ownerExternalId) {
+      setNotice("Sign in with X first so Boreal can link Boreal Desktop.")
+      return
+    }
+
+    if (!desktopConnectWalletAddress) {
+      setNotice(
+        "Connect and sync a Solana mainnet wallet first so Boreal Desktop can inherit this account identity."
+      )
+      return
+    }
+
+    setIsDesktopConnectLaunching(true)
+    setNotice(null)
+
+    try {
+      const response = await fetch("/api/account/desktop-connect", {
+        body: JSON.stringify({
+          walletAddress: connectedRuntimeWalletAddress ?? undefined,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      })
+      const payload = (await response.json()) as {
+        error?: string
+        launchUrl?: string
+      }
+
+      if (!response.ok || !payload.launchUrl) {
+        throw new Error(
+          payload.error ?? "Could not prepare the Boreal Desktop connect flow."
+        )
+      }
+
+      setNotice(
+        "Opening Boreal Desktop. Allow the browser protocol prompt if it appears."
+      )
+      window.location.assign(payload.launchUrl)
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Could not prepare the Boreal Desktop connect flow."
+      )
+    } finally {
+      setIsDesktopConnectLaunching(false)
     }
   }
 
@@ -428,7 +500,9 @@ export function AccountPageClient() {
             ) : null
           }
           defaultWalletAddress={defaultWalletAddress}
+          desktopConnectWalletAddress={desktopConnectWalletAddress}
           connectedWallets={connectedWallets}
+          isDesktopConnectLaunching={isDesktopConnectLaunching}
           isEditingPublicSetup={isProfileBuilderOpen}
           isProfileAvailabilityUpdating={isProfileAvailabilityUpdating}
           isPayoutWalletUpdating={isSettingDefaultPayoutWalletId}
@@ -436,6 +510,7 @@ export function AccountPageClient() {
           isWalletReady={isWalletReady}
           myProfileRecord={myProfileRecord}
           notice={notice}
+          onConnectDesktop={handleConnectDesktop}
           onConnectWallet={handleOpenWalletModal}
           onEditSupplyListing={openOwnedSupplyEditor}
           onOpenProfileBuilder={openProfileBuilder}

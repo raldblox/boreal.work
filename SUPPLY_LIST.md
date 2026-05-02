@@ -45,6 +45,11 @@ These are the supply dimensions already visible in repo truth.
 | `paymentProtocol` | `x402`, `mpp`, `direct-solana`, `widget`, `none` | How payment starts execution |
 | `scenarioTypes` | `instant_digital_purchase`, `provider_paid_service`, `provider_handoff_service`, `custom_scoped_work`, `chat_only_fulfillment`, `consultation`, `physical_service`, `milestone_project`, `supply_publish` | Economic and workflow semantics |
 
+Target extension reserved for `DESKTOP_PLAN.md`:
+
+- add `executionSurface=desktop` when Boreal Desktop ships
+- add `marketKind=private_execution_node` for owner-only persistent local execution
+
 ## Supported Supply Classes
 
 This is the current high-level Boreal supply matrix.
@@ -58,6 +63,7 @@ This is the current high-level Boreal supply matrix.
 | Provider-backed direct paid service | `Partial` | normalized into `supplies`, often paired with `serviceCapabilities`, `sourceProviderKey`, `supportsDirectInvoke=true`, paid protocol metadata | Agentic Market sync and service-provider layer | Buyer wants to invoke a paid external capability Boreal can call safely now | Quote or checkout -> payment attempt -> service invocation -> result URL or response payload | More providers, stronger normalization, mainnet settlement hardening, provider-specific fulfillment truth |
 | Provider-backed handoff service | `Partial` | normalized into `supplies`, often `executionSurface=handoff` or widget-like flow, may have provider metadata without safe direct invoke | service-provider layer and synced listings | Buyer discovers a provider offer in Boreal, but fulfillment still depends on external handoff | Boreal tracks listing, payment or handoff context, then points or hands off externally | Better user truth on when Boreal is only discovery or handoff, stronger checkout-to-fulfillment continuity |
 | Connected external agent executor | `Live` | agent supply row with execution metadata such as `http`, `mcp`, `jsonrpc`, callbacks, and direct-invoke flags | public supply API, `/agents`, `/developers/agents`, Hermes bridge | Buyer wants a connected external runtime to participate or execute | Same Boreal request thread remains canonical; runtime can push status, evidence, and heartbeat | Runtime health scoring, operator visibility, more explicit fetch and ranking rules for connected runtimes |
+| Private desktop execution node | `Target` | owner-owned `supplies` row with `executionSurface=desktop`, `marketKind=private_execution_node`, private visibility, and node metadata | Boreal Desktop registration plus owner account controls | Owner wants Boreal to route qualifying work into their own machine without a per-request local runtime invite | Request -> desktop assignment -> accept or reject -> same-thread status, evidence, and delivery | Desktop-node subtype table, assignment lifecycle, heartbeat, local policy, and Codex plus QVAC adapters |
 | Collective offer | `Partial` | `supplyType=collective` plus request-side collective proposal mechanics such as `memberRoles` and `splitPlan` | public supply row plus one approved collective proposal on a request | Buyer wants a small team, not a single worker, to deliver one scoped request | One request, one approved collective proposal, collaborator participation, split payouts | Dedicated collective listing semantics, member constraints, team-level matching, better collective discovery |
 | Consultation-style offer | `Partial` | usually a service or capability row using `scenarioTypes=consultation` | listing builder or public supply API | Buyer wants a paid advisory session or scoped consultation | Proposal or approval -> scheduled or async consult -> notes or artifact -> payout | Scheduling, attendance verification, structured consultation evidence |
 | Milestone project | `Schema only` | service row may declare `scenarioTypes=milestone_project` | canonical `supplies` row only | Buyer wants larger multi-step work with staged acceptance | Should become milestone deliveries, staged approvals, staged payouts | Milestone model, milestone UI, staged settlement, dispute handling |
@@ -75,6 +81,7 @@ This section makes the supply classes easier to compare operationally.
 | Native direct tool | direct route, not broad worker market | pay-before-execute where paid, otherwise zero-cost direct route | generated artifact or result record | image, audio, video, or specialist result |
 | Provider-backed direct paid service | provider capability market | x402 or other supported protocol before execution | service invocation record, response payload, result URL | provider result or access artifact |
 | Provider-backed handoff service | provider discovery plus handoff | depends on provider and checkout mode | handoff or external completion state | external service outcome |
+| Private desktop execution node | private desktop route | request payment or approval already attached to the request | assignment events, status callbacks, evidence, and delivery artifacts | code patch, transcript, OCR bundle, local result, or machine-generated artifact |
 | Collective offer | collective market | target should be funded escrow before work begins | participant activity, deliveries, split payout records | merged deliverable from a team |
 | Consultation | service market | payment before scheduled consult or funded reservation | notes, transcript, summary, attendance proof | consultation summary or next-step plan |
 | Milestone project | scoped project market | staged or escrowed funding | milestone submissions and approvals | milestone-by-milestone completion |
@@ -89,6 +96,7 @@ This section makes the supply classes easier to compare operationally.
 | Service invocation record plus result URL | provider-backed direct paid services | `Partial` |
 | Thread-based scoped delivery with uploads and review | human or agent custom service | `Live` |
 | Callback-driven status, evidence, and heartbeat on one request | connected external agents | `Live` |
+| Assignment-driven local execution with logs, evidence, and uploaded artifacts | private desktop execution nodes | `Target` |
 | One request with collaborator delivery and split payout rows | collectives | `Partial` |
 | Scheduled attendance or milestone acceptance | consultations, physical services, milestone projects | `Schema only` |
 
@@ -118,6 +126,7 @@ These are the Convex tables Boreal should add next so each supply class can carr
 | `supplyServiceOffers` | async human or agent work needs scoped-service metadata | acceptance criteria, deliverable templates, revision policy, schedule hints, evidence expectations |
 | `supplyProviderServices` | provider-backed direct invoke and handoff flows need provider-specific execution detail | quote URL, invoke URL, provider policy, direct-invoke readiness, provider health |
 | `supplyAgentRuntimes` | connected-agent capabilities need runtime-specific operational metadata | executor URL, callback support, status push, evidence push, heartbeat, control mode |
+| `supplyDesktopNodes` | persistent owner-only desktop metadata and local-policy snapshots should not live on every runtime row | stable node id, runtime families, machine label, private visibility, policy snapshot, heartbeat, assignment capacity |
 | `supplyCollectives` | collectives need team-specific rules beyond one generic listing row | member constraints, default roles, split defaults, acceptance rules |
 | `supplyAvailabilitySnapshots` | matching should query fresh capacity and availability data | next available, reservations, backlog, heartbeat, concurrency |
 | `supplyStats` | trust and response metrics should stay denormalized and queryable at the listing level | acceptance, fulfillment, on-time, dispute, response metrics |
@@ -154,7 +163,7 @@ Recommended new base-row enums:
 
 | Field | Values | Purpose |
 | --- | --- | --- |
-| `marketKind` | `product`, `service_offer`, `provider_service`, `direct_tool`, `collective_offer` | stable fetch path hint |
+| `marketKind` | `product`, `service_offer`, `provider_service`, `direct_tool`, `collective_offer`, `private_execution_node` | stable fetch path hint |
 | `subtypeVersion` | integer | migration and backfill tracking |
 
 ### `supplyProducts`
@@ -296,6 +305,41 @@ Indexes:
 - `by_supplierUserId_and_updatedAt`
 - `by_connectorHealthStatus_and_updatedAt`
 
+### `supplyDesktopNodes`
+
+Use for Boreal Desktop's owner-only persistent node metadata.
+
+Representative shape:
+
+```ts
+type SupplyDesktopNodeRecord = {
+  supplyId: Id<"supplies">;
+  supplierUserId: string | null;
+  createdAt: number;
+  updatedAt: number;
+  stableNodeId: string;
+  machineLabel: string;
+  osFamily: "windows";
+  runtimeFamilies: Array<"codex" | "qvac">;
+  privateVisibility: "owner_only";
+  nodeHealthStatus: "active" | "idle" | "busy" | "offline" | "degraded";
+  availabilityStatus: "available" | "paused" | "draining" | "offline";
+  maxConcurrentAssignments: number;
+  maxQueueDepth: number;
+  localCapabilityTags: string[];
+  policySnapshotJson: string;
+  lastHeartbeatAt: number | null;
+  lastAssignmentAt: number | null;
+}
+```
+
+Indexes:
+
+- `by_supplyId`
+- `by_supplierUserId_and_updatedAt`
+- `by_stableNodeId`
+- `by_nodeHealthStatus_and_updatedAt`
+
 ### `supplyCollectives`
 
 Use for collective listings and team-specific defaults that should not live on every supply row.
@@ -419,6 +463,7 @@ Recommended subtype dispatch:
 | `marketKind=service_offer` | `supplyServiceOffers` |
 | `marketKind=provider_service` | `supplyProviderServices` |
 | agent-owned runtime metadata present | `supplyAgentRuntimes` |
+| `marketKind=private_execution_node` | `supplyDesktopNodes` and usually `supplyAgentRuntimes` |
 | `marketKind=collective_offer` | `supplyCollectives` and usually `supplyServiceOffers` |
 
 ## Read Path Plan
@@ -469,6 +514,7 @@ When implementation starts, these are the concrete mutation changes.
 | seed and sync paths | backfill subtype rows for built-in and imported supply |
 | service-provider sync | write `supplyProviderServices` deterministically |
 | connected-agent onboarding | write `supplyAgentRuntimes` deterministically |
+| desktop-node registration | write `supplyDesktopNodes`, runtime descriptors, and availability snapshot deterministically |
 | future collective listing path | write `supplyCollectives` and service-offer metadata together |
 
 ## Fetch Policy By Supply Class
@@ -497,6 +543,7 @@ This is the implementation order implied by the current repo.
 | `P1` | escrow-funded start for async human or agent work | open paid labor should not begin unfunded | transaction and settlement work |
 | `P1` | better product catalog and merchant flow | digital products need their own polished path | product subtype table |
 | `P1` | collective listing and discovery rules | team supply needs more than proposal-time assembly | collective subtype table |
+| `P1` | private desktop-node productization | turns ad hoc localhost invites into persistent owner-only execution supply | runtime subtype work, assignment lifecycle, and callback reuse |
 | `P2` | consultation, milestone, and physical-service flows | schema exists, workflow does not | schedule, milestone, and geography systems |
 
 ## What Boreal Can Truthfully Say Today

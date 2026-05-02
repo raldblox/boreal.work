@@ -80,7 +80,7 @@ export type CatalogItem = {
   deliveryType: string;
   description: string;
   estimatedDeliveryLabel: string | null;
-  executionSurface: "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
+  executionSurface: "desktop" | "handoff" | "http" | "jsonrpc" | "mcp" | "registry" | "sdk" | "widget" | null;
   executorUrl: string | null;
   fulfillmentKind: string;
   gatedOutReasons: string[];

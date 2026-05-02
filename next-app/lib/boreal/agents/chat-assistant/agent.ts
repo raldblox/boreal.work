@@ -5,6 +5,14 @@ import { generateText } from "ai";
 import { directExecutionAgents } from "../../../../agents/index.ts";
 import { api } from "../../../../convex/_generated/api";
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
+import {
+  getDesktopNodeByOwnerExternalId,
+  queueDesktopAssignmentForOwner,
+} from "@/lib/boreal/desktop-nodes/service";
+import type {
+  DesktopNodeEnvelope,
+  DesktopNodeRuntimeFamily,
+} from "@/lib/boreal/desktop-nodes/contracts";
 import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
 import { runRequestRuntimeChat } from "../../external-agents/runtime.ts";
 import type { RequestDetail } from "@/lib/boreal/integrations/convex/function-refs";
@@ -34,6 +42,10 @@ import {
   hashPrompt,
   isBorealHostedProviderRoute,
 } from "@/lib/boreal/provider-routing/runtime";
+import {
+  createPublicRequestToken,
+  isPublicRequestToken,
+} from "@/lib/boreal/one-inbox/tokens";
 import type {
   NormalizedRequestReceipt,
   ProviderRouteOption,
@@ -420,6 +432,20 @@ export const chatAssistantAgent: ComposableAgent<
       userMessageId,
     });
 
+    const desktopWorkerTarget = await resolveDesktopWorkerTarget({
+      input,
+      intent: persistedIntent,
+    });
+
+    if (desktopWorkerTarget) {
+      return startDesktopWorkerExecution({
+        conversationId,
+        desktopWorkerTarget,
+        input,
+        intent: persistedIntent,
+      });
+    }
+
     if (shouldPrepareBorealProviderSelection({ input, intent })) {
       const selection = await buildProviderSelectionState({
         promptText: input.message,
@@ -756,11 +782,12 @@ async function continueApprovedRequestThread(input: {
   const assignedTextAgents = resolveAssignedTextThreadAgents(
     requestDetail.assignment?.tools ?? [],
   );
+  const requestStatus = requestDetail.intent?.status ?? request.status;
 
   if (
     requestDetail.access?.isOwner &&
     assignedPresetTeam &&
-    canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
+    canAssignedTextTeamOwnRequestThread(requestStatus)
   ) {
     return runAssignedPresetRoomTurn({
       assignedPresetTeam,
@@ -781,7 +808,7 @@ async function continueApprovedRequestThread(input: {
   if (
     requestDetail.access?.isOwner &&
     assignedTextAgents.length > 0 &&
-    canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
+    canAssignedTextTeamOwnRequestThread(requestStatus)
   ) {
     const threadPlan = planInteractiveRequestThread(requestDetail);
 
@@ -946,8 +973,29 @@ async function continueApprovedRequestThread(input: {
 
   if (
     requestDetail.access?.isOwner &&
-    request.runtimeSupplies.length > 0 &&
-    canAssignedTextTeamOwnRequestThread(requestDetail.intent.status)
+    request.runtimeSupplies.some(
+      (runtimeSupply) => runtimeSupply.executionSurface === "desktop",
+    ) &&
+    canInvitedRuntimeOwnRequestThread(requestStatus)
+  ) {
+    return continueDesktopWorkerRequestThread({
+      input: input.input,
+      ownerExternalId,
+      persistedIntent,
+      request,
+      requestDetail,
+      requestId,
+    });
+  }
+
+  const directRuntimeSupplies = request.runtimeSupplies.filter(
+    (runtimeSupply) => runtimeSupply.executionSurface !== "desktop",
+  );
+
+  if (
+    requestDetail.access?.isOwner &&
+    directRuntimeSupplies.length > 0 &&
+    canInvitedRuntimeOwnRequestThread(requestStatus)
   ) {
     const borealOrigin =
       process.env.BOREAL_PUBLIC_ORIGIN ??
@@ -956,7 +1004,7 @@ async function continueApprovedRequestThread(input: {
         : "https://boreal.work");
     const requestUrl = `${borealOrigin}/api/chat`;
     const responses = await Promise.all(
-      request.runtimeSupplies.map((runtimeSupply) =>
+      directRuntimeSupplies.map((runtimeSupply) =>
         runRequestRuntimeChat({
           conversationId: request.conversationId ?? undefined,
           message: input.input.message,
@@ -981,8 +1029,8 @@ async function continueApprovedRequestThread(input: {
     await appendRequestExecution({
       activityPayload: JSON.stringify({
         routeTarget: request.routeTarget,
-        runtimeSupplyIds: request.runtimeSupplies.map((runtimeSupply) => runtimeSupply._id),
-        runtimeTitles: request.runtimeSupplies.map((runtimeSupply) => runtimeSupply.title),
+        runtimeSupplyIds: directRuntimeSupplies.map((runtimeSupply) => runtimeSupply._id),
+        runtimeTitles: directRuntimeSupplies.map((runtimeSupply) => runtimeSupply.title),
       }),
       activityType: "thread.reply_posted",
       assistantMessage,
@@ -1173,6 +1221,15 @@ export async function approvePersistedRequest(input: {
 
 function canAssignedTextTeamOwnRequestThread(status: string) {
   return status === "claimed" || status === "fulfilled" || status === "in_progress";
+}
+
+function canInvitedRuntimeOwnRequestThread(status: string) {
+  return (
+    status === "open" ||
+    status === "claimed" ||
+    status === "fulfilled" ||
+    status === "in_progress"
+  );
 }
 
 function resolveAssignedTextThreadAgents(assignedToolNames: string[]) {
@@ -2648,6 +2705,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
           needsClarification: input.request.needsClarification,
           pinnedSupplyIds: [],
           provider: input.request.provider,
+          requestToken: createPublicRequestToken(input.request._id),
           requestedOutputTypes: input.request.requestedOutputTypes,
           resolutionTier: "auto",
           responseInstructions: input.request.responseInstructions,
@@ -2893,6 +2951,10 @@ function shouldPrepareBorealProviderSelection(input: {
     input.input.uiContext?.mountedPresetTeamKey ||
     (input.input.uiContext?.mountedAgentKeys?.length ?? 0) > 0
   ) {
+    return false;
+  }
+
+  if (input.intent.routing.shouldCreateFulfillmentRequest) {
     return false;
   }
 
@@ -4361,6 +4423,256 @@ async function startMountedRequestExecution(input: {
     requiresApproval: false,
     workspace: resolved.workspace,
   } satisfies ChatAssistantResponse;
+}
+
+type DesktopWorkerTarget = {
+  node: DesktopNodeEnvelope;
+  runtimeFamily: DesktopNodeRuntimeFamily;
+};
+
+async function resolveDesktopWorkerTarget(input: {
+  input: ChatAssistantAgentInput;
+  intent: PersistedIntent;
+}): Promise<DesktopWorkerTarget | null> {
+  const ownerExternalId = input.input.requester?.externalId;
+
+  if (!ownerExternalId || input.input.uiContext?.surface === "request") {
+    return null;
+  }
+
+  if (
+    input.input.uiContext?.providerSelectionCommand?.command ===
+      "confirm_provider_route" ||
+    input.input.uiContext?.mountedPresetTeamKey ||
+    (input.input.uiContext?.mountedAgentKeys?.length ?? 0) > 0 ||
+    !input.intent.routing.shouldCreateFulfillmentRequest ||
+    !input.intent.requestedOutputTypes.every((type) => type === "text")
+  ) {
+    return null;
+  }
+
+  const node = await getDesktopNodeByOwnerExternalId(ownerExternalId);
+
+  if (!node || node.node.availabilityStatus !== "available") {
+    return null;
+  }
+
+  const runtimeFamily = selectDesktopWorkerRuntimeFamily(node);
+
+  if (!runtimeFamily) {
+    return null;
+  }
+
+  return {
+    node,
+    runtimeFamily,
+  };
+}
+
+async function startDesktopWorkerExecution(input: {
+  conversationId: string;
+  desktopWorkerTarget: DesktopWorkerTarget;
+  input: ChatAssistantAgentInput;
+  intent: PersistedIntent;
+}) {
+  const ownerExternalId = input.input.requester?.externalId;
+
+  if (!ownerExternalId) {
+    throw new Error("Sign in before routing work into Boreal Desktop.");
+  }
+
+  const openingMessage = input.intent.needsClarification
+    ? "Boreal opened a desktop work thread. Keep refining the request here while your private worker stays attached."
+    : `Boreal opened a desktop work thread and queued it on your private ${formatDesktopRuntimeFamily(input.desktopWorkerTarget.runtimeFamily)} runtime.`;
+  const persistedResult = await saveIntentPipelineRecord({
+    assistantMessage: openingMessage,
+    conversationId: input.conversationId,
+    initialStatus: "open",
+    intent: input.intent,
+    ownerDisplayName: input.input.requester?.displayName,
+    ownerExternalId,
+    ownerHandle: input.input.requester?.handle,
+    userMessage: input.input.message,
+  });
+  const requestToken = createPublicRequestToken(persistedResult.intentId);
+
+  await createConvexServerClient().mutation(api.intents.assignDesktopNodeToRequest, {
+    intentId: persistedResult.intentId as never,
+    ownerExternalId,
+    supplyId: input.desktopWorkerTarget.node.node.supplyId as never,
+  });
+  await queueDesktopAssignmentForOwner({
+    assignment: {
+      outputKinds: input.intent.requestedOutputTypes,
+      requestCallbacksEnabled: false,
+      requestToken,
+      runtimeFamily: input.desktopWorkerTarget.runtimeFamily,
+      summary: buildDesktopWorkerSummary(input.intent.summary, input.input.message),
+      title: input.intent.title || "Boreal desktop request",
+      workspaceHint: input.intent.category || null,
+    },
+    ownerExternalId,
+  });
+  await input.input.onStreamEvent?.({
+    payload: {
+      intentId: persistedResult.intentId,
+    },
+    type: "request-opened",
+  });
+
+  return {
+    assistantMessage: openingMessage,
+    conversationId: persistedResult.conversationId,
+    intent: input.intent,
+    intentId: persistedResult.intentId,
+    persisted: true,
+    relatedCatalogItems: [],
+    requiresApproval: false,
+    workspace: {
+      kind: "empty",
+      subtitle:
+        "This request is pinned to your private desktop worker. Keep follow-up in this same thread.",
+      title: "Desktop worker thread",
+    },
+  } satisfies ChatAssistantResponse;
+}
+
+async function continueDesktopWorkerRequestThread(input: {
+  input: ChatAssistantAgentInput;
+  ownerExternalId: string;
+  persistedIntent: PersistedIntent;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  requestDetail: RequestDetail;
+  requestId: string;
+}) {
+  const requestToken = input.requestDetail.intent?.requestToken;
+  const node = await getDesktopNodeByOwnerExternalId(input.ownerExternalId);
+  const runtimeFamily = node ? selectDesktopWorkerRuntimeFamily(node) : null;
+
+  if (
+    !requestToken ||
+    !node ||
+    node.node.availabilityStatus !== "available" ||
+    !runtimeFamily
+  ) {
+    const assistantMessage =
+      "Boreal Desktop is not available right now. Reconnect the private node or set it back to available, then retry this thread.";
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        reason:
+          !requestToken
+            ? "request_token_missing"
+            : !node
+              ? "node_missing"
+              : !runtimeFamily
+                ? "runtime_missing"
+                : "node_unavailable",
+        routeTarget: input.request.routeTarget,
+      }),
+      activityType: "request.blocked",
+      assignedAgent: "Boreal Desktop",
+      assistantMessage,
+      intentId: input.requestId,
+      ownerExternalId: input.ownerExternalId,
+      senderDisplayName: "Boreal Desktop",
+      senderExternalId: "runtime:desktop",
+      senderHandle: "desktop",
+      status: "blocked",
+    });
+
+    return {
+      assistantMessage,
+      conversationId: input.request.conversationId ?? crypto.randomUUID(),
+      intent: input.persistedIntent,
+      intentId: input.requestId,
+      persisted: false,
+      relatedCatalogItems: [],
+      requiresApproval: false,
+      workspace: buildBlockedWorkspace(
+        input.request.routeTarget,
+        "Boreal Desktop is unavailable.",
+      ),
+    } satisfies ChatAssistantResponse;
+  }
+
+  const queued = await queueDesktopAssignmentForOwner({
+    assignment: {
+      outputKinds: input.request.requestedOutputTypes,
+      requestCallbacksEnabled: !isPublicRequestToken(requestToken),
+      requestToken,
+      runtimeFamily,
+      summary: buildDesktopWorkerSummary(
+        input.request.summary,
+        input.input.message,
+      ),
+      title: input.request.title || "Boreal desktop request",
+      workspaceHint: input.request.category || null,
+    },
+    ownerExternalId: input.ownerExternalId,
+  });
+  const assistantMessage = `Queued on Boreal Desktop (${formatDesktopRuntimeFamily(runtimeFamily)}). The private worker will continue from this thread.`;
+
+  await appendRequestExecution({
+    activityPayload: JSON.stringify({
+      assignmentId: queued.assignment.id,
+      routeTarget: input.request.routeTarget,
+      runtimeFamily,
+      supplyId: node.node.supplyId,
+    }),
+    activityType: "request.desktop_queued",
+    assignedAgent: "Boreal Desktop",
+    assistantMessage,
+    intentId: input.requestId,
+    ownerExternalId: input.ownerExternalId,
+    senderDisplayName: "Boreal Desktop",
+    senderExternalId: "runtime:desktop",
+    senderHandle: "desktop",
+    status: "in_progress",
+  });
+
+  return {
+    assistantMessage,
+    conversationId: input.request.conversationId ?? crypto.randomUUID(),
+    intent: input.persistedIntent,
+    intentId: input.requestId,
+    persisted: false,
+    relatedCatalogItems: [],
+    requiresApproval: false,
+    workspace: {
+      kind: "empty",
+      subtitle:
+        "Latest owner message was queued back into your private desktop worker.",
+      title: "Desktop worker thread",
+    },
+  } satisfies ChatAssistantResponse;
+}
+
+function selectDesktopWorkerRuntimeFamily(node: DesktopNodeEnvelope) {
+  if (node.node.runtimeFamilies.includes("codex")) {
+    return "codex" satisfies DesktopNodeRuntimeFamily;
+  }
+
+  return node.node.runtimeFamilies[0] ?? null;
+}
+
+function formatDesktopRuntimeFamily(runtimeFamily: DesktopNodeRuntimeFamily) {
+  if (runtimeFamily === "qvac") {
+    return "QVAC";
+  }
+
+  return runtimeFamily.charAt(0).toUpperCase() + runtimeFamily.slice(1);
+}
+
+function buildDesktopWorkerSummary(summary: string, latestMessage: string) {
+  const latest = latestMessage.trim();
+
+  if (latest.length > 0) {
+    return latest;
+  }
+
+  const fallback = summary.trim();
+  return fallback.length > 0 ? fallback : "Boreal desktop request";
 }
 
 function narrowSpecialistRoutePlanForExecution(routePlan: OneRequestRoutePlan) {
