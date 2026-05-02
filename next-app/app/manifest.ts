@@ -1,9 +1,12 @@
 import type { MetadataRoute } from "next"
 
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/boreal/site-metadata"
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    background_color: "#fbfbfb",
-    description: "Chat-native market for request-native commerce.",
+    background_color: "#071311",
+    categories: ["business", "developer tools", "productivity"],
+    description: SITE_DESCRIPTION,
     display: "standalone",
     icons: [
       {
@@ -12,9 +15,11 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/x-icon",
       },
     ],
-    name: "Boreal",
+    lang: "en-US",
+    name: SITE_NAME,
+    orientation: "portrait",
     scope: "/",
-    short_name: "Boreal",
+    short_name: SITE_NAME,
     start_url: "/",
     theme_color: "#01fdff",
   }

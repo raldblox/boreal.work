@@ -1,4 +1,13 @@
+import { buildPageMetadata } from "@/lib/boreal/site-metadata"
 import { WifiOffIcon } from "@/components/ui/static-icons"
+
+export const metadata = buildPageMetadata({
+  description:
+    "Cached Boreal shell fallback shown while the network is unavailable.",
+  noIndex: true,
+  path: "/offline",
+  title: "Offline shell",
+})
 
 export default function OfflinePage() {
   return (

@@ -1,4 +1,3 @@
-import type { Metadata } from "next"
 import { Fraunces, Geist_Mono, Manrope, Syne } from "next/font/google"
 
 import "./globals.css"
@@ -10,6 +9,7 @@ import { ShellDataProvider } from "@/components/shell-data-provider"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { cn } from "@/lib/utils"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { rootMetadata } from "@/lib/boreal/site-metadata"
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans-base" })
 
@@ -25,17 +25,7 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
-export const metadata: Metadata = {
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Boreal",
-  },
-  applicationName: "Boreal",
-  description: "Chat-native market for request-native commerce.",
-  manifest: "/manifest.webmanifest",
-  title: "Boreal",
-}
+export const metadata = rootMetadata
 
 export default function RootLayout({
   children,
