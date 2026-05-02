@@ -24,6 +24,27 @@ import { releaseSupplyCapacity } from "./supplies";
 import { getScenarioId, recordTransactionAuditEvent } from "./transactionScenarios";
 import { queueWebhookDeliveries } from "./webhooks";
 
+function normalizeStoredEnvironment(
+  environment?: CommerceEnvironment | "devnet" | null,
+): CommerceEnvironment | undefined {
+  if (!environment) {
+    return undefined;
+  }
+
+  return getCommerceEnvironment(environment);
+}
+
+function normalizeStoredFulfillmentEnvironment<T extends {
+  environment?: CommerceEnvironment | "devnet";
+}>(
+  fulfillment: T,
+): Omit<T, "environment"> & { environment?: CommerceEnvironment } {
+  return {
+    ...fulfillment,
+    environment: normalizeStoredEnvironment(fulfillment.environment),
+  };
+}
+
 export const submitWork = mutation({
   args: {
     artifact: v.optional(
@@ -145,6 +166,9 @@ export const submitWork = mutation({
       handle: worker.handle ?? null,
       userId: worker._id,
     };
+    const normalizedActiveFulfillment = normalizeStoredFulfillmentEnvironment(
+      activeFulfillment,
+    );
     const scopedIntent = {
       ...intent,
       ownerUserId: intent.ownerUserId,
@@ -156,7 +180,7 @@ export const submitWork = mutation({
         artifact: args.artifact,
         attachments: args.attachments,
         deliverablesBody: args.deliverablesBody,
-        fulfillment: activeFulfillment,
+        fulfillment: normalizedActiveFulfillment,
         intent: scopedIntent,
         now,
         transactionId,
@@ -171,7 +195,7 @@ export const submitWork = mutation({
       artifact: args.artifact,
       attachments: args.attachments,
       deliverablesBody: args.deliverablesBody,
-      fulfillment: activeFulfillment,
+      fulfillment: normalizedActiveFulfillment,
       intent: scopedIntent,
       now,
       postTimelineMessage: true,
@@ -217,7 +241,7 @@ export const finalizeQueuedArtifactFulfillment = internalMutation({
         args.summary ??
         state.fulfillment.completedSummary ??
         "Video completed. Playback and download are available in this request.",
-      fulfillment: state.fulfillment,
+      fulfillment: normalizeStoredFulfillmentEnvironment(state.fulfillment),
       intent: {
         ...state.intent,
         ownerUserId: state.intent.ownerUserId,
@@ -353,7 +377,9 @@ export const markRequestFulfilled = mutation({
         completedSummary:
           activeFulfillment.completedSummary ||
           "Marked fulfilled by owner. Final delivery happened in the request chat.",
-        environment: activeFulfillment.environment ?? getCommerceEnvironment(),
+        environment:
+          normalizeStoredEnvironment(activeFulfillment.environment) ??
+          getCommerceEnvironment(),
         scenarioId:
           activeFulfillment.scenarioId ??
           getScenarioId(
@@ -429,7 +455,7 @@ export const markRequestFulfilled = mutation({
         amount: transaction?.amount ?? acceptedProposal?.price,
         chainFamily: transaction?.chainFamily,
         currency: transaction?.currency ?? acceptedProposal?.currency,
-        environment: transaction?.environment ?? getCommerceEnvironment(),
+        environment: getCommerceEnvironment(transaction?.environment),
         networkKey: transaction?.networkKey,
         protocol: transaction?.paymentProtocol ?? null,
         status:
@@ -445,7 +471,7 @@ export const markRequestFulfilled = mutation({
               amount: transaction?.amount ?? acceptedProposal.price,
               chainFamily: transaction?.chainFamily,
               currency: transaction?.currency ?? acceptedProposal.currency,
-              environment: transaction?.environment ?? getCommerceEnvironment(),
+              environment: getCommerceEnvironment(transaction?.environment),
               networkKey: transaction?.networkKey,
               proposal: acceptedProposal,
               settlementId,
@@ -821,7 +847,7 @@ async function finalizeAcceptedFulfillmentDelivery(
     amount: transaction?.amount ?? input.acceptedProposal.price,
     chainFamily: transaction?.chainFamily,
     currency: transaction?.currency ?? input.acceptedProposal.currency,
-    environment: transaction?.environment ?? getCommerceEnvironment(),
+    environment: getCommerceEnvironment(transaction?.environment),
     networkKey: transaction?.networkKey,
     protocol: transaction?.paymentProtocol ?? null,
     status:
@@ -835,7 +861,7 @@ async function finalizeAcceptedFulfillmentDelivery(
           amount: transaction?.amount ?? input.acceptedProposal.price,
           chainFamily: transaction?.chainFamily,
           currency: transaction?.currency ?? input.acceptedProposal.currency,
-          environment: transaction?.environment ?? getCommerceEnvironment(),
+          environment: getCommerceEnvironment(transaction?.environment),
           networkKey: transaction?.networkKey,
           proposal: input.acceptedProposal,
           settlementId,
@@ -963,7 +989,9 @@ async function resolveAcceptedFulfillmentState(
 
   return {
     acceptedProposal,
-    fulfillment,
+    fulfillment: fulfillment
+      ? normalizeStoredFulfillmentEnvironment(fulfillment)
+      : null,
     intent,
   };
 }

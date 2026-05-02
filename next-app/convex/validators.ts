@@ -183,6 +183,13 @@ export const chainEnvironmentValidator = v.union(
   v.literal("testnet"),
 );
 
+export const persistedChainEnvironmentValidator = v.union(
+  v.literal("mainnet"),
+  v.literal("testnet"),
+  // Legacy pre-mainnet rows can still carry `devnet` until they are rewritten.
+  v.literal("devnet"),
+);
+
 export const chainFamilyValidator = v.union(
   v.literal("evm"),
   v.literal("solana"),

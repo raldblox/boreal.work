@@ -127,6 +127,10 @@ export function getBorealChainEnvironment(
     return "testnet";
   }
 
+  if (normalized === "devnet") {
+    return "testnet";
+  }
+
   return "mainnet";
 }
 

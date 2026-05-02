@@ -230,7 +230,9 @@ export async function getWalletAccountContext(
   return {
     chainFamily: account.chainFamily,
     chainId: account.chainId ?? null,
-    environment: account.environment,
+    environment: account.environment
+      ? getBorealChainEnvironment(account.environment)
+      : undefined,
     networkKey: account.networkKey,
   };
 }
@@ -239,7 +241,7 @@ function selectPreferredWalletAccountId(
   accounts: Array<{
     _id: Id<"walletAccounts">;
     chainFamily?: "evm" | "solana";
-    environment?: "mainnet" | "testnet";
+    environment?: "devnet" | "mainnet" | "testnet";
     isDefaultBuyer: boolean;
     isDefaultPayout: boolean;
   }>,
@@ -250,7 +252,7 @@ function selectPreferredWalletAccountId(
   const runtimeAccounts = accounts.filter(
     (account) =>
       account.chainFamily === primaryFamily &&
-      account.environment === environment,
+      getBorealChainEnvironment(account.environment) === environment,
   );
 
   const preferredRuntime = runtimeAccounts.find((account) =>
