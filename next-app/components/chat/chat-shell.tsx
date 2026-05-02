@@ -2188,6 +2188,55 @@ export function ChatShell() {
     clearPresetRoomAdvanceTimeout()
     clearPresetRoomRetryTimeout()
     setClientPresetRoomRetryStatus(null)
+
+    if (
+      activeIntentId &&
+      requestDetail?.intent?.status === "payment_required" &&
+      requestDetail.pendingPayment?.selection
+    ) {
+      setIsSubmitting(true)
+
+      try {
+        const response = await fetch(`/api/requests/${activeIntentId}/fund`, {
+          body: JSON.stringify({
+            paymentReceipt: input.paymentReceipt ?? null,
+            routeKey: input.routeKey,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        })
+        const payload = (await response.json()) as
+          | {
+            assistantMessage: string
+            relatedCatalogItems: CatalogItem[]
+            workspace: WorkspaceState
+          }
+          | { error?: string }
+
+        if (!response.ok || !("workspace" in payload)) {
+          throw new Error(
+            "error" in payload && payload.error
+              ? payload.error
+              : "Failed to fund request."
+          )
+        }
+
+        await refreshRequestShellData()
+        setWorkspace(payload.workspace)
+        setShowWorkspace(true)
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to fund request."
+        )
+      } finally {
+        setIsSubmitting(false)
+      }
+
+      return
+    }
+
     setIsSubmitting(true)
     setPendingApprovalIntentId(null)
 
@@ -5911,6 +5960,38 @@ function InlineRequestActionEvent({
             </Button>
           </>
         ) : null}
+        {actionState.kind === "payment_required" ? (
+          <>
+            <Button
+              disabled={isRefreshingRequest}
+              onClick={() => void onRefreshRequest()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isRefreshingRequest ? (
+                <LoaderIcon className="animate-spin" />
+              ) : (
+                <RefreshCwIcon />
+              )}
+              Refresh
+            </Button>
+            <Button
+              disabled={isCancellingRequest}
+              onClick={onCancelRequest}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {isCancellingRequest ? (
+                <LoaderIcon className="animate-spin" />
+              ) : (
+                <XCircleIcon />
+              )}
+              Cancel
+            </Button>
+          </>
+        ) : null}
         {actionState.kind === "awaiting_reply" ? (
           <>
             <Button
@@ -6624,12 +6705,15 @@ function isMountedRequestSetupMessage(
     (body.startsWith("Boreal opened ") &&
       (body.includes("work thread") || body.includes(" room")) &&
       (body.includes("started the request immediately") ||
+        body.includes("Funding starts execution in this same request thread") ||
+        body.includes("Funding starts that agent team in this same request thread") ||
         body.includes("started the debate immediately") ||
         body.includes("started that preset team immediately") ||
         body.includes("started that agent team immediately") ||
         body.includes("is framing the comparison now."))) ||
     body.endsWith("was selected from offers and is starting now.") ||
-    body.endsWith("were selected from offers and are starting now.")
+    body.endsWith("were selected from offers and are starting now.") ||
+    body.startsWith("Funding required before ")
   )
 }
 
@@ -9644,6 +9728,15 @@ function getRequestActionState(
     }
   }
 
+  if (status === "payment_required" && access?.isOwner) {
+    return {
+      description:
+        "The route and quote are locked. Attach the wallet receipt below to start execution in this same request thread.",
+      kind: "payment_required" as const,
+      title: "Funding required",
+    }
+  }
+
   if (
     awaitingSpecialistReply &&
     (status === "claimed" || status === "in_progress") &&
@@ -10722,6 +10815,8 @@ function InlineWorkspaceCard({
   if (workspace.kind === "provider_selection") {
     return (
       <ProviderSelectionCard
+        headingSubtitle={workspace.subtitle}
+        headingTitle={workspace.title}
         isSubmitting={Boolean(isProviderRouteSubmitting)}
         isWalletReady={Boolean(isWalletReady)}
         onConfirmRoute={async ({ paymentReceipt, routeKey }) => {
@@ -11419,6 +11514,22 @@ function buildWorkspaceFromRequestDetail(
         "This request is blocked until the missing details are provided.",
       suggestions: detail.intent.suggestedReplies,
       title: "Blocked request",
+    }
+  }
+
+  if (
+    detail.intent.status === "payment_required" &&
+    detail.pendingPayment?.selection
+  ) {
+    const routeLabel =
+      detail.pendingPayment.selection.options[0]?.displayTitle ?? "specialist"
+
+    return {
+      kind: "provider_selection",
+      selection: detail.pendingPayment.selection,
+      subtitle:
+        `Funding starts ${routeLabel} in this same request thread. Boreal records the signed receipt and verified Solana transaction before work begins.`,
+      title: "Fund specialist",
     }
   }
 

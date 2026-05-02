@@ -22,6 +22,7 @@ import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtim
 import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens.ts";
 import { isDesktopNodeSupplyRecord, parseDesktopNodeMetadata } from "../lib/boreal/desktop-nodes/contracts.ts";
 import { shouldFetchRequestMatches } from "../lib/boreal/request-matching-policy.ts";
+import { buildTrackedProviderSelectionStateFromSession } from "../lib/boreal/provider-routing/tracked-request-selection.ts";
 import { parseRequestTeamBlueprint } from "../lib/boreal/swarm/team-blueprint.ts";
 import {
   getPresetTeamDefinition,
@@ -219,6 +220,7 @@ export const getRequestDetail = query({
         collectiveTrust: null,
         messages: [],
         contributions: [],
+        pendingPayment: null,
         participants: [],
         receipts: [],
         fulfillment: null,
@@ -294,6 +296,43 @@ export const getRequestDetail = query({
       )
       .order("desc")
       .take(24);
+    const pendingPaymentSession =
+      isOwner && args.ownerExternalId
+        ? (
+            await ctx.db
+              .query("agentRequestSessions")
+              .withIndex(
+                "by_ownerExternalId_and_updatedAt",
+                (queryBuilder) =>
+                  queryBuilder.eq("ownerExternalId", args.ownerExternalId!),
+              )
+              .order("desc")
+              .collect()
+          ).find(
+            (session) =>
+              session.intentId === intent._id &&
+              session.status === "payment_required" &&
+              !session.paidAt,
+          ) ?? null
+        : null;
+    const pendingPaymentSelection = pendingPaymentSession
+      ? buildTrackedProviderSelectionStateFromSession({
+          lockedAt: pendingPaymentSession.lockedAt,
+          message: pendingPaymentSession.message,
+          networkKey:
+            pendingPaymentSession.networkKey === "solana:testnet"
+              ? "solana:testnet"
+              : "solana:mainnet",
+          quoteAmount: pendingPaymentSession.quoteAmount,
+          quoteAuthorizationMessage:
+            pendingPaymentSession.quoteAuthorizationMessage,
+          quoteExpiresAt: pendingPaymentSession.quoteExpiresAt,
+          quoteToken: pendingPaymentSession.quoteToken,
+          requestFingerprint: pendingPaymentSession.requestFingerprint,
+          requestToken: pendingPaymentSession.requestToken,
+          routeJson: pendingPaymentSession.routeJson,
+        })
+      : null;
 
     const artifact = artifacts[0];
     const participants = await getRequestParticipants(
@@ -431,6 +470,14 @@ export const getRequestDetail = query({
       matchCandidates,
       collectiveTrust,
       messages: requestMessages,
+      pendingPayment:
+        pendingPaymentSession && pendingPaymentSelection
+          ? {
+              requestToken: pendingPaymentSession.requestToken,
+              selection: pendingPaymentSelection,
+              status: pendingPaymentSession.status,
+            }
+          : null,
       contributions,
       participants: participants.map((participant) => ({
         ...participant,

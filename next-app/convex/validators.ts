@@ -81,6 +81,7 @@ export const supplyTypeValidator = v.union(
 export const intentStatusValidator = v.union(
   v.literal("open"),
   v.literal("proposed"),
+  v.literal("payment_required"),
   v.literal("claimed"),
   v.literal("in_progress"),
   v.literal("blocked"),

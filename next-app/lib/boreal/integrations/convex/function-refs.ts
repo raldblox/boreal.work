@@ -1,6 +1,9 @@
 import { makeFunctionReference } from "convex/server";
 
-import type { NormalizedRequestReceipt } from "../../provider-routing/types";
+import type {
+  NormalizedRequestReceipt,
+  ProviderSelectionState,
+} from "../../provider-routing/types";
 import type { PersistedIntent } from "../../schemas/intent";
 import type { RequestTeamBlueprint } from "../../swarm/team-blueprint";
 
@@ -597,7 +600,7 @@ export type RequestDetail = {
     } | null;
     matchCandidates: CatalogEntry[];
     receipts: NormalizedRequestReceipt[];
-    collectiveTrust: {
+  collectiveTrust: {
     averageRating: number | null;
     averageTrustScore: number;
     fulfilledCount: number;
@@ -614,6 +617,11 @@ export type RequestDetail = {
     totalHandledCount: number;
   } | null;
   messages: RequestMessage[];
+  pendingPayment: {
+    requestToken: string;
+    selection: ProviderSelectionState;
+    status: string;
+  } | null;
   contributions: Array<{
     delivered: boolean;
     deliveryCount: number;
@@ -837,7 +845,7 @@ export const convexFunctionRefs = {
       assistantMessage?: string;
       intentId: string;
       ownerExternalId?: string;
-      status?: "blocked" | "claimed" | "closed" | "fulfilled" | "in_progress" | "open" | "proposed";
+      status?: "blocked" | "claimed" | "closed" | "fulfilled" | "in_progress" | "open" | "payment_required" | "proposed";
     },
     { approved: boolean }
   >("chats:approveRequest"),

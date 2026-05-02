@@ -38,6 +38,8 @@ type SolanaWalletProvider = {
 export type ProviderSelectionWalletProvider = SolanaWalletProvider;
 
 export function ProviderSelectionCard({
+  headingSubtitle,
+  headingTitle,
   isSubmitting,
   isWalletReady,
   onConfirmRoute,
@@ -47,6 +49,8 @@ export function ProviderSelectionCard({
   walletConnection,
   walletProvider,
 }: {
+  headingSubtitle?: string;
+  headingTitle?: string;
   isSubmitting: boolean;
   isWalletReady: boolean;
   onConfirmRoute: (input: {
@@ -147,9 +151,12 @@ export function ProviderSelectionCard({
   return (
     <div className="space-y-4 border border-border bg-card px-4 py-4">
       <div className="space-y-1">
-        <p className="text-sm font-medium">Pick your provider</p>
+        <p className="text-sm font-medium">
+          {headingTitle ?? "Pick your provider"}
+        </p>
         <p className="text-xs text-muted-foreground">
-          Boreal keeps the prompt local until you confirm the route.
+          {headingSubtitle ??
+            "Boreal keeps the prompt local until you confirm the route."}
         </p>
       </div>
 

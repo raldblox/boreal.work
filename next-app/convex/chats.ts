@@ -405,7 +405,12 @@ export const approveRequest = mutation({
         assignedToolNames: args.assignedToolNames,
         status: nextStatus,
       }),
-      type: nextStatus === "open" ? "request.opened_for_workers" : "request.approved",
+      type:
+        nextStatus === "open"
+          ? "request.opened_for_workers"
+          : nextStatus === "payment_required"
+            ? "request.payment_required"
+            : "request.approved",
     });
 
     await refreshProfileAnalyticsForUser(ctx, intent.ownerUserId);

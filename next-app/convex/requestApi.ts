@@ -452,6 +452,12 @@ export const recordQuotePayment = mutation({
         txHash: args.txHash,
         updatedAt: now,
       }));
+    const paymentReceipt = safeParseJson(args.paymentReceiptJson);
+    const walletAddress =
+      typeof paymentReceipt?.walletAddress === "string" &&
+      paymentReceipt.walletAddress.trim().length > 0
+        ? paymentReceipt.walletAddress.trim()
+        : session.walletAddress;
 
     await ctx.db.patch(session._id, {
       paidAt: now,
@@ -464,6 +470,7 @@ export const recordQuotePayment = mutation({
       transactionId,
       txHash: args.txHash,
       updatedAt: now,
+      walletAddress,
     });
 
     await ctx.db.patch(transactionId, {

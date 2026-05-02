@@ -55,7 +55,7 @@ export async function approveRequestDraft(args: {
   assistantMessage?: string;
   intentId: string;
   ownerExternalId?: string;
-  status?: "blocked" | "claimed" | "closed" | "fulfilled" | "in_progress" | "open" | "proposed";
+  status?: "blocked" | "claimed" | "closed" | "fulfilled" | "in_progress" | "open" | "payment_required" | "proposed";
 }) {
   const client = createConvexServerClient();
   return client.mutation(convexFunctionRefs.approveRequest, args);

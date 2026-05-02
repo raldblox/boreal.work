@@ -43,6 +43,12 @@ import {
   isBorealHostedProviderRoute,
 } from "@/lib/boreal/provider-routing/runtime";
 import {
+  buildTrackedProviderSelectionStateFromSession,
+  serializeTrackedProviderSelectionSnapshot,
+  SPECIALIST_FUNDED_START_SOL_AMOUNT,
+  TRACKED_REQUEST_QUOTE_TTL_MS,
+} from "@/lib/boreal/provider-routing/tracked-request-selection";
+import {
   createPublicRequestToken,
   isPublicRequestToken,
 } from "@/lib/boreal/one-inbox/tokens";
@@ -50,6 +56,7 @@ import type {
   NormalizedRequestReceipt,
   ProviderRouteOption,
   ProviderRoutePaymentReceipt,
+  ProviderSelectionState,
 } from "@/lib/boreal/provider-routing/types";
 import {
   getRequestHandlingLabel,
@@ -102,6 +109,7 @@ import { generateSpeechAsset } from "@/lib/boreal/tools/media/generate-speech-as
 import { startVideoGeneration } from "@/lib/boreal/tools/media/start-video-generation";
 import { buildIntentPersistencePayload } from "@/lib/boreal/tools/ui/build-intent-response";
 import { withRetry } from "@/lib/boreal/utils/retry";
+import { getPublicReadySpecialistMeta } from "@/lib/boreal/agents/public-ready-specialists";
 import {
   buildDirectAgentTeamBlueprint,
   buildPresetTeamBlueprint,
@@ -713,19 +721,44 @@ async function continueApprovedRequestThread(input: {
     return null;
   }
 
+  const request = await getRequestExecutionContext({
+    intentId: requestId,
+    ownerExternalId,
+  });
+
+  if (!request) {
+    return null;
+  }
+
+  if (
+    initialDetail.access?.isOwner &&
+    initialDetail.intent.status === "payment_required" &&
+    initialDetail.pendingPayment?.selection
+  ) {
+    return {
+      assistantMessage: "",
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intent: toPersistedExecutionIntent(
+        request,
+        input.runtimeConfig,
+        input.provider.key,
+      ),
+      intentId: requestId,
+      persisted: false,
+      relatedCatalogItems: [],
+      requiresApproval: false,
+      workspace: buildSpecialistPaymentWorkspace({
+        selection: initialDetail.pendingPayment.selection,
+        subtitle:
+          "Funding is still required before the assigned specialist starts. Use the payment card below to continue this request.",
+      }),
+    } satisfies ChatAssistantResponse;
+  }
+
   if (
     input.input.uiContext?.providerSelectionCommand?.command ===
     "confirm_provider_route"
   ) {
-    const request = await getRequestExecutionContext({
-      intentId: requestId,
-      ownerExternalId,
-    });
-
-    if (!request) {
-      throw new Error("This request is no longer available.");
-    }
-
     const persistedIntent = toPersistedExecutionIntent(
       request,
       input.runtimeConfig,
@@ -754,10 +787,6 @@ async function continueApprovedRequestThread(input: {
   }
 
   const requestDetail = await getRequestDetailRecord({
-    intentId: requestId,
-    ownerExternalId,
-  });
-  const request = await getRequestExecutionContext({
     intentId: requestId,
     ownerExternalId,
   });
@@ -1182,24 +1211,54 @@ export async function approvePersistedRequest(input: {
     const assignedTeamJson = serializeAssignedTeamFromSelections(
       selectedRoutePlan.selected,
     );
+    const ownerExternalId = input.ownerExternalId?.trim();
+
+    if (!ownerExternalId) {
+      throw new Error("Sign in before funding a specialist request.");
+    }
+
+    const paymentSelection = await ensureTrackedSpecialistPaymentSelection({
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intentId: input.intentId,
+      intentKey: request.intentKey,
+      ownerExternalId,
+      requestedOutputTypes: request.requestedOutputTypes,
+      routePlan: selectedRoutePlan,
+      summary: request.summary,
+      title: request.title,
+      userMessage: request.body,
+    });
 
     await approveRequestDraft({
       assignedAgent: assignedAgentLabel,
       assignedTeamJson,
       assignedToolNames: specialistToolNames,
-      assistantMessage: `Request approved. Boreal locked the best route: ${assignedAgentLabel}.`,
+      assistantMessage: `Funding required before ${assignedAgentLabel} starts.`,
       intentId: input.intentId,
-      ownerExternalId: input.ownerExternalId,
-      status: "claimed",
+      ownerExternalId,
+      status: "payment_required",
     });
 
-    return runApprovedSpecialistExecutionForRequest({
-      input,
-      provider,
-      request,
-      routePlan: selectedRoutePlan,
-      runtimeConfig,
-    });
+    return {
+      assistantMessage: `Boreal locked ${assignedAgentLabel}. Funding starts execution in this same request thread.`,
+      intentId: input.intentId,
+      relatedCatalogItems: mergePreviewCatalogItems(
+        request.catalogQuery.trim().length > 0
+          ? await withRetry(
+              () =>
+                searchCatalog({
+                  limit: 6,
+                  query: request.catalogQuery,
+                }),
+              { attempts: 2 },
+            )
+          : [],
+        buildRoutePreviewCatalogItems(selectedRoutePlan),
+      ),
+      workspace: buildSpecialistPaymentWorkspace({
+        selection: paymentSelection,
+      }),
+    };
   }
 
   await approveRequestDraft({
@@ -1215,6 +1274,184 @@ export async function approvePersistedRequest(input: {
     input,
     provider,
     request,
+    runtimeConfig,
+  });
+}
+
+export async function fundPersistedRequest(input: {
+  intentId: string;
+  ownerExternalId?: string;
+  paymentReceipt?: ProviderRoutePaymentReceipt | null;
+  routeKey: string;
+}) {
+  const runtimeConfig = getBorealRuntimeConfig();
+  const provider = resolveProviderAdapter();
+  const ownerExternalId = input.ownerExternalId?.trim();
+
+  if (!ownerExternalId) {
+    throw new Error("Sign in before funding tracked work.");
+  }
+
+  const requestDetail = await getRequestDetailRecord({
+    intentId: input.intentId,
+    ownerExternalId,
+  });
+  const request = await getRequestExecutionContext({
+    intentId: input.intentId,
+    ownerExternalId,
+  });
+
+  if (!requestDetail.intent || !requestDetail.access?.isOwner || !request) {
+    throw new Error("Request not found.");
+  }
+
+  const pendingSelection = requestDetail.pendingPayment?.selection;
+  const selectedRoute =
+    pendingSelection?.options.find((option) => option.routeKey === input.routeKey) ??
+    null;
+  const selectedQuote = selectedRoute?.quote ?? null;
+
+  if (!pendingSelection || !selectedRoute || !selectedQuote) {
+    throw new Error("This request no longer has a locked payment route.");
+  }
+
+  const lockedRoutePlan = buildLockedAssignedSpecialistRoutePlan({
+    providerKey: provider.key,
+    request,
+    requestDetail,
+    runtimeConfig,
+  });
+
+  if (!lockedRoutePlan) {
+    throw new Error("The locked specialist route could not be rebuilt.");
+  }
+
+  if (selectedQuote.expiresAt <= Date.now()) {
+    const quoteToken = `quote_${crypto.randomUUID().replaceAll("-", "")}`;
+    const quoteExpiresAt = Date.now() + TRACKED_REQUEST_QUOTE_TTL_MS;
+    const quoteAuthorizationMessage = buildPaymentAuthorizationMessage({
+      amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+      currency: "SOL",
+      quoteToken,
+      requestToken: selectedQuote.requestToken,
+    });
+
+    await createConvexServerClient().mutation(api.requestApi.refreshQuote, {
+      ownerExternalId,
+      quoteAuthorizationMessage,
+      quoteExpiresAt,
+      quoteToken,
+      requestToken: selectedQuote.requestToken,
+    });
+
+    return {
+      assistantMessage: "",
+      intentId: input.intentId,
+      relatedCatalogItems: mergePreviewCatalogItems(
+        request.catalogQuery.trim().length > 0
+          ? await withRetry(
+              () =>
+                searchCatalog({
+                  limit: 6,
+                  query: request.catalogQuery,
+                }),
+              { attempts: 2 },
+            )
+          : [],
+        buildRoutePreviewCatalogItems(lockedRoutePlan),
+      ),
+      workspace: buildSpecialistPaymentWorkspace({
+        selection: {
+          ...pendingSelection,
+          options: pendingSelection.options.map((option) =>
+            option.routeKey !== selectedRoute.routeKey || !option.quote
+              ? option
+              : {
+                  ...option,
+                  quote: {
+                    ...option.quote,
+                    authorizationMessage: quoteAuthorizationMessage,
+                    expiresAt: quoteExpiresAt,
+                    quoteToken,
+                  },
+                },
+          ),
+        },
+        subtitle:
+          "That quote expired before Boreal could verify payment. Sign the refreshed receipt below to continue.",
+      }),
+    };
+  }
+
+  if (!input.paymentReceipt) {
+    throw new Error("Attach a wallet receipt before Boreal starts.");
+  }
+
+  const expectedPayment = getExpectedProviderRoutePayment(selectedRoute);
+  const paymentVerification = await verifyOneRequestPayment({
+    amount: expectedPayment.amount,
+    authorizationMessage: buildPaymentAuthorizationMessage({
+      amount: expectedPayment.amount,
+      currency: expectedPayment.currency,
+      quoteToken: selectedQuote.quoteToken,
+      requestToken: selectedQuote.requestToken,
+    }),
+    currency: expectedPayment.currency,
+    payToAddress: getOneRequestSellerMetadata().payToAddress,
+    quoteExpiresAt: selectedQuote.expiresAt,
+    quoteToken: selectedQuote.quoteToken,
+    receipt: input.paymentReceipt,
+    requestToken: selectedQuote.requestToken,
+    walletAddress: input.paymentReceipt.walletAddress,
+  });
+
+  await recordTrackedRequestPaymentArtifacts({
+    conversationId: request.conversationId ?? crypto.randomUUID(),
+    intentId: input.intentId,
+    intentKey: request.intentKey,
+    ownerExternalId,
+    paymentReceipt: input.paymentReceipt,
+    paymentVerification,
+    requestedOutputTypes: request.requestedOutputTypes,
+    route: selectedRoute,
+    routeSummary: request.summary,
+    title: request.title,
+    userMessage: request.body,
+  });
+  await appendRequestActivity({
+    activityPayload: JSON.stringify(
+      buildProviderReceiptActivityPayload({
+        paymentReceipt: input.paymentReceipt,
+        route: selectedRoute,
+        routeQuote: selectedQuote,
+      }),
+    ),
+    activityType: "payment_receipt",
+    intentId: input.intentId,
+    ownerExternalId,
+  });
+  await appendRequestActivity({
+    activityPayload: JSON.stringify(
+      buildProviderVerifiedActivityPayload({
+        paymentReceipt: input.paymentReceipt,
+        paymentVerification,
+        route: selectedRoute,
+        routeQuote: selectedQuote,
+      }),
+    ),
+    activityType: "payment_verified",
+    intentId: input.intentId,
+    ownerExternalId,
+  });
+
+  return runApprovedSpecialistExecutionForRequest({
+    input: {
+      intentId: input.intentId,
+      ownerExternalId,
+    },
+    provider,
+    request,
+    routePlan: lockedRoutePlan,
     runtimeConfig,
   });
 }
@@ -2737,6 +2974,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
             },
           },
         ],
+        pendingPayment: null,
         participants: [],
         proposals: [],
         receipts: [],
@@ -4255,6 +4493,235 @@ function isTextOnlyRoutePlan(routePlan: OneRequestRoutePlan) {
   );
 }
 
+function buildTrackedSpecialistRouteOption(routePlan: OneRequestRoutePlan) {
+  const selectedAgentKeys = routePlan.selected.map((selection) => selection.agent.key);
+  const displayTitle = routePlan.selected
+    .map((selection) => selection.agent.identity.displayName)
+    .join(", ");
+  const leadMeta = getPublicReadySpecialistMeta(selectedAgentKeys[0] ?? null);
+  const providerCompany =
+    leadMeta?.providerCompany.trim().toLowerCase() === "anthropic"
+      ? "anthropic"
+      : leadMeta?.providerCompany.trim().toLowerCase() === "gemini"
+        ? "gemini"
+        : "openai";
+
+  return {
+    accessLabel: "Funding required",
+    company: providerCompany,
+    deliveryMode: "boreal-hosted",
+    displayTitle,
+    executionSurface: "http",
+    fallbackOrder: 0,
+    isDefault: true,
+    networkHints: [routePlan.networkKey],
+    paymentProtocol: routePlan.paymentProtocol,
+    priceLabel: `${SPECIALIST_FUNDED_START_SOL_AMOUNT} SOL`,
+    pricingPolicy: {
+      amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+      currency: "SOL",
+      kind: "flat-sol",
+      networkKey: routePlan.networkKey,
+    },
+    providerKey: "boreal",
+    quote: null,
+    receiptExpectation: {
+      requiresSignedMessage: true,
+      requiresTxHash: true,
+      requiresVerification: true,
+    },
+    requiresPayment: true,
+    routeKey: `tracked-specialist:${selectedAgentKeys.join("+")}`,
+    sourceCapabilityId:
+      selectedAgentKeys.length === 1
+        ? `autonomous-agent:${selectedAgentKeys[0]}`
+        : `autonomous-team:${selectedAgentKeys.join("+")}`,
+    sourceProviderKey: null,
+    subtitle:
+      routePlan.selected.length === 1
+        ? `${displayTitle} starts after funding. ${leadMeta?.providerCompany ?? "OpenAI"} ${leadMeta?.model ? `· ${leadMeta.model}` : ""}`.trim()
+        : `${displayTitle} start after funding in this same tracked request thread.`,
+    supportsDirectInvoke: true,
+  } satisfies ProviderRouteOption;
+}
+
+function buildSpecialistPaymentWorkspace(input: {
+  selection: ProviderSelectionState;
+  subtitle?: string;
+}) {
+  const leadTitle =
+    input.selection.options[0]?.displayTitle?.trim() || "specialist";
+
+  return {
+    kind: "provider_selection",
+    selection: input.selection,
+    subtitle:
+      input.subtitle ??
+      `Funding starts ${leadTitle} in this same request thread. Boreal records the signed receipt and verified Solana transaction before work begins.`,
+    title: "Fund specialist",
+  } satisfies WorkspaceState;
+}
+
+async function ensureTrackedSpecialistPaymentSelection(input: {
+  conversationId: string;
+  intentId: string;
+  intentKey: string;
+  ownerDisplayName?: string;
+  ownerExternalId: string;
+  requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
+  routePlan: OneRequestRoutePlan;
+  summary: string;
+  title: string;
+  userMessage: string;
+}) {
+  const client = createConvexServerClient();
+  const requestFingerprint = hashPrompt(input.userMessage);
+  const idempotencyKey = `tracked-specialist:${input.intentId}`;
+  const existingSession = await client.query(api.requestApi.findSessionForCaller, {
+    idempotencyKey,
+    ownerExternalId: input.ownerExternalId,
+    requestFingerprint,
+  });
+
+  if (
+    existingSession &&
+    existingSession.intentId === input.intentId &&
+    existingSession.status === "payment_required" &&
+    !existingSession.paidAt
+  ) {
+    const existingSelection = buildTrackedProviderSelectionStateFromSession({
+      lockedAt: existingSession.lockedAt,
+      message: existingSession.message,
+      networkKey:
+        existingSession.networkKey === "solana:testnet"
+          ? "solana:testnet"
+          : "solana:mainnet",
+      quoteAmount: existingSession.quoteAmount,
+      quoteAuthorizationMessage: existingSession.quoteAuthorizationMessage,
+      quoteExpiresAt: existingSession.quoteExpiresAt,
+      quoteToken: existingSession.quoteToken,
+      requestFingerprint: existingSession.requestFingerprint,
+      requestToken: existingSession.requestToken,
+      routeJson: existingSession.routeJson,
+    });
+
+    if (existingSelection) {
+      return existingSelection;
+    }
+  }
+
+  const route = buildTrackedSpecialistRouteOption(input.routePlan);
+  const requestToken =
+    existingSession?.requestToken ??
+    `req_locked_${crypto.randomUUID().replaceAll("-", "")}`;
+  const quoteToken = `quote_${crypto.randomUUID().replaceAll("-", "")}`;
+  const quoteExpiresAt = Date.now() + TRACKED_REQUEST_QUOTE_TTL_MS;
+  const quoteAuthorizationMessage = buildPaymentAuthorizationMessage({
+    amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+    currency: "SOL",
+    quoteToken,
+    requestToken,
+  });
+
+  await client.mutation(api.requestApi.createRequestSession, {
+    chainFamily: "solana",
+    conversationId: input.conversationId,
+    currency: "SOL",
+    idempotencyKey,
+    intentId: input.intentId as never,
+    intentKey: input.intentKey,
+    message: input.userMessage,
+    networkKey: input.routePlan.networkKey,
+    ownerDisplayName: input.ownerDisplayName,
+    ownerExternalId: input.ownerExternalId,
+    paymentProtocol: route.paymentProtocol,
+    quoteAmount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+    quoteAuthorizationMessage,
+    quoteExpiresAt,
+    quoteToken,
+    requestFingerprint,
+    requestToken,
+    requestedOutputTypes: input.requestedOutputTypes,
+    routeJson: serializeTrackedProviderSelectionSnapshot({
+      company: route.company,
+      deliveryMode: route.deliveryMode,
+      displayTitle: route.displayTitle,
+      executionSurface: route.executionSurface,
+      fallbackOrder: route.fallbackOrder,
+      networkHints: route.networkHints,
+      paymentProtocol: route.paymentProtocol,
+      pricingPolicy: route.pricingPolicy,
+      providerKey: route.providerKey,
+      receiptExpectation: route.receiptExpectation,
+      requiresPayment: route.requiresPayment,
+      routeKey: route.routeKey,
+      sourceCapabilityId: route.sourceCapabilityId ?? null,
+      sourceProviderKey: route.sourceProviderKey ?? null,
+      subtitle: route.subtitle,
+      supportsDirectInvoke: route.supportsDirectInvoke,
+    }),
+    status: "payment_required",
+    summary: input.summary,
+    title: input.title,
+    walletAddress: "wallet-pending",
+  });
+
+  const selection = buildTrackedProviderSelectionStateFromSession({
+    lockedAt: Date.now(),
+    message: input.userMessage,
+    networkKey: input.routePlan.networkKey,
+    quoteAmount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+    quoteAuthorizationMessage,
+    quoteExpiresAt,
+    quoteToken,
+    requestFingerprint,
+    requestToken,
+    routeJson: serializeTrackedProviderSelectionSnapshot({
+      company: route.company,
+      deliveryMode: route.deliveryMode,
+      displayTitle: route.displayTitle,
+      executionSurface: route.executionSurface,
+      fallbackOrder: route.fallbackOrder,
+      networkHints: route.networkHints,
+      paymentProtocol: route.paymentProtocol,
+      pricingPolicy: route.pricingPolicy,
+      providerKey: route.providerKey,
+      receiptExpectation: route.receiptExpectation,
+      requiresPayment: route.requiresPayment,
+      routeKey: route.routeKey,
+      sourceCapabilityId: route.sourceCapabilityId ?? null,
+      sourceProviderKey: route.sourceProviderKey ?? null,
+      subtitle: route.subtitle,
+      supportsDirectInvoke: route.supportsDirectInvoke,
+    }),
+  });
+
+  if (!selection) {
+    throw new Error("Boreal could not build the locked specialist payment card.");
+  }
+
+  return selection;
+}
+
+function buildLockedAssignedSpecialistRoutePlan(input: {
+  providerKey: string;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const persistedIntent = toPersistedExecutionIntent(
+    input.request,
+    input.runtimeConfig,
+    input.providerKey,
+  );
+  const lockedRoutePlan = buildMountedSpecialistRoutePlan({
+    intent: persistedIntent,
+    mountedAgentKeys: input.requestDetail.assignment?.tools ?? [],
+  });
+
+  return lockedRoutePlan ? narrowSpecialistRoutePlanForExecution(lockedRoutePlan) : null;
+}
+
 async function startMountedPresetTeamExecution(input: {
   conversationId: string;
   input: ChatAssistantAgentInput;
@@ -4355,18 +4822,36 @@ async function startMountedRequestExecution(input: {
   const assignedTeamJson = serializeAssignedTeamFromSelections(
     input.routePlan.selected,
   );
+  const ownerExternalId = input.input.requester?.externalId?.trim();
+
+  if (!ownerExternalId) {
+    throw new Error("Sign in before starting a paid specialist request.");
+  }
+
   const persistedResult = await saveIntentPipelineRecord({
     assignedTeamJson,
     assistantMessage:
       input.routePlan.selected.length === 1
-        ? `Boreal opened a work thread for ${assignedAgentLabel} and started the request immediately.`
-        : `Boreal opened one work thread for ${assignedAgentLabel} and started that agent team immediately.`,
+        ? `Boreal opened a work thread for ${assignedAgentLabel}. Funding starts execution in this same request thread.`
+        : `Boreal opened one work thread for ${assignedAgentLabel}. Funding starts that agent team in this same request thread.`,
     conversationId: input.conversationId,
-    initialStatus: "claimed",
+    initialStatus: "payment_required",
     intent: input.intent,
     ownerDisplayName: input.input.requester?.displayName,
-    ownerExternalId: input.input.requester?.externalId,
+    ownerExternalId,
     ownerHandle: input.input.requester?.handle,
+    userMessage: input.input.message,
+  });
+  const paymentSelection = await ensureTrackedSpecialistPaymentSelection({
+    conversationId: persistedResult.conversationId,
+    intentId: persistedResult.intentId,
+    intentKey: persistedResult.intentKey,
+    ownerDisplayName: input.input.requester?.displayName,
+    ownerExternalId,
+    requestedOutputTypes: input.intent.requestedOutputTypes,
+    routePlan: input.routePlan,
+    summary: input.intent.summary,
+    title: input.intent.title,
     userMessage: input.input.message,
   });
 
@@ -4374,13 +4859,10 @@ async function startMountedRequestExecution(input: {
     assignedAgent: assignedAgentLabel,
     assignedTeamJson,
     assignedToolNames,
-    assistantMessage:
-      input.routePlan.selected.length === 1
-        ? `${assignedAgentLabel} was selected from offers and is starting now.`
-        : `${assignedAgentLabel} were selected from offers and are starting now.`,
+    assistantMessage: `Funding required before ${assignedAgentLabel} starts.`,
     intentId: persistedResult.intentId,
-    ownerExternalId: input.input.requester?.externalId,
-    status: "claimed",
+    ownerExternalId,
+    status: "payment_required",
   });
 
   await input.input.onStreamEvent?.({
@@ -4390,38 +4872,23 @@ async function startMountedRequestExecution(input: {
     type: "request-opened",
   });
 
-  const request = await getRequestExecutionContext({
-    intentId: persistedResult.intentId,
-    ownerExternalId: input.input.requester?.externalId,
-  });
-
-  if (!request) {
-    throw new Error("Mounted request could not be loaded.");
-  }
-
-  const resolved = await runApprovedSpecialistExecutionForRequest({
-    input: {
-      intentId: persistedResult.intentId,
-      ownerExternalId: input.input.requester?.externalId,
-    },
-    provider: input.provider,
-    request,
-    routePlan: input.routePlan,
-    runtimeConfig: input.runtimeConfig,
-  });
-
   return {
-    assistantMessage: resolved.assistantMessage,
+    assistantMessage:
+      input.routePlan.selected.length === 1
+        ? `Boreal locked ${assignedAgentLabel}. Funding starts execution in this same request thread.`
+        : `Boreal locked ${assignedAgentLabel}. Funding starts that agent team in this same request thread.`,
     conversationId: persistedResult.conversationId,
     intent: input.intent,
     intentId: persistedResult.intentId,
     persisted: true,
-    relatedCatalogItems:
-      resolved.relatedCatalogItems.length > 0
-        ? resolved.relatedCatalogItems
-        : input.previewCatalogItems,
+    relatedCatalogItems: mergePreviewCatalogItems(
+      input.previewCatalogItems,
+      buildRoutePreviewCatalogItems(input.routePlan),
+    ),
     requiresApproval: false,
-    workspace: resolved.workspace,
+    workspace: buildSpecialistPaymentWorkspace({
+      selection: paymentSelection,
+    }),
   } satisfies ChatAssistantResponse;
 }
 

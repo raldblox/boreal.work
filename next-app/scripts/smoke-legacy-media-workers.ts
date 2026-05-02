@@ -86,6 +86,7 @@ const baseDetail: RequestDetail = {
   },
   matchCandidates: [],
   messages: [],
+  pendingPayment: null,
   participants: [],
   proposals: [],
   receipts: [],

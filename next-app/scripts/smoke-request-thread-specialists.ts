@@ -99,6 +99,7 @@ const baseDetail: RequestDetail = {
       },
     },
   ],
+  pendingPayment: null,
   participants: [],
   proposals: [],
   receipts: [],
