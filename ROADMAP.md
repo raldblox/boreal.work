@@ -19,6 +19,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now has a dedicated manual-plus-assisted profile and supply builder, which is the right onboarding path for publishing human or agent supply without forcing every profile edit through the main request market.
 - Boreal now has an explicit merchant-native `/account` path for custom services and digital products, plus owned-offer management with provider-synced listings kept visible but read-only.
 - Boreal chat now treats Boreal Agent as the default, lets users mount specialist agents directly from `Offers`, shows the selected team in the composer, and turns the next submit into one tracked request for that team without a separate approval step.
+- Boreal Agent home chat now also has a pre-execution provider-picker layer for its own text work: the owner message lands locally first, Boreal freezes the prompt snapshot before execution, `OpenAI by Boreal` is the default executable lane, optional free-access policy can bypass the demo gate, and paid starts now record receipt plus verification cards back into the request thread.
 - Boreal's first preset bundle now behaves like a real request-thread room: `Debate and Verdict` mounts one hard-coded team, shows Mara, Avery, Blake, and Jordan as visible participants, auto-advances one speaker at a time while the tab stays open, and lets owner interjections affect the next scheduled turn.
 - Active requests can now invite saved or newly added localhost runtimes from `Team` or `Market`, route follow-up messages into those runtimes inside the same request thread, and keep Boreal Agent off the team unless it was explicitly mounted or selected.
 - Boreal's first-touch product surface is now converging around the chat shell itself: `/` is the chat-native zero-state, `/about` carries the feature/spec narrative, and `/roadmap` is the public-safe Jira-style live-status board.
@@ -43,6 +44,7 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 - Boreal now exposes listing-ready specialist registry entries with canonical v1 routes, request-first route hints, machine-readable input/output schemas, and normalized USD price labels for external discovery.
 - Boreal now includes `solana-operator` as a direct specialist with two honest scopes: the public direct route is still planning-first, while the mounted request-thread path can already do explicit wallet-approved Solana mainnet memo recording, simple SOL transfer, and wallet-message signing.  A fuller Solana Agent Kit runtime, broader transaction coverage, and richer approval UX are still ahead.
 - Boreal now also has a transport-only local runtime bridge family for advanced operators: Hermes, Ollama, LM Studio, or another OpenAI-compatible local runtime can connect through the same Boreal HTTP executor contract without replacing the default cloud Boreal agent or receiving Boreal's hidden prompts.
+- Boreal Desktop is the next productized local-runtime step: a Windows-first owner-only Electron app that will register one private desktop execution node, accept assigned work without per-request local invite, and keep Codex plus QVAC as separate local runtime families.  That direction is planned in `DESKTOP_PLAN.md`; it is not live yet.
 - Boreal now exposes Bazaar-compatible seller metadata on the one-request contract, including canonical x402 Solana mainnet network id plus `bazaar` discovery fields on the live seller block.
 - Boreal's primary agent-owner story should now be a work network and operating layer for agents, not a chat-brain replacement product.  Stable request, inbox, payout, webhook, and skill contracts matter more than owner-runtime brain swaps.
 - Boreal now has a concrete external distribution plan in `DISCOVERY_PLAN.md`, but the actual x402 seller hardening, MCP publication, and ChatGPT app distribution work are still ahead.
@@ -90,7 +92,7 @@ These milestone names are the best public-safe compression of the roadmap right 
 | `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
 | `Local-first shell performance` | `Live` | Low-churn shell summaries, worker-market lists, and pre-request Boreal drafts now load from signed local cache before any refresh, while request lists stay live from Convex. | Lighter server-side summary queries and payload-size trimming still need a second pass. |
 | `Payment and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start, payout verification, refunds, disputes, and stronger settlement proof. |
-| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes, plus one live preset-room bundle are all real. | Broader preset coverage, richer execution policy, connector health history, and deeper multi-party coordination. |
+| `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, the local bridge family for Hermes, Ollama, LM Studio, and other OpenAI-compatible runtimes, plus one live preset-room bundle are all real. | Broader preset coverage, richer execution policy, connector health history, persistent private desktop-node productization, and deeper multi-party coordination. |
 | `Release ops and trust` | `In progress` | Boreal has early-access truth docs, a cohort rollout playbook, and a safer public claim boundary. | Release metrics, incident runbooks, kill switches, and portable reputation exports. |
 
 ## Continuous Roadmap Execution Cadence
@@ -231,6 +233,7 @@ Goal: make the request-native UX and routing layer strong on top of the commerce
 - [x] Repeat visits can reopen a cached Boreal shell with route loading skeletons and an explicit offline fallback, even when live content is unavailable
 - [x] Low-churn shell summaries now load through a signed, encrypted local-first shell cache instead of always-live Convex subscriptions from the main shell
 - [x] Pre-request Boreal chat sessions are now encrypted local draft sessions with explicit resume and reset controls, while request-native threads stay server-backed
+- [x] Boreal Agent home chat now freezes a provider route before execution, keeps the pre-request message local until route confirmation, and records paid-route receipt proof back into the request thread
 - [x] Signed-in owner request tracking in the left sidebar
 - [x] Public browsing of supply and public requests in the right rail
 - [x] Request workboard with `Chat`, `Activity`, `Team`, and `Workboard`
@@ -323,6 +326,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Early-access cohort runbook across buyers, human workers, agent operators, and provider-backed supply in `SUPPLY_COHORT_PLAYBOOK.md`
 - [ ] Add `marketKind` and `subtypeVersion` to canonical `supplies` rows so every listing has a stable fetch identity beyond `supplyType`
 - [ ] Add subtype tables for `supplyProducts`, `supplyServiceOffers`, `supplyProviderServices`, `supplyAgentRuntimes`, `supplyCollectives`, `supplyAvailabilitySnapshots`, and `supplyStats`
+- [ ] Add a private desktop-node subtype and assignment lifecycle on top of canonical `supplies` so owner-only persistent local execution does not overload generic connected-agent rows
 - [ ] Update `createSupplyEntry`, public `/api/v1/supplies`, provider sync, and connected-agent onboarding so they upsert base `supplies` rows plus the right subtype rows in one write path
 - [ ] Backfill current listings into subtype tables using deterministic `marketKind` rules from `SUPPLY_LIST.md`
 - [ ] Rich public product/catalog pages with deeper structured metadata and merchant-grade presentation
@@ -360,6 +364,7 @@ Goal: deepen the sell-side and provider-side market once the core commerce rails
 - [x] Direct MCP runtime adapter flow for local or remote external agents that expose tools instead of a plain HTTP executor
 - [x] Local Hermes bridge helper and short quick-connect prompt for operators who need a working advanced-runtime HTTP path before token-based quick connect lands
 - [x] Local model bridge presets for Ollama, LM Studio, and other OpenAI-compatible runtimes, keeping Boreal as the transport and work system while the operator-owned local runtime keeps its own prompt and provider
+- [ ] Boreal Desktop V1: Windows-first Electron app that upserts an owner-only private desktop node, heartbeats into Boreal, accepts queued assignments, and exposes Codex plus QVAC as separate runtime families on the same request thread
 - [ ] Sidecar and inbox-worker bridge for agents that cannot expose a public inbound URL but still need to participate end to end
 - [ ] One-time quick-connect token and manifest flow so local agents can claim a Boreal session without manual URL and field entry
 - [x] Request-workspace status, evidence, and heartbeat endpoints for advanced connected runtimes so they do not need Boreal-owned LLM execution just to stay attached to work

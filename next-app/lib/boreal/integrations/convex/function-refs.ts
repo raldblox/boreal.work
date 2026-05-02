@@ -1,5 +1,6 @@
 import { makeFunctionReference } from "convex/server";
 
+import type { NormalizedRequestReceipt } from "../../provider-routing/types";
 import type { PersistedIntent } from "../../schemas/intent";
 import type { RequestTeamBlueprint } from "../../swarm/team-blueprint";
 
@@ -592,9 +593,10 @@ export type RequestDetail = {
     title: string;
     videoSeconds: string;
     videoSize: string;
-  } | null;
-  matchCandidates: CatalogEntry[];
-  collectiveTrust: {
+    } | null;
+    matchCandidates: CatalogEntry[];
+    receipts: NormalizedRequestReceipt[];
+    collectiveTrust: {
     averageRating: number | null;
     averageTrustScore: number;
     fulfilledCount: number;
@@ -744,6 +746,17 @@ export const convexFunctionRefs = {
     },
     { appended: boolean }
   >("chats:appendRequestExecution"),
+  appendRequestActivity: makeFunctionReference<
+    "mutation",
+    {
+      activityPayload?: string;
+      activityType: string;
+      intentId: string;
+      ownerExternalId?: string;
+      status?: string;
+    },
+    { appended: boolean }
+  >("chats:appendRequestActivity"),
   schedulePresetRoomAdvance: makeFunctionReference<
     "mutation",
     {

@@ -86,6 +86,7 @@ const baseDetail: RequestDetail = {
   messages: [],
   participants: [],
   proposals: [],
+  receipts: [],
   review: null,
 };
 

@@ -911,6 +911,54 @@ export const appendRequestExecution = mutation({
   },
 });
 
+export const appendRequestActivity = mutation({
+  args: {
+    activityPayload: v.optional(v.string()),
+    activityType: v.string(),
+    intentId: v.id("intents"),
+    ownerExternalId: v.optional(v.string()),
+    status: v.optional(intentStatusValidator),
+  },
+  handler: async (ctx, args) => {
+    const intent = await ctx.db.get(args.intentId);
+
+    if (!intent || !(await hasRequestAccess(ctx, intent.ownerUserId, args.ownerExternalId))) {
+      return { appended: false };
+    }
+
+    const now = Date.now();
+
+    await ctx.db.insert("activityEvents", {
+      createdAt: now,
+      entityId: intent.intentKey,
+      entityType: "intent",
+      payload: args.activityPayload,
+      type: args.activityType,
+    });
+
+    if (args.status && args.status !== intent.status) {
+      await ctx.db.patch(args.intentId, {
+        completedAt:
+          args.status === "fulfilled" || args.status === "closed"
+            ? now
+            : intent.completedAt,
+        startedAt:
+          args.status === "claimed" || args.status === "in_progress"
+            ? intent.startedAt ?? now
+            : intent.startedAt,
+        status: args.status,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.patch(args.intentId, {
+        updatedAt: now,
+      });
+    }
+
+    return { appended: true };
+  },
+});
+
 export const schedulePresetRoomAdvance = mutation({
   args: {
     delayMs: v.number(),

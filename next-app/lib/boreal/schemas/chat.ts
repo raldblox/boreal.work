@@ -1,5 +1,9 @@
 import type { ToolUIPart } from "ai";
 
+import type {
+  ProviderRouteConfirmationCommand,
+  ProviderSelectionState,
+} from "@/lib/boreal/provider-routing/types";
 import type { PersistedIntent } from "@/lib/boreal/schemas/intent";
 import type { ProfileBuilderDraft } from "@/lib/boreal/schemas/profile-builder";
 
@@ -55,11 +59,14 @@ export type ChatUiContext = {
   mountedSupplyIds?: string[];
   mountedSupplyTitle?: string | null;
   mountedSupplyTitles?: string[];
+  pendingProviderSelection?: ProviderSelectionState | null;
   presetRoomCommand?: PresetRoomAdvanceCommand | null;
+  providerSelectionCommand?: ProviderRouteConfirmationCommand | null;
   requestId?: string | null;
   requestRole?: "none" | "owner" | "supplier" | "viewer";
   requestStatus?: string | null;
   surface: "home" | "request";
+  walletAddress?: string | null;
 };
 
 export type CatalogItem = {
@@ -166,6 +173,12 @@ export type WorkspaceState =
       subtitle: string;
       draft: ProfileBuilderDraft;
       sourceBrief: string;
+    }
+  | {
+      kind: "provider_selection";
+      title: string;
+      subtitle: string;
+      selection: ProviderSelectionState;
     }
   | {
       kind: "empty";

@@ -6,6 +6,7 @@ import type {
   SidebarIntentPreview,
   WalletAccountRecord,
 } from "@/lib/boreal/integrations/convex/function-refs"
+import type { WorkspaceState } from "@/lib/boreal/schemas/chat"
 
 export const SHELL_CACHE_SCHEMA_VERSION = 1
 
@@ -118,4 +119,5 @@ export type DraftSessionRecord = {
   messages: DraftSessionMessage[]
   mountedAgents: DraftMountedAgent[]
   updatedAt: number
+  workspace?: WorkspaceState
 }

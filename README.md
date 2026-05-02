@@ -36,6 +36,8 @@ BOREAL_AGENT_CONVEX_URL_PROD=https://your-prod-deployment.convex.cloud
 BOREAL_AGENT_DEFAULT_SOLANA_WALLET=CxkLjW31HqX4Mp7JuDmSRBxEALqbnj8HWHn48FRWD4yS
 BOREAL_AGENT_DEFAULT_EVM_WALLET=0x339f616BA1A347ef40d3EdD5278c0B44315E0836
 BOREAL_SHELL_CACHE_SIGNING_PRIVATE_JWK={"kty":"EC","crv":"P-256","d":"...","x":"...","y":"..."}
+FREE_ACCESS=true
+BOREAL_FREE_ACCESS_ALLOWLIST=wallet:solana:...,agent:boreal
 ```
 
 Start local dev:
@@ -105,6 +107,8 @@ npm run smoke:preset-teams
 ```
 
 ## Changelog
+- `2026-05-02`: Added Boreal's pre-execution provider picker to the signed-in chat surface.  Boreal Agent now lands the owner bubble first, freezes a prompt snapshot, prepares curated provider lanes before execution, and starts the request only after the route is confirmed.  V1 keeps Boreal's first-party runtime OpenAI-only, makes `OpenAI by Boreal` the executable default lane, supports optional `FREE_ACCESS` / `BOREAL_FREE_ACCESS_ALLOWLIST` gating, records wallet receipts plus verification back into the request thread, and shows normalized receipt cards in both the timeline and the request side panel.
+- `2026-05-02`: Added `DESKTOP_PLAN.md` as the target architecture note for Boreal Desktop V1.  The repo now distinguishes the live request-scoped localhost runtime path from the planned Windows-first owner-only desktop node that will register as private supply, accept queued assignments, and run local Codex plus QVAC as separate runtime families.
 - `2026-05-02`: Made `Debate and Verdict` durable instead of tab-owned.  Preset-room turns now schedule through Convex plus a signed internal advance route, retry metadata persists in the version-3 preset-room blueprint, retry labels survive navigation, and the room no longer depends on a foreground `useEffect` loop to reach the judge.
 - `2026-04-30`: Added the first hard-coded preset team bundle, `Debate and Verdict`.  Offers now include one static preset-team card with four member icons, selecting it mounts one reusable `sequential_handoff` team instead of four standalone agents, and request-thread execution now runs as a continuous debate room where Mara, Avery, Blake, and Jordan each post as independent speakers while owner interjections can still affect the next scheduled turn.
 - `2026-04-30`: Moved Boreal's low-churn shell state to a signed, encrypted local-first cache.  Profile summary, wallet summary, cart summary, and checkout history summary now stay local-first, while worker-market previews hydrate from browser cache first and revalidate on open so new seeded offers can surface without stale local state.  Request lists stay live from Convex, and pre-request Boreal chat sessions are encrypted local draft sessions with explicit resume and reset controls while tracked request threads remain server-backed in Convex.
@@ -186,6 +190,7 @@ npm run smoke:preset-teams
 
 - `BOREAL_BOOK.md` is the living narrative source of truth for Boreal's brand, product definition, UX laws, release boundary, and public product truth.
 - `ROADMAP.md` is the only execution tracker: milestones, release gate, paid wedge, and next architecture work all live there now.
+- `DESKTOP_PLAN.md` is the target architecture note for Boreal Desktop V1: a Windows-first owner-only private desktop execution node that reuses Boreal's request and supply model without being treated as a public market listing.
 - `docs/archive/` holds historical research and retired working notes that should not override the live canon.
 - `docs/internal/` holds internal prompt-process notes that should not be treated as product truth.
 - `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, and `next-app/public/agent-registry.md` are generated public contract mirrors.  Regenerate them with `cd next-app && npm run docs:sync:public` instead of editing them by hand.

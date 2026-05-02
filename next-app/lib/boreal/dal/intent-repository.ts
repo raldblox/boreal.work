@@ -95,6 +95,17 @@ export async function appendRequestExecution(args: {
   return client.mutation(convexFunctionRefs.appendRequestExecution, args);
 }
 
+export async function appendRequestActivity(args: {
+  activityPayload?: string;
+  activityType: string;
+  intentId: string;
+  ownerExternalId?: string;
+  status?: string;
+}) {
+  const client = createConvexServerClient();
+  return client.mutation(convexFunctionRefs.appendRequestActivity, args);
+}
+
 export async function schedulePresetRoomAdvance(args: {
   delayMs: number;
   expectedCycleNumber: number;

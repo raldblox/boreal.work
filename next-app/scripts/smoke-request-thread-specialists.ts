@@ -99,6 +99,7 @@ const baseDetail: RequestDetail = {
   ],
   participants: [],
   proposals: [],
+  receipts: [],
   review: null,
 };
 

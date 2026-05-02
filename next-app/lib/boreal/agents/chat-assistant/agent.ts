@@ -3,12 +3,14 @@ import "server-only";
 import { generateText } from "ai";
 
 import { directExecutionAgents } from "../../../../agents/index.ts";
+import { api } from "../../../../convex/_generated/api";
 import { getBorealRuntimeConfig } from "@/lib/boreal/config";
 import { buildVideoSettingsSummary } from "../../media/video-contract.ts";
 import { runRequestRuntimeChat } from "../../external-agents/runtime.ts";
 import type { RequestDetail } from "@/lib/boreal/integrations/convex/function-refs";
 import {
   appendConversationAssistantMessage,
+  appendRequestActivity,
   appendRequestExecution,
   approveMatchedSupply,
   approveRequestDraft,
@@ -23,12 +25,31 @@ import {
   schedulePresetRoomAdvance,
 } from "@/lib/boreal/dal/intent-repository";
 import type { ComposableAgent } from "@/lib/boreal/agents/base";
+import { createConvexServerClient } from "@/lib/boreal/integrations/convex/server-client";
 import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
+import { buildPaymentAuthorizationMessage } from "@/lib/boreal/one-request/auth";
+import {
+  buildProviderSelectionState,
+  getProviderRouteOptionByKey,
+  hashPrompt,
+  isBorealHostedProviderRoute,
+} from "@/lib/boreal/provider-routing/runtime";
+import type {
+  NormalizedRequestReceipt,
+  ProviderRouteOption,
+  ProviderRoutePaymentReceipt,
+} from "@/lib/boreal/provider-routing/types";
 import {
   getRequestHandlingLabel,
   getRequestHandlingMode,
   refineIntentForRequestLifecycle,
 } from "@/lib/boreal/routing/request-handling";
+import {
+  getOneRequestSellerMetadata,
+} from "@/lib/boreal/one-request/seller";
+import {
+  verifyOneRequestPayment,
+} from "@/lib/boreal/one-request/payment";
 import {
   buildAutoRoutePlan,
   executeAutoRoute,
@@ -384,6 +405,55 @@ export const chatAssistantAgent: ComposableAgent<
       type: "tool-refine-request-lifecycle",
     });
 
+    const conversationId = input.conversationId ?? crypto.randomUUID();
+    const userMessageId = crypto.randomUUID();
+    const assistantMessageId = crypto.randomUUID();
+    const persistedIntent = buildIntentPersistencePayload({
+      assistantMessageId,
+      conversationId,
+      embedding: modality.embedding,
+      embeddingModel: runtimeConfig.embeddingModel,
+      intent,
+      intentModel: runtimeConfig.intentModel,
+      modalityScores: modality.modalityScores,
+      provider: provider.key,
+      userMessageId,
+    });
+
+    if (shouldPrepareBorealProviderSelection({ input, intent })) {
+      const selection = await buildProviderSelectionState({
+        promptText: input.message,
+        requesterExternalId: input.requester?.externalId,
+        walletAddress: input.uiContext?.walletAddress ?? null,
+      });
+
+      return {
+        assistantMessage: "",
+        conversationId,
+        intent: persistedIntent,
+        persisted: false,
+        relatedCatalogItems: [],
+        requiresApproval: false,
+        workspace: {
+          kind: "provider_selection",
+          selection,
+          subtitle:
+            "Pick a route before Boreal executes. The default Boreal lane can stay free for allowed users, while other lanes stay payment-gated.",
+          title: "Pick your provider",
+        },
+      };
+    }
+
+    if (shouldConfirmBorealProviderRoute({ input, intent })) {
+      return executeConfirmedBorealProviderRoute({
+        conversationId,
+        input,
+        intent: persistedIntent,
+        provider,
+        runtimeConfig,
+      });
+    }
+
     const relatedCatalogItems = intent.shouldSearchCatalog
       ? await withRetry(
           () =>
@@ -399,21 +469,6 @@ export const chatAssistantAgent: ComposableAgent<
           ownerExternalId: input.requester.externalId,
         })
       : null;
-
-    const conversationId = input.conversationId ?? crypto.randomUUID();
-    const userMessageId = crypto.randomUUID();
-    const assistantMessageId = crypto.randomUUID();
-    const persistedIntent = buildIntentPersistencePayload({
-      assistantMessageId,
-      conversationId,
-      embedding: modality.embedding,
-      embeddingModel: runtimeConfig.embeddingModel,
-      intent,
-      intentModel: runtimeConfig.intentModel,
-      modalityScores: modality.modalityScores,
-      provider: provider.key,
-      userMessageId,
-    });
     const specialistRoutePlan = buildSpecialistRoutePlan({
       intent: persistedIntent,
       message: input.message,
@@ -630,6 +685,32 @@ async function continueApprovedRequestThread(input: {
     initialDetail.intent.status === "closed"
   ) {
     return null;
+  }
+
+  if (
+    input.input.uiContext?.providerSelectionCommand?.command ===
+    "confirm_provider_route"
+  ) {
+    const request = await getRequestExecutionContext({
+      intentId: requestId,
+      ownerExternalId,
+    });
+
+    if (!request) {
+      throw new Error("This request is no longer available.");
+    }
+
+    const persistedIntent = toPersistedExecutionIntent(
+      request,
+      input.runtimeConfig,
+      input.provider.key,
+    );
+
+    return retryTrackedBorealProviderRoute({
+      input,
+      intent: persistedIntent,
+      request,
+    });
   }
 
   if (!isPresetRoomAdvance) {
@@ -2600,6 +2681,7 @@ async function runApprovedSpecialistExecutionForRequest(input: {
         ],
         participants: [],
         proposals: [],
+        receipts: [],
         review: null,
       },
       runtimeConfig: input.runtimeConfig,
@@ -2790,6 +2872,874 @@ async function runExecutionWithRetry(input: {
   videoModelId: string;
 }) {
   return withRetry(() => executeIntent(input), { attempts: 3, baseDelayMs: 600 });
+}
+
+function shouldPrepareBorealProviderSelection(input: {
+  input: ChatAssistantAgentInput;
+  intent: IntentExtraction;
+}) {
+  if (input.input.uiContext?.surface === "request") {
+    return false;
+  }
+
+  if (
+    input.input.uiContext?.providerSelectionCommand?.command ===
+    "confirm_provider_route"
+  ) {
+    return false;
+  }
+
+  if (
+    input.input.uiContext?.mountedPresetTeamKey ||
+    (input.input.uiContext?.mountedAgentKeys?.length ?? 0) > 0
+  ) {
+    return false;
+  }
+
+  return input.intent.requestedOutputTypes.every((type) => type === "text");
+}
+
+function shouldConfirmBorealProviderRoute(input: {
+  input: ChatAssistantAgentInput;
+  intent: IntentExtraction;
+}) {
+  if (input.input.uiContext?.surface !== "home") {
+    return false;
+  }
+
+  if (
+    input.input.uiContext?.providerSelectionCommand?.command !==
+    "confirm_provider_route"
+  ) {
+    return false;
+  }
+
+  if (
+    input.input.uiContext?.mountedPresetTeamKey ||
+    (input.input.uiContext?.mountedAgentKeys?.length ?? 0) > 0
+  ) {
+    return false;
+  }
+
+  return input.intent.requestedOutputTypes.every((type) => type === "text");
+}
+
+async function executeConfirmedBorealProviderRoute(input: {
+  conversationId: string;
+  input: ChatAssistantAgentInput;
+  intent: PersistedIntent;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const ownerExternalId = input.input.requester?.externalId;
+  const confirmation = input.input.uiContext?.providerSelectionCommand;
+  const pendingSelection = input.input.uiContext?.pendingProviderSelection;
+
+  if (!ownerExternalId) {
+    throw new Error("Sign in with X before routing Boreal work.");
+  }
+
+  if (
+    confirmation?.command !== "confirm_provider_route" ||
+    !pendingSelection
+  ) {
+    throw new Error("Provider selection is missing.");
+  }
+
+  const currentPromptHash = hashPrompt(input.input.message);
+
+  if (
+    pendingSelection.promptHash !== confirmation.promptHash ||
+    pendingSelection.promptHash !== currentPromptHash
+  ) {
+    throw new Error(
+      "Your message changed after provider selection. Pick the provider again.",
+    );
+  }
+
+  const selectedRoute =
+    pendingSelection.options.find(
+      (option) => option.routeKey === confirmation.routeKey,
+    ) ?? null;
+
+  if (!selectedRoute) {
+    throw new Error("The selected provider route is no longer attached.");
+  }
+
+  const admittedRoute = await getProviderRouteOptionByKey({
+    promptHash: pendingSelection.promptHash,
+    promptText: pendingSelection.promptText,
+    requesterExternalId: ownerExternalId,
+    routeKey: confirmation.routeKey,
+    walletAddress:
+      input.input.uiContext?.walletAddress ??
+      confirmation.paymentReceipt?.walletAddress ??
+      null,
+  });
+
+  if (!admittedRoute) {
+    throw new Error("The selected provider route is no longer available.");
+  }
+
+  if (!isBorealHostedProviderRoute(admittedRoute.routeKey)) {
+    throw new Error(
+      "This provider-backed lane is not executable yet from Boreal chat.",
+    );
+  }
+
+  let paymentReceipt: ProviderRoutePaymentReceipt | null = null;
+  let paymentVerification:
+    | Awaited<ReturnType<typeof verifyOneRequestPayment>>
+    | null = null;
+
+  if (admittedRoute.requiresPayment) {
+    if (!selectedRoute.quote) {
+      throw new Error("This payment quote is no longer attached.");
+    }
+
+    if (selectedRoute.quote.expiresAt <= Date.now()) {
+      const refreshedSelection = await buildProviderSelectionState({
+        promptText: input.input.message,
+        requesterExternalId: ownerExternalId,
+        walletAddress: input.input.uiContext?.walletAddress ?? null,
+        rateLimitReason:
+          "The quote expired before payment was attached. Pick the provider again.",
+      });
+
+      return {
+        assistantMessage: "",
+        conversationId: input.conversationId,
+        intent: input.intent,
+        persisted: false,
+        relatedCatalogItems: [],
+        requiresApproval: false,
+        workspace: {
+          kind: "provider_selection",
+          selection: refreshedSelection,
+          subtitle:
+            "That quote expired. Pick the route again before Boreal can start.",
+          title: "Pick your provider",
+        },
+      } satisfies ChatAssistantResponse;
+    }
+
+    paymentReceipt = confirmation.paymentReceipt ?? null;
+
+    if (!paymentReceipt) {
+      throw new Error("Attach a verified wallet receipt before Boreal starts.");
+    }
+
+    const expectedPayment = getExpectedProviderRoutePayment(admittedRoute);
+
+    paymentVerification = await verifyOneRequestPayment({
+      amount: expectedPayment.amount,
+      authorizationMessage: buildPaymentAuthorizationMessage({
+        amount: expectedPayment.amount,
+        currency: expectedPayment.currency,
+        quoteToken: selectedRoute.quote.quoteToken,
+        requestToken: selectedRoute.quote.requestToken,
+      }),
+      currency: expectedPayment.currency,
+      payToAddress: getOneRequestSellerMetadata().payToAddress,
+      quoteExpiresAt: selectedRoute.quote.expiresAt,
+      quoteToken: selectedRoute.quote.quoteToken,
+      receipt: paymentReceipt,
+      requestToken: selectedRoute.quote.requestToken,
+      walletAddress: paymentReceipt.walletAddress,
+    });
+  }
+
+  const relatedCatalogItems = input.intent.shouldSearchCatalog
+    ? await withRetry(
+        () =>
+          searchCatalog({
+            limit: 6,
+            query: input.intent.catalogQuery || input.input.message,
+          }),
+        { attempts: 2 },
+      )
+    : [];
+  const currentProfile = await getMyProfileRecord({
+    ownerExternalId,
+  });
+  const initialStatus = input.intent.needsClarification ? "blocked" : "claimed";
+  const openingMessage = admittedRoute.requiresPayment
+    ? "Boreal opened a work thread and verified the selected payment route."
+    : "Boreal opened a work thread and started the request immediately.";
+  const persistedResult = await saveIntentPipelineRecord({
+    assistantMessage: openingMessage,
+    conversationId: input.conversationId,
+    initialStatus,
+    intent: input.intent,
+    ownerDisplayName: input.input.requester?.displayName,
+    ownerExternalId,
+    ownerHandle: input.input.requester?.handle,
+    userMessage: input.input.message,
+  });
+
+  if (initialStatus !== "blocked") {
+    await approveRequestDraft({
+      assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+      assistantMessage: `${admittedRoute.displayTitle} is starting now.`,
+      intentId: persistedResult.intentId,
+      ownerExternalId,
+      status: "claimed",
+    });
+  }
+
+  if (selectedRoute.quote && paymentReceipt && paymentVerification) {
+    await recordTrackedRequestPaymentArtifacts({
+      conversationId: persistedResult.conversationId,
+      intentId: persistedResult.intentId,
+      intentKey: persistedResult.intentKey,
+      ownerDisplayName: input.input.requester?.displayName,
+      ownerExternalId,
+      paymentReceipt,
+      paymentVerification,
+      requestedOutputTypes: input.intent.requestedOutputTypes,
+      route: admittedRoute,
+      routeSummary: input.intent.summary,
+      title: input.intent.title,
+      userMessage: input.input.message,
+    });
+    await appendRequestActivity({
+      activityPayload: JSON.stringify(
+        buildProviderReceiptActivityPayload({
+          paymentReceipt,
+          route: admittedRoute,
+          routeQuote: selectedRoute.quote,
+        }),
+      ),
+      activityType: "payment_receipt",
+      intentId: persistedResult.intentId,
+      ownerExternalId,
+    });
+    await appendRequestActivity({
+      activityPayload: JSON.stringify(
+        buildProviderVerifiedActivityPayload({
+          paymentReceipt,
+          paymentVerification,
+          route: admittedRoute,
+          routeQuote: selectedRoute.quote,
+        }),
+      ),
+      activityType: "payment_verified",
+      intentId: persistedResult.intentId,
+      ownerExternalId,
+    });
+  }
+
+  await input.input.onStreamEvent?.({
+    payload: {
+      intentId: persistedResult.intentId,
+    },
+    type: "request-opened",
+  });
+
+  try {
+    const resolved = await runExecutionWithRetry({
+      assistantModelId: input.runtimeConfig.assistantModel,
+      catalogItems: relatedCatalogItems,
+      currentProfile,
+      imageModelId: input.runtimeConfig.imageModel,
+      inputMessage: input.input.message,
+      intent: input.intent,
+      provider: input.provider,
+      speechModelId: input.runtimeConfig.speechModel,
+      uiContext: input.input.uiContext,
+      videoModelId: input.runtimeConfig.videoModel,
+    });
+
+    if (resolved.artifact) {
+      await saveArtifactMetadata({
+        artifactKind: toArtifactKind(resolved.artifact),
+        conversationId: persistedResult.conversationId,
+        intentKey: persistedResult.intentKey,
+        mediaType:
+          resolved.artifact.kind === "video"
+            ? "video/mp4"
+            : resolved.artifact.mediaType,
+        metadataJson: JSON.stringify(resolved.artifact),
+        provider: input.provider.key,
+        remoteId:
+          resolved.artifact.kind === "video"
+            ? resolved.artifact.jobId
+            : undefined,
+        status: toArtifactStatus(resolved.artifact),
+        subtitle: resolved.workspace.subtitle,
+        title: resolved.artifact.title,
+      });
+    }
+
+    const requestStatus = resolveBorealProviderRequestStatus(
+      resolved.workspace,
+      resolved.artifact,
+    );
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+        providerKey: admittedRoute.providerKey,
+        routeKey: admittedRoute.routeKey,
+        routeLabel: admittedRoute.displayTitle,
+      }),
+      activityType:
+        requestStatus === "blocked"
+          ? "request.blocked"
+          : "thread.reply_posted",
+      assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+      assistantMessage: resolved.assistantMessage,
+      intentId: persistedResult.intentId,
+      ownerExternalId,
+      status: requestStatus,
+    });
+
+    return {
+      assistantMessage: resolved.assistantMessage,
+      conversationId: persistedResult.conversationId,
+      intent: input.intent,
+      intentId: persistedResult.intentId,
+      persisted: true,
+      relatedCatalogItems,
+      requiresApproval: false,
+      workspace: resolved.workspace,
+    } satisfies ChatAssistantResponse;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Boreal could not execute the selected route.";
+
+    if (isOpenAIRateLimitError(error)) {
+      const nextSelection = await buildProviderSelectionState({
+        promptText: input.input.message,
+        requesterExternalId: ownerExternalId,
+        walletAddress:
+          input.input.uiContext?.walletAddress ??
+          paymentReceipt?.walletAddress ??
+          null,
+        rateLimitReason: message,
+      });
+
+      await appendRequestActivity({
+        activityPayload: JSON.stringify({
+          error: message,
+          providerKey: admittedRoute.providerKey,
+          routeKey: admittedRoute.routeKey,
+          routeLabel: admittedRoute.displayTitle,
+          status: "blocked",
+        }),
+        activityType: "request.blocked",
+        intentId: persistedResult.intentId,
+        ownerExternalId,
+        status: "blocked",
+      });
+
+      return {
+        assistantMessage: "",
+        conversationId: persistedResult.conversationId,
+        intent: input.intent,
+        intentId: persistedResult.intentId,
+        persisted: true,
+        relatedCatalogItems,
+        requiresApproval: false,
+        workspace: {
+          kind: "provider_selection",
+          selection: nextSelection,
+          subtitle:
+            "OpenAI by Boreal hit a rate limit before execution. Pick a route again or retry this one.",
+          title: "Pick your provider",
+        },
+      } satisfies ChatAssistantResponse;
+    }
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        error: message,
+        providerKey: admittedRoute.providerKey,
+        routeKey: admittedRoute.routeKey,
+        routeLabel: admittedRoute.displayTitle,
+        status: "blocked",
+      }),
+      activityType: "request.blocked",
+      assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+      assistantMessage: `Boreal could not execute ${admittedRoute.displayTitle}. Last error: ${message}`,
+      intentId: persistedResult.intentId,
+      ownerExternalId,
+      status: "blocked",
+    });
+    throw error;
+  }
+}
+
+async function retryTrackedBorealProviderRoute(input: {
+  input: {
+    input: ChatAssistantAgentInput;
+    provider: ReturnType<typeof resolveProviderAdapter>;
+    runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+  };
+  intent: PersistedIntent;
+  request: NonNullable<Awaited<ReturnType<typeof getRequestExecutionContext>>>;
+}) {
+  const ownerExternalId = input.input.input.requester?.externalId;
+  const confirmation = input.input.input.uiContext?.providerSelectionCommand;
+  const pendingSelection = input.input.input.uiContext?.pendingProviderSelection;
+
+  if (
+    !ownerExternalId ||
+    confirmation?.command !== "confirm_provider_route" ||
+    !pendingSelection
+  ) {
+    throw new Error("Provider selection is missing.");
+  }
+
+  const currentPromptHash = hashPrompt(input.request.body);
+
+  if (
+    pendingSelection.promptHash !== confirmation.promptHash ||
+    pendingSelection.promptHash !== currentPromptHash
+  ) {
+    throw new Error("The request scope changed. Pick the provider again.");
+  }
+
+  const selectedRoute =
+    pendingSelection.options.find(
+      (option) => option.routeKey === confirmation.routeKey,
+    ) ?? null;
+
+  if (!selectedRoute) {
+    throw new Error("The selected provider route is no longer attached.");
+  }
+
+  const admittedRoute = await getProviderRouteOptionByKey({
+    promptHash: pendingSelection.promptHash,
+    promptText: pendingSelection.promptText,
+    requesterExternalId: ownerExternalId,
+    routeKey: confirmation.routeKey,
+    walletAddress:
+      input.input.input.uiContext?.walletAddress ??
+      confirmation.paymentReceipt?.walletAddress ??
+      null,
+  });
+
+  if (!admittedRoute || !isBorealHostedProviderRoute(admittedRoute.routeKey)) {
+    throw new Error(
+      "This provider-backed lane is not executable yet from Boreal chat.",
+    );
+  }
+
+  let paymentReceipt: ProviderRoutePaymentReceipt | null = null;
+  let paymentVerification:
+    | Awaited<ReturnType<typeof verifyOneRequestPayment>>
+    | null = null;
+
+  if (admittedRoute.requiresPayment) {
+    if (!selectedRoute.quote) {
+      throw new Error("This payment quote is no longer attached.");
+    }
+
+    if (selectedRoute.quote.expiresAt <= Date.now()) {
+      const refreshedSelection = await buildProviderSelectionState({
+        promptText: input.request.body,
+        requesterExternalId: ownerExternalId,
+        walletAddress: input.input.input.uiContext?.walletAddress ?? null,
+        rateLimitReason:
+          "The quote expired before payment was attached. Pick the provider again.",
+      });
+
+      return {
+        assistantMessage: "",
+        conversationId: input.request.conversationId ?? crypto.randomUUID(),
+        intent: input.intent,
+        intentId: input.request._id,
+        persisted: false,
+        relatedCatalogItems: [],
+        requiresApproval: false,
+        workspace: {
+          kind: "provider_selection",
+          selection: refreshedSelection,
+          subtitle:
+            "That quote expired. Pick the route again before Boreal can continue.",
+          title: "Pick your provider",
+        },
+      } satisfies ChatAssistantResponse;
+    }
+
+    paymentReceipt = confirmation.paymentReceipt ?? null;
+
+    if (!paymentReceipt) {
+      throw new Error("Attach a verified wallet receipt before Boreal starts.");
+    }
+
+    const expectedPayment = getExpectedProviderRoutePayment(admittedRoute);
+
+    paymentVerification = await verifyOneRequestPayment({
+      amount: expectedPayment.amount,
+      authorizationMessage: buildPaymentAuthorizationMessage({
+        amount: expectedPayment.amount,
+        currency: expectedPayment.currency,
+        quoteToken: selectedRoute.quote.quoteToken,
+        requestToken: selectedRoute.quote.requestToken,
+      }),
+      currency: expectedPayment.currency,
+      payToAddress: getOneRequestSellerMetadata().payToAddress,
+      quoteExpiresAt: selectedRoute.quote.expiresAt,
+      quoteToken: selectedRoute.quote.quoteToken,
+      receipt: paymentReceipt,
+      requestToken: selectedRoute.quote.requestToken,
+      walletAddress: paymentReceipt.walletAddress,
+    });
+    await recordTrackedRequestPaymentArtifacts({
+      conversationId: input.request.conversationId ?? crypto.randomUUID(),
+      intentId: input.request._id,
+      intentKey: input.request.intentKey,
+      ownerDisplayName: input.input.input.requester?.displayName,
+      ownerExternalId,
+      paymentReceipt,
+      paymentVerification,
+      requestedOutputTypes: input.intent.requestedOutputTypes,
+      route: admittedRoute,
+      routeSummary: input.intent.summary,
+      title: input.intent.title,
+      userMessage: input.request.body,
+    });
+    await appendRequestActivity({
+      activityPayload: JSON.stringify(
+        buildProviderReceiptActivityPayload({
+          paymentReceipt,
+          route: admittedRoute,
+          routeQuote: selectedRoute.quote,
+        }),
+      ),
+      activityType: "payment_receipt",
+      intentId: input.request._id,
+      ownerExternalId,
+    });
+    await appendRequestActivity({
+      activityPayload: JSON.stringify(
+        buildProviderVerifiedActivityPayload({
+          paymentReceipt,
+          paymentVerification,
+          route: admittedRoute,
+          routeQuote: selectedRoute.quote,
+        }),
+      ),
+      activityType: "payment_verified",
+      intentId: input.request._id,
+      ownerExternalId,
+    });
+  }
+
+  const currentProfile = await getMyProfileRecord({
+    ownerExternalId,
+  });
+  const relatedCatalogItems = input.intent.shouldSearchCatalog
+    ? await withRetry(
+        () =>
+          searchCatalog({
+            limit: 6,
+            query: input.intent.catalogQuery || input.request.body,
+          }),
+        { attempts: 2 },
+      )
+    : [];
+
+  try {
+    const resolved = await runExecutionWithRetry({
+      assistantModelId: input.input.runtimeConfig.assistantModel,
+      catalogItems: relatedCatalogItems,
+      currentProfile,
+      imageModelId: input.input.runtimeConfig.imageModel,
+      inputMessage: input.request.body,
+      intent: input.intent,
+      provider: input.input.provider,
+      speechModelId: input.input.runtimeConfig.speechModel,
+      uiContext: input.input.input.uiContext,
+      videoModelId: input.input.runtimeConfig.videoModel,
+    });
+
+    if (resolved.artifact) {
+      await saveArtifactMetadata({
+        artifactKind: toArtifactKind(resolved.artifact),
+        conversationId: input.request.conversationId ?? crypto.randomUUID(),
+        intentKey: input.request.intentKey,
+        mediaType:
+          resolved.artifact.kind === "video"
+            ? "video/mp4"
+            : resolved.artifact.mediaType,
+        metadataJson: JSON.stringify(resolved.artifact),
+        provider: input.input.provider.key,
+        remoteId:
+          resolved.artifact.kind === "video"
+            ? resolved.artifact.jobId
+            : undefined,
+        status: toArtifactStatus(resolved.artifact),
+        subtitle: resolved.workspace.subtitle,
+        title: resolved.artifact.title,
+      });
+    }
+
+    const requestStatus = resolveBorealProviderRequestStatus(
+      resolved.workspace,
+      resolved.artifact,
+    );
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+        providerKey: admittedRoute.providerKey,
+        routeKey: admittedRoute.routeKey,
+        routeLabel: admittedRoute.displayTitle,
+      }),
+      activityType:
+        requestStatus === "blocked"
+          ? "request.blocked"
+          : "thread.reply_posted",
+      assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+      assistantMessage: resolved.assistantMessage,
+      intentId: input.request._id,
+      ownerExternalId,
+      status: requestStatus,
+    });
+
+    return {
+      assistantMessage: resolved.assistantMessage,
+      conversationId: input.request.conversationId ?? crypto.randomUUID(),
+      intent: input.intent,
+      intentId: input.request._id,
+      persisted: false,
+      relatedCatalogItems,
+      requiresApproval: false,
+      workspace: resolved.workspace,
+    } satisfies ChatAssistantResponse;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Boreal could not execute the selected route.";
+
+    if (isOpenAIRateLimitError(error)) {
+      const nextSelection = await buildProviderSelectionState({
+        promptText: input.request.body,
+        requesterExternalId: ownerExternalId,
+        walletAddress:
+          input.input.input.uiContext?.walletAddress ??
+          paymentReceipt?.walletAddress ??
+          null,
+        rateLimitReason: message,
+      });
+
+      await appendRequestActivity({
+        activityPayload: JSON.stringify({
+          error: message,
+          providerKey: admittedRoute.providerKey,
+          routeKey: admittedRoute.routeKey,
+          routeLabel: admittedRoute.displayTitle,
+          status: "blocked",
+        }),
+        activityType: "request.blocked",
+        intentId: input.request._id,
+        ownerExternalId,
+        status: "blocked",
+      });
+
+      return {
+        assistantMessage: "",
+        conversationId: input.request.conversationId ?? crypto.randomUUID(),
+        intent: input.intent,
+        intentId: input.request._id,
+        persisted: false,
+        relatedCatalogItems,
+        requiresApproval: false,
+        workspace: {
+          kind: "provider_selection",
+          selection: nextSelection,
+          subtitle:
+            "OpenAI by Boreal hit a rate limit before execution. Pick a route again or retry this one.",
+          title: "Pick your provider",
+        },
+      } satisfies ChatAssistantResponse;
+    }
+
+    await appendRequestExecution({
+      activityPayload: JSON.stringify({
+        error: message,
+        providerKey: admittedRoute.providerKey,
+        routeKey: admittedRoute.routeKey,
+        routeLabel: admittedRoute.displayTitle,
+        status: "blocked",
+      }),
+      activityType: "request.blocked",
+      assignedAgent: BOREAL_AGENT_DISPLAY_NAME,
+      assistantMessage: `Boreal could not execute ${admittedRoute.displayTitle}. Last error: ${message}`,
+      intentId: input.request._id,
+      ownerExternalId,
+      status: "blocked",
+    });
+    throw error;
+  }
+}
+
+function resolveBorealProviderRequestStatus(
+  workspace: WorkspaceState,
+  artifact?: MediaArtifact,
+) {
+  if (workspace.kind === "clarification") {
+    return "blocked" as const;
+  }
+
+  if (artifact?.kind === "video" && artifact.status !== "completed") {
+    return "in_progress" as const;
+  }
+
+  return "in_progress" as const;
+}
+
+async function recordTrackedRequestPaymentArtifacts(input: {
+  conversationId: string;
+  intentId: string;
+  intentKey: string;
+  ownerDisplayName?: string;
+  ownerExternalId: string;
+  paymentReceipt: ProviderRoutePaymentReceipt;
+  paymentVerification: Awaited<ReturnType<typeof verifyOneRequestPayment>>;
+  requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
+  route: ProviderRouteOption;
+  routeSummary: string;
+  title: string;
+  userMessage: string;
+}) {
+  const client = createConvexServerClient();
+  const quote = input.route.quote;
+
+  if (!quote) {
+    return;
+  }
+
+  const expectedPayment = getExpectedProviderRoutePayment(input.route);
+  const existingSession = await client.query(api.requestApi.getRequestSession, {
+    ownerExternalId: input.ownerExternalId,
+    requestToken: quote.requestToken,
+  });
+
+  if (!existingSession) {
+    await client.mutation(api.requestApi.createRequestSession, {
+      chainFamily: "solana",
+      conversationId: input.conversationId,
+      currency: expectedPayment.currency,
+      idempotencyKey: `provider-route:${quote.requestToken}`,
+      intentId: input.intentId as never,
+      intentKey: input.intentKey,
+      message: input.userMessage,
+      networkKey: quote.networkKey,
+      ownerDisplayName: input.ownerDisplayName,
+      ownerExternalId: input.ownerExternalId,
+      paymentProtocol: input.route.paymentProtocol,
+      quoteAmount: expectedPayment.amount,
+      quoteAuthorizationMessage: buildPaymentAuthorizationMessage({
+        amount: expectedPayment.amount,
+        currency: expectedPayment.currency,
+        quoteToken: quote.quoteToken,
+        requestToken: quote.requestToken,
+      }),
+      quoteExpiresAt: quote.expiresAt,
+      quoteToken: quote.quoteToken,
+      requestFingerprint: hashPrompt(input.userMessage),
+      requestToken: quote.requestToken,
+      requestedOutputTypes: input.requestedOutputTypes,
+      routeJson: JSON.stringify({
+        company: input.route.company,
+        providerKey: input.route.providerKey,
+        routeKey: input.route.routeKey,
+        routeLabel: input.route.displayTitle,
+        summary: input.routeSummary,
+      }),
+      status: "payment_required",
+      summary: input.routeSummary,
+      title: input.title,
+      walletAddress: input.paymentReceipt.walletAddress,
+    });
+  }
+  await client.mutation(api.requestApi.recordQuotePayment, {
+    ownerExternalId: input.ownerExternalId,
+    payerSource: input.paymentReceipt.payerSource,
+    paymentReceiptJson: JSON.stringify(input.paymentReceipt),
+    paymentVerificationJson: JSON.stringify(input.paymentVerification),
+    requestToken: quote.requestToken,
+    txHash: input.paymentReceipt.txHash,
+  });
+  await client.mutation(api.requestApi.markExecutionStarted, {
+    ownerExternalId: input.ownerExternalId,
+    requestToken: quote.requestToken,
+  });
+}
+
+function buildProviderReceiptActivityPayload(input: {
+  paymentReceipt: ProviderRoutePaymentReceipt;
+  route: ProviderRouteOption;
+  routeQuote: NonNullable<ProviderRouteOption["quote"]>;
+}) {
+  const expectedPayment = getExpectedProviderRoutePayment(input.route);
+
+  return {
+    amount: expectedPayment.amount,
+    company: input.route.company,
+    currency: expectedPayment.currency,
+    networkKey: input.routeQuote.networkKey,
+    paymentProtocol: input.route.paymentProtocol,
+    paymentReference: input.routeQuote.paymentReference,
+    providerKey: input.route.providerKey,
+    providerLabel: input.route.displayTitle,
+    quoteToken: input.routeQuote.quoteToken,
+    requestToken: input.routeQuote.requestToken,
+    routeKey: input.route.routeKey,
+    routeLabel: input.route.displayTitle,
+    txHash: input.paymentReceipt.txHash,
+    walletAddress: input.paymentReceipt.walletAddress,
+  } satisfies Partial<NormalizedRequestReceipt> & Record<string, unknown>;
+}
+
+function buildProviderVerifiedActivityPayload(input: {
+  paymentReceipt: ProviderRoutePaymentReceipt;
+  paymentVerification: Awaited<ReturnType<typeof verifyOneRequestPayment>>;
+  route: ProviderRouteOption;
+  routeQuote: NonNullable<ProviderRouteOption["quote"]>;
+}) {
+  return {
+    ...buildProviderReceiptActivityPayload(input),
+    verifiedAt: input.paymentVerification.verifiedAt,
+  };
+}
+
+function isOpenAIRateLimitError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes("rate limit") ||
+    message.includes("too many requests") ||
+    message.includes("rpm")
+  );
+}
+
+function getExpectedProviderRoutePayment(route: ProviderRouteOption) {
+  if (
+    route.pricingPolicy.kind === "flat-sol" ||
+    route.pricingPolicy.kind === "x402-fixed"
+  ) {
+    return {
+      amount: route.pricingPolicy.amount,
+      currency: route.pricingPolicy.currency,
+    };
+  }
+
+  return {
+    amount: 0,
+    currency: "USD",
+  };
 }
 
 function toExecutionIntent(

@@ -218,6 +218,7 @@ export const getRequestDetail = query({
         messages: [],
         contributions: [],
         participants: [],
+        receipts: [],
         fulfillment: null,
         proposals: [],
         review: null,
@@ -433,6 +434,13 @@ export const getRequestDetail = query({
         lastActivityAt:
           participantActivity.get(getParticipantActivityKey(participant)) ?? null,
       })),
+      receipts: buildNormalizedRequestReceipts(
+        activity.map((event) => ({
+          createdAt: event.createdAt,
+          payload: event.payload,
+          type: event.type,
+        })),
+      ),
       proposals: await Promise.all(
         proposals.map(async (proposal) => ({
           collectiveMembers: proposal.collectiveMembers ?? [],
@@ -772,6 +780,116 @@ function parseJson(value: string | undefined) {
   } catch {
     return null;
   }
+}
+
+function buildNormalizedRequestReceipts(
+  activity: Array<{
+    createdAt: number;
+    payload?: string | null;
+    type: string;
+  }>,
+) {
+  return activity
+    .flatMap((entry) => {
+      if (
+        entry.type !== "payment_receipt" &&
+        entry.type !== "payment_verified"
+      ) {
+        return [];
+      }
+
+      const payload = parseJson(entry.payload ?? undefined);
+
+      if (!payload) {
+        return [];
+      }
+
+      const routeKey =
+        typeof payload.routeKey === "string" ? payload.routeKey : null;
+      const routeLabel =
+        typeof payload.routeLabel === "string" ? payload.routeLabel : null;
+      const providerKey =
+        typeof payload.providerKey === "string" ? payload.providerKey : null;
+      const providerLabel =
+        typeof payload.providerLabel === "string"
+          ? payload.providerLabel
+          : null;
+      const company =
+        payload.company === "anthropic" ||
+        payload.company === "gemini" ||
+        payload.company === "openai"
+          ? payload.company
+          : null;
+      const amount =
+        typeof payload.amount === "number"
+          ? payload.amount
+          : typeof payload.amount === "string"
+            ? Number(payload.amount)
+            : null;
+      const currency =
+        typeof payload.currency === "string" ? payload.currency : null;
+      const paymentProtocol =
+        typeof payload.paymentProtocol === "string"
+          ? payload.paymentProtocol
+          : null;
+      const networkKey =
+        typeof payload.networkKey === "string" ? payload.networkKey : null;
+
+      if (
+        !routeKey ||
+        !routeLabel ||
+        !providerKey ||
+        !providerLabel ||
+        !company ||
+        amount === null ||
+        !Number.isFinite(amount) ||
+        !currency ||
+        !paymentProtocol ||
+        !networkKey
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          amount,
+          company,
+          currency,
+          networkKey,
+          paymentProtocol,
+          paymentReference:
+            typeof payload.paymentReference === "string"
+              ? payload.paymentReference
+              : null,
+          providerKey,
+          providerLabel,
+          quoteToken:
+            typeof payload.quoteToken === "string" ? payload.quoteToken : null,
+          recordedAt: entry.createdAt,
+          requestToken:
+            typeof payload.requestToken === "string"
+              ? payload.requestToken
+              : null,
+          routeKey,
+          routeLabel,
+          status:
+            entry.type === "payment_verified" ? "verified" : "recorded",
+          txHash:
+            typeof payload.txHash === "string" ? payload.txHash : null,
+          verificationStatus:
+            entry.type === "payment_verified"
+              ? "verified"
+              : "receipt_recorded",
+          verifiedAt:
+            typeof payload.verifiedAt === "number" ? payload.verifiedAt : null,
+          walletAddress:
+            typeof payload.walletAddress === "string"
+              ? payload.walletAddress
+              : null,
+        },
+      ];
+    })
+    .sort((left, right) => left.recordedAt - right.recordedAt);
 }
 
 async function getIntentParticipantsPreview(

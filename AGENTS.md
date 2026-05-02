@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- The repo is currently document-first: root holds the main product, architecture, and execution docs `README.md`, `AGENTS.md`, `BOREAL_BOOK.md`, `ROADMAP.md`, `SUPPLY_LIST.md`, `MATCHING_ENGINE.md`, `AGENT_NETWORK.md`, `COMMERCE_STANDARDS.md`, and `SERVICE_PROVIDER.MD`, while support notes, public paper content, archived research, and internal prompt-process docs live under `docs/`.
+- The repo is currently document-first: root holds the main product, architecture, and execution docs `README.md`, `AGENTS.md`, `BOREAL_BOOK.md`, `ROADMAP.md`, `DESKTOP_PLAN.md`, `SUPPLY_LIST.md`, `MATCHING_ENGINE.md`, `AGENT_NETWORK.md`, `COMMERCE_STANDARDS.md`, and `SERVICE_PROVIDER.MD`, while support notes, public paper content, archived research, and internal prompt-process docs live under `docs/`.
 - The public paper suite lives under `docs/papers/` and is the repo-backed source for Boreal's flagship thesis and linked deep-dive articles.
 - The active application workspace is `next-app/`, with feature code split across `next-app/app/`, `next-app/components/`, `next-app/lib/boreal/`, and `next-app/convex/`.
 - Reusable longform reading and text-heavy layout primitives now live under `next-app/components/editorial/` so papers, audit reports, and future document-heavy surfaces can share one editorial system instead of route-specific markup.
@@ -80,6 +80,7 @@
 - When a new agent, SDK, or process is introduced, create a short subsection here summarizing how contributors should interact with it.
 - `BOREAL_BOOK.md` is the living narrative source of truth for Boreal's brand, vision, UX laws, naming, release boundary, and public product truth.
 - `ROADMAP.md` is the only execution tracker.  Keep milestones, release gate, paid wedge, and roadmap architecture work there when product capabilities, public contracts, agent-control flows, or roadmap-relevant architecture change.
+- `DESKTOP_PLAN.md` is the target architecture note for Boreal Desktop V1: a Windows-first owner-only private desktop execution node that should reuse Boreal's request and supply model without being described as live or public market supply before it ships.
 - `WHITEPAPER.md`, `EARLY_ACCESS.md`, and `MVP.md` are compatibility shims only.  Do not treat them as living planning or narrative docs.
 - `docs/archive/` holds historical research and retired working notes.  They may explain precursor thinking, but they must not override `README.md`, `BOREAL_BOOK.md`, or `ROADMAP.md`.
 - `docs/internal/` holds internal Codex prompt-process notes.  They are operator aids, not product canon.
@@ -95,6 +96,7 @@
 - `AGENT_NETWORK.md` is the technical paper for Boreal's external-agent identity, portable reputation, connector adapters, request-native Swarm Workspace direction, and the concrete roadmap/API/schema extension plan for that layer.  Keep it honest about what is live versus target architecture.
 - `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the current request-side `Workboard`, the later `Swarm Workspace` upgrade path, and the libp2p-versus-Convex collaboration split.  Keep UI labels and architecture docs aligned to this naming.
 - `CONNECT_AGENT_GUIDE.md` is the advanced runtime-adapter guide for Boreal's live and next connected-runtime UX, connector choices, auth/session bootstrap, activation modes, and optional owner-runtime control plane.  Do not use it as the main product story.
+- `DESKTOP_PLAN.md` is the planning handoff for turning today's request-scoped local runtime path into a persistent private desktop-node product.  Until it ships, keep current docs explicit that the live local path is still invite-scoped plus bridge-helper based.
 - `HERMES_CONNECT_QUICKSTART.md` is the shortest current operator guide for getting a local Hermes-style or local-model runtime onto Boreal chat through the bridge helper and minimal prompt contract.
 - `COMMERCE_STANDARDS.md` is the current reference for ACP/UCP alignment and Boreal's product, cart, and checkout schema direction.
 - `SERVICE_PROVIDER.MD` tracks the external provider, payment-rail, and wallet-broker architecture plus implementation status.
@@ -136,6 +138,7 @@
 - For Boreal-owned media routes, omitted video duration or size should default silently to `8` seconds and `1280x720`; generic model-made scope prompts should not block a valid video ask, and only explicit unsupported values should block approval or execution.
 - Primary public agent-owner story is not `replace Boreal Agent`.  It is Boreal skill plus stable request, inbox, payout, and webhook contracts so any agent can find work, post work, track progress, deliver, and get paid through Boreal.
 - Boreal Agent is still the default orchestrator when no specialist is selected from `Offers`.
+- Boreal Agent home chat now has a pre-execution provider-picker step for its own text work: the owner message lands locally first, Boreal freezes the prompt snapshot, `OpenAI by Boreal` is the default executable lane, optional `FREE_ACCESS` or `BOREAL_FREE_ACCESS_ALLOWLIST` can keep that lane free, and request-thread receipts plus verification cards should appear whenever a paid lane is actually used.  Anthropic or Gemini first-party adapters are still out of scope here; any future cross-company choice must come through the curated provider-backed route layer instead.
 - Only agent offers should mount into the Boreal chat composer.  Selecting one or more non-Boreal agents from `Offers` should immediately put chat into a ready work-thread posture, and the next submit should open one tracked request for that selected agent team without a separate approval gate.
 - Once a non-Boreal text specialist owns the request, follow-up messages in that request must stay in the request thread, go through one request-thread write path, be answered by the assigned specialist team instead of drifting back to generic Boreal sessions or shadow Boreal replies, and keep the request `in_progress` until the owner is actually done.
 - Mounted direct specialist teams now persist a first request-team blueprint with explicit `lead` and `worker` roles plus a durable execution mode.  Default request-thread behavior stays lead-only, and users must explicitly say `ask team:` to trigger a multi-agent round instead of getting chaotic multi-reply chat by default.

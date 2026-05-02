@@ -61,9 +61,14 @@ import { AccountSettingsSurface } from "@/components/account/account-settings-su
 import { BorealAgentCue } from "@/components/chat/boreal-agent-cue"
 import { PresetTeamMemberIcons } from "@/components/chat/preset-team-member-icons"
 import {
+  ProviderSelectionCard,
+  type ProviderSelectionWalletProvider,
+} from "@/components/chat/provider-selection-card"
+import {
   ProfileBuilderDialog,
   ProfileBuilderWorkspaceCard,
 } from "@/components/chat/profile-builder"
+import { RequestReceiptCard } from "@/components/chat/request-receipt-card"
 import { SolanaThreadActionCard } from "@/components/chat/solana-thread-action-card"
 import { BorealProfileView } from "@/components/profiles/boreal-profile-view"
 import { ProfileView } from "@/components/profiles/profile-view"
@@ -148,6 +153,11 @@ import type {
   WorkerProfileDetail,
 } from "@/lib/boreal/integrations/convex/function-refs"
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
+import type {
+  NormalizedRequestReceipt,
+  ProviderRoutePaymentReceipt,
+  ProviderSelectionState,
+} from "@/lib/boreal/provider-routing/types"
 import type {
   ChatAssistantDebugEvent,
   CatalogItem,
@@ -587,6 +597,8 @@ export function ChatShell() {
     isWalletReady,
     openWalletModal,
     payWithX402,
+    solanaConnection,
+    walletProvider,
   } = usePayment()
   const {
     activeCart,
@@ -700,8 +712,13 @@ export function ChatShell() {
           context: buildChatUiContext({
             activeIntentId,
             composerAgents: activeComposerAgents,
+            pendingProviderSelection:
+              effectiveWorkspace.kind === "provider_selection"
+                ? effectiveWorkspace.selection
+                : null,
             requestDetail,
             selectedCenterTab: activeCenterTab,
+            walletAddress: defaultWalletAddress,
             workspaceTab,
             presetRoomCommand: {
               command: "advance_next_turn",
@@ -1158,8 +1175,11 @@ export function ChatShell() {
   )
   const hasMoreBorealSessions = borealChatSessions.length > borealChatSessionLimit
 
-  const effectiveWorkspace =
-    activeIntentId && requestWorkspace ? requestWorkspace : workspace
+  const effectiveWorkspace = activeIntentId
+    ? workspace.kind === "provider_selection"
+      ? workspace
+      : requestWorkspace ?? workspace
+    : workspace
   const effectiveReview =
     requestDetail?.review ??
     (optimisticReviewRating !== null
@@ -1675,6 +1695,7 @@ export function ChatShell() {
       })),
       mountedAgents: mountedComposerAgents,
       updatedAt: messages[messages.length - 1]?.createdAt ?? Date.now(),
+      workspace,
     }
 
     void upsertDraftSession(draftOwnerScope, nextDraftSession).then(async () => {
@@ -1690,6 +1711,7 @@ export function ChatShell() {
     messages,
     mountedComposerAgents,
     pendingApprovalIntentId,
+    workspace,
   ])
 
   useEffect(() => {
@@ -2064,6 +2086,170 @@ export function ChatShell() {
     }
   }
 
+  async function handleConfirmProviderRoute(input: {
+    paymentReceipt?: ProviderRoutePaymentReceipt | null
+    routeKey: string
+    selection: ProviderSelectionState
+  }) {
+    if (isSubmitting) {
+      return
+    }
+
+    if (!isXAuthenticated) {
+      setErrorMessage("Sign in with X to chat with Boreal Agent.")
+      return
+    }
+
+    setErrorMessage(null)
+    clearPresetRoomAdvanceTimeout()
+    clearPresetRoomRetryTimeout()
+    setClientPresetRoomRetryStatus(null)
+    setIsSubmitting(true)
+    setPendingApprovalIntentId(null)
+
+    const assistantMessageId = crypto.randomUUID()
+    const now = Date.now()
+    const nextConversationId = activeIntentId
+      ? activeConversationId ?? requestDetail?.conversationId ?? crypto.randomUUID()
+      : activeConversationId ?? crypto.randomUUID()
+    const abortController = new AbortController()
+
+    if (!activeIntentId && !activeConversationId) {
+      setConversationId(nextConversationId)
+    }
+
+    activeChatAbortControllerRef.current?.abort()
+    activeChatAbortControllerRef.current = abortController
+
+    setMessages((current) => [
+      ...current,
+      {
+        content: "",
+        createdAt: now,
+        id: assistantMessageId,
+        role: "assistant" as const,
+      },
+    ])
+
+    try {
+      const response = await fetch("/api/chat", {
+        body: JSON.stringify({
+          conversationId: nextConversationId,
+          context: buildChatUiContext({
+            activeIntentId,
+            composerAgents: activeComposerAgents,
+            pendingProviderSelection: input.selection,
+            providerSelectionCommand: {
+              command: "confirm_provider_route",
+              paymentReceipt: input.paymentReceipt ?? null,
+              promptHash: input.selection.promptHash,
+              routeKey: input.routeKey,
+            },
+            requestDetail,
+            selectedCenterTab: activeCenterTab,
+            walletAddress:
+              input.paymentReceipt?.walletAddress ?? defaultWalletAddress ?? null,
+            workspaceTab,
+          }),
+          debugPipeline: pipelineTraceEnabled,
+          message: activeIntentId
+            ? "__confirm_provider_route__"
+            : input.selection.promptText,
+          provider: "boreal-agent",
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        signal: abortController.signal,
+      })
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string }
+        throw new Error(payload.error ?? "Chat request failed.")
+      }
+
+      let streamedRequestIntentId: string | null = null
+      const finalPayload = await consumeChatStream({
+        assistantMessageId,
+        onRequestOpened: (intentId) => {
+          streamedRequestIntentId = intentId
+
+          if (activeIntentId) {
+            return
+          }
+
+          updateWorkspaceUrl({
+            browse: "workers",
+            chat: null,
+            request: intentId,
+            view: "chat",
+          })
+          setConversationId(undefined)
+          setShowWorkspace(true)
+          setPendingApprovalIntentId(null)
+        },
+        response,
+        setMessages,
+      })
+
+      setConversationId(finalPayload.conversationId)
+      setWorkspace(finalPayload.workspace)
+
+      if (!finalPayload.assistantMessage.trim()) {
+        setMessages((current) =>
+          current.filter((message) => message.id !== assistantMessageId)
+        )
+      }
+
+      if (!activeIntentId && finalPayload.intentId && nextConversationId) {
+        await removeDraftSession(draftOwnerScope, nextConversationId)
+        await reloadDraftSessions()
+        await refreshRequestShellData()
+      }
+
+      if (
+        !activeIntentId &&
+        finalPayload.intentId &&
+        streamedRequestIntentId !== finalPayload.intentId
+      ) {
+        updateWorkspaceUrl({
+          browse: "workers",
+          chat: null,
+          request: finalPayload.intentId,
+          view: "chat",
+        })
+        setConversationId(undefined)
+      }
+
+      if (activeIntentId) {
+        await refreshRequestShellData()
+      }
+
+      updateWorkspaceUrl({
+        browse: finalPayload.workspace.kind === "empty" ? null : "workers",
+      })
+      setShowWorkspace(finalPayload.workspace.kind !== "empty")
+      setPendingApprovalIntentId(null)
+    } catch (error) {
+      if (isAbortError(error)) {
+        return
+      }
+
+      setMessages((current) =>
+        current.filter((message) => message.id !== assistantMessageId)
+      )
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not start this route."
+      )
+    } finally {
+      if (activeChatAbortControllerRef.current === abortController) {
+        activeChatAbortControllerRef.current = null
+      }
+      setIsSubmitting(false)
+    }
+  }
+
   async function submitMessage(message: string) {
     const trimmed = message.trim()
 
@@ -2180,8 +2366,13 @@ export function ChatShell() {
           context: buildChatUiContext({
             activeIntentId,
             composerAgents: activeComposerAgents,
+            pendingProviderSelection:
+              effectiveWorkspace.kind === "provider_selection"
+                ? effectiveWorkspace.selection
+                : null,
             requestDetail,
             selectedCenterTab: activeCenterTab,
+            walletAddress: defaultWalletAddress,
             workspaceTab,
           }),
           debugPipeline: pipelineTraceEnabled,
@@ -2364,7 +2555,7 @@ export function ChatShell() {
     setDeliveryDraft(emptyDeliveryDraft())
     setOptimisticReviewRating(null)
     setPendingApprovalIntentId(null)
-    setWorkspace(emptyWorkspace)
+    setWorkspace(draftSession.workspace ?? emptyWorkspace)
     setMountedComposerAgents(
       draftSession.mountedAgents as MountedComposerAgent[]
     )
@@ -4142,11 +4333,13 @@ export function ChatShell() {
                                   isMarkingRequestFulfilled={
                                     isMarkingRequestFulfilled
                                   }
+                                  isProviderRouteSubmitting={isSubmitting}
                                   presetRoomRetryStatus={presetRoomRetryStatus}
                                   isRefreshingRequest={isRefreshingRequest}
                                   isRetryingRequest={isRetryingRequest}
                                   isRefreshingVideo={isRefreshingVideo}
                                   isSubmittingReview={isSubmittingReview}
+                                  isWalletReady={isWalletReady}
                                   liveMessages={messages}
                                   approvingMatchedSupplyId={
                                     approvingMatchedSupplyId
@@ -4158,6 +4351,10 @@ export function ChatShell() {
                                   onApproveRequest={handleApproveRequest}
                                   onArchiveRequest={handleArchiveRequest}
                                   onCancelRequest={handleCancelRequest}
+                                  onConfirmProviderRoute={
+                                    handleConfirmProviderRoute
+                                  }
+                                  onConnectWallet={handleOpenWalletModal}
                                   onDeleteIntent={() =>
                                     handleDeleteIntent(activeIntentId)
                                   }
@@ -4189,6 +4386,9 @@ export function ChatShell() {
                                   requestDetail={requestDetail}
                                   review={effectiveReview}
                                   shouldPromptReview={shouldPromptReview}
+                                  walletAddress={defaultWalletAddress}
+                                  walletConnection={solanaConnection}
+                                  walletProvider={walletProvider}
                                   workspace={effectiveWorkspace}
                                 />
 
@@ -4468,6 +4668,8 @@ export function ChatShell() {
                           <InlineWorkspaceCard
                             approvalIntentId={pendingApprovalIntentId}
                             isRefreshingVideo={isRefreshingVideo}
+                            isProviderRouteSubmitting={isSubmitting}
+                            isWalletReady={isWalletReady}
                             approvingMatchedSupplyId={
                               approvingMatchedSupplyId
                             }
@@ -4475,6 +4677,8 @@ export function ChatShell() {
                             onApproveMatchedSupply={
                               handleApproveMatchedSupply
                             }
+                            onConfirmProviderRoute={handleConfirmProviderRoute}
+                            onConnectWallet={handleOpenWalletModal}
                             onDownloadVideo={handleDownloadVideo}
                             isApprovingRoute={isApprovingRequest}
                             onOpenProfileBuilder={openProfileBuilder}
@@ -4483,6 +4687,9 @@ export function ChatShell() {
                             }}
                             onRefreshVideo={() => undefined}
                             onViewProfile={openProfileSheet}
+                            walletAddress={defaultWalletAddress}
+                            walletConnection={solanaConnection}
+                            walletProvider={walletProvider}
                             workspace={effectiveWorkspace}
                           />
                         ) : null}
@@ -5763,6 +5970,12 @@ type RequestTimelineItem =
     timestamp: number
   }
   | {
+    item: NormalizedRequestReceipt
+    key: string
+    kind: "receipt"
+    timestamp: number
+  }
+  | {
     item: NonNullable<RequestDetail["artifact"]>
     key: string
     kind: "artifact"
@@ -5789,16 +6002,20 @@ function RequestChatTimeline({
   isApprovingRequest,
   isCancellingRequest,
   isMarkingRequestFulfilled,
+  isProviderRouteSubmitting,
   presetRoomRetryStatus,
   isRefreshingRequest,
   isRetryingRequest,
   isRefreshingVideo,
   isSubmittingReview,
+  isWalletReady,
   onApproveMatchedSupply,
   onArchiveRequest,
   onApproveProposal,
   onApproveRequest,
   onCancelRequest,
+  onConfirmProviderRoute,
+  onConnectWallet,
   onDeleteIntent,
   onDownloadVideo,
   onMarkRequestFulfilled,
@@ -5814,6 +6031,9 @@ function RequestChatTimeline({
   requestDetail,
   review,
   shouldPromptReview,
+  walletAddress,
+  walletConnection,
+  walletProvider,
   workspace,
 }: {
   approvingProposalId: string | null
@@ -5823,6 +6043,7 @@ function RequestChatTimeline({
   isApprovingRequest: boolean
   isCancellingRequest: boolean
   isMarkingRequestFulfilled: boolean
+  isProviderRouteSubmitting: boolean
   presetRoomRetryStatus: {
     attempt: number
     displayName: string
@@ -5833,6 +6054,7 @@ function RequestChatTimeline({
   isRetryingRequest: boolean
   isRefreshingVideo: boolean
   isSubmittingReview: boolean
+  isWalletReady: boolean
   onApproveMatchedSupply: (
     supplyId: string,
     intentId?: string | null
@@ -5841,6 +6063,12 @@ function RequestChatTimeline({
   onApproveProposal: (proposalId: string) => Promise<void>
   onApproveRequest: (intentId?: string | null) => Promise<void>
   onCancelRequest: (intentId?: string | null) => Promise<void>
+  onConfirmProviderRoute: (input: {
+    paymentReceipt?: ProviderRoutePaymentReceipt | null
+    routeKey: string
+    selection: ProviderSelectionState
+  }) => Promise<void>
+  onConnectWallet: () => void
   onDeleteIntent: () => void
   onDownloadVideo: (videoId: string) => void
   onMarkRequestFulfilled: () => Promise<void>
@@ -5856,6 +6084,9 @@ function RequestChatTimeline({
   requestDetail: RequestDetail
   review: RequestDetail["review"]
   shouldPromptReview: boolean
+  walletAddress?: string | null
+  walletConnection?: ReturnType<typeof usePayment>["solanaConnection"]
+  walletProvider?: ProviderSelectionWalletProvider | null
   workspace: WorkspaceState
 }) {
   const timeline = buildRequestTimeline(requestDetail, review, liveMessages)
@@ -6039,6 +6270,12 @@ function RequestChatTimeline({
           return <InlineActivityEvent activity={entry.item} key={entry.key} />
         }
 
+        if (entry.kind === "receipt") {
+          return (
+            <RequestReceiptCard compact key={entry.key} receipt={entry.item} />
+          )
+        }
+
         if (entry.kind === "artifact") {
           return (
             <InlineArtifactEvent
@@ -6101,19 +6338,27 @@ function RequestChatTimeline({
 
       {workspace.kind === "catalog" ||
         workspace.kind === "profile_builder" ||
+        workspace.kind === "provider_selection" ||
         (timeline.length === 0 && hasRenderableInlineWorkspace(workspace)) ? (
         <InlineWorkspaceCard
           approvalIntentId={catalogApprovalIntentId}
           isRefreshingVideo={isRefreshingVideo}
+          isProviderRouteSubmitting={isProviderRouteSubmitting}
+          isWalletReady={isWalletReady}
           approvingMatchedSupplyId={approvingMatchedSupplyId}
           onApproveRoute={onApproveRequest}
           onApproveMatchedSupply={onApproveMatchedSupply}
+          onConfirmProviderRoute={onConfirmProviderRoute}
+          onConnectWallet={onConnectWallet}
           onDownloadVideo={onDownloadVideo}
           isApprovingRoute={isApprovingRequest}
           onOpenProfileBuilder={onOpenProfileBuilder}
           onQuickReply={onQuickReply}
           onRefreshVideo={onRefreshVideo}
           onViewProfile={onViewProfile}
+          walletAddress={walletAddress}
+          walletConnection={walletConnection}
+          walletProvider={walletProvider}
           workspace={workspace}
         />
       ) : null}
@@ -6163,6 +6408,15 @@ function buildRequestTimeline(
     })
   }
 
+  for (const receipt of requestDetail.receipts) {
+    items.push({
+      item: receipt,
+      key: `receipt-${receipt.routeKey}-${receipt.requestToken ?? receipt.recordedAt}-${receipt.status}`,
+      kind: "receipt",
+      timestamp: receipt.verifiedAt ?? receipt.recordedAt,
+    })
+  }
+
   if (requestDetail.artifact) {
     items.push({
       item: requestDetail.artifact,
@@ -6207,11 +6461,12 @@ function buildRequestTimeline(
 
     const order = {
       activity: 0,
-      message: 1,
-      live: 2,
-      fulfillment: 3,
-      artifact: 4,
-      review: 5,
+      receipt: 1,
+      message: 2,
+      live: 3,
+      fulfillment: 4,
+      artifact: 5,
+      review: 6,
     }
 
     return order[left.kind] - order[right.kind]
@@ -9367,9 +9622,12 @@ function upsertAssistantDebugEvent(
 function buildChatUiContext(input: {
   activeIntentId: string | null
   composerAgents: MountedComposerAgent[]
+  pendingProviderSelection?: ProviderSelectionState | null
   presetRoomCommand?: ChatUiContext["presetRoomCommand"]
+  providerSelectionCommand?: ChatUiContext["providerSelectionCommand"]
   requestDetail: RequestDetail | null
   selectedCenterTab: CenterViewTab
+  walletAddress?: string | null
   workspaceTab: WorkspaceTab
 }): ChatUiContext {
   const isOwner = input.requestDetail?.access?.canApproveProposals ?? false
@@ -9399,17 +9657,20 @@ function buildChatUiContext(input: {
     mountedSupplyIds: mountedMarketAgents.map((agent) => agent.supplyId),
     mountedSupplyTitle: primaryMountedAgent?.title ?? null,
     mountedSupplyTitles: mountedMarketAgents.map((agent) => agent.title),
+    pendingProviderSelection: input.pendingProviderSelection ?? null,
     presetRoomCommand: input.presetRoomCommand ?? null,
+    providerSelectionCommand: input.providerSelectionCommand ?? null,
     requestId: input.activeIntentId,
     requestRole: input.activeIntentId
       ? isOwner
         ? "owner"
         : canSubmitProposal
           ? "supplier"
-          : "viewer"
+      : "viewer"
       : "none",
     requestStatus: input.requestDetail?.intent?.status ?? null,
     surface: input.activeIntentId ? "request" : "home",
+    walletAddress: input.walletAddress ?? null,
   }
 }
 
@@ -9765,30 +10026,48 @@ function InlineWorkspaceCard({
   approvalIntentId,
   approvingMatchedSupplyId,
   isApprovingRoute,
+  isProviderRouteSubmitting,
   isRefreshingVideo,
+  isWalletReady,
   onApproveMatchedSupply,
   onApproveRoute,
+  onConfirmProviderRoute,
+  onConnectWallet,
   onDownloadVideo,
   onOpenProfileBuilder,
   onQuickReply,
   onRefreshVideo,
   onViewProfile,
+  walletAddress,
+  walletConnection,
+  walletProvider,
   workspace,
 }: {
   approvalIntentId?: string | null
   approvingMatchedSupplyId?: string | null
   isApprovingRoute?: boolean
+  isProviderRouteSubmitting?: boolean
   isRefreshingVideo: boolean
+  isWalletReady?: boolean
   onApproveMatchedSupply: (
     supplyId: string,
     intentId?: string | null
   ) => Promise<void>
   onApproveRoute?: (intentId?: string | null) => Promise<void>
+  onConfirmProviderRoute?: (input: {
+    paymentReceipt?: ProviderRoutePaymentReceipt | null
+    routeKey: string
+    selection: ProviderSelectionState
+  }) => Promise<void>
+  onConnectWallet?: () => void
   onDownloadVideo: (videoId: string) => void
   onOpenProfileBuilder: () => void
   onQuickReply: (value: string) => void
   onRefreshVideo: () => void
   onViewProfile: (profileId: string) => void
+  walletAddress?: string | null
+  walletConnection?: ReturnType<typeof usePayment>["solanaConnection"]
+  walletProvider?: ProviderSelectionWalletProvider | null
   workspace: WorkspaceState
 }) {
   if (workspace.kind === "artifact") {
@@ -9924,6 +10203,31 @@ function InlineWorkspaceCard({
           </div>
         ) : null}
       </div>
+    )
+  }
+
+  if (workspace.kind === "provider_selection") {
+    return (
+      <ProviderSelectionCard
+        isSubmitting={Boolean(isProviderRouteSubmitting)}
+        isWalletReady={Boolean(isWalletReady)}
+        onConfirmRoute={async ({ paymentReceipt, routeKey }) => {
+          if (!onConfirmProviderRoute) {
+            return
+          }
+
+          await onConfirmProviderRoute({
+            paymentReceipt,
+            routeKey,
+            selection: workspace.selection,
+          })
+        }}
+        onConnectWallet={() => onConnectWallet?.()}
+        selection={workspace.selection}
+        walletAddress={walletAddress}
+        walletConnection={walletConnection}
+        walletProvider={walletProvider}
+      />
     )
   }
 
@@ -10209,6 +10513,22 @@ function ActivityThreadPanel({
                 ? requestDetail.assignment.tools.join(" / ")
                 : "Not assigned yet"}
             </p>
+          </div>
+        </div>
+      ) : null}
+
+      {requestDetail?.receipts?.length ? (
+        <div className="space-y-3 border border-border p-4">
+          <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+            Receipts
+          </p>
+          <div className="space-y-3">
+            {requestDetail.receipts.map((receipt) => (
+              <RequestReceiptCard
+                key={`${receipt.routeKey}-${receipt.requestToken ?? receipt.recordedAt}-${receipt.status}`}
+                receipt={receipt}
+              />
+            ))}
           </div>
         </div>
       ) : null}

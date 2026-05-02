@@ -41,7 +41,7 @@ export type OneRequestExecutionResult = {
 
 export type OneRequestPaymentReceipt = {
   amount: number;
-  currency: "USD";
+  currency: string;
   networkKey: BorealSolanaNetworkKey;
   payerSource: OneRequestPaymentSource;
   quoteToken: string;
