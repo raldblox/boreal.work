@@ -10,6 +10,7 @@ import {
   ensureWorkTransaction,
   getDefaultPayoutWalletAccountId,
   getCommerceEnvironment,
+  getCommerceNetworkSelection,
   getProfileIdForUser,
   updateTransactionById,
 } from "./commerceCore";
@@ -32,6 +33,24 @@ function normalizeStoredEnvironment(
   }
 
   return getCommerceEnvironment(environment);
+}
+
+function normalizeStoredNetworkKey(
+  input?: {
+    chainFamily?: CommerceChainFamily | null;
+    environment?: CommerceEnvironment | "devnet" | null;
+    networkKey?: string | null;
+  },
+): CommerceNetworkKey | undefined {
+  if (!input?.networkKey) {
+    return undefined;
+  }
+
+  return getCommerceNetworkSelection({
+    chainFamily: input.chainFamily,
+    environment: input.environment,
+    networkKey: input.networkKey,
+  }).networkKey;
 }
 
 function normalizeStoredFulfillmentEnvironment<T extends {
@@ -456,7 +475,11 @@ export const markRequestFulfilled = mutation({
         chainFamily: transaction?.chainFamily,
         currency: transaction?.currency ?? acceptedProposal?.currency,
         environment: getCommerceEnvironment(transaction?.environment),
-        networkKey: transaction?.networkKey,
+        networkKey: normalizeStoredNetworkKey({
+          chainFamily: transaction?.chainFamily,
+          environment: transaction?.environment,
+          networkKey: transaction?.networkKey,
+        }),
         protocol: transaction?.paymentProtocol ?? null,
         status:
           acceptedProposal && acceptedProposal.price > 0
@@ -472,7 +495,11 @@ export const markRequestFulfilled = mutation({
               chainFamily: transaction?.chainFamily,
               currency: transaction?.currency ?? acceptedProposal.currency,
               environment: getCommerceEnvironment(transaction?.environment),
-              networkKey: transaction?.networkKey,
+              networkKey: normalizeStoredNetworkKey({
+                chainFamily: transaction?.chainFamily,
+                environment: transaction?.environment,
+                networkKey: transaction?.networkKey,
+              }),
               proposal: acceptedProposal,
               settlementId,
               transactionId,
@@ -848,7 +875,11 @@ async function finalizeAcceptedFulfillmentDelivery(
     chainFamily: transaction?.chainFamily,
     currency: transaction?.currency ?? input.acceptedProposal.currency,
     environment: getCommerceEnvironment(transaction?.environment),
-    networkKey: transaction?.networkKey,
+    networkKey: normalizeStoredNetworkKey({
+      chainFamily: transaction?.chainFamily,
+      environment: transaction?.environment,
+      networkKey: transaction?.networkKey,
+    }),
     protocol: transaction?.paymentProtocol ?? null,
     status:
       input.acceptedProposal.price > 0 ? "ready_for_payout" : "not_applicable",
@@ -862,7 +893,11 @@ async function finalizeAcceptedFulfillmentDelivery(
           chainFamily: transaction?.chainFamily,
           currency: transaction?.currency ?? input.acceptedProposal.currency,
           environment: getCommerceEnvironment(transaction?.environment),
-          networkKey: transaction?.networkKey,
+          networkKey: normalizeStoredNetworkKey({
+            chainFamily: transaction?.chainFamily,
+            environment: transaction?.environment,
+            networkKey: transaction?.networkKey,
+          }),
           proposal: input.acceptedProposal,
           settlementId,
           transactionId,

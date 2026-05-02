@@ -233,7 +233,14 @@ export async function getWalletAccountContext(
     environment: account.environment
       ? getBorealChainEnvironment(account.environment)
       : undefined,
-    networkKey: account.networkKey,
+    networkKey: account.networkKey
+      ? getCommerceNetworkSelection({
+          chainFamily: account.chainFamily,
+          chainId: account.chainId,
+          environment: account.environment,
+          networkKey: account.networkKey,
+        }).networkKey
+      : undefined,
   };
 }
 

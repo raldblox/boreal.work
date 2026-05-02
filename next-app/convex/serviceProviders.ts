@@ -5,6 +5,7 @@ import { normalizedCapabilityToSupply } from "../lib/boreal/integrations/service
 import {
   ensureSettlementForTransaction,
   getCommerceEnvironment,
+  getCommerceNetworkSelection,
   updateTransactionById,
 } from "./commerceCore";
 import { refreshProfileAnalyticsForUser } from "./profileAnalytics";
@@ -426,7 +427,13 @@ export const completePaymentAttempt = mutation({
         chainFamily: transaction?.chainFamily,
         currency: transaction?.currency,
         environment: transaction?.environment,
-        networkKey: transaction?.networkKey,
+        networkKey: transaction?.networkKey
+          ? getCommerceNetworkSelection({
+              chainFamily: transaction?.chainFamily,
+              environment: transaction?.environment,
+              networkKey: transaction?.networkKey,
+            }).networkKey
+          : undefined,
         protocol: transaction?.paymentProtocol,
         status: "not_applicable",
         transactionId: item.transactionId,

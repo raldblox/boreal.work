@@ -217,6 +217,10 @@ export function normalizeBorealNetworkKey(
       return "base:mainnet";
     case "base sepolia":
       return "base:sepolia";
+    case "devnet":
+    case "solana:devnet":
+    case "solana devnet":
+      return "solana:testnet";
     case "ethereum":
       return "ethereum:mainnet";
     case "ethereum sepolia":

@@ -206,6 +206,12 @@ export const networkKeyValidator = v.union(
   v.literal("solana:testnet"),
 );
 
+export const storedNetworkKeyValidator = v.union(
+  networkKeyValidator,
+  // Legacy pre-mainnet rows can still carry `solana:devnet` until they are rewritten.
+  v.literal("solana:devnet"),
+);
+
 export const executionSurfaceValidator = v.union(
   v.literal("desktop"),
   v.literal("registry"),

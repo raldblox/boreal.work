@@ -10,6 +10,7 @@ import {
   paymentProtocolValidator,
   requestedOutputTypeValidator,
 } from "./validators";
+import { inferBorealNetworkSelection } from "../lib/boreal/commerce/networks";
 import {
   getDefaultBuyerWalletAccountId,
   getProfileIdForUser,
@@ -37,7 +38,7 @@ export const findSessionForCaller = query({
     const mostRecentIdempotent = byIdempotency.sort((left, right) => right.updatedAt - left.updatedAt)[0];
 
     if (mostRecentIdempotent) {
-      return mostRecentIdempotent;
+      return normalizeStoredRequestSession(mostRecentIdempotent);
     }
 
     const byFingerprint = await ctx.db
@@ -49,7 +50,13 @@ export const findSessionForCaller = query({
       )
       .collect();
 
-    return byFingerprint.sort((left, right) => right.updatedAt - left.updatedAt)[0] ?? null;
+    const mostRecentByFingerprint =
+      byFingerprint.sort((left, right) => right.updatedAt - left.updatedAt)[0] ??
+      null;
+
+    return mostRecentByFingerprint
+      ? normalizeStoredRequestSession(mostRecentByFingerprint)
+      : null;
   },
 });
 
@@ -65,7 +72,7 @@ export const getRequestSession = query({
       return null;
     }
 
-    return session;
+    return normalizeStoredRequestSession(session);
   },
 });
 
@@ -736,12 +743,14 @@ async function getSessionByToken(
   ctx: MutationCtx | QueryCtx,
   requestToken: string,
 ) {
-  return ctx.db
+  const session = await ctx.db
     .query("agentRequestSessions")
     .withIndex("by_requestToken", (queryBuilder) =>
       queryBuilder.eq("requestToken", requestToken),
     )
     .unique();
+
+  return session ? normalizeStoredRequestSession(session) : null;
 }
 
 async function insertRequestEvent(
@@ -825,11 +834,72 @@ function inferEnvironmentFromNetworkKey(networkKey: string) {
     return "mainnet" as const;
   }
 
-  if (networkKey.endsWith(":testnet")) {
+  if (
+    networkKey.endsWith(":testnet") ||
+    networkKey.endsWith(":devnet")
+  ) {
     return "testnet" as const;
   }
 
   return "mainnet" as const;
+}
+
+function normalizeStoredRequestSession<
+  T extends {
+    chainFamily: "evm" | "solana";
+    environment: "devnet" | "mainnet" | "testnet";
+    networkKey:
+      | "base:mainnet"
+      | "base:sepolia"
+      | "ethereum:mainnet"
+      | "ethereum:sepolia"
+      | "polygon:amoy"
+      | "polygon:mainnet"
+      | "solana:devnet"
+      | "solana:mainnet"
+      | "solana:testnet";
+    routeJson: string;
+  },
+>(session: T) {
+  const normalizedNetworkSelection = inferBorealNetworkSelection({
+    chainFamily: session.chainFamily,
+    environment: session.environment,
+    networkKey: session.networkKey,
+  });
+
+  return {
+    ...session,
+    environment: normalizedNetworkSelection.environment,
+    networkKey: normalizedNetworkSelection.networkKey,
+    routeJson: normalizeStoredRouteJson(
+      session.routeJson,
+      normalizedNetworkSelection.networkKey,
+    ),
+  };
+}
+
+function normalizeStoredRouteJson(
+  routeJson: string,
+  networkKey:
+    | "base:mainnet"
+    | "base:sepolia"
+    | "ethereum:mainnet"
+    | "ethereum:sepolia"
+    | "polygon:amoy"
+    | "polygon:mainnet"
+    | "solana:mainnet"
+    | "solana:testnet",
+) {
+  try {
+    const parsed = JSON.parse(routeJson) as Record<string, unknown>;
+
+    return JSON.stringify({
+      ...parsed,
+      networkKey,
+    });
+  } catch {
+    return routeJson;
+  }
 }
 
 function safeParseJson(value: string) {

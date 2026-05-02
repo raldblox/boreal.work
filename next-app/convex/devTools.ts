@@ -165,6 +165,36 @@ export const wipeDevelopmentData = internalAction({
   },
 });
 
+export const normalizeLegacySolanaDevnetRequestSessions = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const sessions = await ctx.db.query("agentRequestSessions").collect();
+    let normalizedCount = 0;
+
+    for (const session of sessions) {
+      if (
+        session.networkKey !== "solana:devnet" &&
+        session.environment !== "devnet"
+      ) {
+        continue;
+      }
+
+      await ctx.db.patch(session._id, {
+        environment: "testnet",
+        networkKey: "solana:testnet",
+        updatedAt: Date.now(),
+      });
+      normalizedCount += 1;
+    }
+
+    return {
+      normalizedCount,
+      normalizedToEnvironment: "testnet" as const,
+      normalizedToNetworkKey: "solana:testnet" as const,
+    };
+  },
+});
+
 function normalizeBatchSize(value?: number) {
   if (!Number.isFinite(value) || value === undefined) {
     return DEFAULT_BATCH_SIZE;
