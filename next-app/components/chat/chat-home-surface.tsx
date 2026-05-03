@@ -24,15 +24,15 @@ export function HomeChatSurface({
     <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6">
       <div className="space-y-3 text-center">
         <p className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-mono text-[11px] tracking-[0.18em] text-primary uppercase">
-          Early access
+          Live early access
         </p>
         <h1 className="text-balance text-4xl font-medium tracking-tight sm:text-5xl">
-          Tell boreal what you want done
+          Tell Boreal what you want done
         </h1>
         <p className="mx-auto max-w-2xl text-sm/7 text-muted-foreground sm:text-base/7">
-          Boreal turns intent into the best matched route and opens the right
-          request to keep work moving. It can fulfill directly or open a
-          dedicated work thread.
+          Start with one request. Boreal shows the best route it can support,
+          opens tracked work, and keeps funding, proof, and delivery attached
+          to the same thread.
         </p>
       </div>
 
