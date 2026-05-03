@@ -14,8 +14,8 @@ export type ProviderRouteDeliveryMode =
 export type ProviderRoutePricingPolicy =
   | {
       amount: number;
-      currency: "SOL";
-      kind: "flat-sol";
+      currency: "USDC";
+      kind: "flat-usdc";
       networkKey: BorealSolanaNetworkKey;
     }
   | {
@@ -60,6 +60,11 @@ export type ProviderRouteQuote = {
   expiresAt: number;
   networkKey: BorealSolanaNetworkKey;
   payToAddress: string | null;
+  payToAsset: "USDC" | null;
+  payToMintAddress: string | null;
+  payToTokenAccountAddress: string | null;
+  payToTokenDecimals: number | null;
+  payToTokenProgramAddress: string | null;
   payerSources: Array<"agentcash" | "openwallet">;
   paymentProtocol: PaymentProtocol;
   paymentReference: string;

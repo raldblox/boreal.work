@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Buffer } from "buffer";
 import {
   PublicKey,
-  SystemProgram,
   Transaction,
   TransactionInstruction,
   type Connection,
@@ -26,6 +25,10 @@ import {
   compactHexLike,
   getSolanaMemoProgramAddress,
 } from "@/lib/boreal/solana-thread-actions";
+import {
+  createTransferCheckedInstruction,
+  deriveAssociatedTokenAddress,
+} from "@/lib/boreal/one-request/solana-usdc";
 
 type SolanaWalletProvider = {
   sendTransaction: (
@@ -115,6 +118,10 @@ export function ProviderSelectionCard({
         connection: walletConnection,
         memo: selectedRoute.quote.paymentReference,
         payToAddress: selectedRoute.quote.payToAddress,
+        payToMintAddress: selectedRoute.quote.payToMintAddress,
+        payToTokenAccountAddress: selectedRoute.quote.payToTokenAccountAddress,
+        payToTokenDecimals: selectedRoute.quote.payToTokenDecimals,
+        payToTokenProgramAddress: selectedRoute.quote.payToTokenProgramAddress,
         walletAddress,
       });
       const txHash = await walletProvider.sendTransaction(
@@ -294,6 +301,10 @@ async function buildPaymentTransaction(input: {
   connection: Connection;
   memo: string;
   payToAddress: string | null;
+  payToMintAddress: string | null;
+  payToTokenAccountAddress: string | null;
+  payToTokenDecimals: number | null;
+  payToTokenProgramAddress: string | null;
   walletAddress: string;
 }) {
   const feePayer = new PublicKey(input.walletAddress);
@@ -310,14 +321,43 @@ async function buildPaymentTransaction(input: {
     }),
   ];
 
-  if (input.payToAddress?.trim()) {
+  const payToMintAddress = input.payToMintAddress?.trim() || null;
+  const payToTokenProgramAddress = input.payToTokenProgramAddress?.trim() || null;
+  const payToTokenAccountAddress =
+    input.payToTokenAccountAddress?.trim() ||
+    (input.payToAddress?.trim() &&
+    payToMintAddress &&
+    payToTokenProgramAddress
+      ? deriveAssociatedTokenAddress({
+          mintAddress: payToMintAddress,
+          ownerAddress: input.payToAddress.trim(),
+          tokenProgramAddress: payToTokenProgramAddress,
+        })
+      : null);
+
+  if (
+    payToMintAddress &&
+    payToTokenAccountAddress &&
+    payToTokenProgramAddress &&
+    input.payToTokenDecimals !== null
+  ) {
     instructions.unshift(
-      SystemProgram.transfer({
-        fromPubkey: feePayer,
-        lamports: Math.max(1, Math.round(input.amount * 1_000_000_000)),
-        toPubkey: new PublicKey(input.payToAddress),
+      createTransferCheckedInstruction({
+        amount: input.amount,
+        authorityAddress: input.walletAddress,
+        decimals: input.payToTokenDecimals,
+        destinationTokenAccountAddress: payToTokenAccountAddress,
+        mintAddress: payToMintAddress,
+        sourceTokenAccountAddress: deriveAssociatedTokenAddress({
+          mintAddress: payToMintAddress,
+          ownerAddress: input.walletAddress,
+          tokenProgramAddress: payToTokenProgramAddress,
+        }),
+        tokenProgramAddress: payToTokenProgramAddress,
       }),
     );
+  } else if (input.payToAddress?.trim()) {
+    throw new Error("Boreal seller USDC destination is not configured.");
   }
 
   transaction.add(...instructions);

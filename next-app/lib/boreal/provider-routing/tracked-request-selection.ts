@@ -1,4 +1,8 @@
 import { buildPaymentReferenceMemo } from "@/lib/boreal/one-request/auth";
+import {
+  formatUsdcPriceLabel,
+  SPECIALIST_FUNDED_START_USDC_AMOUNT,
+} from "@/lib/boreal/one-request/pricing";
 import { getOneRequestSellerMetadata } from "@/lib/boreal/one-request/seller";
 import type { BorealSolanaNetworkKey } from "@/lib/boreal/solana-network";
 
@@ -20,7 +24,7 @@ type StoredTrackedProviderSelectionSnapshot = {
 
 export const TRACKED_REQUEST_SELECTION_KIND = "tracked_provider_selection";
 export const TRACKED_REQUEST_QUOTE_TTL_MS = 15 * 60 * 1000;
-export const SPECIALIST_FUNDED_START_SOL_AMOUNT = 0.001;
+export { SPECIALIST_FUNDED_START_USDC_AMOUNT };
 
 export function serializeTrackedProviderSelectionSnapshot(
   option: StoredTrackedProviderOption,
@@ -70,6 +74,11 @@ export function buildTrackedProviderSelectionStateFromSession(input: {
               expiresAt: input.quoteExpiresAt,
               networkKey: input.networkKey,
               payToAddress: seller.payToAddress,
+              payToAsset: seller.payToAsset,
+              payToMintAddress: seller.payToMintAddress,
+              payToTokenAccountAddress: seller.payToTokenAccountAddress,
+              payToTokenDecimals: seller.payToTokenDecimals,
+              payToTokenProgramAddress: seller.payToTokenProgramAddress,
               payerSources: ["openwallet", "agentcash"],
               paymentProtocol: snapshot.option.paymentProtocol,
               paymentReference: buildPaymentReferenceMemo({
@@ -112,8 +121,8 @@ function parseTrackedProviderSelectionSnapshot(routeJson: string) {
 }
 
 function formatPricingLabel(pricingPolicy: ProviderRoutePricingPolicy) {
-  if (pricingPolicy.kind === "flat-sol") {
-    return `${pricingPolicy.amount} ${pricingPolicy.currency}`;
+  if (pricingPolicy.kind === "flat-usdc") {
+    return formatUsdcPriceLabel(pricingPolicy.amount);
   }
 
   if (pricingPolicy.kind === "x402-fixed") {
@@ -124,7 +133,7 @@ function formatPricingLabel(pricingPolicy: ProviderRoutePricingPolicy) {
 }
 
 function resolvePricingCurrency(pricingPolicy: ProviderRoutePricingPolicy) {
-  if (pricingPolicy.kind === "flat-sol") {
+  if (pricingPolicy.kind === "flat-usdc") {
     return pricingPolicy.currency;
   }
 
@@ -132,5 +141,5 @@ function resolvePricingCurrency(pricingPolicy: ProviderRoutePricingPolicy) {
     return pricingPolicy.currency;
   }
 
-  return "USD";
+  return "USDC";
 }

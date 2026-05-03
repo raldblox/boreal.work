@@ -1,4 +1,5 @@
 import type { CatalogEntry } from "../integrations/convex/function-refs"
+import { SPECIALIST_FUNDED_START_USDC_AMOUNT } from "../one-request/pricing.ts"
 
 export type PresetTeamExecutionMode =
   | "fanout_merge"
@@ -64,7 +65,8 @@ export type PresetTeamDefinition = {
 }
 
 const PRESET_TEAM_SOURCE_CAPABILITY_PREFIX = "preset-team:"
-export const PRESET_TEAM_FUNDED_START_SOL_AMOUNT = 0.001
+export const PRESET_TEAM_FUNDED_START_USDC_AMOUNT =
+  SPECIALIST_FUNDED_START_USDC_AMOUNT
 
 const DEBATE_AND_VERDICT: PresetTeamDefinition = {
   description:
@@ -395,7 +397,7 @@ export function listPublicPresetTeamCatalogEntries(): CatalogEntry[] {
     ],
     category: "advisory",
     checkoutProtocol: "custom",
-    currency: "SOL",
+    currency: "USDC",
     deliveryType: "instant",
     description: definition.description,
     estimatedDeliveryLabel: "Starts after funding",
@@ -410,7 +412,7 @@ export function listPublicPresetTeamCatalogEntries(): CatalogEntry[] {
     matchStage: null,
     paymentNetworkHints: [],
     paymentProtocol: "x402",
-    priceAmount: PRESET_TEAM_FUNDED_START_SOL_AMOUNT,
+    priceAmount: PRESET_TEAM_FUNDED_START_USDC_AMOUNT,
     priceType: "fixed",
     requiresHumanApproval: false,
     reviewCount: 0,

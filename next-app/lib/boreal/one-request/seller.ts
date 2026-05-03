@@ -6,6 +6,12 @@ import {
   type BorealSolanaNetworkKey,
   type BorealSolanaSettlementMode,
 } from "../solana-network.ts";
+import {
+  deriveAssociatedTokenAddress,
+  getDefaultSolanaUsdcDecimals,
+  getDefaultSolanaUsdcMintAddress,
+  getDefaultSolanaUsdcTokenProgramAddress,
+} from "./solana-usdc.ts";
 
 export type OneRequestBazaarMetadata = {
   category: "agentic-commerce";
@@ -17,7 +23,11 @@ export type OneRequestSellerMetadata = {
   bazaar: OneRequestBazaarMetadata;
   networkKey: BorealSolanaNetworkKey;
   payToAddress: string | null;
-  payToAsset: "SOL" | null;
+  payToAsset: "USDC" | null;
+  payToMintAddress: string | null;
+  payToTokenAccountAddress: string | null;
+  payToTokenDecimals: number | null;
+  payToTokenProgramAddress: string | null;
   paymentProtocol: "x402";
   sellerId: "boreal-one-request";
   sellerName: string;
@@ -35,6 +45,23 @@ export function getOneRequestSellerMetadata(): OneRequestSellerMetadata {
   const networkKey = getDefaultSolanaNetworkKey();
   const settlementMode = getDefaultSolanaSettlementMode();
   const networkLabelTag = networkKey.replace(":", "-");
+  const payToMintAddress = payToAddress
+    ? getDefaultSolanaUsdcMintAddress(networkKey)
+    : null;
+  const payToTokenProgramAddress = payToAddress
+    ? getDefaultSolanaUsdcTokenProgramAddress()
+    : null;
+  const payToTokenDecimals = payToAddress
+    ? getDefaultSolanaUsdcDecimals()
+    : null;
+  const payToTokenAccountAddress =
+    payToAddress && payToMintAddress && payToTokenProgramAddress
+      ? deriveAssociatedTokenAddress({
+          mintAddress: payToMintAddress,
+          ownerAddress: payToAddress,
+          tokenProgramAddress: payToTokenProgramAddress,
+        })
+      : null;
 
   return {
     bazaar: {
@@ -44,13 +71,18 @@ export function getOneRequestSellerMetadata(): OneRequestSellerMetadata {
         "one-request",
         "request-routing",
         "specialist-execution",
+        "usdc",
         "wallet-auth",
         networkLabelTag,
       ],
     },
     networkKey,
     payToAddress,
-    payToAsset: payToAddress ? "SOL" : null,
+    payToAsset: payToAddress ? "USDC" : null,
+    payToMintAddress,
+    payToTokenAccountAddress,
+    payToTokenDecimals,
+    payToTokenProgramAddress,
     paymentProtocol: "x402",
     sellerId: "boreal-one-request",
     sellerName: process.env.BOREAL_ONE_REQUEST_SELLER_NAME?.trim() || DEFAULT_SELLER_NAME,

@@ -18,7 +18,7 @@ export type OneRequestRoutePlan = {
   assetPrompt?: string;
   capabilityTags?: string[];
   category?: string;
-  currency: "USD";
+  currency: "USDC";
   estimatedMinutes: number;
   keywords?: string[];
   networkKey: BorealSolanaNetworkKey;

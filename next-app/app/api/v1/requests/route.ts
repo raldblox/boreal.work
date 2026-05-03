@@ -39,6 +39,7 @@ import type {
 import { getDefaultSolanaNetworkKey } from "@/lib/boreal/solana-network";
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
+const LOCKED_QUOTE_CURRENCY = "USDC";
 
 type RequestSessionState = {
   conversationId?: string | null;
@@ -152,7 +153,7 @@ export async function POST(request: Request) {
       await convex.mutation(api.requestApi.createRequestSession, {
         chainFamily: "solana",
         conversationId,
-        currency: "USD",
+        currency: LOCKED_QUOTE_CURRENCY,
         idempotencyKey,
         intentId: persisted.intentId as Id<"intents">,
         intentKey: persisted.intentKey,
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
         quoteAmount: 0,
         quoteAuthorizationMessage: buildPaymentAuthorizationMessage({
           amount: 0,
-          currency: "USD",
+          currency: LOCKED_QUOTE_CURRENCY,
           quoteToken,
           requestToken,
         }),
@@ -220,7 +221,7 @@ export async function POST(request: Request) {
       await convex.mutation(api.requestApi.createRequestSession, {
         chainFamily: "solana",
         conversationId,
-        currency: "USD",
+        currency: LOCKED_QUOTE_CURRENCY,
         idempotencyKey,
         intentId: persisted.intentId as Id<"intents">,
         intentKey: persisted.intentKey,
@@ -232,7 +233,7 @@ export async function POST(request: Request) {
         quoteAmount: 0,
         quoteAuthorizationMessage: buildPaymentAuthorizationMessage({
           amount: 0,
-          currency: "USD",
+          currency: LOCKED_QUOTE_CURRENCY,
           quoteToken,
           requestToken,
         }),
@@ -425,11 +426,17 @@ async function executePaidSession(
         );
     }
 
+    const seller = getOneRequestSellerMetadata();
     const verification = await verifyOneRequestPayment({
       amount: input.existing.quoteAmount,
       authorizationMessage: input.existing.quoteAuthorizationMessage,
       currency: input.existing.currency,
-      payToAddress: getOneRequestSellerMetadata().payToAddress,
+      payToAddress: seller.payToAddress,
+      payToAsset: seller.payToAsset,
+      payToMintAddress: seller.payToMintAddress,
+      payToTokenAccountAddress: seller.payToTokenAccountAddress,
+      payToTokenDecimals: seller.payToTokenDecimals,
+      payToTokenProgramAddress: seller.payToTokenProgramAddress,
       quoteExpiresAt: input.existing.quoteExpiresAt,
       quoteToken: input.existing.quoteToken,
       receipt: input.paymentReceipt,
@@ -640,7 +647,7 @@ function buildExistingEnvelope(
       payment: {
         amount: session.quoteAmount,
         authorizationMessage: session.quoteAuthorizationMessage,
-        currency: "USD",
+        currency: session.currency,
         expiresAt: session.quoteExpiresAt,
         paymentReference,
         quoteToken: session.quoteToken,
@@ -673,7 +680,7 @@ function buildExistingPaymentResponse(
     quote: {
       amount: session.quoteAmount,
       authorizationMessage: session.quoteAuthorizationMessage,
-      currency: "USD",
+      currency: session.currency,
       expiresAt: session.quoteExpiresAt,
       networkKey: getDefaultSolanaNetworkKey(),
       payerSources: ["openwallet", "agentcash"],
@@ -768,7 +775,7 @@ function reviveRoutePlan(route: Record<string, unknown>): OneRequestRoutePlan {
       ? route.capabilityTags.map(String)
       : [],
     category: String(route.category ?? "general"),
-    currency: "USD",
+    currency: LOCKED_QUOTE_CURRENCY,
     estimatedMinutes: Number(route.estimatedMinutes ?? 3),
     keywords: Array.isArray(route.keywords) ? route.keywords.map(String) : [],
     networkKey:

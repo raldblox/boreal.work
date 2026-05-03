@@ -8,6 +8,7 @@ import {
   getDefaultSolanaRpcUrl,
   type BorealSolanaNetworkKey,
 } from "../solana-network.ts";
+import { toTokenAmountAtomic } from "./solana-usdc.ts";
 
 type SolanaRpcResponse<T> = {
   error?: {
@@ -37,6 +38,8 @@ type SolanaTransaction = {
   meta?: {
     err?: unknown;
     logMessages?: string[] | null;
+    postTokenBalances?: SolanaTokenBalance[] | null;
+    preTokenBalances?: SolanaTokenBalance[] | null;
   } | null;
   slot?: number;
   transaction?: {
@@ -45,6 +48,19 @@ type SolanaTransaction = {
       instructions?: SolanaInstruction[];
     };
     signatures?: string[];
+  } | null;
+};
+
+type SolanaTokenBalance = {
+  accountIndex?: number;
+  mint?: string;
+  owner?: string;
+  programId?: string;
+  uiTokenAmount?: {
+    amount?: string;
+    decimals?: number;
+    uiAmount?: number | null;
+    uiAmountString?: string;
   } | null;
 };
 
@@ -61,10 +77,16 @@ export type OneRequestPaymentVerification = {
   memo: string;
   networkKey: BorealSolanaNetworkKey;
   payToAddress: string | null;
+  payToAsset: string | null;
+  payToMintAddress: string | null;
+  payToTokenAccountAddress: string | null;
   rpcUrl: string;
   slot: number | null;
   txHash: string;
-  verificationMethod: "solana_memo" | "solana_memo_payto";
+  verificationMethod:
+    | "solana_memo"
+    | "solana_memo_payto"
+    | "solana_usdc_memo_payto";
   verifiedAt: number;
   walletAddress: string;
 };
@@ -75,7 +97,12 @@ export async function verifyOneRequestPayment(input: {
   amount: number;
   authorizationMessage: string;
   currency: string;
+  payToAsset?: string | null;
   payToAddress?: string | null;
+  payToMintAddress?: string | null;
+  payToTokenAccountAddress?: string | null;
+  payToTokenDecimals?: number | null;
+  payToTokenProgramAddress?: string | null;
   quoteExpiresAt: number;
   quoteToken: string;
   receipt: OneRequestPaymentReceipt;
@@ -140,8 +167,34 @@ export async function verifyOneRequestPayment(input: {
   }
 
   const payToAddress = input.payToAddress?.trim() || null;
+  const payToAsset = input.payToAsset?.trim() || null;
+  const payToMintAddress = input.payToMintAddress?.trim() || null;
+  const payToTokenAccountAddress =
+    input.payToTokenAccountAddress?.trim() || null;
+  const payToTokenProgramAddress =
+    input.payToTokenProgramAddress?.trim() || null;
+  const payToTokenDecimals =
+    typeof input.payToTokenDecimals === "number"
+      ? input.payToTokenDecimals
+      : null;
 
-  if (payToAddress && !transactionMentionsAddress(transaction, payToAddress)) {
+  if (
+    payToAddress &&
+    payToAsset === "USDC" &&
+    payToMintAddress &&
+    payToTokenAccountAddress &&
+    payToTokenDecimals !== null
+  ) {
+    verifySplTokenPayment({
+      amount: input.amount,
+      destinationTokenAccountAddress: payToTokenAccountAddress,
+      ownerAddress: payToAddress,
+      payToMintAddress,
+      payToTokenDecimals,
+      payToTokenProgramAddress,
+      transaction,
+    });
+  } else if (payToAddress && !transactionMentionsAddress(transaction, payToAddress)) {
     throw new Error("Verified Solana transaction is not linked to Boreal's configured pay-to address.");
   }
 
@@ -165,12 +218,21 @@ export async function verifyOneRequestPayment(input: {
     memo: matchedMemo,
     networkKey,
     payToAddress,
+    payToAsset,
+    payToMintAddress,
+    payToTokenAccountAddress,
     rpcUrl,
     slot: transaction.slot ?? null,
     txHash,
-    verificationMethod: payToAddress
-      ? "solana_memo_payto"
-      : "solana_memo",
+    verificationMethod:
+      payToAddress &&
+      payToAsset === "USDC" &&
+      payToMintAddress &&
+      payToTokenAccountAddress
+        ? "solana_usdc_memo_payto"
+        : payToAddress
+          ? "solana_memo_payto"
+          : "solana_memo",
     verifiedAt: Date.now(),
     walletAddress: input.walletAddress,
   };
@@ -312,6 +374,121 @@ function transactionMentionsAddress(
   return (transaction.meta?.logMessages ?? []).some((logMessage) =>
     logMessage.includes(normalizedAddress),
   );
+}
+
+function verifySplTokenPayment(input: {
+  amount: number;
+  destinationTokenAccountAddress: string;
+  ownerAddress: string;
+  payToMintAddress: string;
+  payToTokenDecimals: number;
+  payToTokenProgramAddress: string | null;
+  transaction: SolanaTransaction;
+}) {
+  const destinationAccountIndex = findTransactionAccountIndex(
+    input.transaction,
+    input.destinationTokenAccountAddress,
+  );
+
+  if (destinationAccountIndex === null) {
+    throw new Error("Verified Solana transaction is missing Boreal's USDC destination account.");
+  }
+
+  const postBalance = findTokenBalanceByAccountIndex(
+    input.transaction.meta?.postTokenBalances ?? [],
+    destinationAccountIndex,
+    input.payToMintAddress,
+  );
+
+  if (!postBalance) {
+    throw new Error("Verified Solana transaction is missing the USDC destination balance update.");
+  }
+
+  if (
+    postBalance.owner &&
+    postBalance.owner !== input.ownerAddress
+  ) {
+    throw new Error("Verified Solana transaction targets the wrong USDC owner.");
+  }
+
+  if (
+    input.payToTokenProgramAddress &&
+    postBalance.programId &&
+    postBalance.programId !== input.payToTokenProgramAddress
+  ) {
+    throw new Error("Verified Solana transaction uses the wrong USDC token program.");
+  }
+
+  if (
+    typeof postBalance.uiTokenAmount?.decimals === "number" &&
+    postBalance.uiTokenAmount.decimals !== input.payToTokenDecimals
+  ) {
+    throw new Error("Verified Solana transaction reported the wrong USDC decimals.");
+  }
+
+  const preBalance = findTokenBalanceByAccountIndex(
+    input.transaction.meta?.preTokenBalances ?? [],
+    destinationAccountIndex,
+    input.payToMintAddress,
+  );
+  const expectedAmount = toTokenAmountAtomic(
+    input.amount,
+    input.payToTokenDecimals,
+  );
+  const receivedAmount =
+    readTokenAmount(postBalance) - readTokenAmount(preBalance);
+
+  if (receivedAmount !== expectedAmount) {
+    throw new Error("Verified Solana transaction amount does not match Boreal's locked USDC quote.");
+  }
+}
+
+function findTransactionAccountIndex(
+  transaction: SolanaTransaction,
+  address: string,
+) {
+  const normalizedAddress = address.trim();
+
+  if (!normalizedAddress) {
+    return null;
+  }
+
+  const accountKeys = transaction.transaction?.message?.accountKeys ?? [];
+
+  for (const [index, accountKey] of accountKeys.entries()) {
+    if (
+      (typeof accountKey === "string" && accountKey === normalizedAddress) ||
+      (typeof accountKey === "object" && accountKey.pubkey === normalizedAddress)
+    ) {
+      return index;
+    }
+  }
+
+  return null;
+}
+
+function findTokenBalanceByAccountIndex(
+  balances: SolanaTokenBalance[],
+  accountIndex: number,
+  mintAddress: string,
+) {
+  return (
+    balances.find(
+      (balance) =>
+        balance.accountIndex === accountIndex &&
+        balance.mint === mintAddress,
+    ) ?? null
+  );
+}
+
+function readTokenAmount(balance: SolanaTokenBalance | null) {
+  const amount = balance?.uiTokenAmount?.amount;
+
+  if (typeof amount !== "string" || !/^\d+$/.test(amount)) {
+    return BigInt(0);
+  }
+
+  return BigInt(amount);
 }
 
 function collectInstructionStrings(value: unknown): string[] {

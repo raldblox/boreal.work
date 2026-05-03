@@ -37,6 +37,10 @@ import { createConvexServerClient } from "@/lib/boreal/integrations/convex/serve
 import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
 import { buildPaymentAuthorizationMessage } from "@/lib/boreal/one-request/auth";
 import {
+  formatUsdcPriceLabel,
+  SPECIALIST_FUNDED_START_USDC_AMOUNT,
+} from "@/lib/boreal/one-request/pricing";
+import {
   buildProviderSelectionState,
   getProviderRouteOptionByKey,
   hashPrompt,
@@ -45,7 +49,6 @@ import {
 import {
   buildTrackedProviderSelectionStateFromSession,
   serializeTrackedProviderSelectionSnapshot,
-  SPECIALIST_FUNDED_START_SOL_AMOUNT,
   TRACKED_REQUEST_QUOTE_TTL_MS,
 } from "@/lib/boreal/provider-routing/tracked-request-selection";
 import {
@@ -1341,8 +1344,8 @@ export async function fundPersistedRequest(input: {
     const quoteToken = `quote_${crypto.randomUUID().replaceAll("-", "")}`;
     const quoteExpiresAt = Date.now() + TRACKED_REQUEST_QUOTE_TTL_MS;
     const quoteAuthorizationMessage = buildPaymentAuthorizationMessage({
-      amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
-      currency: "SOL",
+      amount: SPECIALIST_FUNDED_START_USDC_AMOUNT,
+      currency: "USDC",
       quoteToken,
       requestToken: selectedQuote.requestToken,
     });
@@ -1401,6 +1404,7 @@ export async function fundPersistedRequest(input: {
   }
 
   const expectedPayment = getExpectedProviderRoutePayment(selectedRoute);
+  const seller = getOneRequestSellerMetadata();
   const paymentVerification = await verifyOneRequestPayment({
     amount: expectedPayment.amount,
     authorizationMessage: buildPaymentAuthorizationMessage({
@@ -1410,7 +1414,12 @@ export async function fundPersistedRequest(input: {
       requestToken: selectedQuote.requestToken,
     }),
     currency: expectedPayment.currency,
-    payToAddress: getOneRequestSellerMetadata().payToAddress,
+    payToAddress: seller.payToAddress,
+    payToAsset: seller.payToAsset,
+    payToMintAddress: seller.payToMintAddress,
+    payToTokenAccountAddress: seller.payToTokenAccountAddress,
+    payToTokenDecimals: seller.payToTokenDecimals,
+    payToTokenProgramAddress: seller.payToTokenProgramAddress,
     quoteExpiresAt: selectedQuote.expiresAt,
     quoteToken: selectedQuote.quoteToken,
     receipt: input.paymentReceipt,
@@ -3353,6 +3362,7 @@ async function executeConfirmedBorealProviderRoute(input: {
     }
 
     const expectedPayment = getExpectedProviderRoutePayment(admittedRoute);
+    const seller = getOneRequestSellerMetadata();
 
     paymentVerification = await verifyOneRequestPayment({
       amount: expectedPayment.amount,
@@ -3363,7 +3373,12 @@ async function executeConfirmedBorealProviderRoute(input: {
         requestToken: selectedRoute.quote.requestToken,
       }),
       currency: expectedPayment.currency,
-      payToAddress: getOneRequestSellerMetadata().payToAddress,
+      payToAddress: seller.payToAddress,
+      payToAsset: seller.payToAsset,
+      payToMintAddress: seller.payToMintAddress,
+      payToTokenAccountAddress: seller.payToTokenAccountAddress,
+      payToTokenDecimals: seller.payToTokenDecimals,
+      payToTokenProgramAddress: seller.payToTokenProgramAddress,
       quoteExpiresAt: selectedRoute.quote.expiresAt,
       quoteToken: selectedRoute.quote.quoteToken,
       receipt: paymentReceipt,
@@ -3695,6 +3710,7 @@ async function retryTrackedBorealProviderRoute(input: {
     }
 
     const expectedPayment = getExpectedProviderRoutePayment(admittedRoute);
+    const seller = getOneRequestSellerMetadata();
 
     paymentVerification = await verifyOneRequestPayment({
       amount: expectedPayment.amount,
@@ -3705,7 +3721,12 @@ async function retryTrackedBorealProviderRoute(input: {
         requestToken: selectedRoute.quote.requestToken,
       }),
       currency: expectedPayment.currency,
-      payToAddress: getOneRequestSellerMetadata().payToAddress,
+      payToAddress: seller.payToAddress,
+      payToAsset: seller.payToAsset,
+      payToMintAddress: seller.payToMintAddress,
+      payToTokenAccountAddress: seller.payToTokenAccountAddress,
+      payToTokenDecimals: seller.payToTokenDecimals,
+      payToTokenProgramAddress: seller.payToTokenProgramAddress,
       quoteExpiresAt: selectedRoute.quote.expiresAt,
       quoteToken: selectedRoute.quote.quoteToken,
       receipt: paymentReceipt,
@@ -4097,7 +4118,7 @@ function isOpenAIRateLimitError(error: unknown) {
 
 function getExpectedProviderRoutePayment(route: ProviderRouteOption) {
   if (
-    route.pricingPolicy.kind === "flat-sol" ||
+    route.pricingPolicy.kind === "flat-usdc" ||
     route.pricingPolicy.kind === "x402-fixed"
   ) {
     return {
@@ -4108,7 +4129,7 @@ function getExpectedProviderRoutePayment(route: ProviderRouteOption) {
 
   return {
     amount: 0,
-    currency: "USD",
+    currency: "USDC",
   };
 }
 
@@ -4532,7 +4553,7 @@ function buildMountedSpecialistRoutePlan(input: {
     assetPrompt: input.intent.assetPrompt,
     capabilityTags: input.intent.capabilityTags,
     category: input.intent.category,
-    currency: "USD",
+    currency: "USDC",
     estimatedMinutes: Math.max(2, selected.length * 3),
     keywords: input.intent.keywords,
     networkKey: getDefaultSolanaNetworkKey(),
@@ -4586,11 +4607,11 @@ function buildTrackedSpecialistRouteOption(routePlan: OneRequestRoutePlan) {
     isDefault: true,
     networkHints: [routePlan.networkKey],
     paymentProtocol: routePlan.paymentProtocol,
-    priceLabel: `${SPECIALIST_FUNDED_START_SOL_AMOUNT} SOL`,
+    priceLabel: formatUsdcPriceLabel(SPECIALIST_FUNDED_START_USDC_AMOUNT),
     pricingPolicy: {
-      amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
-      currency: "SOL",
-      kind: "flat-sol",
+      amount: SPECIALIST_FUNDED_START_USDC_AMOUNT,
+      currency: "USDC",
+      kind: "flat-usdc",
       networkKey: routePlan.networkKey,
     },
     providerKey: "boreal",
@@ -4628,11 +4649,11 @@ function buildTrackedPresetTeamRouteOption(presetTeam: PresetTeamDefinition) {
     isDefault: true,
     networkHints: [networkKey],
     paymentProtocol: "x402",
-    priceLabel: `${SPECIALIST_FUNDED_START_SOL_AMOUNT} SOL`,
+    priceLabel: formatUsdcPriceLabel(SPECIALIST_FUNDED_START_USDC_AMOUNT),
     pricingPolicy: {
-      amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
-      currency: "SOL",
-      kind: "flat-sol",
+      amount: SPECIALIST_FUNDED_START_USDC_AMOUNT,
+      currency: "USDC",
+      kind: "flat-usdc",
       networkKey,
     },
     providerKey: "boreal",
@@ -5407,8 +5428,8 @@ function buildPresetTeamPreviewCatalogItems(
       matchStage: null,
       paymentNetworkHints: [],
       paymentProtocol: "x402",
-      priceAmount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
-      priceLabel: `${SPECIALIST_FUNDED_START_SOL_AMOUNT} SOL`,
+      priceAmount: SPECIALIST_FUNDED_START_USDC_AMOUNT,
+      priceLabel: formatUsdcPriceLabel(SPECIALIST_FUNDED_START_USDC_AMOUNT),
       requiresHumanApproval: false,
       reviewCount: 0,
       seller: null,

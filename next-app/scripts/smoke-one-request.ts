@@ -20,6 +20,11 @@ import {
   verifySiwxChallenge,
 } from "../lib/boreal/one-request/auth.ts";
 import { verifyOneRequestPayment } from "../lib/boreal/one-request/payment.ts";
+import {
+  deriveAssociatedTokenAddress,
+  getDefaultSolanaUsdcTokenProgramAddress,
+  toTokenAmountAtomic,
+} from "../lib/boreal/one-request/solana-usdc.ts";
 import { buildAutoRoutePlan, executeAutoRoute } from "../lib/boreal/one-request/routing.ts";
 import { getOneRequestSellerMetadata } from "../lib/boreal/one-request/seller.ts";
 
@@ -60,6 +65,15 @@ async function main() {
     seller.payToAddress,
     payoutAddress,
     "seller metadata should expose the configured pay-to address in smoke",
+  );
+  assert.equal(seller.payToAsset, "USDC", "seller metadata should expose USDC");
+  assert.ok(
+    seller.payToMintAddress,
+    "seller metadata should expose the configured USDC mint",
+  );
+  assert.ok(
+    seller.payToTokenAccountAddress,
+    "seller metadata should expose the configured USDC destination account",
   );
   assert.equal(
     seller.bazaar.discoverable,
@@ -181,7 +195,7 @@ async function main() {
   await client.mutation(api.requestApi.createRequestSession, {
     chainFamily: "solana",
     conversationId,
-    currency: "USD",
+    currency: routePlan!.currency,
     idempotencyKey,
     intentId: pipeline.intentId as Id<"intents">,
     intentKey: pipeline.intentKey,
@@ -226,6 +240,15 @@ async function main() {
     quoteToken,
     requestToken,
   });
+  const sourceUsdcAccount = deriveAssociatedTokenAddress({
+    mintAddress: seller.payToMintAddress!,
+    ownerAddress: walletAddress,
+    tokenProgramAddress: seller.payToTokenProgramAddress!,
+  });
+  const expectedPaymentAmount = toTokenAmountAtomic(
+    routePlan!.totalQuoteUsd,
+    seller.payToTokenDecimals!,
+  );
   const rpcServer = createServer((request, response) => {
     const chunks: Buffer[] = [];
     request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
@@ -243,6 +266,36 @@ async function main() {
             logMessages: [
               `Program log: Memo (len ${paymentReference.length}): ${paymentReference}`,
             ],
+            postTokenBalances: [
+              {
+                accountIndex: 3,
+                mint: seller.payToMintAddress,
+                owner: payoutAddress,
+                programId: seller.payToTokenProgramAddress,
+                uiTokenAmount: {
+                  amount: expectedPaymentAmount.toString(),
+                  decimals: seller.payToTokenDecimals,
+                  uiAmount: routePlan!.totalQuoteUsd,
+                  uiAmountString: routePlan!.totalQuoteUsd.toFixed(
+                    seller.payToTokenDecimals!,
+                  ),
+                },
+              },
+            ],
+            preTokenBalances: [
+              {
+                accountIndex: 3,
+                mint: seller.payToMintAddress,
+                owner: payoutAddress,
+                programId: seller.payToTokenProgramAddress,
+                uiTokenAmount: {
+                  amount: "0",
+                  decimals: seller.payToTokenDecimals,
+                  uiAmount: 0,
+                  uiAmountString: "0",
+                },
+              },
+            ],
           },
           slot: 123456,
           transaction: {
@@ -258,8 +311,36 @@ async function main() {
                   signer: false,
                   writable: true,
                 },
+                {
+                  pubkey: sourceUsdcAccount,
+                  signer: false,
+                  writable: true,
+                },
+                {
+                  pubkey: seller.payToTokenAccountAddress!,
+                  signer: false,
+                  writable: true,
+                },
+                {
+                  pubkey: seller.payToMintAddress!,
+                  signer: false,
+                  writable: false,
+                },
               ],
               instructions: [
+                {
+                  parsed: {
+                    destination: seller.payToTokenAccountAddress!,
+                    mint: seller.payToMintAddress!,
+                    source: sourceUsdcAccount,
+                    tokenAmount: {
+                      amount: expectedPaymentAmount.toString(),
+                      decimals: seller.payToTokenDecimals,
+                    },
+                  },
+                  program: "spl-token",
+                  programId: getDefaultSolanaUsdcTokenProgramAddress(),
+                },
                 {
                   parsed: {
                     destination: payoutAddress,
@@ -312,7 +393,7 @@ async function main() {
   const txHash = paymentReceiptHash(now);
   const paymentReceipt = {
     amount: routePlan!.totalQuoteUsd,
-    currency: "USD" as const,
+    currency: "USDC" as const,
     networkKey: "solana:mainnet" as const,
     payerSource: "agentcash" as const,
     quoteToken,
@@ -330,8 +411,13 @@ async function main() {
   const paymentVerification = await verifyOneRequestPayment({
     amount: routePlan!.totalQuoteUsd,
     authorizationMessage: quoteAuthorizationMessage,
-    currency: "USD",
+    currency: "USDC",
     payToAddress: seller.payToAddress,
+    payToAsset: seller.payToAsset,
+    payToMintAddress: seller.payToMintAddress,
+    payToTokenAccountAddress: seller.payToTokenAccountAddress,
+    payToTokenDecimals: seller.payToTokenDecimals,
+    payToTokenProgramAddress: seller.payToTokenProgramAddress,
     quoteExpiresAt,
     quoteToken,
     receipt: paymentReceipt,
@@ -346,8 +432,8 @@ async function main() {
   );
   assert.equal(
     paymentVerification.verificationMethod,
-    "solana_memo_payto",
-    "payment verification should switch to the pay-to-aware mode when configured",
+    "solana_usdc_memo_payto",
+    "payment verification should switch to the USDC pay-to-aware mode when configured",
   );
 
   await client.mutation(api.requestApi.recordQuotePayment, {

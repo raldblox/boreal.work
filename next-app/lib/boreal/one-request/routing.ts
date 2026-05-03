@@ -106,7 +106,7 @@ export function buildAutoRoutePlan(input: OneRequestIntentContext): OneRequestRo
     assetPrompt: input.intent.assetPrompt,
     capabilityTags: input.intent.capabilityTags,
     category: input.intent.category,
-    currency: "USD",
+    currency: "USDC",
     estimatedMinutes: Math.max(2, selected.length * 3),
     keywords: input.intent.keywords,
     networkKey: getDefaultSolanaNetworkKey(),

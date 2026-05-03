@@ -6,7 +6,7 @@ import {
   getPresetTeamDefinitionFromSourceCapabilityId,
   getPresetTeamStarterPromptInventory,
   listPublicPresetTeamCatalogEntries,
-  PRESET_TEAM_FUNDED_START_SOL_AMOUNT,
+  PRESET_TEAM_FUNDED_START_USDC_AMOUNT,
 } from "../lib/boreal/swarm/preset-teams.ts"
 import {
   buildPresetTeamBlueprint,
@@ -85,8 +85,8 @@ assert.equal(listings[0]?.title, "Debate and Verdict")
 assert.equal(listings[0]?.sourceCapabilityId, sourceCapabilityId)
 assert.equal(listings[0]?.supplyType, "collective")
 assert.equal(listings[0]?.paymentProtocol, "x402")
-assert.equal(listings[0]?.currency, "SOL")
-assert.equal(listings[0]?.priceAmount, PRESET_TEAM_FUNDED_START_SOL_AMOUNT)
+assert.equal(listings[0]?.currency, "USDC")
+assert.equal(listings[0]?.priceAmount, PRESET_TEAM_FUNDED_START_USDC_AMOUNT)
 assert.equal(listings[0]?.checkoutProtocol, "custom")
 
 console.log("smoke-preset-teams passed")

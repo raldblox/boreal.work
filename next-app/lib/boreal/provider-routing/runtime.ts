@@ -6,6 +6,7 @@ import {
   buildPaymentAuthorizationMessage,
   buildPaymentReferenceMemo,
 } from "@/lib/boreal/one-request/auth";
+import { formatUsdcPriceLabel } from "@/lib/boreal/one-request/pricing";
 import { getOneRequestSellerMetadata } from "@/lib/boreal/one-request/seller";
 import { getDefaultSolanaNetworkKey } from "@/lib/boreal/solana-network";
 import { listDiscoveredCapabilities } from "@/lib/boreal/integrations/service-providers/registry";
@@ -191,7 +192,7 @@ function toProviderRouteOption(input: {
       ? "Free access"
       : requiresPayment
         ? input.entry.deliveryMode === "boreal-hosted"
-          ? "0.001 SOL gate"
+          ? `${formatPricingPolicyLabel(input.entry.pricingPolicy)} gate`
           : "x402 gated"
         : "Ready",
     company: input.entry.company,
@@ -203,8 +204,8 @@ function toProviderRouteOption(input: {
     networkHints: input.entry.networkHints,
     paymentProtocol: input.entry.paymentProtocol,
     priceLabel: requiresPayment
-      ? input.entry.pricingPolicy.kind === "flat-sol"
-        ? `${input.entry.pricingPolicy.amount} ${input.entry.pricingPolicy.currency}`
+      ? input.entry.pricingPolicy.kind === "flat-usdc"
+        ? formatUsdcPriceLabel(input.entry.pricingPolicy.amount)
         : input.entry.pricingPolicy.kind === "x402-fixed"
           ? `${input.entry.pricingPolicy.amount} ${input.entry.pricingPolicy.currency}`
           : "Payment required"
@@ -214,16 +215,16 @@ function toProviderRouteOption(input: {
     quote: requiresPayment
       ? buildProviderRouteQuote({
           amount:
-            input.entry.pricingPolicy.kind === "flat-sol" ||
+            input.entry.pricingPolicy.kind === "flat-usdc" ||
             input.entry.pricingPolicy.kind === "x402-fixed"
               ? input.entry.pricingPolicy.amount
               : 0,
           currency:
-            input.entry.pricingPolicy.kind === "flat-sol"
+            input.entry.pricingPolicy.kind === "flat-usdc"
               ? input.entry.pricingPolicy.currency
               : input.entry.pricingPolicy.kind === "x402-fixed"
                 ? input.entry.pricingPolicy.currency
-                : "USD",
+                : "USDC",
           routeKey: input.entry.routeKey,
         })
       : null,
@@ -263,12 +264,31 @@ function buildProviderRouteQuote(input: {
     expiresAt: Date.now() + PROVIDER_SELECTION_QUOTE_TTL_MS,
     networkKey: getDefaultSolanaNetworkKey(),
     payToAddress: seller.payToAddress,
+    payToAsset: seller.payToAsset,
+    payToMintAddress: seller.payToMintAddress,
+    payToTokenAccountAddress: seller.payToTokenAccountAddress,
+    payToTokenDecimals: seller.payToTokenDecimals,
+    payToTokenProgramAddress: seller.payToTokenProgramAddress,
     payerSources: ["openwallet", "agentcash"],
     paymentProtocol: "x402",
     paymentReference,
     quoteToken,
     requestToken,
   };
+}
+
+function formatPricingPolicyLabel(
+  pricingPolicy: ProviderRouteMatrixEntry["pricingPolicy"],
+) {
+  if (pricingPolicy.kind === "flat-usdc") {
+    return formatUsdcPriceLabel(pricingPolicy.amount);
+  }
+
+  if (pricingPolicy.kind === "x402-fixed") {
+    return `${pricingPolicy.amount} ${pricingPolicy.currency}`;
+  }
+
+  return "Payment required";
 }
 
 async function discoverCuratedProviderRoutes() {
