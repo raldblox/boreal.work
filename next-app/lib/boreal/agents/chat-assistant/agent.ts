@@ -73,7 +73,10 @@ import {
   buildAutoRoutePlan,
   executeAutoRoute,
 } from "@/lib/boreal/one-request/routing";
-import { getDefaultSolanaNetworkKey } from "@/lib/boreal/solana-network.ts";
+import {
+  getDefaultSolanaNetworkKey,
+  type BorealSolanaNetworkKey,
+} from "@/lib/boreal/solana-network.ts";
 import type {
   ChatAssistantResponse,
   ChatAssistantDebugEvent,
@@ -120,7 +123,9 @@ import {
   type RequestTeamBlueprint,
 } from "@/lib/boreal/swarm/team-blueprint";
 import {
+  buildPresetTeamSourceCapabilityId,
   getPresetTeamDefinition,
+  getPresetTeamDefinitionFromSourceCapabilityId,
   getPresetTeamMemberByAgentKey,
   resolvePresetTeamDefinitionFromBlueprint,
   type PresetTeamDefinition,
@@ -1315,14 +1320,20 @@ export async function fundPersistedRequest(input: {
     throw new Error("This request no longer has a locked payment route.");
   }
 
-  const lockedRoutePlan = buildLockedAssignedSpecialistRoutePlan({
-    providerKey: provider.key,
-    request,
+  const lockedPresetTeam = resolveLockedPresetTeamDefinition({
     requestDetail,
-    runtimeConfig,
+    route: selectedRoute,
   });
+  const lockedRoutePlan = lockedPresetTeam
+    ? null
+    : buildLockedAssignedSpecialistRoutePlan({
+        providerKey: provider.key,
+        request,
+        requestDetail,
+        runtimeConfig,
+      });
 
-  if (!lockedRoutePlan) {
+  if (!lockedPresetTeam && !lockedRoutePlan) {
     throw new Error("The locked specialist route could not be rebuilt.");
   }
 
@@ -1347,19 +1358,21 @@ export async function fundPersistedRequest(input: {
     return {
       assistantMessage: "",
       intentId: input.intentId,
-      relatedCatalogItems: mergePreviewCatalogItems(
-        request.catalogQuery.trim().length > 0
-          ? await withRetry(
-              () =>
-                searchCatalog({
-                  limit: 6,
-                  query: request.catalogQuery,
-                }),
-              { attempts: 2 },
-            )
-          : [],
-        buildRoutePreviewCatalogItems(lockedRoutePlan),
-      ),
+      relatedCatalogItems: lockedPresetTeam
+        ? buildPresetTeamPreviewCatalogItems(lockedPresetTeam)
+        : mergePreviewCatalogItems(
+            request.catalogQuery.trim().length > 0
+              ? await withRetry(
+                  () =>
+                    searchCatalog({
+                      limit: 6,
+                      query: request.catalogQuery,
+                    }),
+                  { attempts: 2 },
+                )
+              : [],
+            buildRoutePreviewCatalogItems(lockedRoutePlan),
+          ),
       workspace: buildSpecialistPaymentWorkspace({
         selection: {
           ...pendingSelection,
@@ -1444,6 +1457,16 @@ export async function fundPersistedRequest(input: {
     ownerExternalId,
   });
 
+  if (lockedPresetTeam) {
+    return resumeFundedPresetTeamExecutionForRequest({
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intent: toPersistedExecutionIntent(request, runtimeConfig, provider.key),
+      intentId: input.intentId,
+      ownerExternalId,
+      presetTeam: lockedPresetTeam,
+    });
+  }
+
   return runApprovedSpecialistExecutionForRequest({
     input: {
       intentId: input.intentId,
@@ -1451,7 +1474,7 @@ export async function fundPersistedRequest(input: {
     },
     provider,
     request,
-    routePlan: lockedRoutePlan,
+    routePlan: lockedRoutePlan!,
     runtimeConfig,
   });
 }
@@ -3974,6 +3997,53 @@ async function recordTrackedRequestPaymentArtifacts(input: {
   });
 }
 
+async function resumeFundedPresetTeamExecutionForRequest(input: {
+  conversationId: string;
+  intent: PersistedIntent;
+  intentId: string;
+  ownerExternalId: string;
+  presetTeam: PresetTeamDefinition;
+}) {
+  const fundedAssignedTeamJson = serializeAssignedPresetTeam(input.presetTeam, {
+    currentSpeakerKey: input.presetTeam.members[0]?.agentKey ?? null,
+    cycleNumber: 1,
+    cycleStartedAt: Date.now(),
+    lastAdvanceAt: null,
+    nextTurnIndex: 0,
+    retryAttempt: 0,
+    retryScheduledAt: null,
+    lastError: null,
+    runStatus: "running",
+  });
+
+  await approveRequestDraft({
+    assignedAgent: input.presetTeam.teamDisplayName,
+    assignedTeamJson: fundedAssignedTeamJson,
+    assistantMessage:
+      input.presetTeam.teamDisplayName === "Debate and Verdict"
+        ? "Funding verified. Boreal is starting Debate and Verdict in this same request thread. Mara is up first."
+        : `Funding verified. Boreal is starting ${input.presetTeam.teamDisplayName} in this same request thread.`,
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+    status: "claimed",
+  });
+
+  await queuePresetRoomAdvance({
+    delayMs: PRESET_ROOM_ADVANCE_DELAY_MS,
+    expectedCycleNumber: 1,
+    expectedTurnIndex: 0,
+    intentId: input.intentId,
+    ownerExternalId: input.ownerExternalId,
+    retryAttempt: 0,
+  });
+
+  return buildPresetRoomThreadResponse({
+    conversationId: input.conversationId,
+    intent: input.intent,
+    intentId: input.intentId,
+  });
+}
+
 function buildProviderReceiptActivityPayload(input: {
   paymentReceipt: ProviderRoutePaymentReceipt;
   route: ProviderRouteOption;
@@ -4545,6 +4615,42 @@ function buildTrackedSpecialistRouteOption(routePlan: OneRequestRoutePlan) {
   } satisfies ProviderRouteOption;
 }
 
+function buildTrackedPresetTeamRouteOption(presetTeam: PresetTeamDefinition) {
+  const networkKey = getDefaultSolanaNetworkKey();
+
+  return {
+    accessLabel: "Funding required",
+    company: "openai",
+    deliveryMode: "boreal-hosted",
+    displayTitle: presetTeam.teamDisplayName,
+    executionSurface: "sdk",
+    fallbackOrder: 0,
+    isDefault: true,
+    networkHints: [networkKey],
+    paymentProtocol: "x402",
+    priceLabel: `${SPECIALIST_FUNDED_START_SOL_AMOUNT} SOL`,
+    pricingPolicy: {
+      amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+      currency: "SOL",
+      kind: "flat-sol",
+      networkKey,
+    },
+    providerKey: "boreal",
+    quote: null,
+    receiptExpectation: {
+      requiresSignedMessage: true,
+      requiresTxHash: true,
+      requiresVerification: true,
+    },
+    requiresPayment: true,
+    routeKey: `tracked-preset-team:${presetTeam.key}`,
+    sourceCapabilityId: buildPresetTeamSourceCapabilityId(presetTeam.key),
+    sourceProviderKey: null,
+    subtitle: `${presetTeam.teamDisplayName} starts after funding in this same tracked request thread.`,
+    supportsDirectInvoke: true,
+  } satisfies ProviderRouteOption;
+}
+
 function buildSpecialistPaymentWorkspace(input: {
   selection: ProviderSelectionState;
   subtitle?: string;
@@ -4562,23 +4668,45 @@ function buildSpecialistPaymentWorkspace(input: {
   } satisfies WorkspaceState;
 }
 
-async function ensureTrackedSpecialistPaymentSelection(input: {
+function serializeTrackedProviderRoute(route: ProviderRouteOption) {
+  return serializeTrackedProviderSelectionSnapshot({
+    company: route.company,
+    deliveryMode: route.deliveryMode,
+    displayTitle: route.displayTitle,
+    executionSurface: route.executionSurface,
+    fallbackOrder: route.fallbackOrder,
+    networkHints: route.networkHints,
+    paymentProtocol: route.paymentProtocol,
+    pricingPolicy: route.pricingPolicy,
+    providerKey: route.providerKey,
+    receiptExpectation: route.receiptExpectation,
+    requiresPayment: route.requiresPayment,
+    routeKey: route.routeKey,
+    sourceCapabilityId: route.sourceCapabilityId ?? null,
+    sourceProviderKey: route.sourceProviderKey ?? null,
+    subtitle: route.subtitle,
+    supportsDirectInvoke: route.supportsDirectInvoke,
+  });
+}
+
+async function ensureTrackedProviderPaymentSelection(input: {
   conversationId: string;
+  idempotencyKey: string;
   intentId: string;
   intentKey: string;
+  networkKey: BorealSolanaNetworkKey;
   ownerDisplayName?: string;
   ownerExternalId: string;
   requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
-  routePlan: OneRequestRoutePlan;
+  route: ProviderRouteOption;
   summary: string;
   title: string;
   userMessage: string;
 }) {
   const client = createConvexServerClient();
   const requestFingerprint = hashPrompt(input.userMessage);
-  const idempotencyKey = `tracked-specialist:${input.intentId}`;
   const existingSession = await client.query(api.requestApi.findSessionForCaller, {
-    idempotencyKey,
+    idempotencyKey: input.idempotencyKey,
     ownerExternalId: input.ownerExternalId,
     requestFingerprint,
   });
@@ -4610,15 +4738,15 @@ async function ensureTrackedSpecialistPaymentSelection(input: {
     }
   }
 
-  const route = buildTrackedSpecialistRouteOption(input.routePlan);
+  const expectedPayment = getExpectedProviderRoutePayment(input.route);
   const requestToken =
     existingSession?.requestToken ??
     `req_locked_${crypto.randomUUID().replaceAll("-", "")}`;
   const quoteToken = `quote_${crypto.randomUUID().replaceAll("-", "")}`;
   const quoteExpiresAt = Date.now() + TRACKED_REQUEST_QUOTE_TTL_MS;
   const quoteAuthorizationMessage = buildPaymentAuthorizationMessage({
-    amount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
-    currency: "SOL",
+    amount: expectedPayment.amount,
+    currency: expectedPayment.currency,
     quoteToken,
     requestToken,
   });
@@ -4626,40 +4754,23 @@ async function ensureTrackedSpecialistPaymentSelection(input: {
   await client.mutation(api.requestApi.createRequestSession, {
     chainFamily: "solana",
     conversationId: input.conversationId,
-    currency: "SOL",
-    idempotencyKey,
+    currency: expectedPayment.currency,
+    idempotencyKey: input.idempotencyKey,
     intentId: input.intentId as never,
     intentKey: input.intentKey,
     message: input.userMessage,
-    networkKey: input.routePlan.networkKey,
+    networkKey: input.networkKey,
     ownerDisplayName: input.ownerDisplayName,
     ownerExternalId: input.ownerExternalId,
-    paymentProtocol: route.paymentProtocol,
-    quoteAmount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+    paymentProtocol: input.route.paymentProtocol,
+    quoteAmount: expectedPayment.amount,
     quoteAuthorizationMessage,
     quoteExpiresAt,
     quoteToken,
     requestFingerprint,
     requestToken,
     requestedOutputTypes: input.requestedOutputTypes,
-    routeJson: serializeTrackedProviderSelectionSnapshot({
-      company: route.company,
-      deliveryMode: route.deliveryMode,
-      displayTitle: route.displayTitle,
-      executionSurface: route.executionSurface,
-      fallbackOrder: route.fallbackOrder,
-      networkHints: route.networkHints,
-      paymentProtocol: route.paymentProtocol,
-      pricingPolicy: route.pricingPolicy,
-      providerKey: route.providerKey,
-      receiptExpectation: route.receiptExpectation,
-      requiresPayment: route.requiresPayment,
-      routeKey: route.routeKey,
-      sourceCapabilityId: route.sourceCapabilityId ?? null,
-      sourceProviderKey: route.sourceProviderKey ?? null,
-      subtitle: route.subtitle,
-      supportsDirectInvoke: route.supportsDirectInvoke,
-    }),
+    routeJson: serializeTrackedProviderRoute(input.route),
     status: "payment_required",
     summary: input.summary,
     title: input.title,
@@ -4669,31 +4780,14 @@ async function ensureTrackedSpecialistPaymentSelection(input: {
   const selection = buildTrackedProviderSelectionStateFromSession({
     lockedAt: Date.now(),
     message: input.userMessage,
-    networkKey: input.routePlan.networkKey,
-    quoteAmount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+    networkKey: input.networkKey,
+    quoteAmount: expectedPayment.amount,
     quoteAuthorizationMessage,
     quoteExpiresAt,
     quoteToken,
     requestFingerprint,
     requestToken,
-    routeJson: serializeTrackedProviderSelectionSnapshot({
-      company: route.company,
-      deliveryMode: route.deliveryMode,
-      displayTitle: route.displayTitle,
-      executionSurface: route.executionSurface,
-      fallbackOrder: route.fallbackOrder,
-      networkHints: route.networkHints,
-      paymentProtocol: route.paymentProtocol,
-      pricingPolicy: route.pricingPolicy,
-      providerKey: route.providerKey,
-      receiptExpectation: route.receiptExpectation,
-      requiresPayment: route.requiresPayment,
-      routeKey: route.routeKey,
-      sourceCapabilityId: route.sourceCapabilityId ?? null,
-      sourceProviderKey: route.sourceProviderKey ?? null,
-      subtitle: route.subtitle,
-      supportsDirectInvoke: route.supportsDirectInvoke,
-    }),
+    routeJson: serializeTrackedProviderRoute(input.route),
   });
 
   if (!selection) {
@@ -4701,6 +4795,62 @@ async function ensureTrackedSpecialistPaymentSelection(input: {
   }
 
   return selection;
+}
+
+async function ensureTrackedSpecialistPaymentSelection(input: {
+  conversationId: string;
+  intentId: string;
+  intentKey: string;
+  ownerDisplayName?: string;
+  ownerExternalId: string;
+  requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
+  routePlan: OneRequestRoutePlan;
+  summary: string;
+  title: string;
+  userMessage: string;
+}) {
+  return ensureTrackedProviderPaymentSelection({
+    conversationId: input.conversationId,
+    idempotencyKey: `tracked-specialist:${input.intentId}`,
+    intentId: input.intentId,
+    intentKey: input.intentKey,
+    networkKey: input.routePlan.networkKey,
+    ownerDisplayName: input.ownerDisplayName,
+    ownerExternalId: input.ownerExternalId,
+    requestedOutputTypes: input.requestedOutputTypes,
+    route: buildTrackedSpecialistRouteOption(input.routePlan),
+    summary: input.summary,
+    title: input.title,
+    userMessage: input.userMessage,
+  });
+}
+
+async function ensureTrackedPresetTeamPaymentSelection(input: {
+  conversationId: string;
+  intentId: string;
+  intentKey: string;
+  ownerDisplayName?: string;
+  ownerExternalId: string;
+  presetTeam: PresetTeamDefinition;
+  requestedOutputTypes: PersistedIntent["requestedOutputTypes"];
+  summary: string;
+  title: string;
+  userMessage: string;
+}) {
+  return ensureTrackedProviderPaymentSelection({
+    conversationId: input.conversationId,
+    idempotencyKey: `tracked-preset-team:${input.intentId}`,
+    intentId: input.intentId,
+    intentKey: input.intentKey,
+    networkKey: getDefaultSolanaNetworkKey(),
+    ownerDisplayName: input.ownerDisplayName,
+    ownerExternalId: input.ownerExternalId,
+    requestedOutputTypes: input.requestedOutputTypes,
+    route: buildTrackedPresetTeamRouteOption(input.presetTeam),
+    summary: input.summary,
+    title: input.title,
+    userMessage: input.userMessage,
+  });
 }
 
 function buildLockedAssignedSpecialistRoutePlan(input: {
@@ -4722,6 +4872,23 @@ function buildLockedAssignedSpecialistRoutePlan(input: {
   return lockedRoutePlan ? narrowSpecialistRoutePlanForExecution(lockedRoutePlan) : null;
 }
 
+function resolveLockedPresetTeamDefinition(input: {
+  requestDetail: NonNullable<Awaited<ReturnType<typeof getRequestDetailRecord>>>;
+  route: ProviderRouteOption;
+}) {
+  return (
+    getPresetTeamDefinitionFromSourceCapabilityId(input.route.sourceCapabilityId) ??
+    resolvePresetTeamDefinitionFromBlueprint({
+      members: input.requestDetail.assignment?.team?.members,
+      presetKey: input.requestDetail.assignment?.team?.presetKey,
+      teamDisplayName:
+        input.requestDetail.assignment?.team?.teamDisplayName ??
+        input.requestDetail.assignment?.agent ??
+        input.route.displayTitle,
+    })
+  );
+}
+
 async function startMountedPresetTeamExecution(input: {
   conversationId: string;
   input: ChatAssistantAgentInput;
@@ -4731,42 +4898,47 @@ async function startMountedPresetTeamExecution(input: {
   provider: ReturnType<typeof resolveProviderAdapter>;
   runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
 }) {
-  const initialCycleStartedAt = Date.now();
-  const openingMessage =
-    input.presetTeam.teamDisplayName === "Debate and Verdict"
-      ? "Boreal opened the Debate and Verdict room. Mara is framing the comparison now."
-      : `Boreal opened the ${input.presetTeam.teamDisplayName} room and the lead is starting now.`;
   const normalizedIntent = normalizePresetTeamIntentForExecution(
     input.intent,
     input.presetTeam,
   );
-  const assignedTeamJson = serializeAssignedPresetTeam(input.presetTeam, {
-    currentSpeakerKey: input.presetTeam.members[0]?.agentKey ?? null,
-    cycleNumber: 1,
-    cycleStartedAt: initialCycleStartedAt,
-    lastAdvanceAt: null,
-    nextTurnIndex: 0,
-    runStatus: "running",
-  });
+  const ownerExternalId = input.input.requester?.externalId?.trim();
+
+  if (!ownerExternalId) {
+    throw new Error("Sign in before starting a paid preset team request.");
+  }
+
+  const openingMessage = `Boreal opened one work thread for ${input.presetTeam.teamDisplayName}. Funding starts that preset team in this same request thread.`;
   const persistedResult = await saveIntentPipelineRecord({
-    assignedTeamJson,
+    assignedTeamJson: undefined,
     assistantMessage: openingMessage,
     conversationId: input.conversationId,
-    initialStatus: "claimed",
+    initialStatus: "payment_required",
     intent: normalizedIntent,
     ownerDisplayName: input.input.requester?.displayName,
-    ownerExternalId: input.input.requester?.externalId,
+    ownerExternalId,
     ownerHandle: input.input.requester?.handle,
+    userMessage: input.input.message,
+  });
+  const paymentSelection = await ensureTrackedPresetTeamPaymentSelection({
+    conversationId: persistedResult.conversationId,
+    intentId: persistedResult.intentId,
+    intentKey: persistedResult.intentKey,
+    ownerDisplayName: input.input.requester?.displayName,
+    ownerExternalId,
+    presetTeam: input.presetTeam,
+    requestedOutputTypes: normalizedIntent.requestedOutputTypes,
+    summary: normalizedIntent.summary,
+    title: normalizedIntent.title,
     userMessage: input.input.message,
   });
 
   await approveRequestDraft({
     assignedAgent: input.presetTeam.teamDisplayName,
-    assignedTeamJson,
-    assistantMessage: openingMessage,
+    assistantMessage: `Funding required before ${input.presetTeam.teamDisplayName} starts.`,
     intentId: persistedResult.intentId,
-    ownerExternalId: input.input.requester?.externalId,
-    status: "claimed",
+    ownerExternalId,
+    status: "payment_required",
   });
 
   await input.input.onStreamEvent?.({
@@ -4776,17 +4948,6 @@ async function startMountedPresetTeamExecution(input: {
     type: "request-opened",
   });
 
-  if (input.input.requester?.externalId) {
-    await queuePresetRoomAdvance({
-      delayMs: PRESET_ROOM_ADVANCE_DELAY_MS,
-      expectedCycleNumber: 1,
-      expectedTurnIndex: 0,
-      intentId: persistedResult.intentId,
-      ownerExternalId: input.input.requester.externalId,
-      retryAttempt: 0,
-    });
-  }
-
   return {
     assistantMessage: openingMessage,
     conversationId: persistedResult.conversationId,
@@ -4795,12 +4956,10 @@ async function startMountedPresetTeamExecution(input: {
     persisted: true,
     relatedCatalogItems: input.previewCatalogItems,
     requiresApproval: false,
-    workspace: {
-      kind: "empty",
-      subtitle:
-        "The debate room is open. Mara will frame the room first, then the next speakers will continue in this same request thread.",
-      title: "Preset team thread",
-    } satisfies WorkspaceState,
+    workspace: buildSpecialistPaymentWorkspace({
+      selection: paymentSelection,
+      subtitle: `Funding starts ${input.presetTeam.teamDisplayName} in this same request thread. Boreal records the signed receipt and verified Solana transaction before the room begins.`,
+    }),
   } satisfies ChatAssistantResponse;
 }
 
@@ -5231,11 +5390,11 @@ function buildPresetTeamPreviewCatalogItems(
       brand: "Boreal",
       capabilityTags: ["debate", "simulation", "strategy", "verdict"],
       category: "advisory",
-      checkoutProtocol: null,
-      currency: "USD",
+      checkoutProtocol: "custom",
+      currency: "SOL",
       deliveryType: "instant",
       description: presetTeam.description,
-      estimatedDeliveryLabel: "Instant debate",
+      estimatedDeliveryLabel: "Starts after funding",
       executionSurface: "sdk",
       executorUrl: null,
       fulfillmentKind: "service",
@@ -5247,9 +5406,9 @@ function buildPresetTeamPreviewCatalogItems(
       matchScore: null,
       matchStage: null,
       paymentNetworkHints: [],
-      paymentProtocol: "none",
-      priceAmount: null,
-      priceLabel: "Preset team",
+      paymentProtocol: "x402",
+      priceAmount: SPECIALIST_FUNDED_START_SOL_AMOUNT,
+      priceLabel: `${SPECIALIST_FUNDED_START_SOL_AMOUNT} SOL`,
       requiresHumanApproval: false,
       reviewCount: 0,
       seller: null,

@@ -64,6 +64,7 @@ export type PresetTeamDefinition = {
 }
 
 const PRESET_TEAM_SOURCE_CAPABILITY_PREFIX = "preset-team:"
+export const PRESET_TEAM_FUNDED_START_SOL_AMOUNT = 0.001
 
 const DEBATE_AND_VERDICT: PresetTeamDefinition = {
   description:
@@ -393,11 +394,11 @@ export function listPublicPresetTeamCatalogEntries(): CatalogEntry[] {
       "verdict",
     ],
     category: "advisory",
-    checkoutProtocol: null,
-    currency: "USD",
+    checkoutProtocol: "custom",
+    currency: "SOL",
     deliveryType: "instant",
     description: definition.description,
-    estimatedDeliveryLabel: "Instant debate",
+    estimatedDeliveryLabel: "Starts after funding",
     executionSurface: "sdk",
     executorUrl: null,
     fulfillmentKind: "service",
@@ -408,8 +409,8 @@ export function listPublicPresetTeamCatalogEntries(): CatalogEntry[] {
     matchScore: null,
     matchStage: null,
     paymentNetworkHints: [],
-    paymentProtocol: "none",
-    priceAmount: 0,
+    paymentProtocol: "x402",
+    priceAmount: PRESET_TEAM_FUNDED_START_SOL_AMOUNT,
     priceType: "fixed",
     requiresHumanApproval: false,
     reviewCount: 0,

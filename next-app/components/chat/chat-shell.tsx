@@ -962,8 +962,14 @@ export function ChatShell() {
         activeIntentId,
         presetDefinition: activePresetDefinition,
         presetState: activePresetRoomState,
+        requestStatus: requestDetail?.intent?.status ?? null,
       })?.[0] ?? null,
-    [activeIntentId, activePresetDefinition, activePresetRoomState]
+    [
+      activeIntentId,
+      activePresetDefinition,
+      activePresetRoomState,
+      requestDetail?.intent?.status,
+    ]
   )
   const presetRoomRetryStatus = useMemo(() => {
     if (clientPresetRoomRetryStatus) {
@@ -998,7 +1004,7 @@ export function ChatShell() {
   const mountedTeamLabel = formatMountedComposerTeamLabel(activeComposerAgents)
   const homeComposerPlaceholder =
     !activeIntentId && mountedComposerAgents.length > 0
-      ? `Describe the task for ${mountedTeamLabel}. Boreal will create the request and start that team right away.`
+      ? `Describe the task for ${mountedTeamLabel}. Boreal will open one tracked request for that team.`
       : "I'm afraid you can also ask me anything. Boreal can answer first, then match and route the work."
   const threadComposerPlaceholder =
     activeIntentId && requestComposerAgents.length > 0
@@ -2466,6 +2472,7 @@ export function ChatShell() {
       activeIntentId,
       presetDefinition: activePresetDefinition,
       presetState: activePresetRoomState,
+      requestStatus: requestDetail?.intent?.status ?? null,
     })
 
     activeChatAbortControllerRef.current?.abort()
@@ -6707,6 +6714,7 @@ function isMountedRequestSetupMessage(
       (body.includes("started the request immediately") ||
         body.includes("Funding starts execution in this same request thread") ||
         body.includes("Funding starts that agent team in this same request thread") ||
+        body.includes("Funding starts that preset team in this same request thread") ||
         body.includes("started the debate immediately") ||
         body.includes("started that preset team immediately") ||
         body.includes("started that agent team immediately") ||
@@ -9918,10 +9926,12 @@ function buildPendingPresetTeamTurns(input: {
   activeIntentId: string | null
   presetDefinition: ReturnType<typeof resolvePresetTeamDefinitionFromBlueprint>
   presetState: PresetTeamState | null | undefined
+  requestStatus: string | null
 }): PresetTeamStreamTurn[] | undefined {
   if (
     !input.presetDefinition ||
     !input.presetState ||
+    input.requestStatus === "payment_required" ||
     input.presetState.runStatus !== "running"
   ) {
     return undefined
@@ -10469,7 +10479,7 @@ function buildMountedTeamIntroMessage(agents: MountedComposerAgent[]): ChatMessa
 
   if (presetTeam) {
     return {
-      content: `${presetTeam.teamDisplayName} is selected. Send one professional comparison or tradeoff and Boreal will open the request and start the room right away.`,
+      content: `${presetTeam.teamDisplayName} is selected. Send one professional comparison or tradeoff and Boreal will open one tracked request. Funding starts that preset team in this same thread.`,
       createdAt: Date.now(),
       id: MOUNTED_TEAM_THREAD_MESSAGE_ID,
       role: "assistant",
@@ -10479,8 +10489,8 @@ function buildMountedTeamIntroMessage(agents: MountedComposerAgent[]): ChatMessa
   return {
     content:
       agents.length === 1
-        ? `${agents[0]!.title} is selected. ${soloSpecialistMeta ? `Runtime: ${soloSpecialistMeta.providerCompany} • ${soloSpecialistMeta.model}. ` : ""}Describe the task and Boreal will open the request and start that specialist right away.`
-        : `${formatMountedComposerTeamLabel(agents)} are selected. Describe the task and Boreal will open one request for this agent team right away.`,
+        ? `${agents[0]!.title} is selected. ${soloSpecialistMeta ? `Runtime: ${soloSpecialistMeta.providerCompany} | ${soloSpecialistMeta.model}. ` : ""}Describe the task and Boreal will open one tracked request for that specialist.`
+        : `${formatMountedComposerTeamLabel(agents)} are selected. Describe the task and Boreal will open one tracked request for this agent team.`,
     createdAt: Date.now(),
     id: MOUNTED_TEAM_THREAD_MESSAGE_ID,
     role: "assistant",
