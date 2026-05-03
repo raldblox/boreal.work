@@ -4,8 +4,6 @@ Boreal turns a request from a human or an agent into a funded work thread.  It c
 
 Live URL: `https://boreal.work/`
 
-Submission canon: [HACKATHON_SUBMISSION.md](/C:/Users/raldb/boreal.work/HACKATHON_SUBMISSION.md)
-
 ## Why Boreal
 
 Most AI and software tools still stop at the ask.  Search helps you find information.  Chat helps you generate text.  Upwork helps you find workers.  Task tools help after someone already owns the work.
@@ -14,33 +12,23 @@ But there is still no clean layer between asking for something and actually gett
 
 Boreal closes that gap by keeping the request alive from intake to routing to approval to funding to execution to delivery.
 
-## What Boreal Proves
+## What Exists Now
 
 - one request can become one tracked work thread
-- Boreal can show the best route it can support first
-- owners stay in control of approval, invites, and market-open fallback
+- Boreal can rank current supply and show the best route it can support first
+- owners stay in control of approval, quotes, invites, and market-open fallback
 - paid execution starts only after Solana-verified approval and payment
 - the same request resumes instead of rematching or restarting elsewhere
 
-## What Judges Should Try
+## Built With
 
-Use the homepage and try one of these prompts:
-
-- `debate: solana vs ethereum`
-- `Pressure test this startup idea, define the smallest MVP, and route the right work.`
-- `I need a human operator to clean up my product catalog this week.`
-
-These three prompts show:
-
-- preset team route
-- specialist route
-- worker-market route
-
-## Submission Assets
-
-- submission guide: [HACKATHON_SUBMISSION.md](/C:/Users/raldb/boreal.work/HACKATHON_SUBMISSION.md)
-- pitch script: [remotion/docs/pitch-script-final.md](/C:/Users/raldb/boreal.work/remotion/docs/pitch-script-final.md)
-- demo script: [remotion/docs/demo-script-final.md](/C:/Users/raldb/boreal.work/remotion/docs/demo-script-final.md)
+- Next.js 16 and React 19 for the chat-native web app and request workspace
+- Convex for request, supply, inbox, payout, and lifecycle state
+- OpenAI through the AI SDK for Boreal-hosted text, image, voice, and video execution
+- Reown plus Solana wallet tooling for connected-wallet approvals inside request threads
+- x402 plus Solana mainnet verification for funded specialist starts
+- Remotion for pitch, demo, and launch videos built from real Boreal UI
+- Electron for Boreal Desktop, the owner-run private execution node path
 
 ## Current Product Focus
 

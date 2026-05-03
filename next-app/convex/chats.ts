@@ -8,6 +8,7 @@ import {
   type RequestedOutputType,
   type ToolRoute,
 } from "../lib/boreal/schemas/intent";
+import { resolveMatchSurfaceClassification } from "../lib/boreal/request-matching-policy.ts";
 import {
   parseRequestTeamBlueprint,
   serializeRequestTeamBlueprint,
@@ -266,6 +267,11 @@ export const recordIntentPipeline = mutation({
       type: "request.detected",
     });
 
+    const matchingClassification = resolveMatchSurfaceClassification({
+      classification: args.intent.classification,
+      requestStatus: status,
+    });
+
     const matching = await persistIntentMatchCandidates(ctx, {
       body: args.intent.body,
       budgetMax: undefined,
@@ -273,7 +279,7 @@ export const recordIntentPipeline = mutation({
       capabilityTags: args.intent.capabilityTags,
       catalogQuery: args.intent.catalogQuery,
       category: args.intent.category,
-      classification: args.intent.classification,
+      classification: matchingClassification ?? args.intent.classification,
       deadlineAt: undefined,
       embedding: args.intent.embedding,
       intentId,
@@ -346,6 +352,11 @@ export const approveRequest = mutation({
     const now = Date.now();
     const nextStatus = args.status ?? "claimed";
 
+    const matchingClassification = resolveMatchSurfaceClassification({
+      classification: intent.classification,
+      requestStatus: nextStatus,
+    });
+
     await persistIntentMatchCandidates(ctx, {
       body: intent.body,
       budgetMax: intent.budgetMax,
@@ -353,7 +364,7 @@ export const approveRequest = mutation({
       capabilityTags: intent.capabilityTags,
       catalogQuery: intent.catalogQuery,
       category: intent.category,
-      classification: intent.classification,
+      classification: matchingClassification ?? intent.classification,
       deadlineAt: intent.deadlineAt,
       embedding: intent.embedding,
       intentId: intent._id,

@@ -21,7 +21,10 @@ import {
 import { isLocalRuntimeSupply } from "../lib/boreal/external-agents/local-runtime.ts";
 import { createPublicRequestToken } from "../lib/boreal/one-inbox/tokens.ts";
 import { isDesktopNodeSupplyRecord, parseDesktopNodeMetadata } from "../lib/boreal/desktop-nodes/contracts.ts";
-import { shouldFetchRequestMatches } from "../lib/boreal/request-matching-policy.ts";
+import {
+  resolveMatchSurfaceClassification,
+  shouldFetchRequestMatches,
+} from "../lib/boreal/request-matching-policy.ts";
 import { buildTrackedProviderSelectionStateFromSession } from "../lib/boreal/provider-routing/tracked-request-selection.ts";
 import { parseRequestTeamBlueprint } from "../lib/boreal/swarm/team-blueprint.ts";
 import {
@@ -363,8 +366,12 @@ export const getRequestDetail = query({
     });
     const fulfillment = await getRequestFulfillment(ctx, intent, acceptedProposal);
     const normalizedIntent = sanitizeStoredIntentShape(intent);
+    const matchSurfaceClassification = resolveMatchSurfaceClassification({
+      classification: normalizedIntent.classification,
+      requestStatus: intent.status,
+    });
     const matchCandidates =
-      shouldFetchRequestMatches(normalizedIntent.classification)
+      shouldFetchRequestMatches(matchSurfaceClassification)
         ? await listIntentMatchCandidates(
             ctx,
             {
@@ -375,7 +382,8 @@ export const getRequestDetail = query({
               capabilityTags: intent.capabilityTags,
               catalogQuery: intent.catalogQuery,
               category: intent.category,
-              classification: normalizedIntent.classification,
+              classification:
+                matchSurfaceClassification ?? normalizedIntent.classification,
               deadlineAt: intent.deadlineAt,
               embedding: intent.embedding,
               intentKey: intent.intentKey,
@@ -730,6 +738,11 @@ export const refineRequestMatches = mutation({
       updatedAt: now,
     });
 
+    const matchSurfaceClassification = resolveMatchSurfaceClassification({
+      classification: normalizedIntent.classification,
+      requestStatus: intent.status,
+    });
+
     const result = await persistIntentMatchCandidates(ctx, {
       body: intent.body,
       budgetMax: intent.budgetMax,
@@ -737,7 +750,8 @@ export const refineRequestMatches = mutation({
       capabilityTags: intent.capabilityTags,
       catalogQuery: query,
       category: intent.category,
-      classification: normalizedIntent.classification,
+      classification:
+        matchSurfaceClassification ?? normalizedIntent.classification,
       deadlineAt: intent.deadlineAt,
       embedding: intent.embedding,
       intentId: intent._id,

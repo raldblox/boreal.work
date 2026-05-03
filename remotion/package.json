@@ -14,6 +14,7 @@
     "render:truth:showcase": "remotion render src/index.ts BorealShowcase60 out/BorealShowcase60.mp4",
     "render:truth:update": "remotion render src/index.ts BorealUpdate out/BorealUpdate.mp4",
     "render:truth:launch": "remotion render src/index.ts BorealLaunch out/BorealLaunch.mp4",
+    "render:pitch": "remotion render src/index.ts PitchVideo out/PitchVideo.mp4",
     "render:short:intent": "remotion render src/index.ts ShortIntentHook20Sec out/ShortIntentHook20Sec.mp4",
     "render:short:flow": "remotion render src/index.ts ShortChatToOutcome30Sec out/ShortChatToOutcome30Sec.mp4",
     "render:short:supply": "remotion render src/index.ts ShortSupplyMarket25Sec out/ShortSupplyMarket25Sec.mp4",

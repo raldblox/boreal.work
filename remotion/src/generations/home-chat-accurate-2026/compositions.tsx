@@ -282,7 +282,7 @@ const REQUEST_SEQUENCE_DURATION = LOADING_START - REQUEST_SCENE_START;
 const LOADING_SEQUENCE_DURATION = LOADER_HOLD_DURATION;
 const THREAD_SCENE_START = LOADING_START + LOADING_SEQUENCE_DURATION;
 const THREAD_SEQUENCE_DURATION = THREAD_SCENE_DURATION;
-const HOME_CHAT_DURATION = THREAD_SCENE_START + THREAD_SEQUENCE_DURATION;
+export const HOME_CHAT_DURATION = THREAD_SCENE_START + THREAD_SEQUENCE_DURATION;
 
 const getDotMatrixProgress = (frame: number) => {
   const elapsedFrames = Math.max(0, frame - LOADING_START);
@@ -687,7 +687,7 @@ const PromptComposer: React.FC<{frame: number}> = ({frame}) => {
   );
 };
 
-const PromptBurstScene: React.FC<{frame: number}> = ({frame}) => {
+export const PromptBurstScene: React.FC<{frame: number}> = ({frame}) => {
   const transitionProgress =
     frame >= CHAT_EXIT_START
       ? interpolate(frame, [CHAT_EXIT_START, REQUEST_SCENE_START], [0, 1], {
@@ -1011,7 +1011,7 @@ const StreamRequestCard: React.FC<{
   );
 };
 
-const RequestRoutingScene: React.FC<{frame: number}> = ({frame}) => {
+export const RequestRoutingScene: React.FC<{frame: number}> = ({frame}) => {
   const shadowOpacity = interpolate(frame, [SECOND_CARD_START - 4, SECOND_CARD_START + 8], [0, 1], CLAMP);
   const scrollOffset = getRequestScrollOffset(frame);
   const feedOpacity = interpolate(frame, [FEED_FADE_START, LOADING_START], [1, 0], CLAMP);
@@ -1145,7 +1145,7 @@ const DotMatrixLoader: React.FC<{frame: number}> = ({frame}) => {
   );
 };
 
-const LoadingScene: React.FC<{frame: number}> = ({frame}) => {
+export const LoadingScene: React.FC<{frame: number}> = ({frame}) => {
   return (
     <div
       style={{
@@ -1383,7 +1383,7 @@ const ThreadComposer: React.FC<{participants: StoryParticipant[]}> = ({participa
   );
 };
 
-const RequestThreadScene: React.FC<{frame: number}> = ({frame}) => {
+export const RequestThreadScene: React.FC<{frame: number}> = ({frame}) => {
   const threadFrame = Math.max(0, frame - THREAD_SCENE_START);
   const shellProgress = interpolate(threadFrame, [0, THREAD_SHELL_FADE_DURATION], [0, 1], CLAMP);
   const requestProgress = interpolate(
@@ -1491,7 +1491,7 @@ const RequestThreadScene: React.FC<{frame: number}> = ({frame}) => {
   );
 };
 
-const HomeChatMockup: React.FC = () => {
+export const HomeChatMockup: React.FC = () => {
   const frame = useCurrentFrame();
 
   return (

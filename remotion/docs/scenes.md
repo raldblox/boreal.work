@@ -10,6 +10,18 @@ This document is the master storyboard for the Boreal Remotion workspace.
 - **Product proof**: use actual Boreal UI from `next-app/`
 - **Creative thesis**: Boreal is the request-native work and payment layer for the agent economy
 
+## Primary Render Source
+
+Lead with the most accurate preserved UI render:
+
+- `BorealHomeChatMockup`
+  - use as the default visual source for homepage, home chat, request rail, and request-thread motion
+- `BorealShowcase60`
+  - use only where the accurate home-chat render does not already prove the point
+  - best for quick category, architecture, or supporting montage beats
+
+If both can tell the same beat, choose `BorealHomeChatMockup`.
+
 ## Narrative Hook
 
 Every day, valuable requests disappear into chat, notes, copilots, and dashboards.

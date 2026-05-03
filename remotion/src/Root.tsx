@@ -11,6 +11,7 @@ import {
 import {BorealFilm, type BorealFilmProps} from "./compositions/BorealFilm";
 import {BorealAccurateHomeChatCompositions} from "./generations/home-chat-accurate-2026/compositions";
 import {BorealTruthful2026Compositions} from "./generations/request-native-2026/compositions";
+import {BorealVideosCompositions} from "./projects/boreal-videos/compositions";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -55,6 +56,7 @@ export const RemotionRoot: React.FC = () => {
 
       <BorealTruthful2026Compositions />
       <BorealAccurateHomeChatCompositions />
+      <BorealVideosCompositions />
     </>
   );
 };

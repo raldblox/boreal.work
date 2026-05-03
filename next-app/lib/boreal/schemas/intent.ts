@@ -457,7 +457,7 @@ function workerMarketCandidatePool(): RequestCandidatePool {
     actorKinds: ["human", "agent"],
     deliveryTypes: ["async", "scheduled"],
     fulfillmentKinds: ["digital", "service", "hybrid"],
-    requiresCartEnabled: false,
+    requiresCartEnabled: null,
     requiresDirectInvoke: false,
     requiresSourceProvider: false,
     supplyTypes: ["capability", "agent_tool", "collective"],

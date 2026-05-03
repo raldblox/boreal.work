@@ -3,6 +3,26 @@
 This is the master voiceover source for the Boreal Remotion film.  
 It should now stay aligned with `remotion/docs/scenes.md`, the funded-request wedge in `ONE_REQUEST_API.md`, and the product canon in `BOREAL_BOOK.md`.
 
+For the current final split scripts, use:
+
+- `remotion/docs/pitch-script-final.md`
+- `remotion/docs/demo-script-final.md`
+
+For clean spoken-only demo narration, use `remotion/docs/demo-voice-scripts-clean.md`.
+
+## Primary Visual Source
+
+Use the preserved accurate render sources first:
+
+- `BorealHomeChatMockup`
+  - primary UI truth source
+  - best for homepage, home chat, request rail, and request-thread shell
+- `BorealShowcase60`
+  - support source only
+  - use for quick architecture, category, and close moments when the accurate home-chat render alone is not enough
+
+Do not let older generic surface mocks lead the pitch if the newer accurate render already shows the same product truth more honestly.
+
 ## Rule
 
 This is product narration, not a feature dump.
