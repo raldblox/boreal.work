@@ -10,19 +10,20 @@ import {
   buildPaymentReferenceMemo,
   createOpaqueToken,
   createRequestFingerprint,
+  getProvisionalExternalId,
+  getWalletDisplayName,
+  getWalletExternalId,
 } from "@/lib/boreal/one-request/auth";
 import {
   buildSessionEnvelope,
   buildTrackingUrls,
   getIdempotencyKey,
-  parsePaymentReceiptHeader,
-  requireAgentSession,
+  readOptionalAgentSession,
 } from "@/lib/boreal/one-request/http";
 import {
   assertOneRequestIntakeAllowed,
   ONE_REQUEST_GUARD_WINDOW_MS,
 } from "@/lib/boreal/one-request/guards";
-import { verifyOneRequestPayment } from "@/lib/boreal/one-request/payment";
 import { buildAutoRoutePlan } from "@/lib/boreal/one-request/routing";
 import { getOneRequestSellerMetadata } from "@/lib/boreal/one-request/seller";
 import {
@@ -32,14 +33,20 @@ import {
   prepareOneRequest,
 } from "@/lib/boreal/one-request/service";
 import type {
-  OneRequestPaymentReceipt,
   OneRequestRoutePlan,
   OneRequestRouteSelection,
 } from "@/lib/boreal/one-request/types";
 import { getDefaultSolanaNetworkKey } from "@/lib/boreal/solana-network";
+import {
+  attachBorealX402SettlementHeaders,
+  createBorealX402Challenge,
+  createBorealX402RequiredResponse,
+  verifyAndSettleBorealX402,
+} from "@/lib/boreal/x402/server";
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
 const LOCKED_QUOTE_CURRENCY = "USDC";
+const PROVISIONAL_OWNER_LABEL = "Boreal guest";
 
 type RequestSessionState = {
   conversationId?: string | null;
@@ -47,6 +54,9 @@ type RequestSessionState = {
   intentId?: Id<"intents"> | null;
   intentKey?: string | null;
   message: string;
+  networkKey: string;
+  ownerDisplayName?: string | null;
+  ownerExternalId: string;
   payerSource?: "agentcash" | "openwallet" | null;
   quoteAmount: number;
   quoteAuthorizationMessage: string;
@@ -70,7 +80,6 @@ type RequestSessionState = {
 
 export async function POST(request: Request) {
   try {
-    const caller = requireAgentSession(request);
     const body = (await request.json()) as {
       message?: string;
       mode?: string;
@@ -90,6 +99,16 @@ export async function POST(request: Request) {
 
     const requestFingerprint = createRequestFingerprint(message);
     const idempotencyKey = getIdempotencyKey(request, requestFingerprint);
+    const authenticatedCaller = readOptionalAgentSession(request);
+    const caller =
+      authenticatedCaller ??
+      {
+        displayName: PROVISIONAL_OWNER_LABEL,
+        externalId: getProvisionalExternalId(
+          `${idempotencyKey}:${requestFingerprint}`,
+        ),
+        walletAddress: "pending",
+      };
     const networkKey = getDefaultSolanaNetworkKey();
     const convex = createConvexServerClient();
     const existing = await convex.query(api.requestApi.findSessionForCaller, {
@@ -100,10 +119,10 @@ export async function POST(request: Request) {
 
     if (existing) {
       return await handleExistingSession({
+        authenticatedCaller,
         caller,
         convex,
         existing,
-        paymentReceipt: parsePaymentReceiptHeader(request),
         request,
       });
     }
@@ -318,19 +337,27 @@ export async function POST(request: Request) {
       walletAddress: caller.walletAddress,
     });
 
-    return NextResponse.json(
-      buildPaymentRequiredResponse({
-        conversationId,
-        intentId: persisted.intentId,
-        quoteAuthorizationMessage,
-        quoteExpiresAt,
-        quoteToken,
-        request,
-        requestToken,
-        routePlan,
-      }),
-      { status: 402 },
-    );
+    const paymentRequiredBody = buildPaymentRequiredResponse({
+      conversationId,
+      intentId: persisted.intentId,
+      quoteAuthorizationMessage,
+      quoteExpiresAt,
+      quoteToken,
+      request,
+      requestToken,
+      routePlan,
+    });
+    const paymentChallenge = await createBorealX402Challenge({
+      memo: paymentRequiredBody.quote.paymentReference,
+      request,
+      resourceDescription: routePlan.summary,
+      resourcePath: "/api/v1/requests",
+    });
+
+    return createBorealX402RequiredResponse({
+      body: paymentRequiredBody,
+      challenge: paymentChallenge,
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to process Boreal one-request call.";
@@ -351,10 +378,10 @@ export async function POST(request: Request) {
 }
 
 async function handleExistingSession(input: {
-  caller: ReturnType<typeof requireAgentSession>;
+  authenticatedCaller: ReturnType<typeof readOptionalAgentSession>;
+  caller: NonNullable<ReturnType<typeof readOptionalAgentSession>>;
   convex: ReturnType<typeof createConvexServerClient>;
   existing: RequestSessionState;
-  paymentReceipt: OneRequestPaymentReceipt | null;
   request: Request;
 }) {
   const route = safeParseJson(input.existing.routeJson);
@@ -379,22 +406,41 @@ async function handleExistingSession(input: {
     case "payment_required":
       if (input.existing.quoteExpiresAt <= Date.now()) {
         const refreshed = await refreshExpiredQuote(input);
-
-        return NextResponse.json(
-          buildExistingPaymentResponse(
-            input.request,
-            refreshed,
-            safeParseJson(refreshed.routeJson),
-          ),
-          { status: 402 },
+        const refreshedBody = buildExistingPaymentResponse(
+          input.request,
+          refreshed,
+          safeParseJson(refreshed.routeJson),
         );
+        const refreshedChallenge = await createBorealX402Challenge({
+          memo: refreshedBody.quote.paymentReference,
+          request: input.request,
+          resourceDescription: refreshed.summary,
+          resourcePath: "/api/v1/requests",
+        });
+
+        return createBorealX402RequiredResponse({
+          body: refreshedBody,
+          challenge: refreshedChallenge,
+        });
       }
 
-      if (!input.paymentReceipt) {
-        return NextResponse.json(
-          buildExistingPaymentResponse(input.request, input.existing, route),
-          { status: 402 },
+      if (!hasStandardX402PaymentHeader(input.request)) {
+        const paymentRequiredBody = buildExistingPaymentResponse(
+          input.request,
+          input.existing,
+          route,
         );
+        const paymentChallenge = await createBorealX402Challenge({
+          memo: paymentRequiredBody.quote.paymentReference,
+          request: input.request,
+          resourceDescription: input.existing.summary,
+          resourcePath: "/api/v1/requests",
+        });
+
+        return createBorealX402RequiredResponse({
+          body: paymentRequiredBody,
+          challenge: paymentChallenge,
+        });
       }
       return executePaidSession(input, route);
     case "paid":
@@ -408,60 +454,135 @@ async function handleExistingSession(input: {
 
 async function executePaidSession(
   input: {
-    caller: ReturnType<typeof requireAgentSession>;
+    authenticatedCaller: ReturnType<typeof readOptionalAgentSession>;
+    caller: NonNullable<ReturnType<typeof readOptionalAgentSession>>;
     convex: ReturnType<typeof createConvexServerClient>;
     existing: RequestSessionState;
-    paymentReceipt: OneRequestPaymentReceipt | null;
     request: Request;
   },
   route: Record<string, unknown>,
 ) {
   const routePlan = reviveRoutePlan(route);
+  let effectiveCaller = input.caller;
+  let settledPaymentResponse: {
+    network: string;
+    payer: string;
+    success: true;
+    transaction: string;
+  } | null = null;
 
   if (input.existing.status === "payment_required") {
-    if (!input.paymentReceipt) {
-      return NextResponse.json(
-        buildExistingPaymentResponse(input.request, input.existing, route),
-        { status: 402 },
-        );
+    const paymentRequiredBody = buildExistingPaymentResponse(
+      input.request,
+      input.existing,
+      route,
+    );
+    const paymentChallenge = await createBorealX402Challenge({
+      memo: paymentRequiredBody.quote.paymentReference,
+      request: input.request,
+      resourceDescription: input.existing.summary,
+      resourcePath: "/api/v1/requests",
+    });
+    const paidX402 = await verifyAndSettleBorealX402({
+      challenge: paymentChallenge,
+    });
+    const settledWalletAddress = paidX402.verification.payer?.trim();
+    const settledNetwork = paidX402.settlement.network?.trim();
+    const settledTransaction = paidX402.settlement.transaction?.trim();
+    const settledPayer = paidX402.settlement.payer?.trim() || settledWalletAddress;
+
+    if (!settledWalletAddress) {
+      throw new Error("Boreal x402 facilitator did not return the payer wallet.");
     }
 
-    const seller = getOneRequestSellerMetadata();
-    const verification = await verifyOneRequestPayment({
-      amount: input.existing.quoteAmount,
-      authorizationMessage: input.existing.quoteAuthorizationMessage,
-      currency: input.existing.currency,
-      payToAddress: seller.payToAddress,
-      payToAsset: seller.payToAsset,
-      payToMintAddress: seller.payToMintAddress,
-      payToTokenAccountAddress: seller.payToTokenAccountAddress,
-      payToTokenDecimals: seller.payToTokenDecimals,
-      payToTokenProgramAddress: seller.payToTokenProgramAddress,
-      quoteExpiresAt: input.existing.quoteExpiresAt,
-      quoteToken: input.existing.quoteToken,
-      receipt: input.paymentReceipt,
-      requestToken: input.existing.requestToken,
-      walletAddress: input.caller.walletAddress,
-    });
+    if (!settledNetwork) {
+      throw new Error("Boreal x402 settlement did not include a network.");
+    }
+
+    if (!settledTransaction) {
+      throw new Error("Boreal x402 settlement did not include a transaction hash.");
+    }
+
+    if (!settledPayer) {
+      throw new Error("Boreal x402 settlement did not include a payer address.");
+    }
+
+    settledPaymentResponse = {
+      network: settledNetwork,
+      payer: settledPayer,
+      success: true,
+      transaction: settledTransaction,
+    };
+
+    if (
+      input.authenticatedCaller &&
+      input.authenticatedCaller.walletAddress !== settledWalletAddress
+    ) {
+      throw new Error(
+        "Authenticated SIWX wallet does not match the wallet that signed the x402 payment.",
+      );
+    }
+
+    const nextOwnerExternalId = getWalletExternalId(settledWalletAddress);
+    const nextOwnerDisplayName = getWalletDisplayName(settledWalletAddress);
+
+    if (nextOwnerExternalId !== input.existing.ownerExternalId) {
+      await input.convex.mutation(api.requestApi.rebindRequestSessionOwner, {
+        currentOwnerExternalId: input.existing.ownerExternalId,
+        nextOwnerExternalId,
+        ownerDisplayName: nextOwnerDisplayName,
+        requestToken: input.existing.requestToken,
+        walletAddress: settledWalletAddress,
+      });
+      effectiveCaller = {
+        displayName: nextOwnerDisplayName,
+        externalId: nextOwnerExternalId,
+        walletAddress: settledWalletAddress,
+      };
+    } else {
+      effectiveCaller = {
+        displayName: nextOwnerDisplayName,
+        externalId: nextOwnerExternalId,
+        walletAddress: settledWalletAddress,
+      };
+    }
 
     await input.convex.mutation(api.requestApi.recordQuotePayment, {
-      ownerExternalId: input.caller.externalId,
-      payerSource: input.paymentReceipt.payerSource,
-      paymentReceiptJson: JSON.stringify(input.paymentReceipt),
-      paymentVerificationJson: JSON.stringify(verification),
+      ownerExternalId: effectiveCaller.externalId,
+      payerSource: "openwallet",
+      paymentReceiptJson: JSON.stringify({
+        amount: input.existing.quoteAmount,
+        currency: input.existing.currency,
+        networkKey: input.existing.networkKey,
+        payerSource: "openwallet",
+        quoteToken: input.existing.quoteToken,
+        requestToken: input.existing.requestToken,
+        signature: "x402",
+        signedMessage: input.existing.quoteAuthorizationMessage,
+        txHash: settledTransaction,
+        walletAddress: settledWalletAddress,
+      }),
+      paymentVerificationJson: JSON.stringify({
+        network: settledNetwork,
+        payer: settledWalletAddress,
+        settledAt: Date.now(),
+        settlementProtocol: "x402",
+        txHash: settledTransaction,
+        verification: paidX402.verification,
+      }),
       requestToken: input.existing.requestToken,
-      txHash: input.paymentReceipt.txHash,
+      txHash: settledTransaction,
     });
   }
 
   await input.convex.mutation(api.requestApi.markExecutionStarted, {
-    ownerExternalId: input.caller.externalId,
+    ownerExternalId: effectiveCaller.externalId,
     requestToken: input.existing.requestToken,
   });
 
   try {
     const execution = await executeAndPersistOneRequest({
-      caller: input.caller,
+      caller: effectiveCaller,
       intentId: String(input.existing.intentId),
       intentKey: String(input.existing.intentKey),
       persistedIntent: (() => {
@@ -553,7 +674,7 @@ async function executePaidSession(
     }));
 
     await input.convex.mutation(api.requestApi.markRequestDelivered, {
-      ownerExternalId: input.caller.externalId,
+      ownerExternalId: effectiveCaller.externalId,
       payoutTargets,
       requestToken: input.existing.requestToken,
       resultJson: JSON.stringify({
@@ -563,23 +684,31 @@ async function executePaidSession(
     });
 
     const delivered = await input.convex.query(api.requestApi.getRequestSession, {
-      ownerExternalId: input.caller.externalId,
+      ownerExternalId: effectiveCaller.externalId,
       requestToken: input.existing.requestToken,
     });
 
-    return NextResponse.json(
+    return attachBorealX402SettlementHeaders(
+      NextResponse.json(
       buildExistingEnvelope(
         input.request,
         delivered ?? input.existing,
         safeParseJson((delivered ?? input.existing).routeJson),
       ),
+      ),
+      settledPaymentResponse ?? {
+        network: getDefaultSolanaNetworkKey(),
+        payer: effectiveCaller.walletAddress,
+        success: true,
+        transaction: "",
+      },
     );
   } catch (error) {
     await input.convex.mutation(api.requestApi.markRequestFailed, {
       errorCode: "execution_failed",
       errorMessage:
         error instanceof Error ? error.message : "One-request execution failed.",
-      ownerExternalId: input.caller.externalId,
+      ownerExternalId: effectiveCaller.externalId,
       requestToken: input.existing.requestToken,
     });
 
@@ -594,10 +723,9 @@ async function executePaidSession(
 }
 
 async function refreshExpiredQuote(input: {
-  caller: ReturnType<typeof requireAgentSession>;
+  caller: NonNullable<ReturnType<typeof readOptionalAgentSession>>;
   convex: ReturnType<typeof createConvexServerClient>;
   existing: RequestSessionState;
-  paymentReceipt: OneRequestPaymentReceipt | null;
   request: Request;
 }) {
   const quoteToken = createOpaqueToken("quote", input.existing.requestToken);
@@ -815,6 +943,10 @@ function reviveRouteSelection(entry: Record<string, unknown>): OneRequestRouteSe
     quoteUsd: Number(entry.quoteUsd ?? agent.settlement?.autoQuoteUsd ?? 0),
     score: Number(entry.score ?? 0),
   };
+}
+
+function hasStandardX402PaymentHeader(request: Request) {
+  return request.headers.has("PAYMENT-SIGNATURE");
 }
 
 function safeParseJson(value: string) {

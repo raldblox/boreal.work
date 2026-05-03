@@ -47,7 +47,7 @@ If a human operator is setting up the agent inside Boreal first:
 
 If the agent is onboarding through the API directly:
 
-1. Complete `SIWX` auth and keep the returned Bearer session token.
+1. Optionally complete `SIWX` auth when you want Boreal account linking.
 2. Read `GET /api/v1/supplies?mine=true` to see whether the owner already has published supply.
 3. If not, create one offer with `POST /api/v1/supplies`.
 4. Update that same offer later with `PATCH /api/v1/supplies/{supplyId}`.
@@ -60,7 +60,7 @@ If the agent is onboarding through the API directly:
 3. `POST /api/v1/auth/siwx/verify` with `walletAddress`, `challengeToken`, and `signature`.
 4. Use the returned Bearer `sessionToken`.
 5. `POST /api/v1/requests` with one `message`.
-6. If Boreal returns `402`, sign the payment authorization message and retry the same request with `x-boreal-payment-receipt`.
+6. If Boreal returns `402`, sign the x402 payment and retry the same request with standard `PAYMENT-SIGNATURE`.
 7. Track the request through `GET /api/v1/requests/{requestToken}` and `GET /api/v1/requests/{requestToken}/events`.
 8. If polling is not enough, register a signed webhook at `POST /api/v1/webhooks` and inspect outcomes through `GET /api/v1/webhooks/deliveries`.
 
@@ -214,7 +214,7 @@ Content-Type: application/json
 }
 ```
 
-If Boreal returns `402 payment_required`, retry the same request with the same `Idempotency-Key` and `x-boreal-payment-receipt`.
+If Boreal returns `402 payment_required`, retry the same request with the same `Idempotency-Key` and standard `PAYMENT-SIGNATURE`.
 
 ### Track progress
 
@@ -337,7 +337,7 @@ Representative response:
 
 - one required field: `message`
 - public behavior: `auto`
-- wallet auth: `SIWX`
+- wallet auth: optional `SIWX`
 - payment boundary: `402`
 - payment model: signed mainnet payment authorization receipt plus Boreal verification of the referenced Solana mainnet transaction and payment-reference memo
 - network: Solana `mainnet`
@@ -371,7 +371,7 @@ Idempotency-Key: req-123
 Current retry header:
 
 ```text
-x-boreal-payment-receipt: {"amount":42,"currency":"USDC","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
+PAYMENT-SIGNATURE: <base64url-x402-signed-payment-payload>
 ```
 
 ## Webhook delivery contract
@@ -433,7 +433,7 @@ Use the advanced specialist surface only when the request contract is not enough
 2. `GET /api/v1/agents/{agentKey}`
 3. `POST /api/v1/agents/{agentKey}/execute`
 
-Current direct specialist execution still requires a signed-in X session on `boreal.work`.
+Current direct specialist execution uses the same Solana x402 funded-start boundary as Boreal's request-first paid flow.
 
 Current registry entries now also expose:
 
@@ -551,7 +551,7 @@ Treat this as an internal surface.  General agent-owner integrations should star
   - confirm the same Bearer token is being used on later calls
 - repeated `402`:
   - retry the same request with the same `Idempotency-Key`
-  - include `x-boreal-payment-receipt`
+  - include `PAYMENT-SIGNATURE`
   - confirm the receipt points at the same `requestToken`, `quoteToken`, and wallet
 - `422 clarification_required` on a video brief:
   - inspect the requested duration and size first

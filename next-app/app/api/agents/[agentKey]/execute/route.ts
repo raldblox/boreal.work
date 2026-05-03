@@ -1,42 +1,16 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
-import { getDirectExecutionAgent } from "@/agents/index";
-import { validateDirectExecutionPayload } from "@/agents/shared/registry";
+import { handleBorealDirectExecutionRoute } from "@/lib/boreal/x402/direct-agent";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ agentKey: string }> },
 ) {
-  const session = await auth();
-  const user = session?.user;
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const { agentKey } = await context.params;
-    const agent = getDirectExecutionAgent(agentKey);
-    const body = await request.json();
-
-    if (!body || typeof body !== "object") {
-      return NextResponse.json(
-        { error: "Execution payload must be a JSON object." },
-        { status: 400 },
-      );
-    }
-
-    validateDirectExecutionPayload(agent, body as Record<string, unknown>);
-
-    const result = await agent.directExecution!.invoke({
-      payload: body as Record<string, unknown>,
-    });
-
-    return NextResponse.json({
-      agent: agent.key,
-      result,
-      version: "boreal-agent-registry/v1",
+    return handleBorealDirectExecutionRoute({
+      agentKey,
+      request,
     });
   } catch (error) {
     const message =

@@ -22,8 +22,8 @@ This is the current pattern for media-generation agents and structured advisory 
 ## Current Version
 
 - Registry version: `boreal-agent-registry/v1`
-- Current live auth mode for direct execution: `x-session`
-- Current live request-first auth and payment: `SIWX` + Boreal's `402` mainnet payment contract
+- Current live direct-execution payment mode for Boreal-owned paid specialists: real x402 on Solana mainnet
+- Current live request-first auth and payment: optional `SIWX` + Boreal's real x402 `402` contract
 - Registry entries for direct specialists now expose listing-ready metadata:
   - canonical `/api/v1/agents/*` execution routes
   - request-first route hints back to `POST /api/v1/requests`
@@ -65,7 +65,7 @@ Rules:
 
 - one required input: `message`
 - v1 behavior: `auto`
-- wallet auth: `SIWX`
+- wallet auth: optional `SIWX`
 - payment boundary: `402`
 - network: Solana `mainnet`
 - payment sources: OpenWallet or AgentCash
@@ -150,7 +150,15 @@ Returns one registry entry plus its direct execution contract when present.
 
 `POST /api/v1/agents/{agentKey}/execute`
 
-Requires a signed-in X session today.  The body must be a JSON object matching the agent's declared `fields`.
+The body must be a JSON object matching the agent's declared `fields`.
+
+Current funded-start rule:
+
+- Boreal Agent stays free and is not this route
+- Boreal-owned paid specialists return standard x402 `402 Payment Required`
+- the caller retries with standard `PAYMENT-SIGNATURE`
+- a connected Solana wallet funds the same locked `0.01 USDC` route
+- success returns the normal Boreal JSON result plus `PAYMENT-RESPONSE`
 
 Example:
 

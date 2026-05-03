@@ -4,22 +4,44 @@ import { getWalletDisplayName, getWalletExternalId, verifySessionToken } from ".
 import type { OneRequestPaymentReceipt } from "./types";
 
 export function requireAgentSession(request: Request) {
-  const authorization = request.headers.get("authorization")?.trim() ?? "";
-  const token = authorization.startsWith("Bearer ")
-    ? authorization.slice("Bearer ".length).trim()
-    : "";
+  const payload = readAgentSessionPayload(request);
 
-  if (!token) {
+  if (!payload) {
     throw new Error("Missing Bearer session token.");
   }
-
-  const payload = verifySessionToken(token);
 
   return {
     displayName: getWalletDisplayName(payload.walletAddress),
     externalId: getWalletExternalId(payload.walletAddress),
     walletAddress: payload.walletAddress,
   };
+}
+
+export function readOptionalAgentSession(request: Request) {
+  const payload = readAgentSessionPayload(request);
+
+  if (!payload) {
+    return null;
+  }
+
+  return {
+    displayName: getWalletDisplayName(payload.walletAddress),
+    externalId: getWalletExternalId(payload.walletAddress),
+    walletAddress: payload.walletAddress,
+  };
+}
+
+function readAgentSessionPayload(request: Request) {
+  const authorization = request.headers.get("authorization")?.trim() ?? "";
+  const token = authorization.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length).trim()
+    : "";
+
+  if (!token) {
+    return null;
+  }
+
+  return verifySessionToken(token);
 }
 
 export function parsePaymentReceiptHeader(request: Request): OneRequestPaymentReceipt | null {

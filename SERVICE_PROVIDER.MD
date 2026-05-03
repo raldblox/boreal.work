@@ -38,7 +38,8 @@ Important distinction:
 
 Current hardening note:
 
-- payment confirmation is currently a signed mainnet payment authorization receipt plus independently fetched Solana mainnet transaction verification, Boreal transaction, settlement, and payout records
+- Boreal's own paid specialist surfaces now use real x402 request and response semantics on Solana mainnet
+- Boreal uses CDP as the primary facilitator and Rapid402 as fallback for its own paid Solana x402 paths
 - Boreal still does not claim treasury/payto-grade settlement verification or payout-grade on-chain payout verification for this path
 
 ## Implementation Progress
@@ -52,7 +53,7 @@ The first real service-provider layer is now in the repo.
 - `supplies` now carries external execution and payment metadata for provider-backed listings.
 - Boreal can sync external listings from Agentic Market through `POST /api/service-providers/agentic-market/sync`.
 - Boreal can place supported provider-backed listings into cart and move them through payment-aware checkout state.
-- Boreal uses Privy-backed x402 payment initiation for supported direct-invoke endpoints.
+- Boreal uses Reown-backed Solana x402 payment initiation for its supported paid direct-invoke and request-thread endpoints.
 
 ### Current boundary
 
@@ -60,8 +61,8 @@ The first real service-provider layer is now in the repo.
 - Parameterized, ambiguous, or insufficiently normalized external listings are still discovery and handoff surfaces, not fully automatic execution.
 - `/account` and the profile builder author Boreal-native custom service offers and digital products only.
 - Provider-backed services still enter Boreal through provider sync routes, not through the native profile builder.
-- Boreal home chat now has a pre-execution provider picker for Boreal Agent itself, but V1 only executes the Boreal-hosted OpenAI lane.  Curated external lanes can be surfaced only when the scout admits them, and they should stay hidden or non-executable until Boreal has a safe direct invoke path plus stable receipt proof for that lane.
-- The signed-in chat surface now records normalized request-thread payment receipts and verification cards whenever a paid route is used.
+- Boreal home chat now has a pre-execution provider picker for Boreal Agent itself, but V1 only executes the Boreal-hosted OpenAI lane.  Curated external lanes can be surfaced only when the scout admits them, and they should stay hidden or non-executable until Boreal has a safe direct invoke path plus stable x402 proof for that lane.
+- The signed-in chat surface now records normalized request-thread x402 verification cards whenever a paid route is used.
 - MoonPay and MPP remain architecture targets.
 - AgentCash and Frames now have curated discovery or onboarding adapters in Boreal's service-provider layer, but they are still not end-to-end shipped execution paths in the current alpha.
 - The premium one-request path now ships as a public `POST /api/v1/requests` contract with SIWX auth, `402`, request events, specialist execution, and a deterministic smoke test.
@@ -75,7 +76,7 @@ Recommended foundation:
 1. Keep the existing model-provider adapter for LLM/media models only.
 2. Add a new `service-provider` adapter layer for registries, callable APIs, MCP servers, widgets, and Solana execution toolkits.
 3. Make `x402` the first payment rail Boreal supports directly.
-4. Use `Privy` as the human wallet broker and approval surface.
+4. Use `Reown` as the human Solana wallet broker and approval surface.
 5. Treat `Solana Agent Kit` as Boreal's first native Solana execution engine.
 6. Use `MoonPay` as the first funding, bridge, and on/off-ramp adapter.
 7. Ingest `agentic.market` first as a registry source because it already exposes a machine-readable service index and includes listings with Solana network support.
@@ -86,7 +87,7 @@ Recommended foundation:
 
 If Boreal wants to be Solana-first, the first shippable stack should be:
 
-- `Privy` for user auth and wallet approval
+- `Reown` for connected Solana wallet approval
 - `x402` with Solana support for paid HTTP services
 - `agentic.market` for external service discovery
 - `Solana Agent Kit` for Boreal-controlled Solana actions

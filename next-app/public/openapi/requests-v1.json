@@ -93,12 +93,13 @@
     "/api/v1/requests": {
       "post": {
         "summary": "Create or resume a Boreal request",
-        "description": "Accepts one natural-language message, routes it through Boreal's deterministic auto path, returns 402 when payment is required, and resumes the locked route when the signed payment receipt is provided. Video requests currently support only 4, 8, or 12 seconds and only 720x1280, 1280x720, 1024x1792, or 1792x1024 output sizes. When omitted, Boreal defaults video requests to 8 seconds at 1280x720.",
+        "description": "Accepts one natural-language message, routes it through Boreal's deterministic auto path, returns 402 when payment is required, and resumes the locked route when the caller retries with standard x402 payment headers. Video requests currently support only 4, 8, or 12 seconds and only 720x1280, 1280x720, 1024x1792, or 1792x1024 output sizes. When omitted, Boreal defaults video requests to 8 seconds at 1280x720.",
         "operationId": "createOrResumeRequest",
         "security": [
           {
             "BearerSession": []
-          }
+          },
+          {}
         ],
         "parameters": [
           {
@@ -111,13 +112,13 @@
             "description": "Recommended stable caller key for request deduplication and retry."
           },
           {
-            "name": "x-boreal-payment-receipt",
+            "name": "PAYMENT-SIGNATURE",
             "in": "header",
             "required": false,
             "schema": {
               "type": "string"
             },
-            "description": "JSON or base64url-encoded payment receipt used to resume a frozen paid route."
+            "description": "Base64url-encoded x402 signed payment payload used to resume a frozen paid route."
           }
         ],
         "requestBody": {

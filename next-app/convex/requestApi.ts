@@ -361,6 +361,32 @@ export const refreshQuote = mutation({
   },
 });
 
+export const rebindRequestSessionOwner = mutation({
+  args: {
+    currentOwnerExternalId: v.string(),
+    nextOwnerExternalId: v.string(),
+    ownerDisplayName: v.optional(v.string()),
+    requestToken: v.string(),
+    walletAddress: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const session = await getSessionByToken(ctx, args.requestToken);
+
+    if (!session || session.ownerExternalId !== args.currentOwnerExternalId) {
+      return { rebound: false };
+    }
+
+    await ctx.db.patch(session._id, {
+      ownerDisplayName: args.ownerDisplayName,
+      ownerExternalId: args.nextOwnerExternalId,
+      updatedAt: Date.now(),
+      walletAddress: args.walletAddress,
+    });
+
+    return { rebound: true };
+  },
+});
+
 export const recordQuotePayment = mutation({
   args: {
     ownerExternalId: v.string(),

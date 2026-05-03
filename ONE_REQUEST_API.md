@@ -2,7 +2,7 @@
 
 Status: live request-first paid execution contract.
 
-Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed mainnet payment authorization receipt plus an independently fetched Solana mainnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  When Boreal's seller `payToAddress` is configured, the verified transaction must now also deliver the exact locked `USDC` amount into Boreal's configured destination token account on Solana mainnet.  `SIWX` challenges are single-use, and deployed one-request auth must provide `BOREAL_ONE_REQUEST_SECRET` instead of relying on a shared production fallback.  What is still not claimed is treasury custody or downstream payout settlement beyond that verified inbound transfer.
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now uses real x402 request and response semantics on Solana mainnet: standard `PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, and `PAYMENT-RESPONSE` headers, CDP as the primary facilitator, Rapid402 as fallback, and a flat `0.01 USDC` funded-start for Boreal-owned paid routes.  Optional `SIWX` can still link the request to a Boreal account, but the public paid route no longer requires Bearer auth to get through the payment boundary.  What is still not claimed is treasury custody or downstream payout settlement beyond that verified inbound transfer.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ This is the contract Boreal should converge around whenever work is paid and det
 
 Boreal Agent can stay free in the product chat surface for intake, clarification, and routing.  This contract starts when Boreal has a paid route to lock and needs one funded request thread to carry the work.
 
-This surface is agent-facing first.  It is not X-auth-based, and it does not require the caller to choose a provider or specialist up front.
+This surface is agent-facing first.  It is not X-auth-based, and it does not require the caller to choose a provider or specialist up front.  `SIWX` is optional on the paid public route: use it when you want the request linked to a Boreal identity, but Boreal can still bind the paid request to the Solana wallet that signed the x402 payment.
 
 Supplier-side companion:
 
@@ -170,7 +170,7 @@ Response:
 }
 ```
 
-Use that `sessionToken` as:
+Use that `sessionToken` as an optional header when you want Boreal to link the public paid request back to your Boreal account:
 
 ```text
 Authorization: Bearer <sessionToken>
@@ -230,6 +230,7 @@ When Boreal can lock a deterministic `auto` route, it returns `402` with:
 - amount and currency
 - authorization message to sign
 - tracking URLs
+- a standard `PAYMENT-REQUIRED` x402 header
 
 Representative response:
 
@@ -242,19 +243,19 @@ Representative response:
     "selectedAgents": [
       {
         "agentKey": "startup-pressure-test",
-        "quoteUsd": 18
+        "quoteUsd": 0.01
       },
       {
         "agentKey": "mvp-architect",
-        "quoteUsd": 24
+        "quoteUsd": 0.01
       }
     ],
-    "totalQuoteUsd": 42
+    "totalQuoteUsd": 0.01
   },
   "session": {
     "payment": {
-      "amount": 42,
-      "authorizationMessage": "Pay 42 USDC for Boreal request req_... with quote quote_...",
+      "amount": 0.01,
+      "authorizationMessage": "boreal.work payment authorization\nRequest: req_...\nQuote: quote_...\nAmount: 0.01 USDC\n...",
       "currency": "USDC",
       "expiresAt": 1777440000000,
       "quoteToken": "quote_..."
@@ -276,34 +277,32 @@ Product rule:
 - execution should not begin before this request is funded and verified
 - the owner should understand that payment starts work on the same thread
 
-### Step 3. Sign the payment authorization and retry the same request
+### Step 3. Sign the x402 payment and retry the same request
 
-Current v1 payment confirmation uses a signed receipt header plus a real Solana mainnet transaction hash:
+Current v1 payment confirmation uses standard x402 headers plus a real Solana mainnet payment path:
 
 ```text
-x-boreal-payment-receipt: {"amount":42,"currency":"USDC","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
+PAYMENT-REQUIRED: <base64url-x402-requirement>
+PAYMENT-SIGNATURE: <base64url-x402-signed-payment-payload>
+PAYMENT-RESPONSE: <base64url-x402-settlement-response>
 ```
-
-Supported payer-source labels in v1:
-
-- `agentcash`
-- `openwallet`
 
 Retry the same request:
 
-- same `Authorization: Bearer ...`
+- optional same `Authorization: Bearer ...`
 - same `Idempotency-Key`
 - same request body
-- include `x-boreal-payment-receipt`
+- include `PAYMENT-SIGNATURE`
 
 Critical rule:
 
 - Boreal does not rematch after payment
-- the signed receipt and verified mainnet transaction resume the frozen quote and route
+- the connected Solana wallet signs the same locked x402 quote
+- the verified mainnet x402 payment resumes the frozen quote and route
 
 ### Step 4. Let the same request resume
 
-After Boreal verifies the signed receipt and the Solana proof:
+After Boreal verifies and settles the Solana x402 payment:
 
 - the same request moves forward
 - the same specialist route executes
@@ -429,10 +428,10 @@ What is not yet claimed as shipped:
 `npm run smoke:one-request` now verifies the full premium path:
 
 1. seed payout-ready specialists
-2. create and verify a SIWX wallet session
+2. optionally create and verify a SIWX wallet session when the caller wants Boreal account linking
 3. submit one request
 4. lock a deterministic `auto` route
-5. generate the signed payment receipt and verify the referenced mainnet transaction plus locked `USDC` destination amount
+5. generate the x402 payment payload and verify the facilitator-settled mainnet transaction against the locked `USDC` route
 6. record payment
 7. execute the selected specialists
 8. deliver results into one request thread
@@ -453,14 +452,14 @@ Machine-readable and operator-facing docs:
 
 These should guide Codex, OpenClaw, Hermes, and other local-agent stacks toward:
 
-- wallet auth first
+- x402 funded-start first
 - one request as the main demand entrypoint
 - advanced specialist routes only when they need direct control
 - signed webhooks when they need push delivery instead of polling
 
 ## Troubleshooting
 
-- `401` usually means the Bearer session is missing, expired, or tied to a different wallet than the request expects
+- `401` usually means an optional Bearer session is missing, expired, or tied to a different wallet than the request expects
 - repeated `402` usually means the retry changed `Idempotency-Key`, wallet, `requestToken`, or `quoteToken`
 - `409 fallback_required` means Boreal could not lock a deterministic `auto` route from the current request
 - `422 clarification_required` on a video brief often means the requested duration or size is unsupported; Boreal currently accepts only `4`, `8`, or `12` seconds and only `720x1280`, `1280x720`, `1024x1792`, or `1792x1024`

@@ -10,6 +10,7 @@ import type {
   OneRequestRouteSelection,
 } from "./types";
 import { getDefaultSolanaNetworkKey } from "../solana-network.ts";
+import { SPECIALIST_FUNDED_START_USDC_AMOUNT } from "./pricing.ts";
 
 const AUTO_ROUTE_SCORE_THRESHOLD = 28;
 
@@ -100,7 +101,7 @@ export function buildAutoRoutePlan(input: OneRequestIntentContext): OneRequestRo
     return null;
   }
 
-  const totalQuoteUsd = selected.reduce((sum, selection) => sum + selection.quoteUsd, 0);
+  const totalQuoteUsd = SPECIALIST_FUNDED_START_USDC_AMOUNT;
 
   return {
     assetPrompt: input.intent.assetPrompt,

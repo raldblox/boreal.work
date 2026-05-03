@@ -1,10 +1,7 @@
-import {
-  createHash,
-  createHmac,
-  randomUUID,
-  timingSafeEqual,
-  verify as verifySignature,
-} from "node:crypto";
+import { ed25519 } from "@noble/curves/ed25519";
+import { hmac } from "@noble/hashes/hmac";
+import { sha256 } from "@noble/hashes/sha2";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
 
 import {
   getDefaultSolanaNetworkKey,
@@ -34,7 +31,6 @@ const DEFAULT_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const DEVELOPMENT_SIGNING_SECRET = "boreal-one-request-dev-secret";
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
 export function createSiwxChallenge(input: { walletAddress: string }) {
   const issuedAt = Date.now();
@@ -44,7 +40,7 @@ export function createSiwxChallenge(input: { walletAddress: string }) {
     exp: expiresAt,
     iat: issuedAt,
     networkKey,
-    nonce: randomUUID(),
+    nonce: crypto.randomUUID(),
     purpose: "boreal-siwx-challenge",
     walletAddress: input.walletAddress,
   };
@@ -114,6 +110,10 @@ export function getWalletExternalId(walletAddress: string) {
   return `wallet:solana:${walletAddress}`;
 }
 
+export function getProvisionalExternalId(seed: string) {
+  return `guest:solana:${sha256Hex(seed).slice(0, 24)}`;
+}
+
 export function getWalletDisplayName(walletAddress: string) {
   if (walletAddress.length <= 12) {
     return walletAddress;
@@ -123,19 +123,17 @@ export function getWalletDisplayName(walletAddress: string) {
 }
 
 export function createRequestFingerprint(message: string) {
-  return createHash("sha256")
-    .update(normalizeMessage(message))
-    .digest("hex");
+  return sha256Hex(normalizeMessage(message));
 }
 
 export function createSignedTokenFingerprint(token: string) {
-  return createHash("sha256").update(token).digest("hex");
+  return sha256Hex(token);
 }
 
 export function createOpaqueToken(label: string, seed?: string) {
-  const raw = createHash("sha256")
-    .update(`${label}:${seed ?? randomUUID()}:${Date.now()}:${randomUUID()}`)
-    .digest("hex");
+  const raw = sha256Hex(
+    `${label}:${seed ?? crypto.randomUUID()}:${Date.now()}:${crypto.randomUUID()}`,
+  );
 
   return `${label}_${raw.slice(0, 32)}`;
 }
@@ -176,13 +174,7 @@ export function verifySolanaMessageSignature(input: {
 }) {
   const publicKey = decodeSolanaPublicKey(input.walletAddress);
   const signature = decodeFlexibleBinary(input.signature);
-  const spkiKey = Buffer.concat([ED25519_SPKI_PREFIX, publicKey]);
-  const verified = verifySignature(
-    null,
-    Buffer.from(input.message, "utf8"),
-    { format: "der", key: spkiKey, type: "spki" },
-    signature,
-  );
+  const verified = ed25519.verify(signature, utf8ToBytes(input.message), publicKey);
 
   if (!verified) {
     throw new Error("Wallet signature verification failed.");
@@ -270,9 +262,7 @@ function normalizeMessage(message: string) {
 function signPayload(payload: Record<string, unknown>) {
   const serialized = JSON.stringify(payload);
   const encodedPayload = base64UrlEncode(Buffer.from(serialized, "utf8"));
-  const signature = createHmac("sha256", getSigningSecret())
-    .update(encodedPayload)
-    .digest();
+  const signature = createSha256Hmac(getSigningSecret(), encodedPayload);
 
   return `${encodedPayload}.${base64UrlEncode(signature)}`;
 }
@@ -287,14 +277,12 @@ function verifySignedPayload<T extends { exp: number; purpose: string }>(
     throw new Error("Malformed signed token.");
   }
 
-  const expectedSignature = createHmac("sha256", getSigningSecret())
-    .update(encodedPayload)
-    .digest();
+  const expectedSignature = createSha256Hmac(getSigningSecret(), encodedPayload);
   const actualSignature = base64UrlDecode(encodedSignature);
 
   if (
     expectedSignature.length !== actualSignature.length ||
-    !timingSafeEqual(expectedSignature, actualSignature)
+    !constantTimeEqual(expectedSignature, actualSignature)
   ) {
     throw new Error("Signed token verification failed.");
   }
@@ -415,4 +403,26 @@ function decodeBase58(value: string) {
   }
 
   return Buffer.from(digits.reverse());
+}
+
+function createSha256Hmac(secret: string, value: string) {
+  return Buffer.from(hmac(sha256, utf8ToBytes(secret), utf8ToBytes(value)));
+}
+
+function sha256Hex(value: string) {
+  return bytesToHex(sha256(utf8ToBytes(value)));
+}
+
+function constantTimeEqual(left: Uint8Array, right: Uint8Array) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  let mismatch = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left[index] ^ right[index];
+  }
+
+  return mismatch === 0;
 }

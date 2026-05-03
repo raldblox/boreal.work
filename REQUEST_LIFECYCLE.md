@@ -151,14 +151,15 @@ Expected UX:
 
 For the current premium request-first contract:
 
-- the owner signs the payment authorization
-- Boreal receives the signed receipt
-- Boreal verifies the Solana mainnet proof
+- Boreal returns a standard `PAYMENT-REQUIRED` x402 challenge
+- the connected Solana wallet signs the x402 payment
+- Boreal verifies and settles the Solana mainnet x402 payment
 
 Expected UX:
 
 - payment feels like the start condition for work
 - funding does not bounce the user into a second workflow
+- the request thread should say x402 clearly, not just generic funding
 
 ### Step 6. Resume the same request
 
@@ -221,8 +222,10 @@ The canonical funded-execution primitives are:
 - quote
 - seller block
 - `402 payment_required`
-- signed payment receipt
-- Solana verification
+- `PAYMENT-REQUIRED`
+- `PAYMENT-SIGNATURE`
+- `PAYMENT-RESPONSE`
+- Solana x402 verification
 - status callbacks
 - evidence callbacks
 - delivery

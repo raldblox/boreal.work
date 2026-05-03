@@ -2200,18 +2200,29 @@ export function ChatShell() {
       requestDetail?.intent?.status === "payment_required" &&
       requestDetail.pendingPayment?.selection
     ) {
+      if (!solanaConnection || !defaultWalletAddress || !walletProvider || !isWalletReady) {
+        setErrorMessage("Connect a funded Solana wallet to sign the x402 payment.")
+        handleOpenWalletModal()
+        return
+      }
+
       setIsSubmitting(true)
 
       try {
-        const response = await fetch(`/api/requests/${activeIntentId}/fund`, {
-          body: JSON.stringify({
-            paymentReceipt: input.paymentReceipt ?? null,
-            routeKey: input.routeKey,
-          }),
-          headers: {
-            "Content-Type": "application/json",
+        const response = await payWithX402({
+          connection: solanaConnection,
+          init: {
+            body: JSON.stringify({
+              routeKey: input.routeKey,
+            }),
+            headers: {
+              "Content-Type": "application/json",
+            },
+            method: "POST",
           },
-          method: "POST",
+          maxAmountUsd: 0.01,
+          url: `/api/requests/${activeIntentId}/fund`,
+          walletAddress: defaultWalletAddress,
         })
         const payload = (await response.json()) as
           | {
@@ -10829,22 +10840,24 @@ function InlineWorkspaceCard({
         headingTitle={workspace.title}
         isSubmitting={Boolean(isProviderRouteSubmitting)}
         isWalletReady={Boolean(isWalletReady)}
-        onConfirmRoute={async ({ paymentReceipt, routeKey }) => {
+        onConfirmRoute={async ({ routeKey }) => {
           if (!onConfirmProviderRoute) {
             return
           }
 
           await onConfirmProviderRoute({
-            paymentReceipt,
             routeKey,
             selection: workspace.selection,
           })
         }}
         onConnectWallet={() => onConnectWallet?.()}
+        paymentMode={
+          workspace.title.toLowerCase().includes("fund")
+            ? "settle"
+            : "prepare"
+        }
         selection={workspace.selection}
         walletAddress={walletAddress}
-        walletConnection={walletConnection}
-        walletProvider={walletProvider}
       />
     )
   }

@@ -73,13 +73,21 @@
     "/api/v1/agents/{agentKey}/execute": {
       "post": {
         "summary": "Execute one specialized agent",
-        "description": "Runs one specialized Boreal agent. The caller must have a signed-in X session on boreal.work. The request body must match the fields exposed by the selected agent contract.",
+        "description": "Runs one specialized Boreal agent. Boreal-owned paid specialists return standard x402 402 responses on Solana mainnet and resume when the caller retries with standard x402 payment headers. The request body must match the fields exposed by the selected agent contract.",
         "operationId": "executeRegisteredAgent",
         "parameters": [
           {
             "name": "agentKey",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PAYMENT-SIGNATURE",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -107,8 +115,8 @@
               }
             }
           },
-          "401": {
-            "description": "Signed-in X session required",
+          "402": {
+            "description": "x402 payment required",
             "content": {
               "application/json": {
                 "schema": {

@@ -1,6 +1,6 @@
 # Boreal Roadmap
 
-This roadmap translates `BOREAL_BOOK.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of April 30, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
+This roadmap translates `BOREAL_BOOK.md` into implementation phases. Checked items are only for functionality that is observable in the current repository as of May 3, 2026. Unchecked items are either not implemented yet, not production-ready, or not verified strongly enough to claim as live.
 
 ## Current Readout
 
@@ -14,10 +14,11 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 
 - Boreal is already a real early access release for request-native commerce, delivered through a chat-native interface: request intake, request threads, proposals, fulfillment, public profiles, public supply, digital listings, cart state, and provider-backed checkout routing.
 - Boreal Agent is already the default free orchestrator in chat when no specialist is mounted.
-- Boreal already has a live premium request-first contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, `SIWX` wallet auth, a `402` payment boundary, seeded specialist payouts, and a dedicated one-request smoke target.
-- Boreal's request-first payment path already verifies a real Solana mainnet transaction hash, authenticated signer, confirmation status, and Boreal payment-reference memo before execution begins.
-- Boreal's request-first payment verifier already binds to the configured seller pay-to address when that address is present, tightening the mainnet proof without overclaiming treasury-grade settlement.
+- Boreal already has a live premium request-first contract in `ONE_REQUEST_API.md`: `POST /api/v1/requests` as the front door, optional `SIWX`, a real x402 `402` boundary, seeded specialist payouts, and a dedicated one-request smoke target.
+- Boreal's request-first payment path now uses standard x402 headers on Solana mainnet, verifies through a real facilitator path, and starts execution only after a verified `0.01 USDC` payment on the locked route.
+- Boreal's request-first seller block already binds to the configured pay-to address and token-account metadata when that address is present, tightening the mainnet proof without overclaiming treasury-grade settlement.
 - Boreal chat already lets users mount specialist agents directly from `Offers`, shows the selected team in the composer, and turns the next submit into one tracked request for that team without a separate approval step.
+- Boreal-owned paid specialists, preset teams, and direct execute routes now all share the same flat `0.01 USDC` x402 funded-start rule.
 - Boreal already has one inbox for matched supplier-side demand, supplier onboarding through `/account` or `/api/v1/supplies`, payout progression, collective proposals, connected-agent callbacks, and a bounded preset-room team in `Debate and Verdict`.
 - `solana-operator` already has one honest mounted-thread mainnet slice: wallet-approved memo recording, simple SOL transfer, and wallet-message signing.  The public direct route remains planning-first.
 - Boreal Desktop exists as an owner-only path in progress, but it is not the current launch wedge.
@@ -28,8 +29,8 @@ That is the lens for the roadmap below. The product is no longer just a bundle o
 This is now the single release-gate summary for Boreal.
 
 - Current mode: `open early access surface`, not broad public mainnet-paid readiness
-- Strongest live proof today: free Boreal orchestration, mounted specialist request starts, the request-first `402` payment boundary, Solana mainnet verification before execution, supplier onboarding, matched inbox, payout progression, and one durable request thread carrying delivery and review
-- Biggest blockers today: making funded-start the default in-product specialist UX; stronger request-thread payment states and receipt proof; escrow or funded acceptance for async custom work; deeper payout and settlement hardening; type-aware supply subtype tables; and release metrics, runbooks, plus kill switches
+- Strongest live proof today: free Boreal orchestration, mounted specialist request starts, real x402 funded-start on Solana mainnet, supplier onboarding, matched inbox, payout progression, and one durable request thread carrying delivery and review
+- Biggest blockers today: stronger request-thread payment states and visible x402 proof; escrow or funded acceptance for async custom work; deeper payout and settlement hardening; type-aware supply subtype tables; and release metrics, runbooks, plus kill switches
 
 ## Paid Launch Wedge
 
@@ -54,8 +55,8 @@ The wedge exists to test:
 
 Last reviewed: May 2, 2026.
 
-- [ ] Keep Boreal Agent free for intake, clarification, and routing across chat-first surfaces
-- [ ] Make paid specialist execution visibly request-first and funded-start by default in Boreal chat
+- [x] Keep Boreal Agent free for intake, clarification, and routing across chat-first surfaces
+- [x] Make paid specialist execution visibly request-first and funded-start by default in Boreal chat
 - [ ] Standardize user-facing request states around `payment required`, `funded`, `executing`, `delivered`, and `reviewed`
 - [ ] Keep the same request thread alive through quote lock, payment verification, execution, delivery, and payout proof
 - [ ] Harden the seller block, pay-to verification, and payout truth on the request-first paid surface
@@ -73,7 +74,7 @@ These milestone names are the best public-safe compression of the roadmap right 
 | `Supplier and specialist market` | `Live` | Suppliers can onboard through `/account` or `/api/v1/supplies`, watch matched demand through one inbox, and seeded specialists stay routable. | Type-aware supply subtype tables and richer market metadata. |
 | `Merchant native offers` | `Live` | `/account` now supports native service offers, digital products, owned-offer management, and a clear provider-sync boundary. | Rich public product pages and merchant-specific smoke coverage. |
 | `Local-first shell performance` | `Live` | Low-churn shell summaries, worker-market lists, and pre-request Boreal drafts now load from signed local cache before any refresh, while request lists stay live from Convex. | Lighter server-side summary queries and payload-size trimming still need a second pass. |
-| `Funded request and payout spine` | `In progress` | `402`, mainnet payment verification, payout progression, provider-backed checkout, and wallet sync are all real. | Funded-start UX, payout verification, refunds, disputes, and stronger settlement proof. |
+| `Funded request and payout spine` | `In progress` | Real x402 `402` headers, Solana mainnet funded-start, payout progression, provider-backed checkout, and wallet sync are all real. | Richer payment states, refunds, disputes, and stronger settlement proof. |
 | `Team and connected-agent execution` | `In progress` | Collectives, shared request participation, direct specialists, request-scoped local runtime invites, callbacks, and one live preset-room bundle are all real. | Broader preset coverage, richer execution policy, deeper multi-party coordination, and later desktop productization. |
 | `Release ops and trust` | `In progress` | Boreal has early-access truth docs, a cohort rollout playbook, and a safer public claim boundary. | Release metrics, incident runbooks, kill switches, and portable reputation exports. |
 
@@ -142,7 +143,7 @@ Goal: make the written story match the live early access product, preserve the s
 - [x] Request-driven catalog rendering and add-to-cart flow
 - [x] Payment-aware cart and checkout records
 - [x] Agentic Market sync route and normalization into Boreal supply
-- [ ] Reown-backed x402 payment initiation parity for supported provider-backed items
+- [x] Reown-backed x402 payment initiation parity for supported provider-backed items
 - [x] Autonomous worker scripts for seeded Boreal agents
 - [x] Build, typecheck, and lint workflows
 
@@ -172,7 +173,7 @@ Goal: build the protocol-native commerce substrate first, then layer market UX a
 - [x] Unified supply model for products, services, humans, agents, and provider-backed capabilities
 - [x] Payment-aware cart and checkout records
 - [x] Provider-backed payment-aware checkout states for supported listings
-- [ ] Reown-backed x402 payment initiation parity for supported provider-backed items
+- [x] Reown-backed x402 payment initiation parity for supported provider-backed items
 - [x] Schema support for ACP/UCP/A2A-oriented listing descriptors and protocol metadata
 - [ ] Boreal-assisted listing flow for merchants, freelancers, and agent operators that drafts ACP/UCP-ready metadata and protocol descriptors
 - [ ] Stable public catalog, checkout-capability, and offer endpoints that expose merchant, freelancer, and agent supply in ACP/UCP-aligned shapes

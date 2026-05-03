@@ -1,13 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Buffer } from "buffer";
-import {
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-  type Connection,
-} from "@solana/web3.js";
 import {
   CheckCircle2Icon,
   WalletIcon,
@@ -18,27 +11,14 @@ import { Spinner as LoaderIcon } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type {
   ProviderRouteOption,
-  ProviderRoutePaymentReceipt,
   ProviderSelectionState,
 } from "@/lib/boreal/provider-routing/types";
 import {
   compactHexLike,
-  getSolanaMemoProgramAddress,
 } from "@/lib/boreal/solana-thread-actions";
-import {
-  createTransferCheckedInstruction,
-  deriveAssociatedTokenAddress,
-} from "@/lib/boreal/one-request/solana-usdc";
-
-type SolanaWalletProvider = {
-  sendTransaction: (
-    transaction: Transaction,
-    connection: Connection,
-  ) => Promise<string>;
-  signMessage: (message: Uint8Array) => Promise<Uint8Array>;
+export type ProviderSelectionWalletProvider = {
+  signTransaction?: unknown;
 };
-
-export type ProviderSelectionWalletProvider = SolanaWalletProvider;
 
 export function ProviderSelectionCard({
   headingSubtitle,
@@ -47,24 +27,19 @@ export function ProviderSelectionCard({
   isWalletReady,
   onConfirmRoute,
   onConnectWallet,
+  paymentMode,
   selection,
   walletAddress,
-  walletConnection,
-  walletProvider,
 }: {
   headingSubtitle?: string;
   headingTitle?: string;
   isSubmitting: boolean;
   isWalletReady: boolean;
-  onConfirmRoute: (input: {
-    paymentReceipt?: ProviderRoutePaymentReceipt | null;
-    routeKey: string;
-  }) => Promise<void>;
+  onConfirmRoute: (input: { routeKey: string }) => Promise<void>;
   onConnectWallet: () => void;
+  paymentMode: "prepare" | "settle";
   selection: ProviderSelectionState;
   walletAddress?: string | null;
-  walletConnection?: Connection | null;
-  walletProvider?: SolanaWalletProvider | null;
 }) {
   const [selectedRouteKey, setSelectedRouteKey] = useState(
     selection.selectedRouteKey ?? selection.defaultRouteKey,
@@ -91,64 +66,21 @@ export function ProviderSelectionCard({
 
     setLocalError(null);
 
-    if (!selectedRoute.requiresPayment) {
-      await onConfirmRoute({ routeKey: selectedRoute.routeKey });
-      return;
-    }
-
-    if (!walletProvider || !walletConnection || !walletAddress || !isWalletReady) {
+    if (selectedRoute.requiresPayment && paymentMode === "settle" && (!walletAddress || !isWalletReady)) {
       onConnectWallet();
       return;
     }
 
-    if (!selectedRoute.quote) {
-      setLocalError("This payment quote is missing. Pick the provider again.");
-      return;
-    }
-
-    setIsPaying(true);
-
     try {
-      const signedMessage = selectedRoute.quote.authorizationMessage;
-      const signatureBytes = await walletProvider.signMessage(
-        new TextEncoder().encode(signedMessage),
-      );
-      const paymentTransaction = await buildPaymentTransaction({
-        amount: selectedRoute.quote.amount,
-        connection: walletConnection,
-        memo: selectedRoute.quote.paymentReference,
-        payToAddress: selectedRoute.quote.payToAddress,
-        payToMintAddress: selectedRoute.quote.payToMintAddress,
-        payToTokenAccountAddress: selectedRoute.quote.payToTokenAccountAddress,
-        payToTokenDecimals: selectedRoute.quote.payToTokenDecimals,
-        payToTokenProgramAddress: selectedRoute.quote.payToTokenProgramAddress,
-        walletAddress,
-      });
-      const txHash = await walletProvider.sendTransaction(
-        paymentTransaction,
-        walletConnection,
-      );
-
+      setIsPaying(true);
       await onConfirmRoute({
-        paymentReceipt: {
-          amount: selectedRoute.quote.amount,
-          currency: selectedRoute.quote.currency,
-          networkKey: selectedRoute.quote.networkKey,
-          payerSource: "openwallet",
-          quoteToken: selectedRoute.quote.quoteToken,
-          requestToken: selectedRoute.quote.requestToken,
-          signature: Buffer.from(signatureBytes).toString("base64"),
-          signedMessage,
-          txHash,
-          walletAddress,
-        },
         routeKey: selectedRoute.routeKey,
       });
     } catch (error) {
       setLocalError(
         error instanceof Error
           ? error.message
-          : "Could not prepare this provider payment.",
+          : "Could not prepare this x402 payment.",
       );
     } finally {
       setIsPaying(false);
@@ -242,13 +174,15 @@ export function ProviderSelectionCard({
           {selectedRoute.requiresPayment ? (
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>
-                Boreal will attach a signed wallet receipt and transaction proof
-                to the request thread before work starts.
+                This route is x402 gated. Boreal only starts after a connected
+                Solana wallet signs the x402 payment.
               </p>
               <p>
-                {walletAddress
-                  ? `Wallet ${compactHexLike(walletAddress, 6)}`
-                  : "Connect a Solana wallet to continue."}
+                {paymentMode === "settle"
+                  ? walletAddress
+                    ? `Wallet ${compactHexLike(walletAddress, 6)} is ready to sign the x402 payment.`
+                    : "Connect a funded Solana wallet to sign the x402 payment."
+                  : "Opening this route creates a locked x402 request thread at 0.01 USDC."}
               </p>
             </div>
           ) : (
@@ -280,9 +214,11 @@ export function ProviderSelectionCard({
         >
           {isSubmitting || isPaying ? <LoaderIcon /> : null}
           {selectedRoute?.requiresPayment
-            ? !isWalletReady || !walletAddress
-              ? "Connect wallet"
-              : `Pay ${selectedRoute.priceLabel} and start`
+            ? paymentMode === "settle"
+              ? !isWalletReady || !walletAddress
+                ? "Connect Solana wallet to pay with x402"
+                : "Sign x402 payment and start"
+              : "Open x402 request"
             : `Run with ${selectedRoute?.displayTitle ?? "Boreal"}`}
         </Button>
         {selectedRoute?.requiresPayment && walletAddress ? (
@@ -294,72 +230,4 @@ export function ProviderSelectionCard({
       </div>
     </div>
   );
-}
-
-async function buildPaymentTransaction(input: {
-  amount: number;
-  connection: Connection;
-  memo: string;
-  payToAddress: string | null;
-  payToMintAddress: string | null;
-  payToTokenAccountAddress: string | null;
-  payToTokenDecimals: number | null;
-  payToTokenProgramAddress: string | null;
-  walletAddress: string;
-}) {
-  const feePayer = new PublicKey(input.walletAddress);
-  const { blockhash } = await input.connection.getLatestBlockhash();
-  const transaction = new Transaction({
-    feePayer,
-    recentBlockhash: blockhash,
-  });
-  const instructions = [
-    new TransactionInstruction({
-      data: Buffer.from(new TextEncoder().encode(input.memo)),
-      keys: [],
-      programId: new PublicKey(getSolanaMemoProgramAddress()),
-    }),
-  ];
-
-  const payToMintAddress = input.payToMintAddress?.trim() || null;
-  const payToTokenProgramAddress = input.payToTokenProgramAddress?.trim() || null;
-  const payToTokenAccountAddress =
-    input.payToTokenAccountAddress?.trim() ||
-    (input.payToAddress?.trim() &&
-    payToMintAddress &&
-    payToTokenProgramAddress
-      ? deriveAssociatedTokenAddress({
-          mintAddress: payToMintAddress,
-          ownerAddress: input.payToAddress.trim(),
-          tokenProgramAddress: payToTokenProgramAddress,
-        })
-      : null);
-
-  if (
-    payToMintAddress &&
-    payToTokenAccountAddress &&
-    payToTokenProgramAddress &&
-    input.payToTokenDecimals !== null
-  ) {
-    instructions.unshift(
-      createTransferCheckedInstruction({
-        amount: input.amount,
-        authorityAddress: input.walletAddress,
-        decimals: input.payToTokenDecimals,
-        destinationTokenAccountAddress: payToTokenAccountAddress,
-        mintAddress: payToMintAddress,
-        sourceTokenAccountAddress: deriveAssociatedTokenAddress({
-          mintAddress: payToMintAddress,
-          ownerAddress: input.walletAddress,
-          tokenProgramAddress: payToTokenProgramAddress,
-        }),
-        tokenProgramAddress: payToTokenProgramAddress,
-      }),
-    );
-  } else if (input.payToAddress?.trim()) {
-    throw new Error("Boreal seller USDC destination is not configured.");
-  }
-
-  transaction.add(...instructions);
-  return transaction;
 }

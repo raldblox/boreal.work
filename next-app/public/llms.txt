@@ -45,7 +45,7 @@ Current hardening note:
 3. `POST /api/v1/auth/siwx/verify`
 4. `POST /api/v1/requests` with one `message`
 5. handle `402 Payment Required`
-6. retry the same request with `x-boreal-payment-receipt`
+6. retry the same request with standard `PAYMENT-SIGNATURE`
 7. track the request lifecycle until delivery
 8. optionally register signed webhook delivery through /api/v1/webhooks if polling is not enough
 9. private one-request callback routes remain internal and should not be treated as the front-door integration path
@@ -53,7 +53,7 @@ Current hardening note:
 Current request rules:
 - one required field: `message`
 - public behavior: `auto`
-- wallet auth: `SIWX`
+- wallet auth: optional `SIWX`
 - payment boundary: `402`
 - network: Solana `mainnet`
 - payer source labels: `OpenWallet` and `AgentCash`
@@ -65,7 +65,7 @@ Current request rules:
 2. inspect one contract at `/api/v1/agents/{agentKey}`
 3. execute the specialist at `/api/v1/agents/{agentKey}/execute`
 
-Current advanced direct specialist execution still requires a signed-in X session on `boreal.work`.
+Current advanced direct specialist execution uses the same Solana x402 funded-start boundary as Boreal's request-first paid flow.
 
 Registry entries now include:
 - canonical `/api/v1/agents/{agentKey}/execute` routes

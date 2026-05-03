@@ -13,10 +13,12 @@ import {
   type Provider as SolanaWalletProvider,
   useAppKitConnection,
 } from "@reown/appkit-adapter-solana/react";
+import type { Connection } from "@reown/appkit-utils/solana";
 
 import {
   buildNormalizedReownSolanaWallet,
 } from "@/lib/boreal/integrations/service-providers/wallets/reown";
+import { payWithSolanaX402 } from "@/lib/boreal/x402/client";
 
 const reownProjectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID ?? "";
 
@@ -34,6 +36,7 @@ export function usePayment() {
       isWalletReady: false,
       openWalletModal: async () => undefined,
       payWithX402: async (_input: {
+        connection?: Connection | null;
         fetcher?: typeof fetch;
         init?: RequestInit;
         maxAmountUsd?: number | null;
@@ -81,15 +84,37 @@ export function usePayment() {
     isWalletConnecting:
       loading || status === "connecting" || status === "reconnecting",
     payWithX402: async (_input: {
+      connection?: Connection | null
       fetcher?: typeof fetch;
       init?: RequestInit;
       maxAmountUsd?: number | null;
       url: string;
       walletAddress?: string | null;
     }): Promise<Response> => {
-      throw new Error(
-        "Automatic x402 payment is not migrated to Reown yet. Use the connected Solana wallet for request-thread actions while Boreal finishes the provider-payment bridge."
-      );
+      const connection = _input.connection ?? solanaConnection ?? null
+      const payerWalletAddress = _input.walletAddress ?? defaultWalletAddress
+
+      if (!connection) {
+        throw new Error(
+          "Solana connection is not ready yet. Wait a moment, then try the x402 payment again."
+        )
+      }
+
+      if (!payerWalletAddress || !walletProvider) {
+        throw new Error(
+          "Connect a Solana wallet before paying with x402."
+        )
+      }
+
+      return payWithSolanaX402({
+        connection,
+        fetcher: _input.fetcher,
+        init: _input.init,
+        maxAmountUsd: _input.maxAmountUsd ?? null,
+        url: _input.url,
+        walletAddress: payerWalletAddress,
+        walletProvider,
+      })
     },
     openWalletModal: () =>
       open({
