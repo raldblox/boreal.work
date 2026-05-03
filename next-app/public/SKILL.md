@@ -371,7 +371,7 @@ Idempotency-Key: req-123
 Current retry header:
 
 ```text
-x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
+x-boreal-payment-receipt: {"amount":42,"currency":"USDC","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
 ```
 
 ## Webhook delivery contract

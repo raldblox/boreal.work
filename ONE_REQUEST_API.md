@@ -2,7 +2,7 @@
 
 Status: live request-first paid execution contract.
 
-Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed mainnet payment authorization receipt plus an independently fetched Solana mainnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  If the seller `payToAddress` is configured, Boreal now also requires the verified transaction to mention that pay-to address.  `SIWX` challenges are single-use, and deployed one-request auth must provide `BOREAL_ONE_REQUEST_SECRET` instead of relying on a shared production fallback.  What is still not claimed is treasury/payto-grade settlement verification.
+Current hardening note: the request lifecycle, payment boundary, execution, events, transaction records, settlement records, specialist payouts, and connected-agent request callbacks are all live in the app and covered by `npm run smoke:one-request` plus `npm run smoke:request-callbacks`.  Boreal now requires a signed mainnet payment authorization receipt plus an independently fetched Solana mainnet transaction proof with the authenticated signer, confirmation status, and Boreal payment-reference memo before execution starts.  When Boreal's seller `payToAddress` is configured, the verified transaction must now also deliver the exact locked `USDC` amount into Boreal's configured destination token account on Solana mainnet.  `SIWX` challenges are single-use, and deployed one-request auth must provide `BOREAL_ONE_REQUEST_SECRET` instead of relying on a shared production fallback.  What is still not claimed is treasury custody or downstream payout settlement beyond that verified inbound transfer.
 
 ## Purpose
 
@@ -73,7 +73,7 @@ Webhook surface:
 Seller metadata note:
 
 - the live `402` and request-status payloads now expose a stable seller block for Boreal's request-first surface
-- current fields are `sellerId`, `sellerName`, `paymentProtocol`, `networkKey`, canonical `x402NetworkId`, `settlementMode`, optional `payToAddress`, and a Bazaar-compatible `bazaar` extension block
+- current fields are `sellerId`, `sellerName`, `paymentProtocol`, `networkKey`, canonical `x402NetworkId`, `settlementMode`, optional `payToAddress`, optional `payToAsset`, optional `payToMintAddress`, optional `payToTokenAccountAddress`, optional `payToTokenDecimals`, optional `payToTokenProgramAddress`, and a Bazaar-compatible `bazaar` extension block
 - the `bazaar` block currently carries `discoverable`, `category`, and `tags` using x402 Bazaar naming
 - `discoverable` should only be treated as true when the seller `payToAddress` is actually configured
 - `payToAddress` remains configuration-driven and should not be overclaimed as treasury-grade settlement proof by itself
@@ -254,8 +254,8 @@ Representative response:
   "session": {
     "payment": {
       "amount": 42,
-      "authorizationMessage": "Pay 42 USD for Boreal request req_... with quote quote_...",
-      "currency": "USD",
+      "authorizationMessage": "Pay 42 USDC for Boreal request req_... with quote quote_...",
+      "currency": "USDC",
       "expiresAt": 1777440000000,
       "quoteToken": "quote_..."
     },
@@ -281,7 +281,7 @@ Product rule:
 Current v1 payment confirmation uses a signed receipt header plus a real Solana mainnet transaction hash:
 
 ```text
-x-boreal-payment-receipt: {"amount":42,"currency":"USD","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
+x-boreal-payment-receipt: {"amount":42,"currency":"USDC","networkKey":"solana:mainnet","payerSource":"agentcash","quoteToken":"quote_...","requestToken":"req_...","signature":"...","signedMessage":"...","txHash":"mainnet-demo-123","walletAddress":"..."}
 ```
 
 Supported payer-source labels in v1:
@@ -413,7 +413,7 @@ What is live today:
 - signed mainnet payment authorization messages
 - independent Solana mainnet transaction lookup before execution
 - signer, confirmation-status, and Boreal payment-reference memo verification
-- pay-to-address verification when the seller `payToAddress` is configured
+- exact `USDC` destination token-account verification when the seller `payToAddress` is configured
 - wallet-scoped intake throttles for active unpaid quotes and recent request bursts
 - transaction records
 - settlement records
@@ -422,7 +422,7 @@ What is live today:
 
 What is not yet claimed as shipped:
 
-- treasury/payto-grade transfer verification
+- treasury custody or downstream payout settlement beyond the verified inbound transfer
 
 ## Smoke Gate
 
@@ -432,7 +432,7 @@ What is not yet claimed as shipped:
 2. create and verify a SIWX wallet session
 3. submit one request
 4. lock a deterministic `auto` route
-5. generate the signed payment receipt and verify the referenced mainnet transaction
+5. generate the signed payment receipt and verify the referenced mainnet transaction plus locked `USDC` destination amount
 6. record payment
 7. execute the selected specialists
 8. deliver results into one request thread

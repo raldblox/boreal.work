@@ -638,8 +638,8 @@
             "quoteToken": "quote_123",
             "payment": {
               "amount": 42,
-              "authorizationMessage": "Pay 42 USD for Boreal request req_123 with quote quote_123",
-              "currency": "USD",
+              "authorizationMessage": "Pay 42 USDC for Boreal request req_123 with quote quote_123",
+              "currency": "USDC",
               "expiresAt": 1777440000000,
               "payerSource": "agentcash",
               "quoteToken": "quote_123",
@@ -655,7 +655,11 @@
                 },
                 "networkKey": "solana:mainnet",
                 "payToAddress": "FQpayToExample11111111111111111111111111111111",
-                "payToAsset": "SOL",
+                "payToAsset": "USDC",
+                "payToMintAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "payToTokenAccountAddress": "9JwTreasuryUsdcAta1111111111111111111111111111",
+                "payToTokenDecimals": 6,
+                "payToTokenProgramAddress": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
                 "paymentProtocol": "x402",
                 "sellerId": "boreal-one-request",
                 "sellerName": "Boreal One Request",
@@ -766,7 +770,7 @@
           },
           "currency": {
             "type": "string",
-            "const": "USD"
+            "const": "USDC"
           },
           "expiresAt": {
             "type": "integer"
@@ -797,8 +801,8 @@
         },
         "example": {
           "amount": 42,
-          "authorizationMessage": "Pay 42 USD for Boreal request req_123 with quote quote_123",
-          "currency": "USD",
+          "authorizationMessage": "Pay 42 USDC for Boreal request req_123 with quote quote_123",
+          "currency": "USDC",
           "expiresAt": 1777440000000,
           "payerSource": "agentcash",
           "quoteToken": "quote_123",
@@ -814,7 +818,11 @@
             },
             "networkKey": "solana:mainnet",
             "payToAddress": "FQpayToExample11111111111111111111111111111111",
-            "payToAsset": "SOL",
+            "payToAsset": "USDC",
+            "payToMintAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "payToTokenAccountAddress": "9JwTreasuryUsdcAta1111111111111111111111111111",
+            "payToTokenDecimals": 6,
+            "payToTokenProgramAddress": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
             "paymentProtocol": "x402",
             "sellerId": "boreal-one-request",
             "sellerName": "Boreal One Request",
@@ -831,6 +839,10 @@
           "networkKey",
           "payToAddress",
           "payToAsset",
+          "payToMintAddress",
+          "payToTokenAccountAddress",
+          "payToTokenDecimals",
+          "payToTokenProgramAddress",
           "paymentProtocol",
           "sellerId",
           "sellerName",
@@ -857,8 +869,32 @@
               "null"
             ],
             "enum": [
-              "SOL",
+              "USDC",
               null
+            ]
+          },
+          "payToMintAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payToTokenAccountAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payToTokenDecimals": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "payToTokenProgramAddress": {
+            "type": [
+              "string",
+              "null"
             ]
           },
           "paymentProtocol": {
