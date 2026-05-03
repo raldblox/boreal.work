@@ -5,6 +5,11 @@ Project:
 - `Boreal-Videos`
 - first composition: `PitchVideo`
 
+Current submission split:
+
+- pitch video: `<= 2:00`
+- demo video: `<= 3:00`
+
 Primary render source:
 
 - `BorealHomeChatMockup`
@@ -13,70 +18,66 @@ Current directing rule:
 
 - use the accurate home-chat render anywhere it can honestly carry the beat
 - add purpose-built scenes only for what the accurate render does not yet show
+- keep the pitch category-first, not demo-first
 
-## 3-Minute Story Order
+## 2-Minute Pitch Story Order
 
 1. `Requests Disappear`
    - source: new component
    - status: ready
-   - purpose: open on demand disappearing before work starts
+   - purpose: open on real demand dying before fulfillment starts
 
-2. `Free Boreal Intake`
+2. `Boreal Names The Layer`
    - source: new component
    - status: ready
-   - purpose: show Boreal Agent mounted by default and free orchestration
+   - purpose: say what Boreal is in one line
 
-3. `Best Route Found`
+3. `One Request Becomes The Object`
    - source: new component
    - status: ready
-   - purpose: show one tracked request and route lock
+   - purpose: show request-first structure without doing the full walkthrough
 
-4. `Payment Required`
+4. `Best Route And Owner Control`
    - source: new component
    - status: ready
-   - purpose: show funded-start boundary in the request thread
+   - purpose: show matching, owner approval, invite, and market-open options
 
-5. `Solana Verifies The Start`
+5. `Funding Starts Execution`
    - source: new component
    - status: ready
-   - purpose: show signed receipt, mainnet verification, and same-request resume
+   - purpose: show the explicit payment boundary
 
-6. `Execution On The Same Thread`
+6. `Solana Verifies The Start`
    - source: new component
    - status: ready
-   - purpose: show execution, evidence, and delivery staying attached
+   - purpose: show real mainnet approval and same-request resume
 
-7. `Multi-Agent And Solana Proof`
+7. `Shipped Proof`
    - source: new component
    - status: ready
-   - purpose: show Debate and Verdict plus wallet-approved Solana action proof
+   - purpose: show specialists, Debate and Verdict, and external supply proof like AgentCash
 
 8. `Category Close`
    - source: new component
    - status: ready
-   - purpose: land the category claim cleanly
+   - purpose: land the market and category claim cleanly
 
-## Built now
+## Direction Rules
 
-- `ProblemHookScene`
-- `FreeIntakeScene`
-- `RouteLockScene`
-- `PaymentRequiredScene`
-- `SellerBlockCard`
-- `QuoteLockState`
-- `SolanaVerificationScene`
-- `SignedReceiptCard`
-- `ResumeStateTransition`
-- `ExecutionThreadScene`
-- `DeliveryArtifactCard`
-- `ReviewLoopCard`
-- `ProofRoomScene`
-- `SolanaActionProofCard`
-- `SolanaReceiptProofCard`
-- `ClosingCategoryScene`
+- do not let the pitch become a full UI walkthrough
+- do not narrate every product state
+- use UI as proof and bold text as support
+- keep Solana practical: approval, payment, verification, execution start
+- keep Debate and Verdict as proof, not the thesis
 
 ## Current Build Truth
 
-`PitchVideo` is now a full 180-second real-scene directing assembly.
+`PitchVideo` should now be treated as a separate category pitch, not a combined pitch/demo.
 
-All eight story beats now render as actual product-shaped scenes instead of placeholders.
+The older longer combined-cut direction is no longer canonical for submission.
+
+The next honest build target is:
+
+- rebuild `PitchVideo` to fit the final `<= 2:00` pitch script
+- keep the demo as a separate live-product walkthrough
+- do not let the pitch try to explain the whole UI flow in demo detail

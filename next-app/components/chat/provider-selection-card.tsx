@@ -184,6 +184,12 @@ export function ProviderSelectionCard({
                     : "Connect a funded Solana wallet to sign the x402 payment."
                   : "Opening this route creates a locked x402 request thread at 0.01 USDC."}
               </p>
+              {paymentMode === "settle" && selectedRoute.deliveryMode === "boreal-hosted" ? (
+                <p>
+                  If x402 facilitator bootstrap is unavailable, Boreal falls back
+                  to a direct wallet USDC transfer using this same locked quote.
+                </p>
+              ) : null}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">

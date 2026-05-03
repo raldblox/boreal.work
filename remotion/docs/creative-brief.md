@@ -2,6 +2,12 @@
 
 This document is the creative brief for Boreal's hackathon and launch-video production plan.
 
+Submission reality now:
+
+- pitch video: `<= 2:00`
+- demo video: `<= 3:00`
+- do not treat the old combined 3-minute pitch/demo as the main submission format
+
 ## Decision
 
 Use **Remotion** as the primary video stack.
@@ -11,7 +17,8 @@ Use **Remotion** as the primary video stack.
 1. Boreal already lives in a React / Next.js surface, so Remotion can reuse the same UI language, layout system, and visual components.
 2. The strongest Boreal footage is the actual product: `/`, `/chat`, the market directory, worker profiles, request workspaces, and inline media results.  Remotion is better for packaging real UI captures and UI-derived scenes into a polished film.
 3. We will likely need multiple cuts from one system:
-   - a 3-minute hackathon pitch/demo
+   - a 2-minute pitch
+   - a separate up-to-3-minute demo
    - a shorter launch cut
    - a more technical implementation cut
    Remotion is better for scene reuse, timing variants, captions, overlays, and export consistency.

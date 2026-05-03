@@ -6,7 +6,6 @@ import {
   Sequence,
   Series,
   spring,
-  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -49,7 +48,7 @@ export type PitchVideoProps = {
 };
 
 export const PITCH_VIDEO_DEFAULT_PROPS = {
-  audioSrc: staticFile("voiceover/PitchVideo/ryan_voice.wav"),
+  audioSrc: undefined,
   primarySource: PITCH_VIDEO_PRIMARY_RENDER_SOURCE,
   showNotes: false,
   supportSource: PITCH_VIDEO_SUPPORT_RENDER_SOURCE,
@@ -263,4 +262,4 @@ export const PITCH_VIDEO_DIMENSIONS = {
   width: WIDTH,
 } as const;
 
-export const PITCH_VIDEO_SCRIPT = PITCH_VIDEO_VOICE_SCRIPT.pitch180;
+export const PITCH_VIDEO_SCRIPT = PITCH_VIDEO_VOICE_SCRIPT.pitch120;

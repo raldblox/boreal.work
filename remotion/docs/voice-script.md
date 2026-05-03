@@ -5,10 +5,15 @@ It should now stay aligned with `remotion/docs/scenes.md`, the funded-request we
 
 For the current final split scripts, use:
 
-- `remotion/docs/pitch-script-final.md`
-- `remotion/docs/demo-script-final.md`
+- `remotion/docs/submission/pitch.md`
+- `remotion/docs/submission/demo.md`
 
-For clean spoken-only demo narration, use `remotion/docs/demo-voice-scripts-clean.md`.
+Current submission constraint:
+
+- pitch video: `<= 2:00`
+- demo video: `<= 3:00`
+
+The older combined 3-minute pitch/demo material below is archival only.  It is no longer the submission canon.
 
 ## Primary Visual Source
 

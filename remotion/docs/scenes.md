@@ -2,9 +2,15 @@
 
 This document is the master storyboard for the Boreal Remotion workspace.
 
+Status:
+
+- archival combined-cut storyboard
+- superseded for submission by a separate `<= 2:00` pitch and separate `<= 3:00` demo
+- keep this for reference only until the standalone demo storyboard fully replaces it
+
 ## Overview
 
-- **Format**: 3-minute product pitch/demo
+- **Format**: archived 3-minute combined product pitch/demo
 - **Primary stack**: Remotion
 - **Goal**: win a Solana hackathon with one clear product wedge
 - **Product proof**: use actual Boreal UI from `next-app/`
@@ -287,7 +293,7 @@ Start with the failure of current interfaces.  Then show Boreal as the layer whe
 
 ## Variant Plan
 
-- **Hackathon pitch**: use the full 180-second structure above
+- **Hackathon pitch**: do not use this combined 180-second structure as the primary submission pitch
 - **Launch cut**: keep Scenes 1, 2, 3, 7, and 8, then compress to 60-90 seconds
 - **Technical demo**: expand Scenes 3 through 7 and reduce category framing
 

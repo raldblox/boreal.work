@@ -158,6 +158,10 @@ import type {
   ProviderRoutePaymentReceipt,
   ProviderSelectionState,
 } from "@/lib/boreal/provider-routing/types"
+import {
+  isFacilitatorBootstrapFailure,
+  payProviderRouteQuoteByDirectWalletTransfer,
+} from "@/lib/boreal/provider-routing/direct-wallet-transfer"
 import type {
   ChatAssistantDebugEvent,
   CatalogItem,
@@ -2200,6 +2204,11 @@ export function ChatShell() {
       requestDetail?.intent?.status === "payment_required" &&
       requestDetail.pendingPayment?.selection
     ) {
+      const lockedSelection = requestDetail.pendingPayment.selection
+      const lockedRoute =
+        lockedSelection.options.find((option) => option.routeKey === input.routeKey) ?? null
+      const lockedQuote = lockedRoute?.quote ?? null
+
       if (!solanaConnection || !defaultWalletAddress || !walletProvider || !isWalletReady) {
         setErrorMessage("Connect a funded Solana wallet to sign the x402 payment.")
         handleOpenWalletModal()
@@ -2244,6 +2253,85 @@ export function ChatShell() {
         setWorkspace(payload.workspace)
         setShowWorkspace(true)
       } catch (error) {
+        if (lockedQuote && isFacilitatorBootstrapFailure(error)) {
+          try {
+            const paymentReceipt = await payProviderRouteQuoteByDirectWalletTransfer({
+              connection: solanaConnection,
+              quote: lockedQuote,
+              walletAddress: defaultWalletAddress,
+              walletProvider,
+            })
+            let fallbackResponse: Response | null = null
+            let fallbackPayload:
+              | {
+                assistantMessage: string
+                relatedCatalogItems: CatalogItem[]
+                workspace: WorkspaceState
+              }
+              | { error?: string }
+              | null = null
+
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+              fallbackResponse = await fetch(`/api/requests/${activeIntentId}/fund`, {
+                body: JSON.stringify({
+                  paymentReceipt,
+                  routeKey: input.routeKey,
+                }),
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                method: "POST",
+              })
+              fallbackPayload = (await fallbackResponse.json().catch(() => null)) as
+                | {
+                  assistantMessage: string
+                  relatedCatalogItems: CatalogItem[]
+                  workspace: WorkspaceState
+                }
+                | { error?: string }
+                | null
+
+              if (
+                fallbackResponse.ok &&
+                fallbackPayload &&
+                "workspace" in fallbackPayload
+              ) {
+                await refreshRequestShellData()
+                setWorkspace(fallbackPayload.workspace)
+                setShowWorkspace(true)
+                return
+              }
+
+              const fallbackMessage =
+                fallbackPayload &&
+                typeof fallbackPayload === "object" &&
+                "error" in fallbackPayload &&
+                fallbackPayload.error
+                  ? fallbackPayload.error
+                  : "Failed to fund request."
+
+              if (
+                attempt >= 2 ||
+                (!fallbackMessage.includes("could not be found") &&
+                  !fallbackMessage.includes("not confirmed yet"))
+              ) {
+                throw new Error(fallbackMessage)
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, 1200))
+            }
+
+            throw new Error("Failed to fund request.")
+          } catch (fallbackError) {
+            setErrorMessage(
+              fallbackError instanceof Error
+                ? fallbackError.message
+                : "Failed to fund request."
+            )
+            return
+          }
+        }
+
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to fund request."
         )

@@ -19,87 +19,87 @@ export type PitchScenePlan = {
   voiceover: string;
 };
 
-export const PITCH_VIDEO_TOTAL_FRAMES = 4690;
+export const PITCH_VIDEO_TOTAL_FRAMES = 3600;
 
 export const PITCH_VIDEO_SCENES: PitchScenePlan[] = [
   {
     id: "hook",
     title: "Requests Disappear",
-    purpose: "Open on the problem before the product.",
+    purpose: "Open on real demand dying before fulfillment starts.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 930,
+    durationInFrames: 450,
     voiceover:
-      "Every day, people ask for real outcomes in chat, software, and workflows. Most of that demand still disappears before the work ever starts.",
+      "People ask for real outcomes in chat every day. Most of that demand still dies before anything real happens.",
   },
   {
     id: "free-intake",
-    title: "Free Boreal Intake",
-    purpose: "Show Boreal Agent handling intake and routing for free.",
+    title: "AI Increased Asks",
+    purpose: "Make the why-now explicit.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 570,
+    durationInFrames: 360,
     voiceover:
-      "Boreal is the request-native work and payment layer for the agent economy. It turns an AI or human request into a funded work thread. Boreal starts where users already think: in natural language. Boreal Agent handles intake, clarification, and routing for free, so the first step is not a checkout and not a ticket form.",
+      "AI increased asks. It did not solve execution.",
   },
   {
     id: "route-lock",
-    title: "Best Route Found",
-    purpose: "Show one tracked request and the locked specialist route.",
+    title: "Boreal Names The Layer",
+    purpose: "Say what Boreal is and show the one-thread model.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 760,
+    durationInFrames: 510,
     voiceover:
-      "When the work is real, Boreal turns the ask into one tracked request. It locks the best specialist or team route it can support and keeps the work on one thread.",
+      "Boreal is the request-to-fulfillment layer for the agent economy. One request becomes the system object.",
   },
   {
     id: "payment-required",
-    title: "Payment Required",
-    purpose: "Show the funded-start boundary in the request thread itself.",
+    title: "Matched Supply And Control",
+    purpose: "Show matching, owner approval, and market-open options.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 560,
+    durationInFrames: 390,
     voiceover:
-      "Paid work does not start invisibly. Boreal shows the quote, the seller, and the exact request that will resume after funding. The funding boundary is explicit because execution is the thing being bought.",
+      "A request starts in chat. Boreal shows matched supply. The owner can approve the best route or open the work to the market.",
   },
   {
     id: "solana-verify",
-    title: "Solana Verifies The Start",
-    purpose: "Show real mainnet verification and same-request resume.",
+    title: "Funding Starts Execution",
+    purpose: "Show the explicit payment boundary and verified start.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 520,
+    durationInFrames: 360,
     voiceover:
-      "Boreal verifies the signed payment authorization against a real Solana mainnet transaction before work begins. That keeps approval and payment inside the same product loop. The same request resumes after payment instead of rematching or restarting.",
+      "When paid execution is selected, the funding boundary is explicit. Solana verifies approval and payment before work begins.",
   },
   {
     id: "execution-thread",
-    title: "Execution On The Same Thread",
-    purpose: "Show execution, evidence, delivery, and follow-up in one thread.",
+    title: "The Same Request Resumes",
+    purpose: "Show continuity instead of rematch or detached checkout.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 580,
+    durationInFrames: 450,
     voiceover:
-      "Once funded, specialists execute on the same request thread. Messages, evidence, artifacts, delivery, and review stay attached to the work instead of scattering across tools.",
+      "Then the same request resumes. No rematch. No detached checkout. No scattered handoff across tools.",
   },
   {
     id: "proof-room",
-    title: "Multi-Agent And Solana Proof",
-    purpose: "Support the thesis with Debate and Verdict plus wallet-approved Solana actions.",
+    title: "Shipped Proof",
+    purpose: "Show specialists, Debate and Verdict, and external supply proof like AgentCash.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 520,
+    durationInFrames: 510,
     voiceover:
-      "Boreal can already host structured multi-agent work in that same thread. Debate and Verdict gives one moderator, two sides, and one closer without losing the request context. It can also carry explicit wallet-approved Solana actions in the same surface.",
+      "Today Boreal can surface current matched supply, run funded request flows, route debate prompts into Debate and Verdict, and connect external supply paths like AgentCash.",
   },
   {
     id: "close",
     title: "Category Close",
-    purpose: "Land the category in one clean closing statement.",
+    purpose: "Land the market and category claim cleanly.",
     source: "new-component",
     status: "ready",
-    durationInFrames: 250,
+    durationInFrames: 570,
     voiceover:
-      "Search finds information. Chat generates text. Boreal keeps the request alive until it becomes funded execution.",
+      "The internet has tools for search, chat, labor, and payments. What it still lacks is a clean way to carry one request all the way to completion. That's Boreal.",
   },
 ] as const;

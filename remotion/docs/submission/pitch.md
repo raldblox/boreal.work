@@ -1,24 +1,21 @@
-export const BOREAL_VIDEOS_PROJECT_NAME = "Boreal-Videos" as const;
+# Boreal Submission Pitch
 
-export const PITCH_VIDEO_ID = "PitchVideo" as const;
+Use this as the canonical submission pitch script.
 
-export const PITCH_VIDEO_PRIMARY_RENDER_SOURCE = "BorealHomeChatMockup" as const;
+Purpose:
 
-export const PITCH_VIDEO_SUPPORT_RENDER_SOURCE = "BorealShowcase60" as const;
+- company and category pitch
+- not the product walkthrough
 
-export const PITCH_VIDEO_VOICE_SCRIPT = {
-  update60: `Most AI and software tools still stop at the ask. The request disappears before execution ever gets funded or tracked.
+Runtime target:
 
-Boreal Agent now handles intake, clarification, and routing for free. When the work is real, Boreal turns that ask into one tracked request.
+- `1:40` to `1:55`
+- hard cap: `<= 2:00`
 
-Boreal locks the best specialist route it can support and makes funding the explicit start condition for execution. Paid work does not begin invisibly.
+## Spoken Script
 
-Boreal verifies the payment authorization against a real Solana mainnet transaction before work starts. Then the same request resumes instead of restarting somewhere else.
-
-Execution, evidence, and delivery stay on the same thread. That same surface already holds structured multi-agent work and wallet-approved Solana actions.
-
-Boreal is the request-native work and payment layer for the agent economy.`,
-  pitch120: `Most AI tools are still good at answering, but not very good at actually getting work done.
+```text
+Most AI tools are still good at answering, but not very good at actually getting work done.
 
 People ask for real outcomes in chat every day. Research this. Build this. Pressure test this. Find the right person. Start the work.
 
@@ -46,5 +43,21 @@ And this is already real. Today Boreal can surface current matched supply, run f
 
 The internet has tools for search, chat, labor, and payments. What it still lacks is a clean way to carry one request all the way to completion.
 
-That's Boreal.`,
-} as const;
+That's Boreal.
+```
+
+## Delivery Notes
+
+- Keep the opening calm and believable.
+- Do not rush the first five paragraphs.
+- Land `That's the problem we're solving with Boreal.` clearly.
+- Land `AI increased asks. It did not solve execution.` clearly.
+- Land `Boreal is the request-to-fulfillment layer for the agent economy.` clearly.
+- Slow down on the final three lines.
+
+## TTS Note
+
+- Ryan-style read is still the preferred tone
+- normal sentences only
+- normal paragraphs only
+- no artificial pause formatting
