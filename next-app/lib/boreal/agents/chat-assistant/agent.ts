@@ -65,7 +65,12 @@ import {
   getRequestHandlingLabel,
   getRequestHandlingMode,
   refineIntentForRequestLifecycle,
+  resolveTrackedRequestHandlingMode,
 } from "@/lib/boreal/routing/request-handling";
+import {
+  canAutoConfirmProviderSelection,
+  resolvePromptPresetTeamDefinition,
+} from "@/lib/boreal/routing/chat-route-helpers";
 import {
   getOneRequestSellerMetadata,
 } from "@/lib/boreal/one-request/seller";
@@ -447,6 +452,12 @@ export const chatAssistantAgent: ComposableAgent<
       provider: provider.key,
       userMessageId,
     });
+    const inferredPresetTeam = resolvePromptPresetTeamDefinition({
+      body: persistedIntent.body,
+      message: input.message,
+      summary: persistedIntent.summary,
+      title: persistedIntent.title,
+    });
 
     const desktopWorkerTarget = await resolveDesktopWorkerTarget({
       input,
@@ -468,6 +479,18 @@ export const chatAssistantAgent: ComposableAgent<
         requesterExternalId: input.requester?.externalId,
         walletAddress: input.uiContext?.walletAddress ?? null,
       });
+
+      if (canAutoConfirmProviderSelection(selection)) {
+        return executeBorealProviderRouteFromSelection({
+          conversationId,
+          intent: persistedIntent,
+          input,
+          provider,
+          routeKey: selection.defaultRouteKey,
+          runtimeConfig,
+          selection,
+        });
+      }
 
       return {
         assistantMessage: "",
@@ -515,6 +538,12 @@ export const chatAssistantAgent: ComposableAgent<
       intent: persistedIntent,
       message: input.message,
     });
+    const draftHandlingMode = resolveTrackedRequestHandlingMode({
+      hasSpecialistRoute: Boolean(
+        specialistRoutePlan && specialistRoutePlan.selected.length > 0,
+      ),
+      intent,
+    });
     const mountedPresetTeam = getPresetTeamDefinition(
       input.uiContext?.mountedPresetTeamKey,
     );
@@ -522,11 +551,19 @@ export const chatAssistantAgent: ComposableAgent<
       intent: persistedIntent,
       mountedAgentKeys: input.uiContext?.mountedAgentKeys,
     });
+    const previewPresetTeam = mountedPresetTeam ?? inferredPresetTeam;
+    const effectiveDraftHandlingMode = previewPresetTeam
+      ? "boreal"
+      : draftHandlingMode;
     const previewCatalogItems = mergePreviewCatalogItems(
       relatedCatalogItems,
-      mountedPresetTeam
-        ? buildPresetTeamPreviewCatalogItems(mountedPresetTeam)
-        : buildRoutePreviewCatalogItems(mountedRoutePlan ?? specialistRoutePlan),
+      previewPresetTeam
+        ? buildPresetTeamPreviewCatalogItems(previewPresetTeam)
+        : mountedRoutePlan
+          ? buildRoutePreviewCatalogItems(mountedRoutePlan)
+          : effectiveDraftHandlingMode === "workers"
+            ? []
+            : buildRoutePreviewCatalogItems(specialistRoutePlan),
     );
 
     if (
@@ -567,7 +604,9 @@ export const chatAssistantAgent: ComposableAgent<
     ) {
       const assistantMessage = buildApprovalMessage(
         intent,
+        effectiveDraftHandlingMode,
         previewCatalogItems,
+        previewPresetTeam,
         specialistRoutePlan,
       );
       const persistedResult = await saveIntentPipelineRecord({
@@ -591,7 +630,9 @@ export const chatAssistantAgent: ComposableAgent<
         requiresApproval: true,
         workspace: buildDraftWorkspace(
           intent,
+          effectiveDraftHandlingMode,
           previewCatalogItems,
+          previewPresetTeam,
           specialistRoutePlan,
         ),
       };
@@ -1167,18 +1208,30 @@ export async function approvePersistedRequest(input: {
     runtimeConfig,
     provider.key,
   );
+  const inferredPresetTeam = resolvePromptPresetTeamDefinition({
+    body: request.body,
+    message: request.body,
+    summary: request.summary,
+    title: request.title,
+  });
   const specialistRoutePlan = buildSpecialistRoutePlan({
     intent: persistedExecutionIntent,
     message: request.body,
   });
-  const handlingMode = getRequestHandlingMode(toExecutionIntent(request));
+  const handlingMode = resolveTrackedRequestHandlingMode({
+    hasSpecialistRoute: Boolean(
+      specialistRoutePlan && specialistRoutePlan.selected.length > 0,
+    ),
+    intent: persistedExecutionIntent,
+  });
+  const effectiveHandlingMode = inferredPresetTeam ? "boreal" : handlingMode;
   const assignedToolNames = buildAssignedTools(request.routeTarget);
   const executionAgentId = getExecutionAgentId(request.routeTarget);
-  if (handlingMode === "clarify") {
+  if (effectiveHandlingMode === "clarify") {
     throw new Error("This request still needs clarification before approval.");
   }
 
-  if (handlingMode === "workers") {
+  if (effectiveHandlingMode === "workers") {
     await approveRequestDraft({
       assistantMessage:
         "Request approved. Boreal opened it for proposals instead of auto-executing it.",
@@ -1203,6 +1256,56 @@ export async function approvePersistedRequest(input: {
             )
           : [],
       workspace: buildApprovedWorkerWorkspace(request),
+    };
+  }
+
+  if (inferredPresetTeam) {
+    const ownerExternalId = input.ownerExternalId?.trim();
+
+    if (!ownerExternalId) {
+      throw new Error("Sign in before funding a preset team request.");
+    }
+
+    const paymentSelection = await ensureTrackedPresetTeamPaymentSelection({
+      conversationId: request.conversationId ?? crypto.randomUUID(),
+      intentId: input.intentId,
+      intentKey: request.intentKey,
+      ownerExternalId,
+      presetTeam: inferredPresetTeam,
+      requestedOutputTypes: request.requestedOutputTypes,
+      summary: request.summary,
+      title: request.title,
+      userMessage: request.body,
+    });
+
+    await approveRequestDraft({
+      assignedAgent: inferredPresetTeam.teamDisplayName,
+      assistantMessage: `Funding required before ${inferredPresetTeam.teamDisplayName} starts.`,
+      intentId: input.intentId,
+      ownerExternalId,
+      status: "payment_required",
+    });
+
+    return {
+      assistantMessage: `Boreal locked ${inferredPresetTeam.teamDisplayName}. Funding starts that preset team in this same request thread.`,
+      intentId: input.intentId,
+      relatedCatalogItems: mergePreviewCatalogItems(
+        request.catalogQuery.trim().length > 0
+          ? await withRetry(
+              () =>
+                searchCatalog({
+                  limit: 6,
+                  query: request.catalogQuery,
+                }),
+              { attempts: 2 },
+            )
+          : [],
+        buildPresetTeamPreviewCatalogItems(inferredPresetTeam),
+      ),
+      workspace: buildSpecialistPaymentWorkspace({
+        selection: paymentSelection,
+        subtitle: `x402 payment starts ${inferredPresetTeam.teamDisplayName} in this same request thread. Boreal records the verified Solana x402 payment before the room begins.`,
+      }),
     };
   }
 
@@ -1290,7 +1393,20 @@ export async function fundPersistedRequest(input: {
   intentId: string;
   ownerExternalId?: string;
   paymentReceipt?: ProviderRoutePaymentReceipt | null;
+  prepareOnly?: boolean;
   routeKey: string;
+  x402Payment?: {
+    settlement: {
+      network: string;
+      payer: string;
+      success: true;
+      transaction: string;
+    };
+    verification: Record<string, unknown> & {
+      payer?: string | null;
+    };
+    walletAddress: string;
+  } | null;
 }) {
   const runtimeConfig = getBorealRuntimeConfig();
   const provider = resolveProviderAdapter();
@@ -1394,45 +1510,88 @@ export async function fundPersistedRequest(input: {
           ),
         },
         subtitle:
-          "That quote expired before Boreal could verify payment. Sign the refreshed receipt below to continue.",
+          "That x402 quote expired before Boreal could verify payment. Sign the refreshed x402 payment below to continue.",
       }),
     };
   }
 
-  if (!input.paymentReceipt) {
-    throw new Error("Attach a wallet receipt before Boreal starts.");
+  if (input.prepareOnly && !input.paymentReceipt && !input.x402Payment) {
+    return {
+      assistantMessage: "",
+      intentId: input.intentId,
+      relatedCatalogItems: lockedPresetTeam
+        ? buildPresetTeamPreviewCatalogItems(lockedPresetTeam)
+        : mergePreviewCatalogItems(
+            request.catalogQuery.trim().length > 0
+              ? await withRetry(
+                  () =>
+                    searchCatalog({
+                      limit: 6,
+                      query: request.catalogQuery,
+                    }),
+                  { attempts: 2 },
+                )
+              : [],
+            buildRoutePreviewCatalogItems(lockedRoutePlan),
+          ),
+      workspace: buildSpecialistPaymentWorkspace({
+        selection: pendingSelection,
+      }),
+    };
   }
 
-  const expectedPayment = getExpectedProviderRoutePayment(selectedRoute);
-  const seller = getOneRequestSellerMetadata();
-  const paymentVerification = await verifyOneRequestPayment({
-    amount: expectedPayment.amount,
-    authorizationMessage: buildPaymentAuthorizationMessage({
+  let paymentReceipt = input.paymentReceipt ?? null;
+  let paymentVerification:
+    | Awaited<ReturnType<typeof verifyOneRequestPayment>>
+    | null = null;
+
+  if (input.x402Payment) {
+    paymentReceipt = buildTrackedRouteX402PaymentReceipt({
+      payment: input.x402Payment,
+      quote: selectedQuote,
+    });
+    paymentVerification = buildTrackedRouteX402Verification({
+      payment: input.x402Payment,
+      quote: selectedQuote,
+    });
+  }
+
+  if (!paymentReceipt) {
+    throw new Error("Connect a Solana wallet and sign the x402 payment before Boreal starts.");
+  }
+
+  if (!paymentVerification) {
+    const expectedPayment = getExpectedProviderRoutePayment(selectedRoute);
+    const seller = getOneRequestSellerMetadata();
+    paymentVerification = await verifyOneRequestPayment({
       amount: expectedPayment.amount,
+      authorizationMessage: buildPaymentAuthorizationMessage({
+        amount: expectedPayment.amount,
+        currency: expectedPayment.currency,
+        quoteToken: selectedQuote.quoteToken,
+        requestToken: selectedQuote.requestToken,
+      }),
       currency: expectedPayment.currency,
+      payToAddress: seller.payToAddress,
+      payToAsset: seller.payToAsset,
+      payToMintAddress: seller.payToMintAddress,
+      payToTokenAccountAddress: seller.payToTokenAccountAddress,
+      payToTokenDecimals: seller.payToTokenDecimals,
+      payToTokenProgramAddress: seller.payToTokenProgramAddress,
+      quoteExpiresAt: selectedQuote.expiresAt,
       quoteToken: selectedQuote.quoteToken,
+      receipt: paymentReceipt,
       requestToken: selectedQuote.requestToken,
-    }),
-    currency: expectedPayment.currency,
-    payToAddress: seller.payToAddress,
-    payToAsset: seller.payToAsset,
-    payToMintAddress: seller.payToMintAddress,
-    payToTokenAccountAddress: seller.payToTokenAccountAddress,
-    payToTokenDecimals: seller.payToTokenDecimals,
-    payToTokenProgramAddress: seller.payToTokenProgramAddress,
-    quoteExpiresAt: selectedQuote.expiresAt,
-    quoteToken: selectedQuote.quoteToken,
-    receipt: input.paymentReceipt,
-    requestToken: selectedQuote.requestToken,
-    walletAddress: input.paymentReceipt.walletAddress,
-  });
+      walletAddress: paymentReceipt.walletAddress,
+    });
+  }
 
   await recordTrackedRequestPaymentArtifacts({
     conversationId: request.conversationId ?? crypto.randomUUID(),
     intentId: input.intentId,
     intentKey: request.intentKey,
     ownerExternalId,
-    paymentReceipt: input.paymentReceipt,
+    paymentReceipt,
     paymentVerification,
     requestedOutputTypes: request.requestedOutputTypes,
     route: selectedRoute,
@@ -1443,7 +1602,7 @@ export async function fundPersistedRequest(input: {
   await appendRequestActivity({
     activityPayload: JSON.stringify(
       buildProviderReceiptActivityPayload({
-        paymentReceipt: input.paymentReceipt,
+        paymentReceipt,
         route: selectedRoute,
         routeQuote: selectedQuote,
       }),
@@ -1455,7 +1614,7 @@ export async function fundPersistedRequest(input: {
   await appendRequestActivity({
     activityPayload: JSON.stringify(
       buildProviderVerifiedActivityPayload({
-        paymentReceipt: input.paymentReceipt,
+        paymentReceipt,
         paymentVerification,
         route: selectedRoute,
         routeQuote: selectedQuote,
@@ -1486,6 +1645,52 @@ export async function fundPersistedRequest(input: {
     routePlan: lockedRoutePlan!,
     runtimeConfig,
   });
+}
+
+function buildTrackedRouteX402PaymentReceipt(input: {
+  payment: NonNullable<
+    Parameters<typeof fundPersistedRequest>[0]["x402Payment"]
+  >;
+  quote: NonNullable<ProviderRouteOption["quote"]>;
+}) {
+  return {
+    amount: input.quote.amount,
+    currency: input.quote.currency,
+    networkKey: input.quote.networkKey,
+    payerSource: "openwallet" as const,
+    quoteToken: input.quote.quoteToken,
+    requestToken: input.quote.requestToken,
+    signature: "x402",
+    signedMessage: input.quote.authorizationMessage,
+    txHash: input.payment.settlement.transaction,
+    walletAddress: input.payment.walletAddress,
+  } satisfies ProviderRoutePaymentReceipt;
+}
+
+function buildTrackedRouteX402Verification(input: {
+  payment: NonNullable<
+    Parameters<typeof fundPersistedRequest>[0]["x402Payment"]
+  >;
+  quote: NonNullable<ProviderRouteOption["quote"]>;
+}) {
+  return {
+    blockTime: null,
+    confirmationStatus: "confirmed",
+    memo: input.quote.paymentReference,
+    networkKey: input.quote.networkKey,
+    payToAddress: input.quote.payToAddress,
+    payToAsset: input.quote.payToAsset,
+    payToMintAddress: input.quote.payToMintAddress,
+    payToTokenAccountAddress: input.quote.payToTokenAccountAddress,
+    rpcUrl: "facilitator:x402",
+    settlement: input.payment.settlement,
+    slot: null,
+    txHash: input.payment.settlement.transaction,
+    verification: input.payment.verification,
+    verificationMethod: "solana_usdc_memo_payto" as const,
+    verifiedAt: Date.now(),
+    walletAddress: input.payment.walletAddress,
+  };
 }
 
 function canAssignedTextTeamOwnRequestThread(status: string) {
@@ -3256,34 +3461,26 @@ function shouldConfirmBorealProviderRoute(input: {
   return input.intent.requestedOutputTypes.every((type) => type === "text");
 }
 
-async function executeConfirmedBorealProviderRoute(input: {
+async function executeBorealProviderRouteFromSelection(input: {
   conversationId: string;
   input: ChatAssistantAgentInput;
   intent: PersistedIntent;
+  paymentReceipt?: ProviderRoutePaymentReceipt | null;
   provider: ReturnType<typeof resolveProviderAdapter>;
+  routeKey: string;
   runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+  selection: ProviderSelectionState;
 }) {
   const ownerExternalId = input.input.requester?.externalId;
-  const confirmation = input.input.uiContext?.providerSelectionCommand;
-  const pendingSelection = input.input.uiContext?.pendingProviderSelection;
+  const pendingSelection = input.selection;
 
   if (!ownerExternalId) {
     throw new Error("Sign in with X before routing Boreal work.");
   }
 
-  if (
-    confirmation?.command !== "confirm_provider_route" ||
-    !pendingSelection
-  ) {
-    throw new Error("Provider selection is missing.");
-  }
-
   const currentPromptHash = hashPrompt(input.input.message);
 
-  if (
-    pendingSelection.promptHash !== confirmation.promptHash ||
-    pendingSelection.promptHash !== currentPromptHash
-  ) {
+  if (pendingSelection.promptHash !== currentPromptHash) {
     throw new Error(
       "Your message changed after provider selection. Pick the provider again.",
     );
@@ -3291,7 +3488,7 @@ async function executeConfirmedBorealProviderRoute(input: {
 
   const selectedRoute =
     pendingSelection.options.find(
-      (option) => option.routeKey === confirmation.routeKey,
+      (option) => option.routeKey === input.routeKey,
     ) ?? null;
 
   if (!selectedRoute) {
@@ -3302,10 +3499,10 @@ async function executeConfirmedBorealProviderRoute(input: {
     promptHash: pendingSelection.promptHash,
     promptText: pendingSelection.promptText,
     requesterExternalId: ownerExternalId,
-    routeKey: confirmation.routeKey,
+    routeKey: input.routeKey,
     walletAddress:
       input.input.uiContext?.walletAddress ??
-      confirmation.paymentReceipt?.walletAddress ??
+      input.paymentReceipt?.walletAddress ??
       null,
   });
 
@@ -3355,7 +3552,7 @@ async function executeConfirmedBorealProviderRoute(input: {
       } satisfies ChatAssistantResponse;
     }
 
-    paymentReceipt = confirmation.paymentReceipt ?? null;
+    paymentReceipt = input.paymentReceipt ?? null;
 
     if (!paymentReceipt) {
       throw new Error("Attach a verified wallet receipt before Boreal starts.");
@@ -3608,6 +3805,35 @@ async function executeConfirmedBorealProviderRoute(input: {
     });
     throw error;
   }
+}
+
+async function executeConfirmedBorealProviderRoute(input: {
+  conversationId: string;
+  input: ChatAssistantAgentInput;
+  intent: PersistedIntent;
+  provider: ReturnType<typeof resolveProviderAdapter>;
+  runtimeConfig: ReturnType<typeof getBorealRuntimeConfig>;
+}) {
+  const confirmation = input.input.uiContext?.providerSelectionCommand;
+  const pendingSelection = input.input.uiContext?.pendingProviderSelection;
+
+  if (
+    confirmation?.command !== "confirm_provider_route" ||
+    !pendingSelection
+  ) {
+    throw new Error("Provider selection is missing.");
+  }
+
+  return executeBorealProviderRouteFromSelection({
+    conversationId: input.conversationId,
+    input: input.input,
+    intent: input.intent,
+    paymentReceipt: confirmation.paymentReceipt ?? null,
+    provider: input.provider,
+    routeKey: confirmation.routeKey,
+    runtimeConfig: input.runtimeConfig,
+    selection: pendingSelection,
+  });
 }
 
 async function retryTrackedBorealProviderRoute(input: {
@@ -4204,11 +4430,11 @@ function toPersistedExecutionIntent(
 
 function buildDraftWorkspace(
   intent: IntentExtraction,
+  handlingMode: ReturnType<typeof getRequestHandlingMode>,
   catalogItems: CatalogItem[],
+  presetTeam?: PresetTeamDefinition | null,
   specialistRoutePlan?: OneRequestRoutePlan | null,
 ): WorkspaceState {
-  const handlingMode = getRequestHandlingMode(intent);
-
   if (intent.routeTarget === "profile_update") {
     return {
       draft: buildProfileBuilderWorkspaceDraft(intent),
@@ -4236,7 +4462,10 @@ function buildDraftWorkspace(
   if (catalogItems.length > 0) {
     const hasSpecialistPreview =
       handlingMode !== "workers" &&
-      Boolean(specialistRoutePlan && specialistRoutePlan.selected.length > 0);
+      Boolean(
+        presetTeam ||
+          (specialistRoutePlan && specialistRoutePlan.selected.length > 0),
+      );
 
     return {
       highlightedId: catalogItems[0]?.id,
@@ -4246,7 +4475,9 @@ function buildDraftWorkspace(
         handlingMode === "workers"
           ? "These matches can support the request once you approve and open it to the market."
           : hasSpecialistPreview
-            ? "Boreal already scored the strongest specialist routes. Review them before you open tracked work."
+            ? presetTeam
+              ? "Boreal already found the strongest team route. Review it before you open tracked work."
+              : "Boreal already scored the strongest specialist routes. Review them before you open tracked work."
             : "These matches are ready if you approve and want Boreal to route the work.",
       title: hasSpecialistPreview ? "Best-fit routes" : "Potential matches",
     };
@@ -4265,10 +4496,11 @@ function buildDraftWorkspace(
 
 function buildApprovalMessage(
   intent: IntentExtraction,
+  handlingMode: ReturnType<typeof getRequestHandlingMode>,
   catalogItems: CatalogItem[],
+  presetTeam?: PresetTeamDefinition | null,
   specialistRoutePlan?: OneRequestRoutePlan | null,
 ) {
-  const handlingMode = getRequestHandlingMode(intent);
   const workLabel = describeIntentWorkLabel(intent);
 
   if (intent.routeTarget === "profile_update") {
@@ -4294,7 +4526,21 @@ function buildApprovalMessage(
     ].join("\n\n");
   }
 
-  if (specialistRoutePlan && specialistRoutePlan.selected.length > 0) {
+  if (handlingMode !== "workers" && presetTeam) {
+    return [
+      `This is qualified ${workLabel}.`,
+      intent.summary,
+      `Top match: ${presetTeam.teamDisplayName}.`,
+      "That team route is attached below and stays on the same funded request thread.",
+      "Invite the highlighted route when you want Boreal to start tracked work.",
+    ].join("\n\n");
+  }
+
+  if (
+    handlingMode !== "workers" &&
+    specialistRoutePlan &&
+    specialistRoutePlan.selected.length > 0
+  ) {
     const primary = specialistRoutePlan.selected[0]?.agent.identity.displayName;
     const alternates = specialistRoutePlan.selected
       .slice(1)
@@ -4687,7 +4933,7 @@ export function buildSpecialistPaymentWorkspace(input: {
     selection: input.selection,
     subtitle:
       input.subtitle ??
-      `Funding starts ${leadTitle} in this same request thread. ${priceLabel} is required, and Boreal records the signed receipt plus verified Solana transaction before work begins.`,
+      `x402 payment starts ${leadTitle} in this same request thread. ${priceLabel} is required, and Boreal records the verified Solana x402 payment before work begins.`,
     title: "Fund specialist",
   } satisfies WorkspaceState;
 }
@@ -4982,7 +5228,7 @@ async function startMountedPresetTeamExecution(input: {
     requiresApproval: false,
     workspace: buildSpecialistPaymentWorkspace({
       selection: paymentSelection,
-      subtitle: `Funding starts ${input.presetTeam.teamDisplayName} in this same request thread. Boreal records the signed receipt and verified Solana transaction before the room begins.`,
+      subtitle: `x402 payment starts ${input.presetTeam.teamDisplayName} in this same request thread. Boreal records the verified Solana x402 payment before the room begins.`,
     }),
   } satisfies ChatAssistantResponse;
 }

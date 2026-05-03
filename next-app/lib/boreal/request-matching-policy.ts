@@ -1,4 +1,4 @@
-import type { RequestClassification } from "./schemas/intent.ts";
+import type { IntentExtraction, RequestClassification } from "./schemas/intent.ts";
 
 type SupplyActorKind = "human" | "agent" | "tool";
 type SupplyDeliveryType = "instant" | "async" | "scheduled";
@@ -23,6 +23,110 @@ export type RequestMatchableSupply = {
   supplyType: SupplyType;
   supportsDirectInvoke?: boolean;
 };
+
+type QualifiedRequestRoutingIntent = Pick<
+  IntentExtraction,
+  | "classification"
+  | "confidence"
+  | "intentType"
+  | "needsClarification"
+  | "requestedOutputTypes"
+  | "routeTarget"
+  | "routing"
+>;
+
+const LOW_CONFIDENCE_SPECIALIST_ROUTE_THRESHOLD = 0.74;
+
+function customWorkVisibleCandidatePool() {
+  return {
+    actorKinds: ["human", "agent", "tool"] as SupplyActorKind[],
+    deliveryTypes: ["async", "scheduled"] as SupplyDeliveryType[],
+    fulfillmentKinds: ["digital", "service", "hybrid"] as SupplyFulfillmentKind[],
+    requiresCartEnabled: null,
+    requiresDirectInvoke: null,
+    requiresSourceProvider: false,
+    supplyTypes: ["capability", "agent_tool", "collective"] as SupplyType[],
+  };
+}
+
+function workerMarketCandidatePool() {
+  return {
+    actorKinds: ["human", "agent"] as SupplyActorKind[],
+    deliveryTypes: ["async", "scheduled"] as SupplyDeliveryType[],
+    fulfillmentKinds: ["digital", "service", "hybrid"] as SupplyFulfillmentKind[],
+    requiresCartEnabled: null,
+    requiresDirectInvoke: false,
+    requiresSourceProvider: false,
+    supplyTypes: ["capability", "agent_tool", "collective"] as SupplyType[],
+  };
+}
+
+export function resolveMatchSurfaceClassification(input: {
+  classification?: RequestClassification | null;
+  requestStatus?: string | null;
+}) {
+  const classification = input.classification;
+
+  if (!classification) {
+    return null;
+  }
+
+  if (classification.routeFamily !== "custom_work") {
+    return classification;
+  }
+
+  if (input.requestStatus === "open") {
+    return {
+      ...classification,
+      matchingMode: "worker_market" as const,
+      candidatePool: workerMarketCandidatePool(),
+    };
+  }
+
+  if (classification.executionKind === "async_agent") {
+    return {
+      ...classification,
+      candidatePool: customWorkVisibleCandidatePool(),
+    };
+  }
+
+  return classification;
+}
+
+export function shouldPreferWorkerMarketForQualifiedRequest(input: {
+  hasSpecialistRoute: boolean;
+  intent: QualifiedRequestRoutingIntent;
+}) {
+  const { hasSpecialistRoute, intent } = input;
+
+  if (
+    intent.intentType !== "demand" ||
+    intent.needsClarification ||
+    intent.routeTarget === "clarification" ||
+    !intent.routing.shouldCreateFulfillmentRequest ||
+    intent.classification.routeFamily !== "custom_work"
+  ) {
+    return false;
+  }
+
+  if (
+    intent.routeTarget === "profile_update" ||
+    intent.routeTarget === "catalog_lookup" ||
+    intent.requestedOutputTypes.some((type) => type !== "text")
+  ) {
+    return false;
+  }
+
+  if (intent.classification.matchingMode === "worker_market") {
+    return true;
+  }
+
+  if (!hasSpecialistRoute) {
+    return true;
+  }
+
+  return intent.confidence < LOW_CONFIDENCE_SPECIALIST_ROUTE_THRESHOLD;
+}
 
 export function resolveRequestFetchPath(
   classification?: RequestClassification | null,

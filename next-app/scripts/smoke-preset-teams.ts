@@ -5,6 +5,7 @@ import {
   getPresetTeamDefinition,
   getPresetTeamDefinitionFromSourceCapabilityId,
   getPresetTeamStarterPromptInventory,
+  inferPresetTeamDefinitionFromRequestLike,
   listPublicPresetTeamCatalogEntries,
   PRESET_TEAM_FUNDED_START_USDC_AMOUNT,
 } from "../lib/boreal/swarm/preset-teams.ts"
@@ -40,6 +41,13 @@ const sourceCapabilityId = buildPresetTeamSourceCapabilityId("debate-and-verdict
 assert.equal(sourceCapabilityId, "preset-team:debate-and-verdict")
 assert.equal(
   getPresetTeamDefinitionFromSourceCapabilityId(sourceCapabilityId)?.key,
+  "debate-and-verdict",
+)
+assert.equal(
+  inferPresetTeamDefinitionFromRequestLike({
+    summary: "Comparative debate ending with a judge verdict",
+    title: "debate: solana vs ethereum",
+  })?.key,
   "debate-and-verdict",
 )
 

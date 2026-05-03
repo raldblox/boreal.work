@@ -166,6 +166,11 @@ The classification layer should also decide when not to fetch at all.  Many requ
 
 This saves both runtime cost and ranking noise.
 
+Live repo note:
+
+- Pre-approval custom-work drafts now use a visible match surface that can show current human, agent, and tool supply without rewriting the stored direct-specialist classification.
+- If Boreal cannot lock a confident specialist route for a qualified text request, approval should fall through to the worker market on that same request instead of pretending a specialist winner already exists.
+
 ### 3.2 Retrieval Layers
 
 Use multiple retrieval views in parallel, then fuse.

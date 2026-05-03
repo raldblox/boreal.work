@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 
 import { directExecutionAgents } from "../agents/index.ts";
 import {
+  canAutoConfirmProviderSelection,
+  resolvePromptPresetTeamDefinition,
+} from "../lib/boreal/routing/chat-route-helpers.ts";
+import {
   buildDirectSpecialistThreadGreeting,
   buildInitialInteractiveFollowUpQuestion,
   isGreetingLikeThreadMessage,
@@ -249,6 +253,54 @@ assert.equal(
   presetTeamRoute.sourceCapabilityId,
   "preset-team:debate-and-verdict",
 );
+assert.equal(
+  canAutoConfirmProviderSelection({
+    defaultRouteKey: "openai-by-boreal",
+    options: [
+      {
+        accessLabel: "Free access",
+        company: "openai",
+        deliveryMode: "boreal-hosted",
+        displayTitle: "OpenAI by Boreal",
+        executionSurface: "http",
+        fallbackOrder: 0,
+        isDefault: true,
+        networkHints: ["solana:mainnet"],
+        paymentProtocol: "none",
+        priceLabel: "Free",
+        pricingPolicy: { kind: "free" },
+        providerKey: "boreal",
+        quote: null,
+        receiptExpectation: {
+          requiresSignedMessage: true,
+          requiresTxHash: true,
+          requiresVerification: true,
+        },
+        requiresPayment: false,
+        routeKey: "openai-by-boreal",
+        sourceCapabilityId: "boreal:openai-default",
+        sourceProviderKey: null,
+        subtitle: "Boreal-hosted default lane for fast text work.",
+        supportsDirectInvoke: true,
+      },
+    ],
+    preparedAt: now,
+    promptHash: "smoke-hash",
+    promptText: "hello world",
+    rateLimitReason: null,
+    selectedRouteKey: "openai-by-boreal",
+  }),
+  true,
+  "single free Boreal route should auto-confirm instead of showing the provider picker",
+);
+assert.equal(
+  resolvePromptPresetTeamDefinition({
+    message: "debate: solana vs ethereum",
+    summary: "Comparative debate ending with a judge verdict.",
+  })?.key,
+  "debate-and-verdict",
+  "debate-prefixed prompts should resolve to Debate and Verdict",
+);
 
 const specialistSelection = buildTrackedProviderSelectionStateFromSession({
   lockedAt: now,
@@ -306,6 +358,8 @@ console.log(
       initialHandoff: initialPlan?.kind,
       interactiveAgent: initialPlan?.agent.key,
       paymentWorkspaceConfirmed: true,
+      providerAutoConfirm: true,
+      presetDebateDetected: true,
       greetingHandled: true,
       videoProviderErrorDetected: true,
       followUpExecution: executionPlan?.kind,

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 
 import {
   filterSupplyForRequestClassification,
+  resolveMatchSurfaceClassification,
   resolveRequestFetchPath,
+  shouldPreferWorkerMarketForQualifiedRequest,
   shouldFetchRequestMatches,
   shouldUseDirectAutoRoute,
   type RequestMatchableSupply,
@@ -179,6 +181,142 @@ function main() {
     }),
     null,
     "worker-market requests should stop direct auto routing",
+  );
+
+  const defaultCustomWorkClassification = deriveRequestClassification({
+    advisoryRequest: true,
+    intentType: "demand",
+    needsClarification: false,
+    requestedOutputTypes: ["text"],
+    routeTarget: "general_assistance",
+    routing: {
+      resolutionTier: "auto",
+      shouldCreateFulfillmentRequest: true,
+      shouldPersistToBoard: true,
+    },
+    shouldSearchCatalog: true,
+  });
+  const humanCapabilitySupply: RequestMatchableSupply = {
+    actorKind: "human",
+    deliveryType: "async",
+    fulfillmentKind: "service",
+    isCartEnabled: true,
+    supplyType: "capability",
+    supportsDirectInvoke: false,
+  };
+  const proposedMatchSurfaceClassification = resolveMatchSurfaceClassification({
+    classification: defaultCustomWorkClassification,
+    requestStatus: "proposed",
+  });
+  const openMatchSurfaceClassification = resolveMatchSurfaceClassification({
+    classification: defaultCustomWorkClassification,
+    requestStatus: "open",
+  });
+
+  assert.ok(
+    proposedMatchSurfaceClassification,
+    "custom-work requests should resolve a visible match surface classification",
+  );
+  assert.equal(
+    resolveRequestFetchPath(proposedMatchSurfaceClassification),
+    "direct_tool",
+    "pre-approval custom-work requests should still keep Boreal's direct specialist route eligible",
+  );
+  assert.equal(
+    shouldUseDirectAutoRoute(defaultCustomWorkClassification),
+    true,
+    "the stored custom-work classification should still allow direct specialist auto routing",
+  );
+  assert.equal(
+    filterSupplyForRequestClassification(
+      humanCapabilitySupply,
+      proposedMatchSurfaceClassification,
+    ),
+    true,
+    "pre-approval custom-work matching should admit human capability supply on the visible match surface",
+  );
+  assert.equal(
+    resolveRequestFetchPath(openMatchSurfaceClassification),
+    "worker_market",
+    "open custom-work requests should switch the visible match surface to worker market",
+  );
+  assert.equal(
+    filterSupplyForRequestClassification(
+      humanCapabilitySupply,
+      openMatchSurfaceClassification,
+    ),
+    true,
+    "open custom-work requests should keep human capability supply eligible",
+  );
+
+  const lowConfidenceCustomWorkIntent = createPersistedIntent({
+    classification: defaultCustomWorkClassification,
+    message: "Pressure test this startup idea and tell me the best way to validate it.",
+    partialIntent: {
+      body: "Pressure test this startup idea and tell me the best way to validate it.",
+      capabilityTags: ["startup", "validation", "strategy"],
+      catalogQuery: "startup validation strategy",
+      category: "advisory",
+      confidence: 0.58,
+      extractionNotes: ["deterministic smoke low-confidence custom-work request"],
+      intentType: "demand",
+      keywords: ["startup", "validation", "strategy"],
+      requestedOutputTypes: ["text"],
+      responseInstructions: "Route the work to the strongest specialist or open it to the market.",
+      routeTarget: "general_assistance",
+      routing: {
+        resolutionTier: "auto",
+        shouldCreateFulfillmentRequest: true,
+        shouldPersistToBoard: true,
+      },
+      shouldSearchCatalog: true,
+      summary: "Pressure test a startup idea and recommend the right validation path.",
+      title: "Pressure test startup idea",
+      voice: "alloy",
+    },
+  });
+  const highConfidenceCustomWorkIntent = createPersistedIntent({
+    classification: defaultCustomWorkClassification,
+    message: "Pressure test this startup idea and tell me the best way to validate it.",
+    partialIntent: {
+      body: "Pressure test this startup idea and tell me the best way to validate it.",
+      capabilityTags: ["startup", "validation", "strategy"],
+      catalogQuery: "startup validation strategy",
+      category: "advisory",
+      confidence: 0.93,
+      extractionNotes: ["deterministic smoke high-confidence custom-work request"],
+      intentType: "demand",
+      keywords: ["startup", "validation", "strategy"],
+      requestedOutputTypes: ["text"],
+      responseInstructions: "Route the work to the strongest specialist or open it to the market.",
+      routeTarget: "general_assistance",
+      routing: {
+        resolutionTier: "auto",
+        shouldCreateFulfillmentRequest: true,
+        shouldPersistToBoard: true,
+      },
+      shouldSearchCatalog: true,
+      summary: "Pressure test a startup idea and recommend the right validation path.",
+      title: "Pressure test startup idea",
+      voice: "alloy",
+    },
+  });
+
+  assert.equal(
+    shouldPreferWorkerMarketForQualifiedRequest({
+      hasSpecialistRoute: false,
+      intent: lowConfidenceCustomWorkIntent,
+    }),
+    true,
+    "low-confidence custom-work requests should default to worker-market approval when no strong specialist route is locked",
+  );
+  assert.equal(
+    shouldPreferWorkerMarketForQualifiedRequest({
+      hasSpecialistRoute: true,
+      intent: highConfidenceCustomWorkIntent,
+    }),
+    false,
+    "high-confidence custom-work requests should keep the direct specialist approval path when a strong route is available",
   );
 
   const providerClassification: RequestClassification = {

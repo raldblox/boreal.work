@@ -4,6 +4,7 @@ import {
   type IntentExtraction,
   type RequestedOutputType,
 } from "@/lib/boreal/schemas/intent";
+import { shouldPreferWorkerMarketForQualifiedRequest } from "../request-matching-policy.ts";
 
 type RequestHandlingIntent = {
   body: string;
@@ -32,6 +33,7 @@ const deliverableNounPattern =
   /\b(tutorial|guide|explainer|lesson|course|article|post|script|outline|deck|presentation|landing page|copy|brief|proposal|plan|website|web app|app|product page|workflow|agent|bot)\b/i;
 const advisoryRequestPattern =
   /\b(pressure test|startup idea|business idea|idea critique|idea review|fatal flaw|mvp|launch plan|go[- ]to[- ]market|gtm|validate (this|my|our) idea|review my idea|audit|critique|evaluate|assess|analy[sz]e|brainstorm|research)\b/i;
+const presetDebatePattern = /^debate(?::|\s|-)/i;
 const solanaPlatformPattern =
   /\b(solana|jupiter|raydium|orca|meteora|phantom|backpack|spl|anchor)\b/i;
 const solanaActionPattern =
@@ -69,7 +71,9 @@ export function refineIntentForRequestLifecycle(
   const supplyOnboarding = isLikelySupplyOnboardingRequest(text);
   const capabilityLookup = isCapabilityLookupRequest(text);
   const solanaWork = isLikelySolanaWorkRequest(text);
-  const advisoryRequest = solanaWork || isLikelyAdvisoryRequest(text);
+  const presetDebateRequest = isLikelyPresetDebateRequest(message);
+  const advisoryRequest =
+    solanaWork || presetDebateRequest || isLikelyAdvisoryRequest(text);
   const workerLed = isLikelyWorkerLedRequest(text);
   const textOnly = isTextOnlyIntent(intent.requestedOutputTypes);
 
@@ -277,6 +281,24 @@ export function getRequestHandlingMode(intent: RequestHandlingIntent): RequestHa
   return "direct";
 }
 
+export function resolveTrackedRequestHandlingMode(input: {
+  hasSpecialistRoute: boolean;
+  intent: IntentExtraction;
+}): RequestHandlingMode {
+  const baseMode = getRequestHandlingMode(input.intent);
+
+  if (baseMode !== "boreal") {
+    return baseMode;
+  }
+
+  return shouldPreferWorkerMarketForQualifiedRequest({
+    hasSpecialistRoute: input.hasSpecialistRoute,
+    intent: input.intent,
+  })
+    ? "workers"
+    : baseMode;
+}
+
 export function getRequestHandlingLabel(mode: RequestHandlingMode) {
   switch (mode) {
     case "clarify":
@@ -334,11 +356,16 @@ function isLikelySolanaWorkRequest(text: string) {
   );
 }
 
+function isLikelyPresetDebateRequest(text: string) {
+  return presetDebatePattern.test(text.trim());
+}
+
 function isLikelyQualifiedTextRequest(text: string) {
   return (
     isLikelyDeliverableRequest(text) ||
     isLikelyAdvisoryRequest(text) ||
-    isLikelySolanaWorkRequest(text)
+    isLikelySolanaWorkRequest(text) ||
+    isLikelyPresetDebateRequest(text)
   );
 }
 
