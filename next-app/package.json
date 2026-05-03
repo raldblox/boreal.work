@@ -37,7 +37,7 @@
     "smoke:solana-thread-actions": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-solana-thread-actions.ts",
     "smoke:solana-specialist-route": "node --import ./scripts/register-local-env.mjs --import ./scripts/register-path-aliases.mjs --experimental-strip-types scripts/smoke-solana-specialist-route.ts",
     "smoke:swarm-team-blueprint": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-swarm-team-blueprint.ts",
-    "smoke:request-thread-specialists": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-request-thread-specialists.ts",
+    "smoke:request-thread-specialists": "node --import ./scripts/register-local-env.mjs --import ./scripts/register-path-aliases.mjs --experimental-strip-types scripts/smoke-request-thread-specialists.ts",
     "smoke:service-provider-adapters": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-service-provider-adapters.ts",
     "smoke:supplier-capacity": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-supplier-capacity.ts",
     "smoke:supplier-listing-guards": "node --import ./scripts/register-local-env.mjs --experimental-strip-types scripts/smoke-supplier-listing-guards.ts",

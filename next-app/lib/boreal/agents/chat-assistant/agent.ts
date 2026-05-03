@@ -4584,7 +4584,7 @@ function isTextOnlyRoutePlan(routePlan: OneRequestRoutePlan) {
   );
 }
 
-function buildTrackedSpecialistRouteOption(routePlan: OneRequestRoutePlan) {
+export function buildTrackedSpecialistRouteOption(routePlan: OneRequestRoutePlan) {
   const selectedAgentKeys = routePlan.selected.map((selection) => selection.agent.key);
   const displayTitle = routePlan.selected
     .map((selection) => selection.agent.identity.displayName)
@@ -4636,7 +4636,9 @@ function buildTrackedSpecialistRouteOption(routePlan: OneRequestRoutePlan) {
   } satisfies ProviderRouteOption;
 }
 
-function buildTrackedPresetTeamRouteOption(presetTeam: PresetTeamDefinition) {
+export function buildTrackedPresetTeamRouteOption(
+  presetTeam: PresetTeamDefinition,
+) {
   const networkKey = getDefaultSolanaNetworkKey();
 
   return {
@@ -4672,19 +4674,20 @@ function buildTrackedPresetTeamRouteOption(presetTeam: PresetTeamDefinition) {
   } satisfies ProviderRouteOption;
 }
 
-function buildSpecialistPaymentWorkspace(input: {
+export function buildSpecialistPaymentWorkspace(input: {
   selection: ProviderSelectionState;
   subtitle?: string;
 }) {
   const leadTitle =
     input.selection.options[0]?.displayTitle?.trim() || "specialist";
+  const priceLabel = input.selection.options[0]?.priceLabel?.trim() || "payment";
 
   return {
     kind: "provider_selection",
     selection: input.selection,
     subtitle:
       input.subtitle ??
-      `Funding starts ${leadTitle} in this same request thread. Boreal records the signed receipt and verified Solana transaction before work begins.`,
+      `Funding starts ${leadTitle} in this same request thread. ${priceLabel} is required, and Boreal records the signed receipt plus verified Solana transaction before work begins.`,
     title: "Fund specialist",
   } satisfies WorkspaceState;
 }
