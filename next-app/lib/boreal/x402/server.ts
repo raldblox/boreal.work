@@ -75,6 +75,9 @@ export async function createBorealX402Challenge(input: {
     candidateNetworks.map((network) => ({
       extra: {
         memo: input.memo,
+        destinationTokenAccountAddress: seller.payToTokenAccountAddress,
+        tokenDecimals: seller.payToTokenDecimals,
+        tokenProgramAddress: seller.payToTokenProgramAddress,
         ...input.extra,
       },
       network,

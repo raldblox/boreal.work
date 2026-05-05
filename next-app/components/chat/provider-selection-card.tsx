@@ -80,7 +80,7 @@ export function ProviderSelectionCard({
       setLocalError(
         error instanceof Error
           ? error.message
-          : "Could not prepare this x402 payment.",
+          : "Could not prepare this payment.",
       );
     } finally {
       setIsPaying(false);
@@ -143,6 +143,13 @@ export function ProviderSelectionCard({
                     {option.accessLabel}
                   </p>
                   <p className="text-sm font-medium">{option.priceLabel}</p>
+                  {paymentMode === "settle" &&
+                  option.requiresPayment &&
+                  option.deliveryMode === "boreal-hosted" ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      wallet fallback 0.0001 SOL
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </button>
@@ -170,24 +177,29 @@ export function ProviderSelectionCard({
             <span className="border border-border px-2 py-1">
               {selectedRoute.executionSurface}
             </span>
+            {paymentMode === "settle" && selectedRoute.deliveryMode === "boreal-hosted" ? (
+              <span className="border border-border px-2 py-1">
+                wallet fallback 0.0001 SOL
+              </span>
+            ) : null}
           </div>
           {selectedRoute.requiresPayment ? (
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>
                 This route is x402 gated. Boreal only starts after a connected
-                Solana wallet signs the x402 payment.
+                Solana wallet signs the payment.
               </p>
               <p>
                 {paymentMode === "settle"
                   ? walletAddress
-                    ? `Wallet ${compactHexLike(walletAddress, 6)} is ready to sign the x402 payment.`
-                    : "Connect a funded Solana wallet to sign the x402 payment."
+                    ? `Wallet ${compactHexLike(walletAddress, 6)} is ready to sign the payment.`
+                    : "Connect a funded Solana wallet to sign the payment."
                   : "Opening this route creates a locked x402 request thread at 0.01 USDC."}
               </p>
               {paymentMode === "settle" && selectedRoute.deliveryMode === "boreal-hosted" ? (
                 <p>
                   If x402 facilitator bootstrap is unavailable, Boreal falls back
-                  to a direct wallet USDC transfer using this same locked quote.
+                  to a direct wallet 0.0001 SOL payment from this same thread.
                 </p>
               ) : null}
             </div>
@@ -222,8 +234,8 @@ export function ProviderSelectionCard({
           {selectedRoute?.requiresPayment
             ? paymentMode === "settle"
               ? !isWalletReady || !walletAddress
-                ? "Connect Solana wallet to pay with x402"
-                : "Sign x402 payment and start"
+                ? "Connect Solana wallet to pay"
+                : "Sign payment and start"
               : "Open x402 request"
             : `Run with ${selectedRoute?.displayTitle ?? "Boreal"}`}
         </Button>

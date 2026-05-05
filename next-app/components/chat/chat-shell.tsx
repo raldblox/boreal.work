@@ -155,13 +155,18 @@ import type {
 import { convexFunctionRefs } from "@/lib/boreal/integrations/convex/function-refs"
 import type {
   NormalizedRequestReceipt,
+  ProviderRouteQuote,
   ProviderRoutePaymentReceipt,
   ProviderSelectionState,
 } from "@/lib/boreal/provider-routing/types"
 import {
-  isFacilitatorBootstrapFailure,
+  isDirectWalletFallbackPaymentFailure,
   payProviderRouteQuoteByDirectWalletTransfer,
 } from "@/lib/boreal/provider-routing/direct-wallet-transfer"
+import {
+  getBorealX402FallbackQuote,
+  getBorealX402FallbackRequirement,
+} from "@/lib/boreal/x402/client"
 import type {
   ChatAssistantDebugEvent,
   CatalogItem,
@@ -2207,10 +2212,15 @@ export function ChatShell() {
       const lockedSelection = requestDetail.pendingPayment.selection
       const lockedRoute =
         lockedSelection.options.find((option) => option.routeKey === input.routeKey) ?? null
-      const lockedQuote = lockedRoute?.quote ?? null
+      const inputRoute =
+        input.selection.options.find((option) => option.routeKey === input.routeKey) ?? null
+      const lockedQuote = mergeProviderRouteQuote(
+        lockedRoute?.quote ?? null,
+        inputRoute?.quote ?? null
+      )
 
       if (!solanaConnection || !defaultWalletAddress || !walletProvider || !isWalletReady) {
-        setErrorMessage("Connect a funded Solana wallet to sign the x402 payment.")
+        setErrorMessage("Connect a funded Solana wallet to sign the payment.")
         handleOpenWalletModal()
         return
       }
@@ -2253,11 +2263,16 @@ export function ChatShell() {
         setWorkspace(payload.workspace)
         setShowWorkspace(true)
       } catch (error) {
-        if (lockedQuote && isFacilitatorBootstrapFailure(error)) {
+        if (lockedQuote && isDirectWalletFallbackPaymentFailure(error)) {
           try {
+            const fallbackQuote = mergeProviderRouteQuote(
+              getBorealX402FallbackQuote(error),
+              lockedQuote
+            )
             const paymentReceipt = await payProviderRouteQuoteByDirectWalletTransfer({
               connection: solanaConnection,
-              quote: lockedQuote,
+              fallbackRequirement: getBorealX402FallbackRequirement(error),
+              quote: fallbackQuote ?? lockedQuote,
               walletAddress: defaultWalletAddress,
               walletProvider,
             })
@@ -11666,6 +11681,37 @@ function buildWorkspaceFromRequestDetail(
   }
 
   return emptyWorkspace
+}
+
+function mergeProviderRouteQuote(
+  primary: ProviderRouteQuote | null,
+  secondary: ProviderRouteQuote | null
+): ProviderRouteQuote | null {
+  if (!primary && !secondary) {
+    return null
+  }
+
+  if (!primary) {
+    return secondary
+  }
+
+  if (!secondary) {
+    return primary
+  }
+
+  return {
+    ...secondary,
+    ...primary,
+    payToAddress: primary.payToAddress ?? secondary.payToAddress,
+    payToAsset: primary.payToAsset ?? secondary.payToAsset,
+    payToMintAddress: primary.payToMintAddress ?? secondary.payToMintAddress,
+    payToTokenAccountAddress:
+      primary.payToTokenAccountAddress ?? secondary.payToTokenAccountAddress,
+    payToTokenDecimals:
+      primary.payToTokenDecimals ?? secondary.payToTokenDecimals,
+    payToTokenProgramAddress:
+      primary.payToTokenProgramAddress ?? secondary.payToTokenProgramAddress,
+  }
 }
 
 function buildWorkspaceProfileBuilderDraft(

@@ -195,6 +195,27 @@ export const createRequestSession = mutation({
     walletAddress: v.string(),
   },
   handler: async (ctx, args) => {
+    const existingSession = await getSessionByToken(ctx, args.requestToken);
+
+    if (existingSession) {
+      if (
+        existingSession.ownerExternalId === args.ownerExternalId &&
+        existingSession.idempotencyKey === args.idempotencyKey &&
+        existingSession.intentId === args.intentId &&
+        existingSession.status === "payment_required" &&
+        !existingSession.paidAt
+      ) {
+        return {
+          requestSessionId: existingSession._id,
+          requestToken: existingSession.requestToken,
+        };
+      }
+
+      throw new Error(
+        "Boreal found an existing locked request token. Refresh and retry so it can mint a fresh payment thread.",
+      );
+    }
+
     const now = Date.now();
     const sessionId = await ctx.db.insert("agentRequestSessions", {
       chainFamily: args.chainFamily,
@@ -413,6 +434,8 @@ export const recordQuotePayment = mutation({
     }
 
     const now = Date.now();
+    const paymentReceipt = safeParseJson(args.paymentReceiptJson);
+    const recordedPayment = resolveRecordedPayment(session, paymentReceipt);
 
     if (session.quoteExpiresAt <= now) {
       throw new Error("Locked quote expired before Boreal could record payment.");
@@ -434,19 +457,19 @@ export const recordQuotePayment = mutation({
     const transactionId =
       session.transactionId ??
       (await ctx.db.insert("transactions", {
-        amount: session.quoteAmount,
+        amount: recordedPayment.amount,
         buyerUserId: ownerUser?._id,
         buyerWalletAccountId,
         chainFamily: session.chainFamily,
         createdAt: now,
-        currency: session.currency,
+        currency: recordedPayment.currency,
         environment: session.environment,
         fulfillmentId: undefined,
         intentId: session.intentId,
         intentKey: session.intentKey,
         networkKey: session.networkKey,
         paymentAttemptId: undefined,
-        paymentProtocol: session.paymentProtocol,
+        paymentProtocol: recordedPayment.paymentProtocol,
         paymentStatus: "paid",
         proposalId: undefined,
         scenarioId: "boreal-one-request-auto",
@@ -464,21 +487,20 @@ export const recordQuotePayment = mutation({
     const settlementId =
       session.settlementId ??
       (await ctx.db.insert("settlements", {
-        amount: session.quoteAmount,
+        amount: recordedPayment.amount,
         buyerWalletAccountId,
         chainFamily: session.chainFamily,
         createdAt: now,
-        currency: session.currency,
+        currency: recordedPayment.currency,
         environment: session.environment,
         networkKey: session.networkKey,
         payoutWalletAccountId: undefined,
-        settlementProtocol: session.paymentProtocol,
+        settlementProtocol: recordedPayment.paymentProtocol,
         status: "pending",
         transactionId,
         txHash: args.txHash,
         updatedAt: now,
       }));
-    const paymentReceipt = safeParseJson(args.paymentReceiptJson);
     const walletAddress =
       typeof paymentReceipt?.walletAddress === "string" &&
       paymentReceipt.walletAddress.trim().length > 0
@@ -486,11 +508,15 @@ export const recordQuotePayment = mutation({
         : session.walletAddress;
 
     await ctx.db.patch(session._id, {
+      currency: recordedPayment.currency,
       paidAt: now,
       payerSource: args.payerSource,
+      paymentProtocol: recordedPayment.paymentProtocol,
       paymentReceiptJson: args.paymentReceiptJson,
       paymentVerificationJson: args.paymentVerificationJson,
       paymentVerifiedAt: now,
+      quoteAmount: recordedPayment.amount,
+      quoteAuthorizationMessage: recordedPayment.authorizationMessage,
       settlementId,
       status: "paid",
       transactionId,
@@ -500,12 +526,18 @@ export const recordQuotePayment = mutation({
     });
 
     await ctx.db.patch(transactionId, {
+      amount: recordedPayment.amount,
+      currency: recordedPayment.currency,
       paymentStatus: "paid",
+      paymentProtocol: recordedPayment.paymentProtocol,
       settlementStatus: "pending",
       status: "active",
       updatedAt: now,
     });
     await ctx.db.patch(settlementId, {
+      amount: recordedPayment.amount,
+      currency: recordedPayment.currency,
+      settlementProtocol: recordedPayment.paymentProtocol,
       status: "pending",
       txHash: args.txHash,
       updatedAt: now,
@@ -776,12 +808,20 @@ async function getSessionByToken(
   ctx: MutationCtx | QueryCtx,
   requestToken: string,
 ) {
-  const session = await ctx.db
+  const sessions = await ctx.db
     .query("agentRequestSessions")
     .withIndex("by_requestToken", (queryBuilder) =>
       queryBuilder.eq("requestToken", requestToken),
     )
-    .unique();
+    .collect();
+  const session =
+    sessions.sort((left, right) => {
+      if (right.updatedAt !== left.updatedAt) {
+        return right.updatedAt - left.updatedAt;
+      }
+
+      return right.createdAt - left.createdAt;
+    })[0] ?? null;
 
   return session ? normalizeStoredRequestSession(session) : null;
 }
@@ -941,4 +981,41 @@ function safeParseJson(value: string) {
   } catch {
     return null;
   }
+}
+
+function resolveRecordedPayment(
+  session: {
+    currency: string;
+    paymentProtocol: "direct-solana" | "mpp" | "none" | "widget" | "x402";
+    quoteAmount: number;
+    quoteAuthorizationMessage: string;
+  },
+  paymentReceipt: Record<string, unknown> | null,
+) {
+  const amount =
+    typeof paymentReceipt?.amount === "number" &&
+    Number.isFinite(paymentReceipt.amount)
+      ? paymentReceipt.amount
+      : session.quoteAmount;
+  const currency =
+    typeof paymentReceipt?.currency === "string" &&
+    paymentReceipt.currency.trim().length > 0
+      ? paymentReceipt.currency.trim()
+      : session.currency;
+  const authorizationMessage =
+    typeof paymentReceipt?.signedMessage === "string" &&
+    paymentReceipt.signedMessage.trim().length > 0
+      ? paymentReceipt.signedMessage.trim()
+      : session.quoteAuthorizationMessage;
+  const paymentProtocol =
+    paymentReceipt?.payerSource === "openwallet" && currency === "SOL"
+      ? ("direct-solana" as const)
+      : session.paymentProtocol;
+
+  return {
+    amount,
+    authorizationMessage,
+    currency,
+    paymentProtocol,
+  };
 }

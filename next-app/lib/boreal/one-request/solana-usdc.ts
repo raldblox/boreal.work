@@ -1,6 +1,7 @@
 import { Buffer } from "buffer";
 import {
   PublicKey,
+  SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
 
@@ -13,6 +14,8 @@ export const SOLANA_SPL_TOKEN_PROGRAM_ADDRESS =
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 export const SOLANA_ASSOCIATED_TOKEN_PROGRAM_ADDRESS =
   "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+export const SOLANA_SYSTEM_PROGRAM_ADDRESS =
+  "11111111111111111111111111111111";
 export const SOLANA_USDC_MAINNET_MINT_ADDRESS =
   "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 export const SOLANA_USDC_TESTNET_MINT_ADDRESS =
@@ -110,5 +113,52 @@ export function createTransferCheckedInstruction(input: {
     programId: new PublicKey(
       input.tokenProgramAddress ?? getDefaultSolanaUsdcTokenProgramAddress(),
     ),
+  });
+}
+
+export function createAssociatedTokenIdempotentInstruction(input: {
+  associatedTokenAddress: string;
+  mintAddress: string;
+  ownerAddress: string;
+  payerAddress: string;
+  tokenProgramAddress?: string;
+}) {
+  return new TransactionInstruction({
+    data: Buffer.from([1]),
+    keys: [
+      {
+        isSigner: true,
+        isWritable: true,
+        pubkey: new PublicKey(input.payerAddress),
+      },
+      {
+        isSigner: false,
+        isWritable: true,
+        pubkey: new PublicKey(input.associatedTokenAddress),
+      },
+      {
+        isSigner: false,
+        isWritable: false,
+        pubkey: new PublicKey(input.ownerAddress),
+      },
+      {
+        isSigner: false,
+        isWritable: false,
+        pubkey: new PublicKey(input.mintAddress),
+      },
+      {
+        isSigner: false,
+        isWritable: false,
+        pubkey: SystemProgram.programId,
+      },
+      {
+        isSigner: false,
+        isWritable: false,
+        pubkey: new PublicKey(
+          input.tokenProgramAddress ?? getDefaultSolanaUsdcTokenProgramAddress(),
+        ),
+      },
+    ],
+    programId: new PublicKey(SOLANA_ASSOCIATED_TOKEN_PROGRAM_ADDRESS),
   });
 }

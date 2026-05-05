@@ -30,6 +30,7 @@ import {
   BOREAL_X402_PAYMENT_RESPONSE_HEADER,
   BOREAL_X402_PAYMENT_SIGNATURE_HEADER,
 } from "./constants";
+import type { ProviderRouteQuote } from "../provider-routing/types";
 import {
   createTransferCheckedInstruction,
   deriveAssociatedTokenAddress,
@@ -55,6 +56,18 @@ type PayWithX402Input = {
   url: string;
   walletAddress: string;
   walletProvider: SolanaWalletProvider;
+};
+
+const BOREAL_X402_FALLBACK_REQUIREMENT_KEY = "borealX402FallbackRequirement";
+const BOREAL_X402_FALLBACK_QUOTE_KEY = "borealX402FallbackQuote";
+
+export type BorealX402FallbackRequirement = {
+  asset: string | null;
+  destinationTokenAccountAddress: string | null;
+  memo: string | null;
+  payToAddress: string | null;
+  tokenDecimals: number | null;
+  tokenProgramAddress: string | null;
 };
 
 export async function payWithSolanaX402(input: PayWithX402Input) {
@@ -87,13 +100,19 @@ export async function payWithSolanaX402(input: PayWithX402Input) {
     );
   }
 
-  const paymentPayload = await createSolanaExactPaymentPayload({
-    connection: input.connection,
-    paymentRequired,
-    paymentRequirement: selectedRequirement,
-    walletAddress: input.walletAddress,
-    walletProvider: input.walletProvider,
-  });
+  let paymentPayload: PaymentPayload;
+
+  try {
+    paymentPayload = await createSolanaExactPaymentPayload({
+      connection: input.connection,
+      paymentRequired,
+      paymentRequirement: selectedRequirement,
+      walletAddress: input.walletAddress,
+      walletProvider: input.walletProvider,
+    });
+  } catch (error) {
+    throw attachBorealX402FallbackMetadata(error, selectedRequirement, body);
+  }
   const paymentHeaders = {
     [BOREAL_X402_PAYMENT_SIGNATURE_HEADER]: encodePaymentSignatureHeader(paymentPayload),
   };
@@ -106,12 +125,52 @@ export async function payWithSolanaX402(input: PayWithX402Input) {
   });
 
   if (retryResponse.status === 402) {
-    throw new Error("Boreal x402 payment was rejected by the resource server.");
+    const payload = await safeReadJson(retryResponse.clone());
+    const message =
+      payload &&
+      typeof payload === "object" &&
+      typeof (payload as { error?: unknown }).error === "string"
+        ? (payload as { error: string }).error
+        : "Boreal x402 payment was rejected by the resource server.";
+
+    throw attachBorealX402FallbackMetadata(
+      new Error(message),
+      selectedRequirement,
+      payload,
+    );
   }
 
   retryResponse.headers.get(BOREAL_X402_PAYMENT_RESPONSE_HEADER);
 
   return retryResponse;
+}
+
+export function getBorealX402FallbackRequirement(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const requirement = (
+    error as {
+      [BOREAL_X402_FALLBACK_REQUIREMENT_KEY]?: BorealX402FallbackRequirement | null;
+    }
+  )[BOREAL_X402_FALLBACK_REQUIREMENT_KEY];
+
+  return requirement ?? null;
+}
+
+export function getBorealX402FallbackQuote(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const quote = (
+    error as {
+      [BOREAL_X402_FALLBACK_QUOTE_KEY]?: ProviderRouteQuote | null;
+    }
+  )[BOREAL_X402_FALLBACK_QUOTE_KEY];
+
+  return quote ?? null;
 }
 
 async function readPaymentRequired(response: Response) {
@@ -243,4 +302,94 @@ async function safeReadJson(response: Response) {
   } catch {
     return null;
   }
+}
+
+function attachBorealX402FallbackMetadata(
+  error: unknown,
+  requirement: PaymentRequirements,
+  body?: unknown,
+) {
+  const target =
+    error instanceof Error ? error : new Error(String(error ?? "x402 payment failed."));
+  (
+    target as {
+      [BOREAL_X402_FALLBACK_REQUIREMENT_KEY]?: BorealX402FallbackRequirement;
+    }
+  )[BOREAL_X402_FALLBACK_REQUIREMENT_KEY] =
+    buildBorealX402FallbackRequirement(requirement);
+  (
+    target as {
+      [BOREAL_X402_FALLBACK_QUOTE_KEY]?: ProviderRouteQuote | null;
+    }
+  )[BOREAL_X402_FALLBACK_QUOTE_KEY] = extractFallbackQuote(body);
+
+  return target;
+}
+
+function buildBorealX402FallbackRequirement(
+  requirement: PaymentRequirements,
+): BorealX402FallbackRequirement {
+  return {
+    asset: typeof requirement.asset === "string" ? requirement.asset.trim() : null,
+    destinationTokenAccountAddress:
+      typeof requirement.extra?.destinationTokenAccountAddress === "string"
+        ? requirement.extra.destinationTokenAccountAddress.trim()
+        : null,
+    memo:
+      typeof requirement.extra?.memo === "string"
+        ? requirement.extra.memo.trim()
+        : null,
+    payToAddress:
+      typeof requirement.payTo === "string" ? requirement.payTo.trim() : null,
+    tokenDecimals:
+      typeof requirement.extra?.tokenDecimals === "number"
+        ? requirement.extra.tokenDecimals
+        : null,
+    tokenProgramAddress:
+      typeof requirement.extra?.tokenProgramAddress === "string"
+        ? requirement.extra.tokenProgramAddress.trim()
+        : null,
+  };
+}
+
+function extractFallbackQuote(body: unknown): ProviderRouteQuote | null {
+  if (!body || typeof body !== "object") {
+    return null;
+  }
+
+  const workspace = (body as { workspace?: unknown }).workspace;
+
+  if (!workspace || typeof workspace !== "object") {
+    return null;
+  }
+
+  if ((workspace as { kind?: unknown }).kind !== "provider_selection") {
+    return null;
+  }
+
+  const selection = (workspace as { selection?: unknown }).selection;
+
+  if (!selection || typeof selection !== "object") {
+    return null;
+  }
+
+  const options = (selection as { options?: unknown }).options;
+
+  if (!Array.isArray(options)) {
+    return null;
+  }
+
+  for (const option of options) {
+    if (
+      option &&
+      typeof option === "object" &&
+      "quote" in option &&
+      option.quote &&
+      typeof option.quote === "object"
+    ) {
+      return option.quote as ProviderRouteQuote;
+    }
+  }
+
+  return null;
 }

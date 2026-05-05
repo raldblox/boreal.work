@@ -37,6 +37,7 @@ import { createConvexServerClient } from "@/lib/boreal/integrations/convex/serve
 import { resolveProviderAdapter } from "@/lib/boreal/integrations/providers/registry";
 import { buildPaymentAuthorizationMessage } from "@/lib/boreal/one-request/auth";
 import {
+  SPECIALIST_FRONTEND_WALLET_SOL_AMOUNT,
   formatUsdcPriceLabel,
   SPECIALIST_FUNDED_START_USDC_AMOUNT,
 } from "@/lib/boreal/one-request/pricing";
@@ -1557,12 +1558,15 @@ export async function fundPersistedRequest(input: {
   }
 
   if (!paymentReceipt) {
-    throw new Error("Connect a Solana wallet and sign the x402 payment before Boreal starts.");
+    throw new Error("Connect a Solana wallet and sign the payment before Boreal starts.");
   }
 
   if (!paymentVerification) {
-    const expectedPayment = getExpectedProviderRoutePayment(selectedRoute);
-    const seller = getOneRequestSellerMetadata();
+    const expectedPayment = getTrackedRoutePaymentTerms({
+      paymentReceipt,
+      route: selectedRoute,
+    });
+    const seller = resolveTrackedRoutePayToMetadata(paymentReceipt);
     paymentVerification = await verifyOneRequestPayment({
       amount: expectedPayment.amount,
       authorizationMessage: buildPaymentAuthorizationMessage({
@@ -1582,6 +1586,7 @@ export async function fundPersistedRequest(input: {
       quoteToken: selectedQuote.quoteToken,
       receipt: paymentReceipt,
       requestToken: selectedQuote.requestToken,
+      skipReceiptSignatureCheck: isDirectSolanaFallbackReceipt(paymentReceipt),
       walletAddress: paymentReceipt.walletAddress,
     });
   }
@@ -1593,11 +1598,11 @@ export async function fundPersistedRequest(input: {
     ownerExternalId,
     paymentReceipt,
     paymentVerification,
-    requestedOutputTypes: request.requestedOutputTypes,
-    route: selectedRoute,
-    routeSummary: request.summary,
-    title: request.title,
-    userMessage: request.body,
+      requestedOutputTypes: request.requestedOutputTypes,
+      route: selectedRoute,
+      routeSummary: request.summary,
+      title: request.title,
+      userMessage: request.body,
   });
   await appendRequestActivity({
     activityPayload: JSON.stringify(
@@ -1691,6 +1696,62 @@ function buildTrackedRouteX402Verification(input: {
     verifiedAt: Date.now(),
     walletAddress: input.payment.walletAddress,
   };
+}
+
+function isDirectSolanaFallbackReceipt(
+  paymentReceipt: ProviderRoutePaymentReceipt | null | undefined,
+) {
+  return (
+    paymentReceipt?.payerSource === "openwallet" &&
+    paymentReceipt.currency === "SOL"
+  );
+}
+
+function getTrackedRoutePaymentTerms(input: {
+  paymentReceipt?: ProviderRoutePaymentReceipt | null;
+  route: ProviderRouteOption;
+}) {
+  if (isDirectSolanaFallbackReceipt(input.paymentReceipt)) {
+    return {
+      amount: SPECIALIST_FRONTEND_WALLET_SOL_AMOUNT,
+      currency: "SOL",
+      paymentProtocol: "direct-solana" as const,
+    };
+  }
+
+  const expectedPayment = getExpectedProviderRoutePayment(input.route);
+
+  return {
+    amount: expectedPayment.amount,
+    currency: expectedPayment.currency,
+    paymentProtocol: input.route.paymentProtocol,
+  };
+}
+
+function resolveTrackedRoutePayToMetadata(
+  paymentReceipt: ProviderRoutePaymentReceipt | null | undefined,
+) {
+  const seller = getOneRequestSellerMetadata();
+
+  if (isDirectSolanaFallbackReceipt(paymentReceipt)) {
+    return {
+      payToAddress: seller.payToAddress,
+      payToAsset: "SOL",
+      payToMintAddress: null,
+      payToTokenAccountAddress: null,
+      payToTokenDecimals: null,
+      payToTokenProgramAddress: null,
+    } as const;
+  }
+
+  return {
+    payToAddress: seller.payToAddress,
+    payToAsset: seller.payToAsset,
+    payToMintAddress: seller.payToMintAddress,
+    payToTokenAccountAddress: seller.payToTokenAccountAddress,
+    payToTokenDecimals: seller.payToTokenDecimals,
+    payToTokenProgramAddress: seller.payToTokenProgramAddress,
+  } as const;
 }
 
 function canAssignedTextTeamOwnRequestThread(status: string) {
@@ -4186,7 +4247,10 @@ async function recordTrackedRequestPaymentArtifacts(input: {
     return;
   }
 
-  const expectedPayment = getExpectedProviderRoutePayment(input.route);
+  const recordedPayment = getTrackedRoutePaymentTerms({
+    paymentReceipt: input.paymentReceipt,
+    route: input.route,
+  });
   const existingSession = await client.query(api.requestApi.getRequestSession, {
     ownerExternalId: input.ownerExternalId,
     requestToken: quote.requestToken,
@@ -4196,7 +4260,7 @@ async function recordTrackedRequestPaymentArtifacts(input: {
     await client.mutation(api.requestApi.createRequestSession, {
       chainFamily: "solana",
       conversationId: input.conversationId,
-      currency: expectedPayment.currency,
+      currency: recordedPayment.currency,
       idempotencyKey: `provider-route:${quote.requestToken}`,
       intentId: input.intentId as never,
       intentKey: input.intentKey,
@@ -4204,11 +4268,11 @@ async function recordTrackedRequestPaymentArtifacts(input: {
       networkKey: quote.networkKey,
       ownerDisplayName: input.ownerDisplayName,
       ownerExternalId: input.ownerExternalId,
-      paymentProtocol: input.route.paymentProtocol,
-      quoteAmount: expectedPayment.amount,
+      paymentProtocol: recordedPayment.paymentProtocol,
+      quoteAmount: recordedPayment.amount,
       quoteAuthorizationMessage: buildPaymentAuthorizationMessage({
-        amount: expectedPayment.amount,
-        currency: expectedPayment.currency,
+        amount: recordedPayment.amount,
+        currency: recordedPayment.currency,
         quoteToken: quote.quoteToken,
         requestToken: quote.requestToken,
       }),
@@ -4296,14 +4360,17 @@ function buildProviderReceiptActivityPayload(input: {
   route: ProviderRouteOption;
   routeQuote: NonNullable<ProviderRouteOption["quote"]>;
 }) {
-  const expectedPayment = getExpectedProviderRoutePayment(input.route);
+  const recordedPayment = getTrackedRoutePaymentTerms({
+    paymentReceipt: input.paymentReceipt,
+    route: input.route,
+  });
 
   return {
-    amount: expectedPayment.amount,
+    amount: recordedPayment.amount,
     company: input.route.company,
-    currency: expectedPayment.currency,
+    currency: recordedPayment.currency,
     networkKey: input.routeQuote.networkKey,
-    paymentProtocol: input.route.paymentProtocol,
+    paymentProtocol: recordedPayment.paymentProtocol,
     paymentReference: input.routeQuote.paymentReference,
     providerKey: input.route.providerKey,
     providerLabel: input.route.displayTitle,
@@ -4981,26 +5048,29 @@ async function ensureTrackedProviderPaymentSelection(input: {
     requestFingerprint,
   });
 
-  if (
+  const reusableExistingSession =
     existingSession &&
     existingSession.intentId === input.intentId &&
     existingSession.status === "payment_required" &&
     !existingSession.paidAt
-  ) {
+      ? existingSession
+      : null;
+
+  if (reusableExistingSession) {
     const existingSelection = buildTrackedProviderSelectionStateFromSession({
-      lockedAt: existingSession.lockedAt,
-      message: existingSession.message,
+      lockedAt: reusableExistingSession.lockedAt,
+      message: reusableExistingSession.message,
       networkKey:
-        existingSession.networkKey === "solana:testnet"
+        reusableExistingSession.networkKey === "solana:testnet"
           ? "solana:testnet"
           : "solana:mainnet",
-      quoteAmount: existingSession.quoteAmount,
-      quoteAuthorizationMessage: existingSession.quoteAuthorizationMessage,
-      quoteExpiresAt: existingSession.quoteExpiresAt,
-      quoteToken: existingSession.quoteToken,
-      requestFingerprint: existingSession.requestFingerprint,
-      requestToken: existingSession.requestToken,
-      routeJson: existingSession.routeJson,
+      quoteAmount: reusableExistingSession.quoteAmount,
+      quoteAuthorizationMessage: reusableExistingSession.quoteAuthorizationMessage,
+      quoteExpiresAt: reusableExistingSession.quoteExpiresAt,
+      quoteToken: reusableExistingSession.quoteToken,
+      requestFingerprint: reusableExistingSession.requestFingerprint,
+      requestToken: reusableExistingSession.requestToken,
+      routeJson: reusableExistingSession.routeJson,
     });
 
     if (existingSelection) {
@@ -5010,7 +5080,7 @@ async function ensureTrackedProviderPaymentSelection(input: {
 
   const expectedPayment = getExpectedProviderRoutePayment(input.route);
   const requestToken =
-    existingSession?.requestToken ??
+    reusableExistingSession?.requestToken ??
     `req_locked_${crypto.randomUUID().replaceAll("-", "")}`;
   const quoteToken = `quote_${crypto.randomUUID().replaceAll("-", "")}`;
   const quoteExpiresAt = Date.now() + TRACKED_REQUEST_QUOTE_TTL_MS;

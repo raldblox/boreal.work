@@ -86,12 +86,15 @@ export type OneRequestPaymentVerification = {
   verificationMethod:
     | "solana_memo"
     | "solana_memo_payto"
+    | "solana_sol_memo_payto"
     | "solana_usdc_memo_payto";
   verifiedAt: number;
   walletAddress: string;
 };
 
 const SOLANA_MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+const SOLANA_SYSTEM_PROGRAM_ID = "11111111111111111111111111111111";
+const LAMPORTS_PER_SOL = 1_000_000_000;
 
 export async function verifyOneRequestPayment(input: {
   amount: number;
@@ -107,21 +110,26 @@ export async function verifyOneRequestPayment(input: {
   quoteToken: string;
   receipt: OneRequestPaymentReceipt;
   requestToken: string;
+  skipReceiptSignatureCheck?: boolean;
   walletAddress: string;
 }): Promise<OneRequestPaymentVerification> {
   if (input.quoteExpiresAt <= Date.now()) {
     throw new Error("Locked quote expired. Request a fresh quote before paying.");
   }
 
-  verifyPaymentReceipt({
-    amount: input.amount,
-    authorizationMessage: input.authorizationMessage,
-    currency: input.currency,
-    quoteToken: input.quoteToken,
-    receipt: input.receipt,
-    requestToken: input.requestToken,
-    walletAddress: input.walletAddress,
-  });
+  if (input.skipReceiptSignatureCheck) {
+    verifyTransactionOnlyReceipt(input);
+  } else {
+    verifyPaymentReceipt({
+      amount: input.amount,
+      authorizationMessage: input.authorizationMessage,
+      currency: input.currency,
+      quoteToken: input.quoteToken,
+      receipt: input.receipt,
+      requestToken: input.requestToken,
+      walletAddress: input.walletAddress,
+    });
+  }
 
   const txHash = input.receipt.txHash.trim();
   const paymentReference = buildPaymentReferenceMemo({
@@ -194,6 +202,13 @@ export async function verifyOneRequestPayment(input: {
       payToTokenProgramAddress,
       transaction,
     });
+  } else if (payToAddress && payToAsset === "SOL") {
+    verifyNativeSolPayment({
+      amount: input.amount,
+      destinationAddress: payToAddress,
+      sourceAddress: input.walletAddress,
+      transaction,
+    });
   } else if (payToAddress && !transactionMentionsAddress(transaction, payToAddress)) {
     throw new Error("Verified Solana transaction is not linked to Boreal's configured pay-to address.");
   }
@@ -230,12 +245,41 @@ export async function verifyOneRequestPayment(input: {
       payToMintAddress &&
       payToTokenAccountAddress
         ? "solana_usdc_memo_payto"
+        : payToAddress && payToAsset === "SOL"
+          ? "solana_sol_memo_payto"
         : payToAddress
           ? "solana_memo_payto"
           : "solana_memo",
     verifiedAt: Date.now(),
     walletAddress: input.walletAddress,
   };
+}
+
+function verifyTransactionOnlyReceipt(input: {
+  amount: number;
+  currency: string;
+  quoteToken: string;
+  receipt: OneRequestPaymentReceipt;
+  requestToken: string;
+  walletAddress: string;
+}) {
+  if (!input.receipt.txHash?.trim()) {
+    throw new Error("Payment receipt must include a Solana transaction hash.");
+  }
+
+  if (input.receipt.walletAddress !== input.walletAddress) {
+    throw new Error("Payment receipt wallet does not match the authenticated wallet.");
+  }
+
+  if (
+    input.receipt.quoteToken !== input.quoteToken ||
+    input.receipt.requestToken !== input.requestToken ||
+    input.receipt.amount !== input.amount ||
+    input.receipt.currency !== input.currency ||
+    input.receipt.networkKey !== getDefaultSolanaNetworkKey()
+  ) {
+    throw new Error("Payment receipt does not match the locked quote.");
+  }
 }
 
 async function getConfirmedTransaction(input: {
@@ -443,6 +487,29 @@ function verifySplTokenPayment(input: {
   }
 }
 
+function verifyNativeSolPayment(input: {
+  amount: number;
+  destinationAddress: string;
+  sourceAddress: string;
+  transaction: SolanaTransaction;
+}) {
+  const receivedLamports = readSystemTransferLamports({
+    destinationAddress: input.destinationAddress,
+    sourceAddress: input.sourceAddress,
+    transaction: input.transaction,
+  });
+
+  if (receivedLamports === null) {
+    throw new Error("Verified Solana transaction is missing Boreal's SOL destination transfer.");
+  }
+
+  const expectedLamports = BigInt(Math.round(input.amount * LAMPORTS_PER_SOL));
+
+  if (receivedLamports !== expectedLamports) {
+    throw new Error("Verified Solana transaction amount does not match Boreal's locked SOL fallback payment.");
+  }
+}
+
 function findTransactionAccountIndex(
   transaction: SolanaTransaction,
   address: string,
@@ -491,6 +558,68 @@ function readTokenAmount(balance: SolanaTokenBalance | null) {
   return BigInt(amount);
 }
 
+function readSystemTransferLamports(input: {
+  destinationAddress: string;
+  sourceAddress: string;
+  transaction: SolanaTransaction;
+}) {
+  const instructions = input.transaction.transaction?.message?.instructions ?? [];
+  let matched = false;
+  let totalLamports = BigInt(0);
+
+  for (const instruction of instructions) {
+    const transferLamports = readSystemTransferLamportsFromInstruction({
+      destinationAddress: input.destinationAddress,
+      instruction,
+      sourceAddress: input.sourceAddress,
+    });
+
+    if (transferLamports === null) {
+      continue;
+    }
+
+    matched = true;
+    totalLamports += transferLamports;
+  }
+
+  return matched ? totalLamports : null;
+}
+
+function readSystemTransferLamportsFromInstruction(input: {
+  destinationAddress: string;
+  instruction: SolanaInstruction;
+  sourceAddress: string;
+}) {
+  const program = input.instruction.program?.toLowerCase();
+
+  if (
+    program !== "system" &&
+    input.instruction.programId !== SOLANA_SYSTEM_PROGRAM_ID
+  ) {
+    return null;
+  }
+
+  const parsed = readObject(input.instruction.parsed);
+  const type = readString(parsed?.type);
+
+  if (type !== "transfer" && type !== "transferWithSeed") {
+    return null;
+  }
+
+  const info = readObject(parsed?.info);
+  const destination = readString(info?.destination) ?? readString(info?.to);
+  const source = readString(info?.source) ?? readString(info?.from);
+
+  if (
+    destination !== input.destinationAddress ||
+    (source && source !== input.sourceAddress)
+  ) {
+    return null;
+  }
+
+  return readBigInt(info?.lamports);
+}
+
 function collectInstructionStrings(value: unknown): string[] {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -506,4 +635,30 @@ function collectInstructionStrings(value: unknown): string[] {
   }
 
   return [];
+}
+
+function readObject(value: unknown) {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function readBigInt(value: unknown) {
+  if (typeof value === "bigint") {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return BigInt(Math.trunc(value));
+  }
+
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    return BigInt(value);
+  }
+
+  return null;
 }
