@@ -104,15 +104,20 @@ Use this order everywhere:
 
 Use these as the primary prompts:
 
-- `debate: solana vs ethereum`
-- `Pressure test this startup idea, define the smallest MVP, and route the right work.`
-- `I need a human operator to clean up my product catalog this week.`
+- Live run:
+  `debate: Everyone on earth takes a private vote by pressing a red or blue button. If more than 50 percent of people press the blue button, everyone survives. If less than 50 percent press the blue button, only the people who pressed red survive. Which button would you press? Be honest.`
+- Flash only:
+  `Organize a side event during TOKEN2049 Singapore for 200 founders. I need venue options, sponsor outreach, speaker coordination, a videographer, and local on-site support.`
+- Flash only:
+  `I need an on-site visit near the ETHDenver venue area tomorrow. Verify foot traffic, capture photos, check nearby sponsor activations, and summarize whether the location is worth using for a side event.`
+- Flash only:
+  `Find and coordinate five bilingual local operators for a conference booth during Consensus Toronto, including setup coverage, creator outreach, and daily recap delivery.`
 
-These three prompts cover:
+These prompts cover:
 
-- preset team route
-- specialist route
-- worker-market route
+- preset team route shown live
+- complex asks that prove normal chat is not enough
+- broader market or human-execution hints without overclaiming the live run
 
 ## What Not To Overclaim
 

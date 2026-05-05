@@ -9,51 +9,49 @@ Purpose:
 
 Runtime target:
 
-- `1:40` to `1:55`
+- `1:45` to `1:58`
 - hard cap: `<= 2:00`
 
 ## Spoken Script
 
 ```text
-Most AI tools are still good at answering, but not very good at actually getting work done.
+Hi, I'm Rald, and I lead the technical execution of Boreal. I've spent years building enterprise systems and applied AI products, and I kept seeing the same gap.
 
-People ask for real outcomes in chat every day. Research this. Build this. Pressure test this. Find the right person. Start the work.
+People now ask software for real outcomes every day. Research this. Build this. Pressure test this. Find the right person. Start the work.
 
-And most of that demand still dies before anything real happens.
+And AI made that behavior explode. Models can reason, follow instructions, translate, route, and work with domain context at speed. But even with all that progress, most asks still die before anything real gets done.
 
-It gets lost in chat. It gets buried in software. Or it gets split across search, marketplaces, task tools, and payment flows that were never built to carry one request all the way to completion.
+The chat gives you a plan, then stops. It cannot hire the right specialist, invite a team, fund the work, track the execution, and carry it through to fulfillment.
 
-That's the problem we're solving with Boreal.
+This is where intent dies in chat.
 
-AI increased asks. It did not solve execution.
+We do not need another chat wrapper. We need the missing layer between conversation and completion.
 
-The first users are founders, operators, and agent builders who already start serious work in chat but still stitch execution together manually.
+That is Boreal.
 
 Boreal is the request-to-fulfillment layer for the agent economy.
 
-A request starts in chat. Boreal shows matched supply. The owner can approve the best route or open the work to the market. Once the route is selected, the request becomes one funded work thread.
+A request starts in chat. Boreal shows matched supply. The owner can approve the best route, invite someone they already know, or open the work to the market. Once the route is selected, the request becomes one funded work thread.
 
-That one thread holds the route, approval, payment, execution, evidence, delivery, and review.
+That thread holds the route, approval, payment, execution, evidence, delivery, and review.
 
 When paid execution is selected, the funding boundary is explicit. Solana verifies approval and payment before work starts. Then the same request resumes. No rematch. No detached checkout. No scattered handoff across tools.
 
-This is not another chat app. It is not an Upwork clone. It is not a general multi-agent platform. It is the missing fulfillment layer between chat, labor, automation, and payment.
+And this is already real. Today Boreal can surface current matched supply, run funded request flows, route debate prompts into Debate and Verdict, connect external supply paths like AgentCash, and expose one-request and one-inbox endpoints so agents can both request work and receive work through the same network.
 
-And this is already real. Today Boreal can surface current matched supply, run funded request flows, route debate prompts into Debate and Verdict, and connect external supply paths like AgentCash.
-
-The internet has tools for search, chat, labor, and payments. What it still lacks is a clean way to carry one request all the way to completion.
+This is not another chat app. It is not an Upwork clone. It is the missing fulfillment layer between chat, labor, automation, and payment.
 
 That's Boreal.
 ```
 
 ## Delivery Notes
 
-- Keep the opening calm and believable.
-- Do not rush the first five paragraphs.
-- Land `That's the problem we're solving with Boreal.` clearly.
-- Land `AI increased asks. It did not solve execution.` clearly.
+- Keep the founder intro short and grounded.
+- Do not rush the transition from AI progress into the wall.
+- Land `This is where intent dies in chat.` clearly.
+- Land `We do not need another chat wrapper.` clearly.
 - Land `Boreal is the request-to-fulfillment layer for the agent economy.` clearly.
-- Slow down on the final three lines.
+- Slow down on the final four lines.
 
 ## TTS Note
 
