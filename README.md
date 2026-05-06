@@ -189,7 +189,7 @@ npm run typecheck
 - `2026-04-30`: Replaced the active Solana wallet path with Reown while leaving NextAuth untouched for identity: Boreal now opens a Solana-only Reown wallet connect flow for mounted request-thread actions, removes the old Privy wallet runtime from the app, requires `NEXT_PUBLIC_REOWN_PROJECT_ID` locally, and keeps provider-backed x402 wallet automation explicitly disabled until the Reown payment bridge reaches parity.
 - `2026-04-29`: Mounted `solana-operator` can now do a limited non-custodial Solana mainnet action path inside the request thread: explicit wallet-approved memo recording, simple SOL transfer, and wallet-message signing.  The public direct specialist route is still planning-first, the mounted thread records signatures or submissions back into the same request, and `npm run smoke:solana-thread-actions` keeps that path honest.
 - `2026-04-29`: Fixed mounted specialist request-thread ownership again: request-chat turns now go through one request-thread write path, selected text specialists keep replies inside the tracked request thread without a shadow Boreal reply, low-signal greetings like `hi` no longer auto-close into review, and the request chat now stays cleaner by suppressing duplicate `Reply posted` noise while `Work in flight` stays ambient.
-- `2026-04-29`: Finished the doc cleanup pass after the Boreal book consolidation: historical research notes now live under `docs/archive/`, Codex prompt-process notes now live under `docs/internal/`, and the public `one-request-api.md`, `one-inbox-api.md`, and `agent-registry.md` files are now generated from the root source contracts with `npm run docs:sync:public`.
+- `2026-04-29`: Finished the doc cleanup pass after the Boreal book consolidation: historical research notes now live under `docs/archive/`, local-only operator notes now stay under the ignored `private/` workspace, and the public `one-request-api.md`, `one-inbox-api.md`, and `agent-registry.md` files are now generated from the root source contracts with `npm run docs:sync:public`.
 - `2026-04-29`: Tightened the mounted specialist flow in Boreal chat: `Offers` now treats Boreal as the default chat agent, mounted specialists show up directly in the composer, selected non-Boreal agents open a ready work-thread posture immediately, and the next message creates one tracked request for that selected agent team without a separate approval step.
 - `2026-04-29`: Hardened the Solana starter path end to end: Solana quick-action asks now classify as `solana` specialist work instead of generic text work, they skip the content-format clarification loop, `solana-operator` becomes the top matched route with a direct invite path, and `npm run smoke:solana-specialist-route` verifies the exact starter prompt.
 - `2026-04-29`: Surfaced `solana-operator` in the main frontend instead of leaving it buried in docs: Boreal chat now shows a Solana specialist quick action and starter prompt, `/agents` now spotlights the route directly, and the normal built-in agent seed plus smoke flow still brings `solana-operator` back after reset-and-seed.
@@ -256,25 +256,25 @@ npm run typecheck
 ## Source Documents
 
 - `BOREAL_BOOK.md` is the living narrative source of truth for Boreal's brand, product definition, UX laws, release boundary, and public product truth.
-- `ROADMAP.md` is the only execution tracker: milestones, release gate, paid wedge, and next architecture work all live there now.
+- `ROADMAP.md` is the public-safe roadmap summary: milestones, release boundary, and high-level priorities live there, while deeper local planning stays in the ignored `private/` workspace.
 - `REQUEST_LIFECYCLE.md` is the canonical request-to-funding-to-fulfillment spec: free Boreal intake, paid specialist funding, Solana verification, same-request resume, and in-thread delivery.
-- `DESKTOP_PLAN.md` is the target architecture note for Boreal Desktop V1: a Windows-first owner-only private desktop execution node that reuses Boreal's request and supply model without being treated as a public market listing.
+- `DESKTOP_PLAN.md` is the public-safe Boreal Desktop boundary note: a Windows-first owner-only private execution path that is still separate from the main public market story.
 - `boreal-desktop/` is the first Electron workspace for that plan.  Today it can connect from the signed-in web account through `/api/account/desktop-connect` plus `/api/v1/desktop-connect/redeem`, register a private owner-only desktop node against Boreal, sync heartbeats plus assignments through `/api/v1/desktop-nodes`, and active signed-in request owners can queue work into that node from the web `Team` tab through `/api/requests/[intentId]/desktop`.  Qualified signed-in home chat work can also auto-open a free tracked thread directly into that private desktop worker when the node is available.  Full artifact parity, richer runtime UX, and public-request callback parity are still unfinished.
 - `docs/archive/` holds historical research and retired working notes that should not override the live canon.
-- `docs/internal/` holds internal prompt-process notes that should not be treated as product truth.
+- `private/` is the local-only, gitignored workspace for submission drafts, prompt-process notes, strategy docs, and video storyboards that should not ship in the public repo.
 - `next-app/public/one-request-api.md`, `next-app/public/one-inbox-api.md`, and `next-app/public/agent-registry.md` are generated public contract mirrors.  Regenerate them with `cd next-app && npm run docs:sync:public` instead of editing them by hand.
 - `SUPPLY_LIST.md` is the supply inventory and build-tracker spec: the supported market classes today, what delivery looks like for each one, and what subtype tables or flow work still need to be built.
 - `AGENTS.md` is the contributor control surface; when shipped behavior, public contracts, agent-control flows, or roadmap-relevant architecture changes, update `ROADMAP.md` and the most specific contract doc in the same patch.
 - `WHITEPAPER.md`, `EARLY_ACCESS.md`, and `MVP.md` are retained as compatibility entry points only and should not accumulate new living guidance.
 - `MATCHING_ENGINE.md` is the search, discovery, ranking, request-classification, and fetch-path architecture for Boreal's next matching phase.
-- `AGENT_NETWORK.md` is the technical paper for external agent identity, connector standards, portable reputation, request-native multi-agent collaboration, and the concrete roadmap/API/schema extension plan for that layer.
-- `SWARM_WORKSPACE_SPEC.md` is the implementation spec for the request-side `Workboard`, the later `Swarm Workspace` upgrade path, the shell IA, and the libp2p-versus-Convex responsibility split.
+- `AGENT_NETWORK.md` is the public-safe overview for external agent identity, connector standards, portable reputation, and request-native multi-agent collaboration.
+- `SWARM_WORKSPACE_SPEC.md` is the public-safe collaboration note for the request-side `Workboard` and the later `Swarm Workspace` upgrade path.
 - `CONNECT_AGENT_GUIDE.md` is the advanced runtime-adapter guide for Boreal's live and next connected-runtime UX, connector modes, auth/session bootstrap, and optional owner-runtime control plane.  Do not use it as the front-door product story.
 - `HERMES_CONNECT_QUICKSTART.md` is the shortest current operator path for the local HTTP bridge family: Hermes, Ollama, LM Studio, or another OpenAI-compatible local runtime using Boreal's connected-agent contract.
 - `docs/papers/` contains the public paper suite: the flagship Boreal work-network paper plus linked deep dives for human supply, Swarm Workspace, portable agent reputation, and external-agent onboarding.
 - `COMMERCE_STANDARDS.md` records Boreal's current catalog, cart, checkout, and ACP/UCP alignment decisions.
 - `SERVICE_PROVIDER.MD` captures the external service-provider, payment-rail, and wallet-broker architecture plus implementation status.
-- `DISCOVERY_PLAN.md` is the execution plan for getting Boreal discovered externally across x402, Agentic Market, AgentCash, MCP, and ChatGPT app surfaces without overclaiming readiness.
+- `DISCOVERY_PLAN.md` is the public-safe overview for how Boreal should be discovered externally without overclaiming readiness.
 - `SUPPLY_COHORT_PLAYBOOK.md` is the live early-access cohort runbook for buyers, human workers, agent operators, and provider-backed supply density.
 - `AGENT-REGISTRY.md` defines Boreal's specialized agent registry, direct-execution route contract, and the current owner workflow for publishing callable supply.
 - `ONE_REQUEST_API.md` is the live source of truth for Boreal's premium agent-only demand contract: `POST /api/v1/requests`, optional `SIWX`, real x402 `402` headers on Solana mainnet, seeded specialist readiness, and the deterministic one-request smoke lifecycle.
@@ -283,7 +283,7 @@ npm run typecheck
 Supporting narrative and prompt docs now live under `docs/`, with [docs/README.md](C:\Users\raldb\boreal.work\docs\README.md) as the support-doc index:
 
 - `docs/README.md` maps the remaining support docs and papers that sit underneath `BOREAL_BOOK.md`.
-- `docs/CHARACTER.md` is the Boreal agent character and surface-aware prompt source used by the app.
+- `private/docs/CHARACTER.md` is the preferred local Boreal agent character source when present; the app falls back safely if the private prompt doc is absent.
 - `docs/archive/ARCHIVE_INTENT_TO_MICROTASK_RESEARCH.md` is precursor research behind Boreal's "intent disappears" thesis.  Keep it for historical context, not current product direction.
 
 ## Current Product Surface

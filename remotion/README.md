@@ -6,7 +6,7 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 
 ## Layout
 
-- `docs/`: storyboard, creative brief, voiceover, shot lists, and production notes
+- `../private/remotion/docs/`: local-only storyboard, creative brief, voiceover, shot lists, and production notes
 - `src/`: Remotion compositions, components, timeline logic, and shared helpers
 - `assets/`: local images, audio, fonts, exported UI captures, logos, and reusable media inputs
 - `public/`: runtime-served assets loaded by Remotion using `staticFile()`
@@ -14,9 +14,7 @@ Keep all Remotion-specific work here so it does not mix with unrelated app, agen
 
 ## Current status
 
-- The creative brief lives in `docs/creative-brief.md`
-- The scene-by-scene storyboard lives in `docs/scenes.md`
-- The premium one-minute showcase/update shot plan lives in `docs/showcase-update-60.md`
+- Local-only storyboards and scripts now live under `../private/remotion/docs/`
 - The video system now has a reusable scene architecture for full-length films and standalone short cuts
 - Current registered compositions include the main hackathon / launch films plus short reusable marketing cuts
 - `src/generations/request-native-2026/` holds a preserved parallel generation for `BorealDemo`, `BorealUpdate`, `BorealLaunch`, and `BorealShowcase60`

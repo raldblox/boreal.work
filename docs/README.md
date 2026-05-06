@@ -6,10 +6,8 @@ The living Boreal narrative canon now lives in [BOREAL_BOOK.md](C:\Users\raldb\b
 
 Use this folder for narrower support docs only:
 
-- [CHARACTER.md](C:\Users\raldb\boreal.work\docs\CHARACTER.md)
-  Boreal agent behavior and prompt-character source
 - [DESKTOP_PLAN.md](C:\Users\raldb\boreal.work\DESKTOP_PLAN.md)
-  target architecture note for Boreal Desktop V1 and its owner-only private desktop-node model
+  public-safe overview of Boreal Desktop and its owner-only private execution model
 - [papers/BOREAL_WORK_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\BOREAL_WORK_NETWORK.md)
   flagship public paper
 - [papers/HUMAN_SUPPLY_NETWORK.md](C:\Users\raldb\boreal.work\docs\papers\HUMAN_SUPPLY_NETWORK.md)
@@ -22,18 +20,22 @@ Use this folder for narrower support docs only:
   external-agent onboarding paper
 - [archive/README.md](C:\Users\raldb\boreal.work\docs\archive\README.md)
   historical research and retired working notes
-- [internal/README.md](C:\Users\raldb\boreal.work\docs\internal\README.md)
-  internal Codex prompt-process notes
+
+Local-only working docs:
+
+- `private/docs/CHARACTER.md`
+  Boreal agent behavior and prompt-character source
+- `private/docs/internal/`
+  operator-only prompt-process notes
+- `private/docs/BRAND_SYSTEM.md`
+- `private/docs/COPYWRITING.md`
+- `private/docs/MESSAGING_MATRIX.md`
+- `private/docs/VISUAL_IDENTITY.md`
+- `private/docs/DECK.md`
 
 Compatibility notes:
 
-- `BRAND_SYSTEM.md`
-- `COPYWRITING.md`
-- `MESSAGING_MATRIX.md`
-- `VISUAL_IDENTITY.md`
-- `DECK.md`
-
-These files are retained only as entry points for older references.  Their living guidance now belongs in [BOREAL_BOOK.md](C:\Users\raldb\boreal.work\BOREAL_BOOK.md).
+Older brand, messaging, deck, and prompt-working docs now stay in the local `private/` workspace.  Their living public guidance belongs in [BOREAL_BOOK.md](C:\Users\raldb\boreal.work\BOREAL_BOOK.md).
 
 Practical rule:
 

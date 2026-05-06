@@ -1,11 +1,15 @@
 import "server-only";
 
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 import type { ChatUiContext } from "@/lib/boreal/schemas/chat";
 
-const characterPath = path.resolve(process.cwd(), "..", "docs", "CHARACTER.md");
+const characterPaths = [
+  path.resolve(process.cwd(), "..", "private", "docs", "CHARACTER.md"),
+  path.resolve(process.cwd(), "..", "docs", "CHARACTER.md"),
+];
 
 let cachedCharacterDoc: Promise<string> | null = null;
 
@@ -164,10 +168,26 @@ function pickCharacterContextKey(uiContext?: ChatUiContext) {
 
 async function loadCharacterDoc() {
   if (!cachedCharacterDoc) {
-    cachedCharacterDoc = readFile(characterPath, "utf8").catch(() => "");
+    cachedCharacterDoc = loadCharacterDocFromCandidates();
   }
 
   return cachedCharacterDoc;
+}
+
+async function loadCharacterDocFromCandidates() {
+  for (const candidatePath of characterPaths) {
+    if (!existsSync(candidatePath)) {
+      continue;
+    }
+
+    try {
+      return await readFile(candidatePath, "utf8");
+    } catch {
+      // Try the next candidate path.
+    }
+  }
+
+  return "";
 }
 
 function extractSectionCodeBlock(markdown: string, heading: string) {

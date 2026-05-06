@@ -15,7 +15,7 @@ Use other docs for their narrower jobs:
 
 - `README.md`: repo entrypoint, setup, commands, structure
 - `AGENTS.md`: contributor rules and sync discipline
-- `ROADMAP.md`: the only execution tracker, release gate, and priority order
+- `ROADMAP.md`: the public-safe roadmap summary, release boundary, and high-level priority order
 - `REQUEST_LIFECYCLE.md`: the canonical request-to-funding-to-fulfillment flow
 - contract and architecture docs: exact technical boundaries
 
@@ -320,11 +320,11 @@ These docs should stay separate because they do a narrower job than this book:
 - `COMMERCE_STANDARDS.md`
 - `CONNECT_AGENT_GUIDE.md`
 - `HERMES_CONNECT_QUICKSTART.md`
-- `docs/CHARACTER.md`
+- local-only prompt working docs under `private/docs/`
 - `docs/papers/*`
 
 ## Compatibility Note
 
-Older narrative docs such as `WHITEPAPER.md`, `MVP.md`, `docs/BRAND_SYSTEM.md`, `docs/COPYWRITING.md`, `docs/MESSAGING_MATRIX.md`, `docs/VISUAL_IDENTITY.md`, and `docs/DECK.md` are retained only as compatibility entry points or historical notes where needed.
+Older narrative docs such as `WHITEPAPER.md`, `MVP.md`, and older brand or messaging working notes now exist only as compatibility references or local private drafts where needed.
 
 They should not compete with this file as living narrative truth.

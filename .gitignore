@@ -1,6 +1,7 @@
 /presentations/
 /boreal-desktop/dist/
 /boreal-desktop/node_modules/
+/private/
 
 # Generated HyperFrames render outputs and scratch artifacts
 /hyperframes/renders/

@@ -28,13 +28,7 @@ npx hyperframes render --quality draft --output renders/boreal-explainer-48.mp4
 
 ## Workspace Files
 
-- `DESIGN.md`: Boreal video visual gate
-- `docs/creative-brief.md`: cut goals and audience
-- `docs/scenes.md`: scene-by-scene plan
-- `docs/voice-script.md`: timed narration draft
-- `docs/capture-list.md`: filenames and targets for real UI footage
-- `docs/series-judgment.md`: why the later three-video prompt was adapted before implementation
-- `docs/series-plan.md`: Boreal-accurate structures for the new demo, update, and launch cuts
+- Local-only HyperFrames planning docs now live under `../private/hyperframes/`
 - `compositions/boreal-launch-explainer.html`: first Boreal HyperFrames cut
 
 ## Working Rule

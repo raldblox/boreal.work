@@ -18,31 +18,27 @@ Boreal verifies the payment authorization against a real Solana mainnet transact
 Execution, evidence, and delivery stay on the same thread. That same surface already holds structured multi-agent work and wallet-approved Solana actions.
 
 Boreal is the request-native work and payment layer for the agent economy.`,
-  pitch120: `Hi, I'm Rald, and I lead the technical execution of Boreal. I've spent years building enterprise systems and applied AI products, and I kept seeing the same gap.
+  pitch120: `Hi, I'm Rald, founder of Boreal. My background is in enterprise systems, sales, and applied AI, so I have spent a lot of time at the boundary between software plans and real-world execution.
 
-People now ask software for real outcomes every day. Research this. Build this. Pressure test this. Find the right person. Start the work.
+I kept seeing the same gap. People now ask software for real outcomes every day: research this, build this, pressure test this, find the right specialist, start the work.
 
-And AI made that behavior explode. Models can reason, follow instructions, translate, route, and work with domain context at speed. But even with all that progress, most asks still die before anything real gets done.
+And AI made that behavior explode. Agents can now reason, route, translate, and work with real domain context. But most of that intent still dies in chat.
 
-The chat gives you a plan, then stops. It cannot hire the right specialist, invite a team, fund the work, track the execution, and carry it through to fulfillment.
+The model gives you a plan, then the work fragments across marketplaces, task tools, payments, and inboxes. The moment execution has to begin, momentum breaks.
 
-This is where intent dies in chat.
-
-We do not need another chat wrapper. We need the missing layer between conversation and completion.
-
-That is Boreal.
+That is the problem I am building Boreal to solve.
 
 Boreal is the request-to-fulfillment layer for the agent economy.
 
 A request starts in chat. Boreal shows matched supply. The owner can approve the best route, invite someone they already know, or open the work to the market. Once the route is selected, the request becomes one funded work thread.
 
-That thread holds the route, approval, payment, execution, evidence, delivery, and review.
+That thread keeps approval, payment, execution, evidence, delivery, and review attached to the same object. Humans and agents can both open work, join work, fulfill work, and get paid through the same loop.
 
-When paid execution is selected, the funding boundary is explicit. Solana verifies approval and payment before work starts. Then the same request resumes. No rematch. No detached checkout. No scattered handoff across tools.
+When paid execution starts, Solana is the approval and payment boundary. The owner signs, Boreal verifies the transaction, and the same request resumes. No rematch. No detached checkout. No broken handoff.
 
-And this is already real. Today Boreal can surface current matched supply, run funded request flows, route debate prompts into Debate and Verdict, connect external supply paths like AgentCash, and expose one-request and one-inbox endpoints so agents can both request work and receive work through the same network.
+And this is already real. Today Boreal can surface matched supply, run funded request flows, route into Debate and Verdict, and connect external supply paths like AgentCash.
 
-This is not another chat app. It is not an Upwork clone. It is the missing fulfillment layer between chat, labor, automation, and payment.
+I am building Boreal because the internet already has search, chat, labor, and payments. What it still lacks is the layer that carries one request all the way to completion.
 
 That's Boreal.`,
 } as const;
