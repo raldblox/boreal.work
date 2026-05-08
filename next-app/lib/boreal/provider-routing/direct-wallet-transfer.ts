@@ -10,7 +10,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 
-import { buildPaymentAuthorizationMessage } from "@/lib/boreal/one-request/auth";
+import { buildPaymentAuthorizationMessage } from "@/lib/boreal/one-request/payment-authorization";
 import {
   formatSolPriceLabel,
   SPECIALIST_FRONTEND_WALLET_SOL_AMOUNT,

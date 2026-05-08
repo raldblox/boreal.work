@@ -1,13 +1,17 @@
-import { ed25519 } from "@noble/curves/ed25519";
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 
 import {
   getDefaultSolanaNetworkKey,
   getDefaultSolanaNetworkLabel,
   type BorealSolanaNetworkKey,
 } from "../solana-network.ts";
+import {
+  buildPaymentAuthorizationMessage,
+  buildPaymentReferenceMemo,
+} from "./payment-authorization.ts";
 
 type SessionPayload = {
   exp: number;
@@ -138,34 +142,7 @@ export function createOpaqueToken(label: string, seed?: string) {
   return `${label}_${raw.slice(0, 32)}`;
 }
 
-export function buildPaymentAuthorizationMessage(input: {
-  amount: number;
-  currency: string;
-  quoteToken: string;
-  requestToken: string;
-}) {
-  const paymentReference = buildPaymentReferenceMemo({
-    quoteToken: input.quoteToken,
-    requestToken: input.requestToken,
-  });
-
-  return [
-    `${BOREAL_HOST} payment authorization`,
-    `Request: ${input.requestToken}`,
-    `Quote: ${input.quoteToken}`,
-    `Amount: ${input.amount} ${input.currency}`,
-    `Network: ${getDefaultSolanaNetworkKey()}`,
-    `Reference: ${paymentReference}`,
-    "Purpose: authorize one Boreal auto route execution",
-  ].join("\n");
-}
-
-export function buildPaymentReferenceMemo(input: {
-  quoteToken: string;
-  requestToken: string;
-}) {
-  return `boreal:one-request:${input.requestToken}:${input.quoteToken}`;
-}
+export { buildPaymentAuthorizationMessage, buildPaymentReferenceMemo };
 
 export function verifySolanaMessageSignature(input: {
   message: string;

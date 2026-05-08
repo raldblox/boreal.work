@@ -55,6 +55,9 @@
   "dependencies": {
     "@ai-sdk/openai": "^3.0.53",
     "@auth/core": "^0.34.3",
+    "@coinbase/cdp-sdk": "^1.48.3",
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
     "@radix-ui/react-use-controllable-state": "1.2.2",
     "@reown/appkit": "1.8.19",
     "@reown/appkit-adapter-solana": "^1.8.19",
